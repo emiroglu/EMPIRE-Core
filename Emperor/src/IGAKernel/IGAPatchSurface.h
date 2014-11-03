@@ -434,6 +434,9 @@ public:
 
     /// The tolerance for the distance of the computed point to the surface for points which are expected to be projected in irregular locations of the patch
     static const double EPS_DISTANCE_RELAXED;
+
+    /// The tolerance for the orthogonal projection of an edge to a patch boundary
+    static const double EPS_CONVERGED_PROJECTION_ON_PATCH_BOUNDARY;
 };
 
 /***********************************************************************************************
