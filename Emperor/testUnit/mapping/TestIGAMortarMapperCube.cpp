@@ -38,7 +38,7 @@ private:
 public:
     void setUp() {
 
-        Tol = 1e-15;
+        Tol = 1e-13;
 
         // Provide an id for the basis
         int id_basis = 1;
@@ -220,7 +220,7 @@ public:
         theFEMesh->nodes[5 * 3 + 2] = 0.95;
 
         bool isMappingIGA2FEM = true;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh, 0.5, 16,
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper for Cube", theIGAMesh, theFEMesh, 0.5, 16,
                 25, isMappingIGA2FEM);
 
     }
@@ -248,9 +248,6 @@ public:
         theMapper->consistentMapping(fieldS, fieldF);
         for (int i = 0; i < nF; i++)
             CPPUNIT_ASSERT(fabs(fieldF[i] - 1.0) < Tol);
-	
-	exit(-1);
-
     }
 
 // Make the tests
@@ -258,8 +255,7 @@ public:
 
     CPPUNIT_TEST (testMapping);
 //	CPPUNIT_TEST(testMappingPrint);
-    CPPUNIT_TEST_SUITE_END()
-    ;
+    CPPUNIT_TEST_SUITE_END();
 }
 ;
 
