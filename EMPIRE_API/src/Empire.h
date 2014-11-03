@@ -87,6 +87,33 @@ public:
     void sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem,
             int *elems);
     /***********************************************************************************************
+     * \brief Receive mesh initializers from the server
+     * \param[in] numNodes number of nodes
+     * \param[in] numElems number of elements
+     * \author Altug Emiroglu
+     ***********/
+    void recvMeshInit(int *numNodes, int *numElems);
+    /***********************************************************************************************
+     * \brief Receive mesh data from the server
+     * \param[in] nodes coordinates of all nodes
+     * \param[in] nodeIDs IDs of all nodes
+     * \param[in] numNodesPerElem number of nodes per element
+     * \param[in] elems connectivity table of all elements
+     * \author Altug Emiroglu
+     ***********/
+    void recvMeshData(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem);
+    /***********************************************************************************************
+     * \brief Receive mesh from the server
+     * \param[in] numNodes number of nodes
+     * \param[in] numElems number of elements
+     * \param[in] nodes coordinates of all nodes
+     * \param[in] nodeIDs IDs of all nodes
+     * \param[in] numNodesPerElem number of nodes per element
+     * \param[in] elems connectivity table of all elements
+     * \author Altug Emiroglu
+     ***********/
+    void recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems);
+    /***********************************************************************************************
      * \brief Send the IGA patch to the server
      * \param[in] _pDegree The polynomial degree of the IGA 2D patch in the u-direction
      * \param[in] _uNumKnots The number of knots for the knot vector in the u-direction
@@ -109,39 +136,6 @@ public:
      * \author Chenshen Wu
      ***********/
     void sendIGAMesh(int _numPatches, int _numNodes);
-    /***********************************************************************************************
-     * \brief Send the IGA trimming information to the server
-     * \param[in] _isTrimmed Whether the current considered patch is trimmed
-     * \param[in] _numLoops The number of loops defining boundary
-     * \author Fabien Pean
-     ***********/
-    void sendIGATrimmingInfo(int _isTrimmed, int _numLoops);
-    /***********************************************************************************************
-     * \brief Send the IGA trimming information about patch to the server
-     * \param[in] _uNumKnots The number of knots in U direction
-     * \param[in] _vNumKnots The number of knots in V direction
-     * \param[in] _knotSpanBelonging The array indicating the knots state, inside,trimmed,outside
-     * \author Fabien Pean
-     ***********/
-    void sendIGATrimmingPatchInfo(int _uNumKnots, int _vNumKnots, int* _knotSpanBelonging);
-    /***********************************************************************************************
-     * \brief Send the IGA trimming information about the loop to the server
-     * \param[in] _inner whether loop is outter boundary loop or inner
-     * \param[in] _numCurves The number of curves defining the loop
-     * \author Fabien Pean
-     ***********/
-    void sendIGATrimmingLoopInfo(int _inner, int _numCurves);
-    /***********************************************************************************************
-     * \brief Send a IGA trimming curve to the server
-     * \param[in] direction The direction of the curve if is following standard or not
-     * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
-     * \param[in] _uNumKnots The number of knots for the knot vector in the u-direction
-     * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
-     * \param[in] _uNoControlPoints The number of the Control Points for the 1D NURBS patch in the u-direction
-     * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
-     * \author Fabien Pean
-     ***********/
-    void sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
     /***********************************************************************************************
      * \brief Send data field to the server
      * \param[in] sizeOfArray size of the array (data field)

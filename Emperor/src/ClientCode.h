@@ -37,6 +37,7 @@ namespace EMPIRE {
 
 class ServerCommunication;
 class AbstractMesh;
+class FEMesh; //altug
 class Signal;
 
 /********//**
@@ -76,6 +77,30 @@ public:
      * \author Tianyang Wang
      ***********/
     void recvFEMesh(std::string meshName, bool triangulateAll);
+    /***********************************************************************************************
+     * \brief Send mesh initializers to a real client
+     * \param[in] meshName name of the mesh to be received
+     * \author Altug Emiroglu
+     ***********/
+    void sendMeshInit(std::string meshName);
+    /***********************************************************************************************
+     * \brief Send mesh data to a real client
+     * \param[in] meshName name of the mesh to be received
+     * \author Altug Emiroglu
+     ***********/
+    void sendMeshData(std::string meshName);
+    /***********************************************************************************************
+     * \brief Send mesh to a real client
+     * \param[in] meshName name of the mesh to be received
+     * \author Altug Emiroglu
+     ***********/
+    void sendMesh(std::string meshName);
+    /***********************************************************************************************
+     * \brief Copy mesh from existing mesh
+     * \param[in] meshName name of the mesh to be received
+     * \author Altug Emiroglu
+     ***********/
+    void copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom);
     /***********************************************************************************************
      * \brief Receive the mesh from a real client
      * \param[in] meshName name of the mesh to be received

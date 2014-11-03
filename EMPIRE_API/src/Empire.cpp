@@ -68,6 +68,45 @@ void Empire::sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, i
         count += numNodesPerElem[i];
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(count, elems);
 }
+//altug
+void Empire::recvMeshInit(int *numNodes, int *numElems) {
+    std::cout<<"lalal"<<std::endl;
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numNodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numElems);
+}
+
+void Empire::recvMeshData(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem)
+{
+    const int DIMENSION = 3;
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<double>(numNodes * DIMENSION, nodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(numNodes, nodeIDs);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(numElems, numNodesPerElem);
+//    int count = 0;
+//    for (int i = 0; i < numElems; i++)
+//        count += numNodesPerElem[i];
+//    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(count, elems);
+}
+
+void Empire::recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems)
+{
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numNodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numElems);
+    const int DIMENSION = 3;
+
+    *nodes = new double[(*numNodes)*DIMENSION];
+    *nodeIDs = new int[*numNodes];
+    *numNodesPerElem = new int[*numElems];
+
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<double>((*numNodes) * DIMENSION, *nodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>((*numNodes), *nodeIDs);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>((*numElems), *numNodesPerElem);
+    int count = 0;
+    for (int i = 0; i < *numElems; i++)
+        count += (*numNodesPerElem)[i];
+    *elems = new int[count];
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(count, *elems);
+}
+//altug
 
 void Empire::sendIGAMesh(int _numPatches, int _numNodes){
     const int BUFFER_SIZE = 2;
@@ -84,28 +123,6 @@ void Empire::sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, in
     ClientCommunication::getSingleton()->sendToServerBlocking<double>(_vNumKnots,_vKnotVector);
     ClientCommunication::getSingleton()->sendToServerBlocking<double>(_uNumControlPoints * _vNumControlPoints * 4, _cpNet);
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(_uNumControlPoints * _vNumControlPoints, _nodeNet);
-}
-
-void Empire::sendIGATrimmingInfo(int _isTrimmed, int _numLoops){
-    const int BUFFER_SIZE = 2;
-    int trimInfo[BUFFER_SIZE] = { _isTrimmed, _numLoops};
-    ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,trimInfo);
-    
-}
-void Empire::sendIGATrimmingPatchInfo(int _uNumKnots, int _vNumKnots, int* _knotSpanBelonging){
-    ClientCommunication::getSingleton()->sendToServerBlocking<int>((_uNumKnots-1)*(_vNumKnots-1), _knotSpanBelonging);
-}
-void Empire::sendIGATrimmingLoopInfo(int _inner, int _numCurves){
-    const int BUFFER_SIZE = 2;
-    int trimInfo[BUFFER_SIZE] = { _inner, _numCurves};
-    ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,trimInfo);
-}
-void Empire::sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet){
-    const int BUFFER_SIZE = 4;
-    int trimInfo[BUFFER_SIZE] = { _direction, _pDegree, _uNumKnots, _uNumControlPoints};
-    ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,trimInfo);
-    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_uNumKnots,_uKnotVector);
-    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_uNumControlPoints*4, _cpNet);
 }
 
 void Empire::sendDataField(int sizeOfArray, double *dataField) {

@@ -82,6 +82,99 @@ void ClientCode::recvFEMesh(std::string meshName, bool triangulateAll) {
         INFO_OUT() << mesh->boundingBox << endl;
     }
 }
+//altug
+void ClientCode::sendMeshInit(std::string meshName){
+    assert(serverComm != NULL);
+//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+
+    AbstractMesh *mesh = this->getMeshByName(meshName);
+    if (mesh->type == EMPIRE_Mesh_FEMesh){
+        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
+        int numNodes2send = femesh->numNodes;
+        int *numNodes2sendPtr = &numNodes2send;
+        int numElems2send = femesh->numElems;
+        int *numElems2sendPtr = &numElems2send;
+        serverComm->sendToClientBlocking<int>(name, 1, numNodes2sendPtr);
+        serverComm->sendToClientBlocking<int>(name, 1, numElems2sendPtr);
+    } else{
+        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
+        assert(false);
+    }
+}
+
+void ClientCode::sendMeshData(std::string meshName){
+    assert(serverComm != NULL);
+//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+
+    AbstractMesh *mesh = this->getMeshByName(meshName);
+    if (mesh->type == EMPIRE_Mesh_FEMesh){
+        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
+        serverComm->sendToClientBlocking<double>(name, femesh->numNodes * 3, femesh->nodes);
+        serverComm->sendToClientBlocking<int>(name, femesh->numNodes, femesh->nodeIDs);
+        serverComm->sendToClientBlocking<int>(name, femesh->numElems, femesh->numNodesPerElem);
+     } else{
+        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
+        assert(false);
+    }
+}
+
+void ClientCode::sendMesh(std::string meshName){
+    assert(serverComm != NULL);
+//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+
+    AbstractMesh *mesh = this->getMeshByName(meshName);
+    if (mesh->type == EMPIRE_Mesh_FEMesh){
+        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
+        int numNodes2send = femesh->numNodes;
+        int *numNodes2sendPtr = &numNodes2send;
+        int numElems2send = femesh->numElems;
+        int *numElems2sendPtr = &numElems2send;
+        serverComm->sendToClientBlocking<int>(name, 1, numNodes2sendPtr);
+        serverComm->sendToClientBlocking<int>(name, 1, numElems2sendPtr);
+        serverComm->sendToClientBlocking<double>(name, femesh->numNodes * 3, femesh->nodes);
+        serverComm->sendToClientBlocking<int>(name, femesh->numNodes, femesh->nodeIDs);
+        serverComm->sendToClientBlocking<int>(name, femesh->numElems, femesh->numNodesPerElem);
+        int count = 0;
+        for (int i = 0; i < numElems2send; i++)
+            count += femesh->numNodesPerElem[i];
+        serverComm->sendToClientBlocking<int>(name, count, femesh->elems);
+     } else{
+        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
+        assert(false);
+    }
+    //altug
+    std::cout << "END sendMesh" << std::endl;
+}
+
+void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
+    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+    if (meshToCopyFrom->type == EMPIRE_Mesh_FEMesh){
+        { // output to shell
+            HEADING_OUT(3, "ClientCode", "copying mesh (" + meshToCopyFrom->name + ") to (" + meshName + ") of ["+name+"]...",
+                    infoOut);
+        }
+        FEMesh* femesh = dynamic_cast<FEMesh*>( meshToCopyFrom );
+        int numNodes = femesh->numNodes;
+        int numElems = femesh->numElems;
+        FEMesh *copyMesh = new FEMesh(meshName, numNodes, numElems, false); //triangulateAll=false
+        copyMesh->nodes = femesh->nodes;
+        copyMesh->nodeIDs = femesh->nodeIDs;
+        copyMesh->numNodesPerElem = femesh->numNodesPerElem;
+        copyMesh->initElems();
+        copyMesh->elems = femesh->elems;
+        nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
+        { // output to shell
+            DEBUG_OUT() << (*copyMesh) << endl;
+            copyMesh->computeBoundingBox();
+            INFO_OUT() << copyMesh->boundingBox << endl;
+        }
+    } else {
+        std::cout << "Not implemented for IGA yet" << std::endl;
+        assert(false);
+    }
+}
+// altug
+
 void ClientCode::recvIGAMesh(std::string meshName) {
     assert(serverComm != NULL);
     assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());

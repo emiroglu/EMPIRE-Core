@@ -46,6 +46,11 @@ struct structClientCode {
         };
         std::string name;
         EMPIRE_Mesh_type type;
+        // altug
+        std::string clientNameToCopyFrom;
+        std::string meshNameToCopyFrom;
+        bool sendMeshToClient;
+        //altug
         bool triangulateAll;
         std::vector<structDataField> dataFields;
     };
