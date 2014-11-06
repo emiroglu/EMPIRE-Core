@@ -69,7 +69,7 @@ enum EMPIRE_Mapper_type {
 
 enum EMPIRE_Mesh_type {
     EMPIRE_Mesh_FEMesh, EMPIRE_Mesh_IGAMesh
-    ,EMPIRE_Mesh_copyFEMesh //altug
+    ,EMPIRE_Mesh_copyFEMesh
 };
 
 enum EMPIRE_DataFieldFilter_type {

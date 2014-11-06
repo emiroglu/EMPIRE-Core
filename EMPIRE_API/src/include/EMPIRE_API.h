@@ -86,7 +86,6 @@ char *EMPIRE_API_getUserDefinedText(char *elementName);
 void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
         int *numNodesPerElem, int *elems);
 
-// altug
 /***********************************************************************************************
  * \brief Recieve mesh from the server
  * \param[in] name name of the mesh
@@ -97,13 +96,8 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
  * \param[in] numNodesPerElem number of nodes per element
  * \param[in] elems connectivity table of all elements
  ***********/
-void EMPIRE_API_recvMeshInit(char *name, int *numNodes, int *numElems);
-
-void EMPIRE_API_recvMeshData(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem);
-
 void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
             int **numNodesPerElem, int **elem);
-//altug
 
 /***********************************************************************************************
  * \brief Send the IGA patch to the server

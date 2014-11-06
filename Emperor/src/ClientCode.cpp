@@ -82,41 +82,6 @@ void ClientCode::recvFEMesh(std::string meshName, bool triangulateAll) {
         INFO_OUT() << mesh->boundingBox << endl;
     }
 }
-//altug
-void ClientCode::sendMeshInit(std::string meshName){
-    assert(serverComm != NULL);
-//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
-
-    AbstractMesh *mesh = this->getMeshByName(meshName);
-    if (mesh->type == EMPIRE_Mesh_FEMesh){
-        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
-        int numNodes2send = femesh->numNodes;
-        int *numNodes2sendPtr = &numNodes2send;
-        int numElems2send = femesh->numElems;
-        int *numElems2sendPtr = &numElems2send;
-        serverComm->sendToClientBlocking<int>(name, 1, numNodes2sendPtr);
-        serverComm->sendToClientBlocking<int>(name, 1, numElems2sendPtr);
-    } else{
-        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
-        assert(false);
-    }
-}
-
-void ClientCode::sendMeshData(std::string meshName){
-    assert(serverComm != NULL);
-//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
-
-    AbstractMesh *mesh = this->getMeshByName(meshName);
-    if (mesh->type == EMPIRE_Mesh_FEMesh){
-        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
-        serverComm->sendToClientBlocking<double>(name, femesh->numNodes * 3, femesh->nodes);
-        serverComm->sendToClientBlocking<int>(name, femesh->numNodes, femesh->nodeIDs);
-        serverComm->sendToClientBlocking<int>(name, femesh->numElems, femesh->numNodesPerElem);
-     } else{
-        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
-        assert(false);
-    }
-}
 
 void ClientCode::sendMesh(std::string meshName){
     assert(serverComm != NULL);
@@ -142,8 +107,6 @@ void ClientCode::sendMesh(std::string meshName){
         DEBUG_OUT() << "Not implemented for IGA yet" << endl;
         assert(false);
     }
-    //altug
-    std::cout << "END sendMesh" << std::endl;
 }
 
 void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
@@ -173,7 +136,6 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
         assert(false);
     }
 }
-// altug
 
 void ClientCode::recvIGAMesh(std::string meshName) {
     assert(serverComm != NULL);

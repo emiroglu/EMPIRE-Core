@@ -87,22 +87,6 @@ public:
     void sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem,
             int *elems);
     /***********************************************************************************************
-     * \brief Receive mesh initializers from the server
-     * \param[in] numNodes number of nodes
-     * \param[in] numElems number of elements
-     * \author Altug Emiroglu
-     ***********/
-    void recvMeshInit(int *numNodes, int *numElems);
-    /***********************************************************************************************
-     * \brief Receive mesh data from the server
-     * \param[in] nodes coordinates of all nodes
-     * \param[in] nodeIDs IDs of all nodes
-     * \param[in] numNodesPerElem number of nodes per element
-     * \param[in] elems connectivity table of all elements
-     * \author Altug Emiroglu
-     ***********/
-    void recvMeshData(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem);
-    /***********************************************************************************************
      * \brief Receive mesh from the server
      * \param[in] numNodes number of nodes
      * \param[in] numElems number of elements

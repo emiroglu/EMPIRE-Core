@@ -127,8 +127,7 @@ void MetaDatabase::fillSettingClientCodesVec() {
                     mesh.type = EMPIRE_Mesh_FEMesh;
                 } else if (meshType == "IGAMesh") {
                     mesh.type = EMPIRE_Mesh_IGAMesh;
-                } //altug
-                else if (meshType == "copyFEMesh"){
+                } else if (meshType == "copyFEMesh"){
                     mesh.type = EMPIRE_Mesh_copyFEMesh;
                     if(xmlMesh->HasAttribute("fromClient") && xmlMesh->HasAttribute("fromMesh")){
                         mesh.clientNameToCopyFrom = xmlMesh->GetAttribute<string>("fromClient");
@@ -149,8 +148,8 @@ void MetaDatabase::fillSettingClientCodesVec() {
                         mesh.sendMeshToClient = sendMeshToClient;
                     } else {
                         assert(false);
-                    }// altug
-                }else {
+                    }
+                } else {
                     assert(false);
                 }
             } else {
@@ -244,8 +243,6 @@ void MetaDatabase::fillSettingClientCodesVec() {
 }
 
 void MetaDatabase::fillSettingDataOutputVec() {
-    //altug
-    std::cout << "fillSettingDataOutputVec" << std::endl;
     assert(settingDataOutputVec.size()==0);
     ticpp::Element *xmlEMPEROR = inputFile->FirstChildElement("EMPEROR");
     ticpp::Iterator<Element> xmlDataOutput("dataOutput");
@@ -429,8 +426,6 @@ void MetaDatabase::fillSettingExtrapolatorVec() {
 }
 
 void MetaDatabase::fillSettingConnectionVec() {
-    //altug
-    std::cout << "fillSettingDataOutputVec" << std::endl;
     assert(settingConnectionVec.size() == 0);
     ticpp::Element *xmlEMPEROR = inputFile->FirstChildElement("EMPEROR");
     ticpp::Iterator<Element> xmlConnection("connection");
