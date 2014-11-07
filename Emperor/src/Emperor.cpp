@@ -305,7 +305,8 @@ void Emperor::initMappers() {
 		} else if (settingMapper.type == EMPIRE_IGAMortarMapper) {
 			mapper->initIGAMortarMapper(settingMapper.igaMortarMapper.tolProjectionDistance,
 					settingMapper.igaMortarMapper.numGPsTriangle,
-					settingMapper.igaMortarMapper.numGPsQuad);
+					settingMapper.igaMortarMapper.numGPsQuad,
+					settingMapper.igaMortarMapper.numDivision);
 			nameToMapperMap.insert(pair<string, MapperAdapter*>(name, mapper));
 		} else {
 			assert(false);
