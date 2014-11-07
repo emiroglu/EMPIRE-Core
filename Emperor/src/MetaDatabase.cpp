@@ -112,7 +112,7 @@ void MetaDatabase::fillSettingClientCodesVec() {
     ticpp::Element *xmlEMPEROR = inputFile->FirstChildElement("EMPEROR");
     ticpp::Iterator<Element> xmlClientCode("clientCode");
     for (xmlClientCode = xmlClientCode.begin(xmlEMPEROR); xmlClientCode != xmlClientCode.end();
-            xmlClientCode++) {
+         xmlClientCode++) {
         structClientCode clientCode;
         clientCode.name = xmlClientCode->GetAttribute<string>("name");
 
@@ -127,6 +127,28 @@ void MetaDatabase::fillSettingClientCodesVec() {
                     mesh.type = EMPIRE_Mesh_FEMesh;
                 } else if (meshType == "IGAMesh") {
                     mesh.type = EMPIRE_Mesh_IGAMesh;
+                } else if (meshType == "copyFEMesh"){
+                    mesh.type = EMPIRE_Mesh_copyFEMesh;
+                    if(xmlMesh->HasAttribute("fromClient") && xmlMesh->HasAttribute("fromMesh")){
+                        mesh.clientNameToCopyFrom = xmlMesh->GetAttribute<string>("fromClient");
+                        mesh.meshNameToCopyFrom = xmlMesh->GetAttribute<string>("fromMesh");
+                    } else {
+                        assert(false);
+                    }
+                    if(xmlMesh->HasAttribute("sendMeshToClient")){
+                        bool sendMeshToClient;
+                        string tmp = xmlMesh->GetAttribute<string>("sendMeshToClient");
+                        if (tmp == "true") {
+                            sendMeshToClient = true;
+                        } else if (tmp == "false") {
+                            sendMeshToClient = false;
+                        } else {
+                            assert(false);
+                        }
+                        mesh.sendMeshToClient = sendMeshToClient;
+                    } else {
+                        assert(false);
+                    }
                 } else {
                     assert(false);
                 }
