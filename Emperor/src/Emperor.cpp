@@ -208,7 +208,7 @@ void Emperor::startServerCoupling() {
 void Emperor::connectAllClients() {
 	while (1) {
 		if (ServerCommunication::getSingleton()->allClientsConnected()) {
-            INFO_OUT() << "All clients successfully connected!" << endl;
+			INFO_OUT() << "All clients successfully connected!" << endl;
 			break;
 		}
 	}
@@ -220,54 +220,45 @@ void Emperor::disconnectAllClients() {
 }
 
 void Emperor::initClientCodes() {
-    //set<string> clientNames;
-    //ServerCommunication::getSingleton()->getClientNames(&clientNames);
-    const vector<structClientCode> &settingClientCodesVec =
-            MetaDatabase::getSingleton()->settingClientCodeVec;
-    for (int i = 0; i < settingClientCodesVec.size(); i++) {
-        const structClientCode &settingClientCode = settingClientCodesVec[i];
-        string name = settingClientCode.name;
-        //assert(clientNames.find(name)!=clientNames.end());
-        const vector<structClientCode::structMesh> &settingMeshes = settingClientCode.meshes;
-        const vector<structClientCode::structSignal> &settingSignals = settingClientCode.signals;
+	//set<string> clientNames;
+	//ServerCommunication::getSingleton()->getClientNames(&clientNames);
+	const vector<structClientCode> &settingClientCodesVec =
+			MetaDatabase::getSingleton()->settingClientCodeVec;
+	for (int i = 0; i < settingClientCodesVec.size(); i++) {
+		const structClientCode &settingClientCode = settingClientCodesVec[i];
+		string name = settingClientCode.name;
+		//assert(clientNames.find(name)!=clientNames.end());
+		const vector<structClientCode::structMesh> &settingMeshes = settingClientCode.meshes;
+		const vector<structClientCode::structSignal> &settingSignals = settingClientCode.signals;
 
-        ClientCode *clientCode = new ClientCode(name);
-        clientCode->setServerCommunication(ServerCommunication::getSingleton());
-        for (int j = 0; j < settingMeshes.size(); j++) {
-            const structClientCode::structMesh &settingMesh = settingMeshes[j];
-            if (settingMesh.type == EMPIRE_Mesh_FEMesh) {
-                clientCode->recvFEMesh(settingMesh.name, settingMesh.triangulateAll);
-            } else if (settingMesh.type == EMPIRE_Mesh_IGAMesh) {
-                clientCode->recvIGAMesh(settingMesh.name);
-            } else if (settingMesh.type == EMPIRE_Mesh_copyFEMesh){
-                ClientCode *clientToCopyFrom = nameToClientCodeMap[settingMesh.clientNameToCopyFrom];
-                AbstractMesh *meshToCopyFrom = clientToCopyFrom->getMeshByName(settingMesh.meshNameToCopyFrom);
-                clientCode->copyMesh(settingMesh.name, meshToCopyFrom);
-                if (settingMesh.sendMeshToClient){
-                    clientCode->sendMesh(settingMesh.name);
-                } else {
-                    INFO_OUT() << "Mesh copied but not sent" << endl;
-                }
-            } else {
-                assert(false);
-            }
-            const vector<structClientCode::structMesh::structDataField> &settingDataFields =
-                    settingMesh.dataFields;
-            AbstractMesh *mesh = clientCode->getMeshByName(settingMesh.name);
-            for (int k = 0; k < settingDataFields.size(); k++) {
-                const structClientCode::structMesh::structDataField &settingDataField =
-                        settingDataFields[k];
-                mesh->addDataField(settingDataFields[k].name, settingDataFields[k].location,
-                                   settingDataFields[k].dimension, settingDataFields[k].typeOfQuantity);
-            }
-        }
-        for (int j = 0; j < settingSignals.size(); j++) {
-            const structClientCode::structSignal &settingSignal = settingSignals[j];
-            clientCode->addSignal(settingSignal.name, settingSignal.size3D[0],
-                                  settingSignal.size3D[1], settingSignal.size3D[2]);
-        }
-        nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
-    }
+		ClientCode *clientCode = new ClientCode(name);
+		clientCode->setServerCommunication(ServerCommunication::getSingleton());
+		for (int j = 0; j < settingMeshes.size(); j++) {
+			const structClientCode::structMesh &settingMesh = settingMeshes[j];
+			if (settingMesh.type == EMPIRE_Mesh_FEMesh) {
+			    clientCode->recvFEMesh(settingMesh.name, settingMesh.triangulateAll);
+			} else if (settingMesh.type == EMPIRE_Mesh_IGAMesh) {
+			    clientCode->recvIGAMesh(settingMesh.name);
+			} else {
+			    assert(false);
+			}
+			const vector<structClientCode::structMesh::structDataField> &settingDataFields =
+					settingMesh.dataFields;
+			AbstractMesh *mesh = clientCode->getMeshByName(settingMesh.name);
+			for (int k = 0; k < settingDataFields.size(); k++) {
+				const structClientCode::structMesh::structDataField &settingDataField =
+						settingDataFields[k];
+				mesh->addDataField(settingDataFields[k].name, settingDataFields[k].location,
+						settingDataFields[k].dimension, settingDataFields[k].typeOfQuantity);
+			}
+		}
+		for (int j = 0; j < settingSignals.size(); j++) {
+			const structClientCode::structSignal &settingSignal = settingSignals[j];
+			clientCode->addSignal(settingSignal.name, settingSignal.size3D[0],
+					settingSignal.size3D[1], settingSignal.size3D[2]);
+		}
+		nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
+	}
 }
 
 void Emperor::initDataOutputs() {
