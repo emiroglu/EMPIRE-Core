@@ -9455,7 +9455,7 @@ public:
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperTube);
 
-    CPPUNIT_TEST (testMapping);
+//    CPPUNIT_TEST (testMapping);
 //	CPPUNIT_TEST(testMappingPrint);
     CPPUNIT_TEST_SUITE_END()
     ;

@@ -701,7 +701,7 @@ public:
 
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperCylinder);
-    CPPUNIT_TEST (testMapping);
+    //CPPUNIT_TEST (testMapping);
     CPPUNIT_TEST_SUITE_END();
 }
 ;
