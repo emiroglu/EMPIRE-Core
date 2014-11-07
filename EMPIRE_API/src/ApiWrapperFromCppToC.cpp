@@ -50,11 +50,6 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
     empire->sendMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elems);
 }
 
-void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
-            int **numNodesPerElem, int **elem) {
-    empire->recvMesh(numNodes,numElems,nodes, nodeIDs, numNodesPerElem, elem);
-}
-
 void EMPIRE_API_sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
         int _vNumKnots, double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints,
         double* _cpNet, int* _nodeNet) {
@@ -65,6 +60,23 @@ void EMPIRE_API_sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector,
 void EMPIRE_API_sendIGAMesh(char *_name, int _numPatches, int _numNodes) {
     empire->sendIGAMesh(_numPatches, _numNodes);
 }
+
+void EMPIRE_API_sendIGATrimmingInfo(int _isTrimmed, int _numLoops) {
+    empire->sendIGATrimmingInfo(_isTrimmed, _numLoops);
+}
+
+void EMPIRE_API_sendIGATrimmingPatchInfo(int _uNumKnots, int _vNumKnots, int* _knotSpanBelonging) {
+    empire->sendIGATrimmingPatchInfo(_uNumKnots, _vNumKnots, _knotSpanBelonging);
+}
+
+void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves) {
+    empire->sendIGATrimmingLoopInfo(_inner, _numCurves);
+}
+
+void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet) {
+    empire->sendIGATrimmingCurve(_direction, _pDegree, _uNumKnots, _uKnotVector, _uNumControlPoints, _cpNet);
+}
+
 
 void EMPIRE_API_sendDataField(char *name, int sizeOfArray, double *dataField) {
     empire->sendDataField(sizeOfArray, dataField);
