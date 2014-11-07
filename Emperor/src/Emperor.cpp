@@ -239,6 +239,15 @@ void Emperor::initClientCodes() {
 			    clientCode->recvFEMesh(settingMesh.name, settingMesh.triangulateAll);
 			} else if (settingMesh.type == EMPIRE_Mesh_IGAMesh) {
 			    clientCode->recvIGAMesh(settingMesh.name);
+			} else if (settingMesh.type == EMPIRE_Mesh_copyFEMesh){
+			    ClientCode *clientToCopyFrom = nameToClientCodeMap[settingMesh.clientNameToCopyFrom];
+			    AbstractMesh *meshToCopyFrom = clientToCopyFrom->getMeshByName(settingMesh.meshNameToCopyFrom);
+			    clientCode->copyMesh(settingMesh.name, meshToCopyFrom);
+			    if (settingMesh.sendMeshToClient){
+				clientCode->sendMesh(settingMesh.name);
+			    } else {
+				INFO_OUT() << "Mesh copied but not sent" << endl;
+			    }
 			} else {
 			    assert(false);
 			}
