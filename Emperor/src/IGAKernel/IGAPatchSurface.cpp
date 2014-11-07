@@ -1046,7 +1046,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(
 	}
 
 	int iteration = 0;
-	DEBUG_OUT()<<"\tUV1[0]="<<UV[0]<<" , UV1[1]="<<UV[1]<<endl;
+	//DEBUG_OUT()<<"\tUV1[0]="<<UV[0]<<" , UV1[1]="<<UV[1]<<endl;
 	double P1P[3];
 	double u0 = getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
 	double uN = getIGABasis()->getUBSplineBasis1D()->getLastKnot();
@@ -1069,7 +1069,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(
 			}
 			UV1[0] = UV[0];
 			UV1[1] = UV[1];
-			DEBUG_OUT()<<"\tUV[0]="<<UV[0]<<" , UV[1]="<<UV[1]<<endl;
+			//DEBUG_OUT()<<"\tUV[0]="<<UV[0]<<" , UV[1]="<<UV[1]<<endl;
 		} else {
 			for (int i = 0; i < noSpatialDimensions; i++)
 				P2[i] = P[i];
@@ -1107,26 +1107,23 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
     bool isConverged = false;
     _distance = numeric_limits<double>::max();
 
-
-		double u=_u;
-		double v=_v;
-		// Compute point projection from the line to the NURBS patch boundary
-		isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(u,v, div,distance, _P1, _P2);
-		DEBUG_OUT()<<"\tConverged ? "<<isConverged<<" and distance is "<<distance<<" and div is "<<div<<endl;
-
-		if(isConverged){
-			DEBUG_OUT()<<"\tu["<<u<<"], v["<<v<<"]"<<endl;
-
-			// Fix possible numerical error
-			if(fabs(div-1.0)<EPS_DISTANCE_RELAXED && div-1.0>0) div=1.0;
-			if(fabs(div)	<EPS_DISTANCE_RELAXED && div<0) div=0.0;
-			_ratio=div;
-			_distance=distance;
-			_u=u;
-			_v=v;
-			return true;
-		}
-		return false;
+	double u=_u;
+	double v=_v;
+	// Compute point projection from the line to the NURBS patch boundary
+	isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(u,v, div,distance, _P1, _P2);
+	//DEBUG_OUT()<<"\tConverged ? "<<isConverged<<" and distance is "<<distance<<" and div is "<<div<<endl;
+	if(isConverged){
+		//DEBUG_OUT()<<"\tu["<<u<<"], v["<<v<<"]"<<endl;
+		// Fix possible numerical error
+		if(fabs(div-1.0)<EPS_DISTANCE_RELAXED && div-1.0>0) div=1.0;
+		if(fabs(div)	<EPS_DISTANCE_RELAXED && div<0) div=0.0;
+		_ratio=div;
+		_distance=distance;
+		_u=u;
+		_v=v;
+		return true;
+	}
+	return false;
 }
 
 //bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(double& _w, double& _ratio,
@@ -2126,8 +2123,10 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		R_previous1 = R;
 		R = dotProduct(dim, P1Q, n);
 		// 2vii. Compute the stopping criteria
+		// If not converging quick enough
 		if(fabs(fabs(R)-fabs(R_previous1))<EPS_ORTHOGONALITY_CONDITION)
 			break;
+		// If oscillating stop
 		if(R==R_previous2)
 			break;
 
@@ -2183,13 +2182,15 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		unitNormalSurface[i] = normalSurface[i]/normNormalSurface;
 	// Project P1Q onto the normal of the patch
 	double h10 = dotProduct(dim, P1Q, unitNormalSurface);
-	// Project P1P2 onto the normal of the patch
-    double h12 = dotProduct(dim, P1P2, unitNormalSurface);
-    // Get the point on the line P1P2 from the intersection with the patch normal
     for (int i = 0; i < dim; i++) {
     	P1P[i] = P1Q[i];
         P1P[i] -= h10 * unitNormalSurface[i];
-        P1P[i] += h12 * unitNormalSurface[i];
+    }
+	// Project P1P2 onto the normal of the patch
+    double h12 = dotProduct(dim, P1P2, P1P);
+    // Get the point on the line P1P2 from the intersection with the patch normal
+    for (int i = 0; i < dim; i++) {
+        P1P[i] -= h12 * unitNormalSurface[i];
     }
     double normP1P2 = sqrt(square2normVector(dim, P1P2));
     double normP1P = dotProduct(dim, P1P, P1P2)/normP1P2;
@@ -2256,7 +2257,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary(double& _u, double& 
 			if(fabs(div)	<EPS_DISTANCE && div<0) div=0.0;
 
 			// Debug information about computePointOnPatchBoundaryOnGivenEdge result
-			DEBUG_OUT()<<"\tPoint["<<point<<"], Edge["<<edge<<"] converged ? "<<isConverged<<" and distance is "<<distance<<" and div is "<<div<<" and t is "<<t<<endl;
+//			DEBUG_OUT()<<"\tPoint["<<point<<"], Edge["<<edge<<"] converged ? "<<isConverged<<" and distance is "<<distance<<" and div is "<<div<<" and t is "<<t<<endl;
 
 			if (isConverged) {
 				switch (edge) {
@@ -2288,7 +2289,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary(double& _u, double& 
 				if(!(validPoint1 || validPoint2) && point<2) continue;
 				//Otherwise store it under following conditions
 				if (distance < _distance && div >= 0.0 && div <= 1.0) {
-					DEBUG_OUT()<<"\tu["<<u[point]<<"], v["<<v[point]<<"]"<<endl;
+//					DEBUG_OUT()<<"\tu["<<u[point]<<"], v["<<v[point]<<"]"<<endl;
 					hasConverged=true;
 					_u=u[point];
 					_v=v[point];
@@ -2816,6 +2817,22 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     // Compute the base vectors
     double baseVec[6];
     computeBaseVectors(baseVec, _u, spanU, _v, spanV);
+
+    // Compute the cross product of the surface base vectors to get the surface normal
+    _normal[0] = baseVec[1] * baseVec[5] - baseVec[2] * baseVec[4];
+    _normal[1] = baseVec[2] * baseVec[3] - baseVec[0] * baseVec[5];
+    _normal[2] = baseVec[0] * baseVec[4] - baseVec[1] * baseVec[3];
+}
+void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
+        double _u, double _v, int _spanU, int _spanV) {
+
+
+    // Compute the Cartesian coordinates of (_u,_v)
+    computeCartesianCoordinates(_coords, _u, _spanU, _v, _spanV);
+
+    // Compute the base vectors
+    double baseVec[6];
+    computeBaseVectors(baseVec, _u, _spanU, _v, _spanV);
 
     // Compute the cross product of the surface base vectors to get the surface normal
     _normal[0] = baseVec[1] * baseVec[5] - baseVec[2] * baseVec[4];

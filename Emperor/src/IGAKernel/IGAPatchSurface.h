@@ -333,6 +333,8 @@ public:
      ***********/
     void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal, double _u,
             double _v);
+    void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
+            double _u, double _v, int _spanU, int _spanV);
 
     /// Postprocessing functions
 public:
