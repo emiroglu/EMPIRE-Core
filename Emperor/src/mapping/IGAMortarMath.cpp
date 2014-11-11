@@ -449,16 +449,18 @@ bool computeIntersectionBetweenLineAndQuad(const double *_X, const double* _X0, 
         } else {
             _localCoords[0] = x[0];
             _localCoords[1] = x[1];
-//            if (fabs(_localCoords[0] - 0.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
-//                _localCoords[0] = 0.0;
-//            if (fabs(_localCoords[0] - 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
-//                _localCoords[0] = 1.0;
-//            if (fabs(_localCoords[0] - 0.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
-//                _localCoords[1] = 0.0;
-//            if (fabs(_localCoords[0] - 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
-//                _localCoords[1] = 1.0;
-
-            if (_localCoords[0] >= 0.0 && _localCoords[0] <= 1.0 && _localCoords[1] >= 0.0
+            // Clamp w
+            if (fabs(_localCoords[0] + 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
+                _localCoords[0] = -1.0;
+            if (fabs(_localCoords[0] - 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
+                _localCoords[0] = 1.0;
+            // Clamp z
+            if (fabs(_localCoords[1] + 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
+                _localCoords[1] = -1.0;
+            if (fabs(_localCoords[1] - 1.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
+                _localCoords[1] = 1.0;
+            // Return validity criteria
+            if (_localCoords[0] >= -1.0 && _localCoords[0] <= 1.0 && _localCoords[1] >= -1.0
                     && _localCoords[1] <= 1.0)
                 return true;
             else
