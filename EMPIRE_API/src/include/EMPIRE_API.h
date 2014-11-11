@@ -87,6 +87,19 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
         int *numNodesPerElem, int *elems);
 
 /***********************************************************************************************
+ * \brief Recieve mesh from the server
+ * \param[in] name name of the mesh
+ * \param[in] numNodes number of nodes
+ * \param[in] numElems number of elements
+ * \param[in] nodes coordinates of all nodes
+ * \param[in] nodeIDs IDs of all nodes
+ * \param[in] numNodesPerElem number of nodes per element
+ * \param[in] elems connectivity table of all elements
+ ***********/
+void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
+            int **numNodesPerElem, int **elem);
+
+/***********************************************************************************************
  * \brief Send the IGA patch to the server
  * \param[in] _name name of the field
  * \param[in] _pDegree The polynomial degree of the IGA 2D patch in the u-direction

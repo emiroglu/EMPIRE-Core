@@ -69,6 +69,26 @@ void Empire::sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, i
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(count, elems);
 }
 
+void Empire::recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems)
+{
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numNodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numElems);
+    const int DIMENSION = 3;
+
+    *nodes = new double[(*numNodes)*DIMENSION];
+    *nodeIDs = new int[*numNodes];
+    *numNodesPerElem = new int[*numElems];
+
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<double>((*numNodes) * DIMENSION, *nodes);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>((*numNodes), *nodeIDs);
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>((*numElems), *numNodesPerElem);
+    int count = 0;
+    for (int i = 0; i < *numElems; i++)
+        count += (*numNodesPerElem)[i];
+    *elems = new int[count];
+    ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(count, *elems);
+}
+
 void Empire::sendIGAMesh(int _numPatches, int _numNodes){
     const int BUFFER_SIZE = 2;
     int meshInfo[BUFFER_SIZE] = { _numPatches, _numNodes};

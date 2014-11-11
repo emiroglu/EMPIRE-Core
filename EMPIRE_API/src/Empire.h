@@ -87,6 +87,17 @@ public:
     void sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem,
             int *elems);
     /***********************************************************************************************
+     * \brief Receive mesh from the server
+     * \param[in] numNodes number of nodes
+     * \param[in] numElems number of elements
+     * \param[in] nodes coordinates of all nodes
+     * \param[in] nodeIDs IDs of all nodes
+     * \param[in] numNodesPerElem number of nodes per element
+     * \param[in] elems connectivity table of all elements
+     * \author Altug Emiroglu
+     ***********/
+    void recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems);
+    /***********************************************************************************************
      * \brief Send the IGA patch to the server
      * \param[in] _pDegree The polynomial degree of the IGA 2D patch in the u-direction
      * \param[in] _uNumKnots The number of knots for the knot vector in the u-direction

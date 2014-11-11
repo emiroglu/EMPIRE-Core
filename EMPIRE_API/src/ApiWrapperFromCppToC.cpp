@@ -50,6 +50,11 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
     empire->sendMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elems);
 }
 
+void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
+            int **numNodesPerElem, int **elem) {
+    empire->recvMesh(numNodes,numElems,nodes, nodeIDs, numNodesPerElem, elem);
+}
+
 void EMPIRE_API_sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
         int _vNumKnots, double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints,
         double* _cpNet, int* _nodeNet) {
