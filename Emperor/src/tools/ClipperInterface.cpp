@@ -49,6 +49,7 @@ void ClipperInterface::setOperation(Operation _operation) {
 	case XOR : operation=ctXor; break;
 	}
 }
+
 void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container){
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
@@ -59,6 +60,7 @@ void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container
 		}
 	}
 }
+
 void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,double> > >& _container) {
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
@@ -70,7 +72,6 @@ void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,doub
 	}
 }
 
-
 void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
 	Path clip;
 	for(int p=0; p < _path.size()/2; p++) {
@@ -78,6 +79,7 @@ void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
 	}
 	clipWindow.push_back(clip);
 }
+
 void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double> >& _path) {
 	Path clip;
 	for(int p=0; p < _path.size(); p++) {
@@ -85,6 +87,7 @@ void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double>
 	}
 	clipWindow.push_back(clip);
 }
+
 void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
 	Path subj;
 	for(int p=0; p < _path.size()/2; p++) {
@@ -92,6 +95,7 @@ void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
 	}
 	subject.push_back(subj);
 }
+
 void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double> >& _path) {
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
@@ -99,7 +103,6 @@ void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double>
 	}
 	subject.push_back(subj);
 }
-
 
 void ClipperInterface::clip() {
 	assert(clipper.AddPaths(subject, ptSubject, true)==true);
@@ -249,7 +252,26 @@ void ClipperInterface::cleanPolygon(std::vector<std::pair<double,double> >& _pat
 		_path[p].second = subj[p].Y / factor;
 	}
 }
-
-
+bool ClipperInterface::isCounterclockwise(const std::vector<std::pair<double,double> >& _path, double _accuracy) {
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size(); p++) {
+		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
+	}
+	bool isCounterclockwise = Orientation(subj);
+	return isCounterclockwise;
+}
+void ClipperInterface::reversePolygon(std::vector<std::pair<double,double> >& _path, double _accuracy){
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size(); p++) {
+		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
+	}
+	ReversePath(subj);
+	for(int p=0; p < _path.size(); p++) {
+		_path[p].first  = subj[p].X / factor;
+		_path[p].second = subj[p].Y / factor;
+	}
+}
 
 } /* namespace EMPIRE */
