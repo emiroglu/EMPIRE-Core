@@ -40,6 +40,7 @@
 #include <set>
 #include <algorithm>
 #include "ClipperInterface.h"
+
 using namespace std;
 
 namespace EMPIRE {
@@ -76,6 +77,11 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesSlave = meshFE->numNodes;
         numNodesMaster = meshIGA->getNumNodes();
     }
+    DEBUG_OUT()<<"NumNodesIGA is "<<meshIGA->getNumNodes()<<endl;
+    DEBUG_OUT()<<"NumNodesFE is "<<meshFE->numNodes<<endl;
+    DEBUG_OUT()<<"NumNodesMaster is "<<numNodesMaster<<endl;
+    DEBUG_OUT()<<"NumNodesSlave is "<<numNodesSlave<<endl;
+
 
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
     C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
@@ -91,7 +97,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     writeProjectedNodesOntoIGAMesh();
 
     computeCouplingMatrices();
-
 
     printCouplingMatricesToFile();
 
@@ -406,18 +411,18 @@ void IGAMortarMapper::computeCouplingMatrices() {
      * Computes the coupling matrices CNR and CNN.
      * Loop over all the elements in the FE side
      * ->
-     * 1. Find whether the projected FE element is located on one patch
+     * 1. Find whether the projected FE element is located on one patch or split
      *
      * 2. Compute the coupling matrices
      * ->
-     * 2i. If the current element can be projected on one patch
-     * 2ii. If the current element cannot be projected on one patch
+     * 2i. Loop over patches where element can be projected entirely on one patch
+     * 2ii. Loop over patches where element is split
      * <-
      */
 
 	//List of integrated element
 	set<int> elementIntegrated;
-// The vertices of the canonical polygons
+/// The vertices of the canonical polygons
     double parentTriangle[6] = { 0, 0, 1, 0, 0, 1 };
     double parentQuadriliteral[8] = { -1, -1, 1, -1, 1, 1, -1, 1 };
 
@@ -513,6 +518,8 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				}
 			}
 			ClipperInterface::cleanPolygon(polygonUV);
+			if(polygonUV.size()<3)
+				continue;
 			bool isIntegrated=false;
 			ListPolygon2D listTrimmedPolygonUV(1, polygonUV);
 			/// 1.2 Apply trimming
@@ -527,7 +534,8 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
 				for(int index=0;index<listSpan.size();index++) {
 					ClipperInterface::cleanPolygon(listPolygonUV[index]);
-					if(listPolygonUV[index].size()<3) continue;
+					if(listPolygonUV[index].size()<3)
+						continue;
 					isIntegrated=true;
 					// Get canonical element
 					Polygon2D polygonWZ = computeCanonicalElement(thePatch,listPolygonUV[index],elemCount);
@@ -544,12 +552,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 		for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
 			int patchIndex=*it;
 			IGAPatchSurface* thePatch = meshIGA->getSurfacePatches()[patchIndex];
-			int numNodesClippedByPatchProjElementFE = 0;
-			// the parameter coordinates in IGA of the sub-element divided by the patch
-			double clippedByPatchProjElementFEUV[16];
-
-			// the parameter coordinates in low order element of the sub-element divided by the patch
-			double clippedByPatchProjElementFEWZ[16];
 
 			// Cartesian coordinates of the low order element
 			double elementFEXYZ[12];
@@ -664,7 +666,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 						if(isProjectedOnPatch) {
 							polygonUV.push_back(make_pair(u,v));
 						} else {
-							//DEBUG_OUT()<<"elem "<<elemCount<<" with neighbour "<<getNeighbourElementofEdge(elemCount,nodeIndex,nodeIndexNext)<<endl;
 							for(int i=0;i<3;i++)
 								P_projected[i]=P1[i]+P1P2[i]*t;
 							double* P_last=&(meshFE->nodes[nodeIndexLast * 3]);
@@ -680,7 +681,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					u = (*projectedCoords)[nodeIndexNext][patchIndex][0];
 					v = (*projectedCoords)[nodeIndexNext][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-
 					// 4. Update processed edge
 					numEdgesProcessed++;
 				}
@@ -1188,9 +1188,10 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof2 = dofIGA[j];
             }
             if (dof1 < dof2)
-                (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count++];
+                (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count];
             else
-                (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count++];
+                (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count];
+            count++;
         }
 
     count = 0;
@@ -1203,7 +1204,8 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof1 = dofIGA[i];
                 dof2 = meshFEDirectElemTable[_elementIndex][j];
             }
-            (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count++];
+            (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count];
+            count ++;
         }
 
     if (numNodesUV > 4)
@@ -1553,5 +1555,7 @@ void IGAMortarMapper::checkConsistency() {
     	exit(-1);
     }
 }
+
 }
+
 

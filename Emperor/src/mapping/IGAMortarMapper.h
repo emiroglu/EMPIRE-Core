@@ -264,6 +264,7 @@ public:
      * \author Fabien Pean
      ***********/
     void checkConsistency();
+
     /// unit test class
     friend class TestIGAMortarMapperTube;
     friend class TestIGAMortarMapperMultiPatchPlanarSurface;
