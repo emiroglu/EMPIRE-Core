@@ -83,19 +83,19 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
 }
 
 void MapperAdapter::initIGAMortarMapper(double _tolProjectionDistance, int _numGPsTriangle,
-        int _numGPsQuad) {
+        int _numGPsQuad, int _numDivision) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
         assert(meshB->type == EMPIRE_Mesh_FEMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshA),
                 dynamic_cast<FEMesh *>(meshB), _tolProjectionDistance, _numGPsTriangle, _numGPsQuad,
-                true);
+                true, _numDivision);
     } else if (!meshAIGA && meshBIGA) {
         assert(meshA->type == EMPIRE_Mesh_FEMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshB),
                 dynamic_cast<FEMesh *>(meshA), _tolProjectionDistance, _numGPsTriangle, _numGPsQuad,
-                false);
+                false, _numDivision);
     } else{
         ERROR_OUT()<<"Error in MapperAdapter::initIGAMortarMapper" << endl;
         ERROR_OUT()<<"Wrong type of mesh!" << endl;

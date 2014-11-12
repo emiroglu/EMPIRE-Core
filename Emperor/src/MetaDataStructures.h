@@ -114,6 +114,7 @@ struct structMapper {
         double tolProjectionDistance;
         int numGPsTriangle;
         int numGPsQuad;
+        int numDivision;
     };
     std::string name;
     structMeshRef meshRefA;

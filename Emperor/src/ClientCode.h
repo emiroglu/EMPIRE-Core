@@ -37,7 +37,6 @@ namespace EMPIRE {
 
 class ServerCommunication;
 class AbstractMesh;
-class FEMesh;
 class Signal;
 
 /********//**

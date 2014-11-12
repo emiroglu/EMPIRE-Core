@@ -307,6 +307,7 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.igaMortarMapper.numGPsTriangle = xmlIGAMortar->GetAttribute<int>(
                     "numGPsTriangle");
             mapper.igaMortarMapper.numGPsQuad = xmlIGAMortar->GetAttribute<int>("numGPsQuad");
+            mapper.igaMortarMapper.numDivision = xmlIGAMortar->GetAttribute<int>("numDivision");
         } else {
             assert(false);
         }

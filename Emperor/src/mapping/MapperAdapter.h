@@ -63,9 +63,10 @@ public:
      * \param[in] _tolProjectionDistance tolerance of distance for projection
      * \param[in] _numGPsTriangle number of Gauss points when performs integration on triangle
      * \param[in] _numGPsQuad number of Gauss points when performs integration on quadrilateral
-     * \author Chenshen Wu
+     * \param[in] _numDivision number of division made on parametric polygon lines projected back to canonical space
+     * \author Chenshen Wu, Fabien Pean
      ***********/
-    void initIGAMortarMapper(double tolProjectionDistance, int numGPsTriangle, int numGPsQuad);
+    void initIGAMortarMapper(double tolProjectionDistance, int numGPsTriangle, int numGPsQuad, int numDivision);
     /***********************************************************************************************
      * \brief Initialize NearestNeighborMapper
      * \author Tianyang Wang
