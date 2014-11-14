@@ -27,11 +27,13 @@
 #include <iostream>
 #include <vector>
 #include <assert.h>
-#include "IGAMortarMath.h"
+//#include "IGAMortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 
 namespace EMPIRE {
 using namespace std;
-using namespace IGAMortarMath;
+using namespace MathLibrary;
 
 
 

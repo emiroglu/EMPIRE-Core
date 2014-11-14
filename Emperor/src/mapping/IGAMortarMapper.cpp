@@ -26,8 +26,9 @@
  */
 
 #include "IGAMortarMapper.h"
-#include "IGAMortarMath.h"
-#include "MortarMath.h"
+//#include "IGAMortarMath.h"
+//#include "MortarMath.h"
+// Edit Aditya
 #include "MathLibrary.h"
 #include "FEMesh.h"
 #include "IGAPatchSurface.h"
@@ -86,8 +87,8 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
     C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
 
-    gaussTriangle = new IGAMortarMath::GaussQuadratureOnTriangle(numGPsTri);
-    gaussQuad = new IGAMortarMath::GaussQuadratureOnQuad(numGPsQuad);
+    gaussTriangle = new EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle(numGPsTri);
+    gaussQuad = new EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad(numGPsQuad);
 
     initTables();
 
@@ -318,7 +319,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 
                     /// 1iii.4ii.4. Check if the Newton-Rapshon iterations have converged
                     if (isConvergedInside
-                            && IGAMortarMath::computePointDistance(&meshFE->nodes[nodeIndex * 3],
+                            && EMPIRE::MathLibrary::computePointDistance(&meshFE->nodes[nodeIndex * 3],
                                     cartesianCoords) < disTol) {
 
                         /// 1iii.4ii.4i. Set projection flag to true
@@ -378,7 +379,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 
                 /// 2iii.5. Check if the Newton-Rapshon iterations have converged and if the points are coinciding
                 bool hasConverged=isConvergedInside;
-                if (hasConverged && IGAMortarMath::computePointDistance(P, P_out) < disTol) {
+                if (hasConverged && EMPIRE::MathLibrary::computePointDistance(P, P_out) < disTol) {
                     /// 2iii.5i. Set projection flag to true
                     isNodeProjected = true;
 
@@ -978,12 +979,12 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 //		double normalVec[3];
 //		_thePatch->computeCartesianCoordinatesAndNormalVector(nodeXYZ, normalVec, centerIGA[0], centerIGA[1]);
 //		if (_numNodesElementFE == 3) {
-//			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
+//			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndTriangle(
 //					elementFEXYZ, nodeXYZ, normalVec, centerFE);
 //    		if(centerFE[0]<0 || centerFE[0]>1) return;
 //    		if(centerFE[1]<0 || centerFE[1]>1) return;
 //		} else {
-//			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
+//			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndQuad(
 //					elementFEXYZ, nodeXYZ, normalVec, centerFE);
 //    		if(centerFE[0]<-1 || centerFE[0]>1) return;
 //    		if(centerFE[1]<-1 || centerFE[1]>1) return;
@@ -1022,7 +1023,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 
 /// 2.1 Choose gauss triangle or gauss quadriliteral
 
-        IGAMortarMath::GaussQuadrature *theGaussQuadrature;
+        EMPIRE::MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
 
         int nNodesQuadrature;
         if (numNodesQuadrature[quadratureCount] == 3) {
@@ -1043,11 +1044,11 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
 
             double shapeFuncs[nNodesQuadrature];
-            IGAMortarMath::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
+            EMPIRE::MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
 
             /// 2.2.2 evaluate the coordinates in IGA patch from shape functions
             double GPIGA[2];
-            IGAMortarMath::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
+            EMPIRE::MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
                     GPIGA);
 
 
@@ -1058,32 +1059,32 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 //    		_thePatch->computeCartesianCoordinatesAndNormalVector(nodeXYZ, normalVec, GPIGA[0], GPIGA[1]);
 //    		double coordFE[2];
 //    		if (_numNodesElementFE == 3) {
-//    			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
+//    			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndTriangle(
 //    					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 //    			if(coordFE[0]<0 || coordFE[0]>1) continue;
 //        		if(coordFE[1]<0 || coordFE[1]>1) continue;
 //    			if(nNodesQuadrature==3)
-//            		IGAMortarMath::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
+//            		EMPIRE::MathLibrary::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
 //    			else
-//    				IGAMortarMath::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
+//    				EMPIRE::MathLibrary::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
 //
 //    		} else {
-//    			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
+//    			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndQuad(
 //    					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 //    			if(coordFE[0]<-1 || coordFE[0]>1) continue;
 //        		if(coordFE[1]<-1 || coordFE[1]>1) continue;
 //    			if(nNodesQuadrature==3)
-//            		IGAMortarMath::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
+//            		EMPIRE::MathLibrary::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
 //    			else
-//    				IGAMortarMath::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
+//    				EMPIRE::MathLibrary::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
 //    		}
 
-            IGAMortarMath::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
+            EMPIRE::MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
                     GPFE);
 
             /// 2.2.4 compute the shape function(in the linear element) of the current integration point
             double shapeFuncsFE[_numNodesElementFE];
-            IGAMortarMath::computeLowOrderShapeFunc(_numNodesElementFE, GPFE, shapeFuncsFE);
+            EMPIRE::MathLibrary::computeLowOrderShapeFunc(_numNodesElementFE, GPFE, shapeFuncsFE);
             int derivDegree = 1;
 
             /// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
@@ -1099,14 +1100,14 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
                     _spanV);
 
-            double JacobianUVToPhysical = IGAMortarMath::computeAreaTriangle(baseVectors[0],
+            double JacobianUVToPhysical = EMPIRE::MathLibrary::computeAreaTriangle(baseVectors[0],
                     baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
                     * 2;
 
             /// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
             double JacobianCanonicalToUV;
             if (nNodesQuadrature == 3) {
-                JacobianCanonicalToUV = IGAMortarMath::computeAreaTriangle(
+                JacobianCanonicalToUV = EMPIRE::MathLibrary::computeAreaTriangle(
                         quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
                         quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
             } else {
@@ -1334,14 +1335,14 @@ IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(IGAPatchSurf
 		// Must exist !
 		double coordFE[2];
 		if (numNodesElementFE == 3) {
-			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
+			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndTriangle(
 					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 			if(coordFE[0]<0) coordFE[0]=0;
 			if(coordFE[1]<0) coordFE[1]=0;
 			if(coordFE[0]>1) coordFE[0]=1;
 			if(coordFE[1]>1) coordFE[1]=1;
 		} else {
-			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
+			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndQuad(
 					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 			if(coordFE[0]<-1) coordFE[0]=-1;
 			if(coordFE[1]<-1) coordFE[1]=-1;

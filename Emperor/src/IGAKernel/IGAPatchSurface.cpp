@@ -27,7 +27,9 @@
 
 // Inclusion of user defined libraries
 #include "IGAPatchSurface.h"
-#include "IGAMath.h"
+//#include "IGAMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "DataField.h"
 #include "Message.h"
 
@@ -800,7 +802,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             distanceVector[i] = _P[i] - point[i];
 
         // 2vi. Compute the 2-norm of the distance vector
-        distanceVector2norm = square2normVector(noSpatialDimensions, distanceVector);
+        distanceVector2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, distanceVector);
         distanceVector2norm = sqrt(distanceVector2norm);
 
         if (distanceVector2norm < EPS_DISTANCE)
@@ -834,14 +836,14 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         }
 
         // 2ix. Compute the cosine of the angle with respect to u-parametric line
-        GuXdistanceVector = dotProduct(noSpatialDimensions, Gu, distanceVector);
-        squareGu2norm = square2normVector(noSpatialDimensions, Gu);
+        GuXdistanceVector = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, distanceVector);
+        squareGu2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gu);
         Gu2norm = sqrt(squareGu2norm);
         cosu = fabs(GuXdistanceVector) / Gu2norm / distanceVector2norm;
 
         // 2x. Compute the cosine of the angle with respect to v-parametric line
-        GvXdistanceVector = dotProduct(noSpatialDimensions, Gv, distanceVector);
-        squareGv2norm = square2normVector(noSpatialDimensions, Gv);
+        GvXdistanceVector = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gv, distanceVector);
+        squareGv2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gv);
         Gv2norm = sqrt(squareGv2norm);
         cosv = fabs(GvXdistanceVector) / Gv2norm / distanceVector2norm;
 
@@ -852,16 +854,16 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
         // 2xii. Compute the entries of the Jacobian matrix
         dR[0] = squareGu2norm
-                + dotProduct(noSpatialDimensions, DGuDu, distanceVector);
-        dR[1] = dotProduct(noSpatialDimensions, Gu, Gv)
-                + dotProduct(noSpatialDimensions, DGuDv, distanceVector);
+                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGuDu, distanceVector);
+        dR[1] = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, Gv)
+                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGuDv, distanceVector);
         dR[2] = dR[1];
         dR[3] = squareGv2norm
-                + dotProduct(noSpatialDimensions, DGvDv, distanceVector);
+                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGvDv, distanceVector);
 
         // 2xiii. Compute the entries of the right-hand side vector
-        R[0] = -dotProduct(noSpatialDimensions, Gu, distanceVector);
-        R[1] = -dotProduct(noSpatialDimensions, Gv, distanceVector);
+        R[0] = -EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, distanceVector);
+        R[1] = -EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gv, distanceVector);
 
         if (fabs(dR[0]) < epsJ || fixU) {
             R[0] = 0.0;
@@ -878,7 +880,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
 
             // Solve the equation system
-            flagLinearSystem = solve2x2linearSystem(R, dR);
+            flagLinearSystem = EMPIRE::MathLibrary::solve2x2linearSystem(R, dR);
 
             // Check if the equation system has been successfully solved
             if (!flagLinearSystem) {
@@ -889,7 +891,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
                 ERROR_OUT()
                         << "for the orthogonal projection of a point on the NURBS patch has been"
                         << endl;
-                ERROR_OUT() << "detected not solvable up to tolerance" << EPS << endl;
+                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
                 exit(-1);
             }
         }
@@ -1077,7 +1079,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(
 			UV[1] = UV1[1];
 		}
 
-	} while(sqrt(square2normVector(noSpatialDimensions, P1P)) > EPS_DISTANCE
+	} while(sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, P1P)) > EPS_DISTANCE
 			&& iteration <= 2*MAX_NUM_ITERATIONS);
 
 	if (iteration > 2*MAX_NUM_ITERATIONS)
@@ -1091,9 +1093,9 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(
 	}
 	_u = UV1[0];
 	_v = UV1[1];
-	_distance = sqrt(square2normVector(noSpatialDimensions,QP));
-	_ratio = (dotProduct(noSpatialDimensions, P1P2, P1P))
-			/ square2normVector(noSpatialDimensions, P1P2);
+	_distance = sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions,QP));
+	_ratio = (EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, P1P2, P1P))
+			/ EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, P1P2);
 	return true;
 
 }
@@ -2117,11 +2119,11 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 					derivDegreeBaseVcts, 0, 1, i, 0)];
 		}
 		// Update normal and compute the residual
-		crossProduct(normalSurface, Gu, Gv);
-		crossProduct(n, P1P2, normalSurface);
+		EMPIRE::MathLibrary::crossProduct(normalSurface, Gu, Gv);
+		EMPIRE::MathLibrary::crossProduct(n, P1P2, normalSurface);
 		R_previous2 = R_previous1;
 		R_previous1 = R;
-		R = dotProduct(dim, P1Q, n);
+		R = EMPIRE::MathLibrary::dotProduct(dim, P1Q, n);
 		// 2vii. Compute the stopping criteria
 		// If not converging quick enough
 		if(fabs(fabs(R)-fabs(R_previous1))<EPS_ORTHOGONALITY_CONDITION)
@@ -2136,18 +2138,18 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		double product3[3];
 		// Compute derivatives of the normal n into product1 product2 and product3 and then sums them correctly
 		if (direction == 0) {
-			crossProduct(product1, DGuDu, Gv);
-			crossProduct(product2, Gu, DGuDv);
-			dR = dotProduct(dim, Gu, n);
+			EMPIRE::MathLibrary::crossProduct(product1, DGuDu, Gv);
+			EMPIRE::MathLibrary::crossProduct(product2, Gu, DGuDv);
+			dR = EMPIRE::MathLibrary::dotProduct(dim, Gu, n);
 		} else {
-			crossProduct(product1, DGuDv, Gv);
-			crossProduct(product2, Gu, DGvDv);
-			dR = dotProduct(dim, Gv, n);
+			EMPIRE::MathLibrary::crossProduct(product1, DGuDv, Gv);
+			EMPIRE::MathLibrary::crossProduct(product2, Gu, DGvDv);
+			dR = EMPIRE::MathLibrary::dotProduct(dim, Gv, n);
 		}
 		for (int i = 0; i < dim; i++)
 			product1[i] += product2[i];
-		crossProduct(product3, P1P2, product1);
-		dR += dotProduct(dim, P1Q, product3);
+		EMPIRE::MathLibrary::crossProduct(product3, P1P2, product1);
+		dR += EMPIRE::MathLibrary::dotProduct(dim, P1Q, product3);
 
 		// Apply the variation dw on parameter and check if going outside of knot span then break
 		double dw=-R/dR;
@@ -2175,25 +2177,25 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		_t = v;
 
 	// Compute point on the line and thus get the ratio of P1P/P1P2
-	double normNormalSurface = sqrt(square2normVector(dim, normalSurface));
+	double normNormalSurface = sqrt(EMPIRE::MathLibrary::square2normVector(dim, normalSurface));
 	double unitNormalSurface[3];
 	double P1P[3];
 	for (int i = 0; i < dim; i++)
 		unitNormalSurface[i] = normalSurface[i]/normNormalSurface;
 	// Project P1Q onto the normal of the patch
-	double h10 = dotProduct(dim, P1Q, unitNormalSurface);
+	double h10 = EMPIRE::MathLibrary::dotProduct(dim, P1Q, unitNormalSurface);
     for (int i = 0; i < dim; i++) {
     	P1P[i] = P1Q[i];
         P1P[i] -= h10 * unitNormalSurface[i];
     }
 	// Project P1P2 onto the normal of the patch
-    double h12 = dotProduct(dim, P1P2, P1P);
+    double h12 = EMPIRE::MathLibrary::dotProduct(dim, P1P2, P1P);
     // Get the point on the line P1P2 from the intersection with the patch normal
     for (int i = 0; i < dim; i++) {
         P1P[i] -= h12 * unitNormalSurface[i];
     }
-    double normP1P2 = sqrt(square2normVector(dim, P1P2));
-    double normP1P = dotProduct(dim, P1P, P1P2)/normP1P2;
+    double normP1P2 = sqrt(EMPIRE::MathLibrary::square2normVector(dim, P1P2));
+    double normP1P = EMPIRE::MathLibrary::dotProduct(dim, P1P, P1P2)/normP1P2;
     _ratio = normP1P / normP1P2;
     // Compute distance between patch and the line
     double QP[3];
@@ -2201,7 +2203,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
     	QP[i] = P1P[i];
         QP[i] += _P1[i]-Q[i];
     }
-    _distance = sqrt(square2normVector(dim, QP));
+    _distance = sqrt(EMPIRE::MathLibrary::square2normVector(dim, QP));
 
 	// 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
 	// Clear the memory on the heap
@@ -2424,9 +2426,9 @@ bool IGAPatchSurface::computePointMinimumDistanceToPatchBoundaryOnGivenEdge(doub
             dBaseVec[i] = baseVecAndDerivs[indexDerivativeBaseVector(derivDegreeBaseVcts,
                     1 - direction, direction, i, direction)];
         }
-        f = dotProduct(noSpatialDimensions, baseVec, distanceVector);
-        df = dotProduct(noSpatialDimensions, dBaseVec, distanceVector)
-                + dotProduct(noSpatialDimensions, baseVec, baseVec);
+        f = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, baseVec, distanceVector);
+        df = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, dBaseVec, distanceVector)
+                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, baseVec, baseVec);
 
 
         if(df!=df)
@@ -2455,7 +2457,7 @@ bool IGAPatchSurface::computePointMinimumDistanceToPatchBoundaryOnGivenEdge(doub
     else
         _t = v;
 
-    _distance = sqrt(square2normVector(noSpatialDimensions, distanceVector));
+    _distance = sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, distanceVector));
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
     delete[] basisFctsAndDerivs;
@@ -2546,7 +2548,7 @@ bool IGAPatchSurface::computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(doubl
     double unitVector12[3];
     for (int i = 0; i < noSpatialDimensions; i++)
     	distanceVector12[i] = _P1[i] - _P2[i];
-    double distanceNorm12=sqrt(square2normVector(noSpatialDimensions,distanceVector12));
+    double distanceNorm12=sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions,distanceVector12));
     for (int i = 0; i < noSpatialDimensions; i++)
     	unitVector12[i] = distanceVector12[i]/distanceNorm12;
 
@@ -2659,12 +2661,12 @@ bool IGAPatchSurface::computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(doubl
                     1 - direction, direction, i, direction)];
         }
 
-        crossProduct(product1, baseVec, distanceVector12);
-        crossProduct(product2, dBaseVec, distanceVector12);
-        crossProduct(product3, distanceVector01, distanceVector02);
-        f = dotProduct(noSpatialDimensions, product1, product3);
-        df = dotProduct(noSpatialDimensions, product2, product3)
-                + dotProduct(noSpatialDimensions, product1, product1);
+        EMPIRE::MathLibrary::crossProduct(product1, baseVec, distanceVector12);
+        EMPIRE::MathLibrary::crossProduct(product2, dBaseVec, distanceVector12);
+        EMPIRE::MathLibrary::crossProduct(product3, distanceVector01, distanceVector02);
+        f = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product1, product3);
+        df = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product2, product3)
+                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product1, product1);
 
         if(df==0)
         	continue;
@@ -2691,8 +2693,8 @@ bool IGAPatchSurface::computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(doubl
     else
         _t = v;
 
-    _distance = sqrt(square2normVector(noSpatialDimensions, product3))
-            / sqrt(square2normVector(noSpatialDimensions, distanceVector12));
+    _distance = sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, product3))
+            / sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, distanceVector12));
 
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
@@ -2792,7 +2794,7 @@ void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, d
             for (int k = 0; k < noSpatialDimensions; k++)
                 coords[k] -= _P[k];
 
-            Dis = square2normVector(noSpatialDimensions, coords);
+            Dis = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, coords);
             Dis = sqrt(Dis);
 
             if (Dis < minDis) {

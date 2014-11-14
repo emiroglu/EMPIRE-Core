@@ -27,7 +27,9 @@
 #include "DataFieldIntegrationFilter.h"
 #include "AbstractMesh.h"
 #include "FEMesh.h"
-#include "MortarMath.h"
+//#include "MortarMath.h"
+// Edit Aditya
+//#include "MathLibrary.h"
 #include "ConnectionIO.h"
 #include "DataField.h"
 #include "DataFieldIntegration.h"

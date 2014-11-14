@@ -1,0 +1,41 @@
+# Set EMPIRE environment
+export EMPIRE_CORE_BASE_DIR=/home/aditya/experiments/empireFinalMathLibrary/EMPIRE-Core
+######################################################################################
+# Set TOOLCHAIN and BASE DIR
+if [ $# -eq 1 ]; then
+	export EMP_TOOLCHAIN=$1
+	echo 'Selecting toolchain' $EMP_TOOLCHAIN
+fi
+# If BASE_DIR has changed
+if [ $# -eq 2 ]; then
+	export EMP_TOOLCHAIN=$1
+	echo 'Selecting toolchain' $EMP_TOOLCHAIN
+	export EMPIRE_CORE_BASE_DIR=$2
+	echo 'Exporting EMPIRE_CORE_BASE_DIR' $EMPIRE_CORE_BASE_DIR
+fi
+######################################################################################
+# Set PATH ENV variables for INCLUDE, LINKING and EXECUTION
+
+	export EMPIRE_API_LIB_NAME=EMPIRE_API
+	export EMPIRE_LD_LIBRARY_PATH=$EMPIRE_CORE_BASE_DIR/lib
+	export EMPIRE_API_INC_ON_MACHINE=$EMPIRE_CORE_BASE_DIR/EMPIRE_API/src/include/
+	export EMPIRE_API_LIB_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_API_LIB_NAME.a	
+	export EMPIRE_API_LIBSO_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_API_LIB_NAME.so
+	export EMP_PATH=$EMPIRE_CORE_BASE_DIR/bin:$EMP_PATH
+	
+# INTEL MPI variables
+	export I_MPI_FABRICS=shm:tcp
+	export I_MPI_FAULT_CONTINUE=off
+	echo 'Setting toolchain ICC'
+######################################################################################
+#Code metric
+export EMP_PATH=$EMPIRE_CORE_BASE_DIR/../EMPIRE-Libraries/bin:$EMP_PATH
+EMPIRECodeMetric() { cloc-1.60.pl $EMPIRE_CORE_BASE_DIR/Emperor/src $EMPIRE_CORE_BASE_DIR/Emperor/testUnit/ $EMPIRE_CORE_BASE_DIR/Emperor/testMapper/ $EMPIRE_CORE_BASE_DIR/EMPIRE_API/src/; }
+######################################################################################
+export PATH=$EMP_PATH:$PATH
+export LD_LIBRARY_PATH=$EMPIRE_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+######################################################################################
+echo 'EMPIRE environment is ready to use.'
+
+
+ 
