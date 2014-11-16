@@ -396,11 +396,6 @@ bool computeLocalCoorInQuad(const double *quad, int planeToProject, const double
 }
 
 
-
-
-
-
-
 // Class Methods
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -675,7 +670,7 @@ bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNo
         delta[0] = -F[0];
         delta[1] = -F[1];
 
-        IGAsolve2x2LinearSystem(J_T, delta, EPS);
+        solve2x2LinearSystem(J_T, delta, EPS);
         if (fabs(delta[0]) < EPS && fabs(delta[1]) < EPS) {
             assert(i < 100);
             break;
@@ -691,11 +686,6 @@ bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNo
     }
     return true;
 }
-
-
-
-
-
 
 
 

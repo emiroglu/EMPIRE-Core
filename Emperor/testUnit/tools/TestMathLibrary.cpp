@@ -106,9 +106,9 @@ public:
      ***********/
     void testDenseDotProduct() {
 
-        double result =  fabs( computeDenseDotProduct(vecA, vecB, 4) - 84.70);
+        double result =  fabs( dotProduct(4,vecA, vecB) - 84.70);
         CPPUNIT_ASSERT(result <= AuxiliaryParameters::machineEpsilon*100);
-        result =  fabs( computeDenseDotProduct(*vecC, *vecD) - 84.70);
+        result =  fabs( dotProduct((*vecC).size(),&(*vecC)[0], &(*vecD)[0]) - 84.70);
         CPPUNIT_ASSERT(result <= AuxiliaryParameters::machineEpsilon*100);
     }
     /***********************************************************************************************

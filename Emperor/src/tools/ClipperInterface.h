@@ -1,8 +1,22 @@
-/*
- * ClipperInterface.h
+/*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
- *  Created on: Nov 5, 2014
- *      Author: fabien
+ *  All rights reserved.
+ *
+ *  This file is part of EMPIRE.
+ *
+ *  EMPIRE is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  EMPIRE is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
 #ifndef CLIPPERINTERFACE_H_
@@ -70,11 +84,26 @@ public:
      * \brief Execute a standard intersection clipping by providing everything at once : subject/clipping window/solution
      * \author Fabien Pean
      ***********/
-	void clip(int _numNodesPolygonToClip, double* _nodesPolygonToClip, int _numNodesClipper,double* _nodesClipper, int& _numNodesOutputPolygon, double*& _nodesOutputPolygon);
-	void clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper,std::vector<double>& _nodesOutputPolygon);
-	std::vector<double> clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper);
-	void clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper, std::vector<std::pair<double,double> >& _nodesOutputPolygon);
-	std::vector<std::pair<double,double> > clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper);
+	void clip(int _numNodesPolygonToClip,
+			  double* _nodesPolygonToClip,
+			  int _numNodesClipper,
+			  double* _nodesClipper,
+			  int& _numNodesOutputPolygon,
+			  double*& _nodesOutputPolygon);
+
+	void clip(const std::vector<double>& _nodesPolygonToClip,
+			  const std::vector<double>& _nodesClipper,
+			  std::vector<double>& _nodesOutputPolygon);
+
+	std::vector<double> clip(const std::vector<double>& _nodesPolygonToClip,
+			                 const std::vector<double>& _nodesClipper);
+
+	void clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip,
+			  const std::vector<std::pair<double,double> >& _nodesClipper,
+			  std::vector<std::pair<double,double> >& _nodesOutputPolygon);
+
+	std::vector<std::pair<double,double> > clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip,
+			                                    const std::vector<std::pair<double,double> >& _nodesClipper);
     /***********************************************************************************************
      * \brief Static call to the inner clean of clipper library
      * \author Fabien Pean

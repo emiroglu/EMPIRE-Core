@@ -41,14 +41,20 @@ double distancePointSegment(double* _P, double* _P1, double* _P2) {
 		PP2[i]=_P2[i]-_P[i];
 		P1P2[i]=_P2[i]-_P1[i];
 	}
-	normP1P2=sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P2));
+	// Edit Aditya
+	//normP1P2=sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P2));
+	normP1P2=EMPIRE::MathLibrary::vector2norm(P1P2,3);
 
     double projP1P = sqrt(EMPIRE::MathLibrary::dotProduct(3,P1P,P1P2));
-     if ( projP1P <= 0 )
-          return sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P));
+     if ( projP1P <= 0 ){
+          //return sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P));
+     	  return EMPIRE::MathLibrary::vector2norm(P1P,3);
+     }
 
-     if ( normP1P2 <= projP1P )
-         return sqrt(EMPIRE::MathLibrary::square2normVector(3,PP2));
+     if ( normP1P2 <= projP1P ){
+         //return sqrt(EMPIRE::MathLibrary::square2normVector(3,PP2));
+         return EMPIRE::MathLibrary::vector2norm(PP2,3);
+     }
 
 	double t = projP1P / normP1P2;
 	double tmp[3];
@@ -56,7 +62,8 @@ double distancePointSegment(double* _P, double* _P1, double* _P2) {
 	     tmp[i]= _P1[i] + t * P1P2[i];
 		 tmp[i]= _P[i] - tmp[i];
 	}
-    return sqrt(EMPIRE::MathLibrary::square2normVector(3,tmp));
+    //return sqrt(EMPIRE::MathLibrary::square2normVector(3,tmp));
+    return EMPIRE::MathLibrary::vector2norm(tmp,3);
 }
 
 double distanceLinePlane(double* Pline,double* Uline, double* Pplane,double* Nplane) {
@@ -80,8 +87,11 @@ double distanceLineLine(double& _ratioA, double& _ratioB, double* _P1, double* _
 		P3P4[i]=_P4[i]-_P3[i];
 
 	}
-	normP1P2=sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P2));
-	normP3P4=sqrt(EMPIRE::MathLibrary::square2normVector(3,P3P4));
+	//normP1P2=sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P2));
+	//normP3P4=sqrt(EMPIRE::MathLibrary::square2normVector(3,P3P4));
+	normP1P2=EMPIRE::MathLibrary::vector2norm(P1P2,3);
+	normP3P4=EMPIRE::MathLibrary::vector2norm(P3P4,3);
+
 	if(normP3P4 < EPS)
 	    return -1;
 	if(normP1P2 < EPS)
@@ -113,7 +123,8 @@ double distanceLineLine(double& _ratioA, double& _ratioB, double* _P1, double* _
 	for(int i=0;i<3;i++){
 		PaPb[i]=Pb[i]-Pa[i];
 	}
-	return sqrt(EMPIRE::MathLibrary::square2normVector(3,PaPb));
+	//return sqrt(EMPIRE::MathLibrary::square2normVector(3,PaPb));
+	return EMPIRE::MathLibrary::vector2norm(PaPb,3);
 }
 
 /***********************************************************************************************
@@ -458,7 +469,6 @@ bool computeIntersectionBetweenLineAndTriangle(const double *_X, const double* _
     b[2] = _X0[2] - _X[8];
 
     solve3x3LinearSystem(A, b, EPS_IVERTIBILITYOFSQUAREMATRICES);
-
     _localCoords[0] = b[0];
     _localCoords[1] = b[1];
     if (fabs(_localCoords[0] - 0.0) < EPS_IVERTIBILITYOFSQUAREMATRICES)
@@ -511,6 +521,7 @@ bool computeIntersectionBetweenLineAndQuad(const double *_X, const double* _X0, 
         }
         if (sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]) > 1e-12) {
             solve3x3LinearSystem(df, f, EPS_IVERTIBILITYOFSQUAREMATRICES);
+
             for (int j = 0; j < 3; j++)
                 x[j] -= f[j];
         } else {
@@ -586,7 +597,12 @@ void cleanPolygon(std::vector<double>& polygon) {
 		double v2y=polygon[p3*2+1]-polygon[p1*2+1];
 		double v1[3]={v1x, v1y, 0};
 		double v2[3]={v2x, v2y, 0};
-		double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		// Edit Aditya Ghantasala
+		double cProd[3];
+		//double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		crossProduct(cProd, v1, v2);
+		double v= EMPIRE::MathLibrary::vector2norm(cProd,3);
+
 		// Result of cross product only in Z direction
 		bool isColinear=fabs(v)<1e-9?true:false;
 		//double n1=v1x*v1x+v1y*v1y;
@@ -623,7 +639,11 @@ void cleanPolygon(std::vector<pair<double,double> >& polygon) {
 		double v2y=polygon[p3].second-polygon[p1].second;
 		double v1[3]={v1x, v1y, 0};
 		double v2[3]={v2x, v2y, 0};
-		double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		//double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		// Edit Aditya
+		double cProd[3];
+		EMPIRE::MathLibrary::crossProduct(cProd, v1, v2);
+		double v = EMPIRE::MathLibrary::vector2norm(cProd,3);
 		// Result of cross product only in Z direction
 		bool isColinear=fabs(v)<1e-9?true:false;
 		//double n1=v1x*v1x+v1y*v1y;
@@ -659,7 +679,11 @@ void cleanPolygon(std::vector<pair<double,double> >& polygon,std::vector<pair<do
 		double v2y=polygon[p3].second-polygon[p1].second;
 		double v1[3]={v1x, v1y, 0};
 		double v2[3]={v2x, v2y, 0};
-		double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		//double v=computeCrossProduct2D(v1x,v1y,v2x,v2y);
+		// Edit Aditya
+		double cProd[3];
+		EMPIRE::MathLibrary::crossProduct(cProd,v1, v2);
+		double v = EMPIRE::MathLibrary::vector2norm(cProd,3);
 		// Result of cross product only in Z direction
 		bool isColinear=fabs(v)<1e-9?true:false;
 		//double n1=v1x*v1x+v1y*v1y;

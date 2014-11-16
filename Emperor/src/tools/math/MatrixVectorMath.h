@@ -41,31 +41,15 @@ namespace MathLibrary {
 
 
 // Methods
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-/***********************************************************************************************
- * \brief Compute the dot product of two dense vectors
- * \param[in] vec1 the 1st vector
- * \param[in] vec2 the 2nd vector
- * \return dot product
- * \author Stefan Sicklinger
- ***********/
-double computeDenseDotProduct(const std::vector<double> &vec1, const std::vector<double> &vec2);
-/***********************************************************************************************
- * \brief Compute the dot product of two dense vectors
- * \param[in] vec1 the 1st vector
- * \param[in] vec2 the 2nd vector
- * \param[in] elements number of elements in vec1 (vec2)
- * \return dot product
- * \author Stefan Sicklinger
- ***********/
-double computeDenseDotProduct(const double *vec1, const double *vec2, const int elements);
+
 /***********************************************************************************************
  * \brief Copy dense vector vec1 <- vec2
  * \param[in] vec1 the 1st vector
  * \param[in] vec2 the 2nd vector
  * \author Stefan Sicklinger
  ***********/
-void copyDenseVector(double *vec1, const double *vec2, const int elements);
+void copyVector(double *vec1, const double *vec2, const int elements);
+
 /***********************************************************************************************
  * \brief Compute Euclidean norm of vector
  * \param[in] vec1 the 1st vector
@@ -73,7 +57,8 @@ void copyDenseVector(double *vec1, const double *vec2, const int elements);
  * \return Euclidean norm
  * \author Stefan Sicklinger
  ***********/
-double computeDenseEuclideanNorm(const double *vec1, const int elements);
+double vector2norm(const double *vec1, const int elements);
+
 /***********************************************************************************************
  * \brief Computes a vector-scalar product and adds the result to a vector. vec1 <- a*vec1 + vec2
  * \param[in] vec1 the 1st vector
@@ -82,7 +67,8 @@ double computeDenseEuclideanNorm(const double *vec1, const int elements);
  * \param[in] elements number of elements in vec1
  * \author Stefan Sicklinger
  ***********/
-void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements);
+void computeVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements);
+
 /***********************************************************************************************
  * \brief Computes vector scales by scalar vec1 <- vec1*a
  * \param[in] vec1 the 1st vector
@@ -90,17 +76,7 @@ void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a
  * \param[in] elements number of elements in vec1
  * \author Stefan Sicklinger
  ***********/
-void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
-
-/***********************************************************************************************
- * \brief Computes the index function for the binomial coefficients (_i;_j)
- * \param[out] The index function for the binomial coefficients (_i;_j)
- * \param[in] _i The integer on the nominator
- * \param[in] _j The integer on the denominator
- * \author Andreas Apostolatos
- ***********/
-// TODO :: Remove this function.
-int indexBinomialCoefficients(int, int);
+void computeVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
 
 /***********************************************************************************************
  * \brief Compute the square of the Euclidean distance of two points in n-D space.
@@ -110,16 +86,7 @@ int indexBinomialCoefficients(int, int);
  * \param[in] _Pj The second point
  * \author Andreas Apostolatos
  ***********/
-double squareEuclideanDistance(int, double*, double*);
-
-/***********************************************************************************************
- * \brief Compute the square of the 2-norm of a vector in the n-D space
- * \param[out] The square of the 2-norm of a vector in the n-D space
- * \param[in] _length The dimensinality of the n-D space
- * \param[in] _vector A vector in the nD space
- * \author Andreas Apostolatos
- ***********/
-double square2normVector(int, double*);
+double euclideanDistance(int, double*, double*);
 
 /***********************************************************************************************
  * \brief Compute the dot product between two vectors in the n-D space
@@ -128,6 +95,7 @@ double square2normVector(int, double*);
  * \param[in] _vecI The 1st vector
  * \param[in] _vecJ The 2nd vector
  * \author Andreas Apostolatos
+ * \edit Aditya Ghantasala (mixing Stefan's implementation)
  ***********/
 double dotProduct(int, double*, double*);
 
@@ -141,16 +109,6 @@ double dotProduct(int, double*, double*);
 void crossProduct(double* _product, double* _v1, double* _v2);
 
 /***********************************************************************************************
-
- * \brief Solve a 2x2 linear equation system
- * \param[out] Flag on whether the linear system is solvable up to tolerance EPS or not
- * \param[in/out] _b The right-hand side vector where the solution is also stored, _b = double[2]
- * \param[in] _A The 2x2 matrix stored in a vector format namely A[i][j] = V[2 * i + j]
- * \author Andreas Apostolatos
- ***********/
-bool solve2x2linearSystem(double*, double*);
-
-/***********************************************************************************************
  * \brief Solve a 2x2 linear system by close form formula
  * \param[in] A the left hand side matrix
  * \param[in] b the right hand side vector
@@ -158,7 +116,7 @@ bool solve2x2linearSystem(double*, double*);
  * \return whether the determinant is zero or not
  * \author Tianyang Wang
  ***********/
-bool solve2x2LinearSystem(const double *A, double *b, double EPS);
+bool solve2x2LinearSystem(const double *A, double *b, double EPS = 1E-13);
 
 /***********************************************************************************************
  * \brief Solve a 3x3 linear system by close form formula, the system has one row which has all entries 1.
@@ -214,16 +172,6 @@ void dcsrmv(char trans, int numRows, int numCols, const double *A, const int *JA
 void dcsrsymv(int n, const double *A, const int *IA, const int *JA, const double *x, double *y);
 
 /***********************************************************************************************
- * \brief Solve a 2x2 linear system by close form formula
- * \param[in] A the left hand side matrix
- * \param[in] b the right hand side vector
- * \param[out] b the solution is written to b
- * \return whether the determinant is zero or not
- * \author Tianyang Wang
- ***********/
-bool IGAsolve2x2LinearSystem(const double* _A, double* _b, double _EPS);
-
-/***********************************************************************************************
  * \brief Solve 3x3 Linear system, Ax = b
  * \param[in] _A Square 3x3 matirx
  * \param[in/out] _b Right hand side vector which stores also the solution
@@ -240,18 +188,6 @@ bool solve3x3LinearSystem(const double* _A, double* _b, double _EPS);
  * \author Chenshen Wu
  ***********/
 double det3x3(const double* _A);
-
-/***********************************************************************************************
- * \brief Computes the cross product of between two vectors with zero component on z direction
- * \param[in] _x1, x component of the first vector
- * \param[in] _y1, y component of the first vector
- * \param[in] _x2, x component of the second vector
- * \param[in] _y2, y component of the second vector
- * \param[out] Z component of the cross product between (x1,y1,0) and (x2,y2,0)
- * \author Chenshen Wu
- ***********/
-double computeCrossProduct2D(double x1, double y1, double x2, double y2);
-
 
 
 
