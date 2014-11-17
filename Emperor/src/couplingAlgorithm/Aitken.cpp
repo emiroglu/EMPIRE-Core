@@ -96,22 +96,22 @@ void Aitken::calcNewValue() {
     }
 
     /// save old values
-    MathLibrary::copyVector(globalResidualOld,globalResidual,globalResidualSize);
+    MathLibrary::copyDenseVector(globalResidualOld,globalResidual,globalResidualSize);
 
     relaxationFactorOld=relaxationFactor;
 
 }
 
 void Aitken::computeRelaxationFactor() {
-	MathLibrary::copyVector(tmpVec,globalResidual,globalResidualSize);
-	MathLibrary::computeVectorMultiplicationScalar(tmpVec,-1.0,globalResidualSize);
-	MathLibrary::computeVectorAddition(tmpVec,globalResidualOld,1.0,globalResidualSize);
+	MathLibrary::copyDenseVector(tmpVec,globalResidual,globalResidualSize);
+	MathLibrary::computeDenseVectorMultiplicationScalar(tmpVec,-1.0,globalResidualSize);
+	MathLibrary::computeDenseVectorAddition(tmpVec,globalResidualOld,1.0,globalResidualSize);
 	/// tmpVec holds now globalResidualOld - globalResidual
 	double denominator = MathLibrary::vector2norm(tmpVec,globalResidualSize);
 	denominator*=denominator;
 	//double numerator = MathLibrary::computeDenseDotProduct(globalResidualOld, tmpVec, globalResidualSize);
 	// Edit Aditya
-	double numerator = MathLibrary::dotProduct(globalResidualSize,globalResidualOld,tmpVec);
+	double numerator = MathLibrary::computeDenseDotProduct(globalResidualSize,globalResidualOld,tmpVec);
     if(denominator>1e-10)
     {
     	relaxationFactor = relaxationFactorOld * (numerator/denominator);

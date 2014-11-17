@@ -45,7 +45,7 @@ double distancePointSegment(double* _P, double* _P1, double* _P2) {
 	//normP1P2=sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P2));
 	normP1P2=EMPIRE::MathLibrary::vector2norm(P1P2,3);
 
-    double projP1P = sqrt(EMPIRE::MathLibrary::dotProduct(3,P1P,P1P2));
+    double projP1P = sqrt(EMPIRE::MathLibrary::computeDenseDotProduct(3,P1P,P1P2));
      if ( projP1P <= 0 ){
           //return sqrt(EMPIRE::MathLibrary::square2normVector(3,P1P));
      	  return EMPIRE::MathLibrary::vector2norm(P1P,3);
@@ -68,13 +68,13 @@ double distancePointSegment(double* _P, double* _P1, double* _P2) {
 
 double distanceLinePlane(double* Pline,double* Uline, double* Pplane,double* Nplane) {
 
-	double denom=EMPIRE::MathLibrary::dotProduct(3,Nplane,Uline);
+	double denom=EMPIRE::MathLibrary::computeDenseDotProduct(3,Nplane,Uline);
 	if(denom<1e-9) return -1;
 	double PpPl[3];
 	for(int i=0;i<3;i++){
 		PpPl[i]=Pline[i]-Pplane[i];
 	}
-	return EMPIRE::MathLibrary::dotProduct(3,PpPl,Nplane)/denom;
+	return EMPIRE::MathLibrary::computeDenseDotProduct(3,PpPl,Nplane)/denom;
 }
 
 double distanceLineLine(double& _ratioA, double& _ratioB, double* _P1, double* _P2,double* _P3, double* _P4) {
@@ -97,11 +97,11 @@ double distanceLineLine(double& _ratioA, double& _ratioB, double* _P1, double* _
 	if(normP1P2 < EPS)
 	    return -1;
 
-	double d13_34=EMPIRE::MathLibrary::dotProduct(3,P1P3,P3P4);
-	double d34_12=EMPIRE::MathLibrary::dotProduct(3,P3P4,P1P2);
-	double d13_12=EMPIRE::MathLibrary::dotProduct(3,P1P3,P1P2);
-	double d34_34=EMPIRE::MathLibrary::dotProduct(3,P3P4,P3P4);
-	double d12_12=EMPIRE::MathLibrary::dotProduct(3,P1P2,P1P2);
+	double d13_34=EMPIRE::MathLibrary::computeDenseDotProduct(3,P1P3,P3P4);
+	double d34_12=EMPIRE::MathLibrary::computeDenseDotProduct(3,P3P4,P1P2);
+	double d13_12=EMPIRE::MathLibrary::computeDenseDotProduct(3,P1P3,P1P2);
+	double d34_34=EMPIRE::MathLibrary::computeDenseDotProduct(3,P3P4,P3P4);
+	double d12_12=EMPIRE::MathLibrary::computeDenseDotProduct(3,P1P2,P1P2);
 
 	double numer,denom;
 	denom = d12_12 * d34_34 - d34_12 * d34_12;

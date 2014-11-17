@@ -49,7 +49,7 @@ namespace MathLibrary {
  * \author Stefan Sicklinger
  * \edit Aditya Ghantasala (Adding my implementation independent of other libraries)
  ***********/
-void copyVector(double *vec1, const double *vec2, const int elements){
+void copyDenseVector(double *vec1, const double *vec2, const int elements){
 #ifdef USE_INTEL_MKL
 	cblas_dcopy(elements, vec2, 1, vec1, 1);
 #else
@@ -98,7 +98,7 @@ double vector2norm(const double *vec1, const int elements){
  * \author Stefan Sicklinger
  * \eidt Aditya Ghantasala (Adding my implementation to remove dependency on intel)
  ***********/
-void computeVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements){
+void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements){
 #ifndef USE_INTEL_MKL
 	cblas_daxpy (elements, a, vec2, 1, vec1, 1);
 #else
@@ -119,7 +119,7 @@ void computeVectorAddition(double *vec1, const double *vec2 ,const double a, con
  * \author Stefan Sicklinger
  * \edit Aditya Ghantasala
  ***********/
-void computeVectorMultiplicationScalar(double *vec1 ,const double a, const int elements){
+void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements){
 #ifndef USE_INTEL_MKL
 	cblas_dscal (elements, a, vec1, 1);
 #else
@@ -138,7 +138,17 @@ void computeVectorMultiplicationScalar(double *vec1 ,const double a, const int e
  * \param[in] _Pj The second point
  * \author Andreas Apostolatos
  ***********/
-double euclideanDistance(int _length, double* _Pi, double* _Pj) {
+double computeDenseEuclideanNorm(int _length, double* _Pi, double* _Pj) {
+
+#ifndef USE_INTEL_MKL
+	double vec1[_length];
+	for(int i= 0; i<_length; i++){
+		vec1[i] = _Pi[i] - _Pj[i];
+	}
+	return cblas_dnrm2 (_length, vec1, 1);
+#else
+
+
     /*
      * Returns the square of the Euclidean distance of two points in n-D space.
      * The input arguments are 1D arrays holding the coordinate information of the points:
@@ -152,6 +162,7 @@ double euclideanDistance(int _length, double* _Pi, double* _Pj) {
         squareDistance += pow(_Pi[i] - _Pj[i], 2.0);
 
     return squareDistance;
+#endif
 }
 
 /***********************************************************************************************
@@ -163,7 +174,7 @@ double euclideanDistance(int _length, double* _Pi, double* _Pj) {
  * \author Andreas Apostolatos
  * \edit Aditya Ghantasala (mixing Stefan's implementation with this)
  ***********/
-double dotProduct(int _length, double* _vecI, double* _vecJ) {
+double computeDenseDotProduct(int _length, double* _vecI, double* _vecJ) {
 
 	assert(_length >= 0);
 	assert(_vecI != NULL);

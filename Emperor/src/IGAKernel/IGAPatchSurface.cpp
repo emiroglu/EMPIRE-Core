@@ -838,7 +838,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
         // 2ix. Compute the cosine of the angle with respect to u-parametric line
         // Edit Aditya
-        GuXdistanceVector = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, distanceVector);
+        GuXdistanceVector = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, distanceVector);
         Gu2norm = EMPIRE::MathLibrary::vector2norm(Gu, noSpatialDimensions);
         squareGu2norm = Gu2norm * Gu2norm;
 //        squareGu2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gu);
@@ -846,7 +846,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         cosu = fabs(GuXdistanceVector) / Gu2norm / distanceVector2norm;
 
         // 2x. Compute the cosine of the angle with respect to v-parametric line
-        GvXdistanceVector = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gv, distanceVector);
+        GvXdistanceVector = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gv, distanceVector);
 //        squareGv2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gv);
 //        Gv2norm = sqrt(squareGv2norm);
         Gv2norm = EMPIRE::MathLibrary::vector2norm(Gv,noSpatialDimensions);
@@ -861,16 +861,16 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
         // 2xii. Compute the entries of the Jacobian matrix
         dR[0] = squareGu2norm
-                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGuDu, distanceVector);
-        dR[1] = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, Gv)
-                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGuDv, distanceVector);
+                + EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, DGuDu, distanceVector);
+        dR[1] = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, Gv)
+                + EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, DGuDv, distanceVector);
         dR[2] = dR[1];
         dR[3] = squareGv2norm
-                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, DGvDv, distanceVector);
+                + EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, DGvDv, distanceVector);
 
         // 2xiii. Compute the entries of the right-hand side vector
-        R[0] = -EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gu, distanceVector);
-        R[1] = -EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, Gv, distanceVector);
+        R[0] = -EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, distanceVector);
+        R[1] = -EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gv, distanceVector);
 
         if (fabs(dR[0]) < epsJ || fixU) {
             R[0] = 0.0;
@@ -1105,11 +1105,11 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(
 	// Edit Aditya
 	//_distance = sqrt(EMPIRE::MathLibrary::square2normVector(noSpatialDimensions,QP));
 	_distance = EMPIRE::MathLibrary::vector2norm(QP,noSpatialDimensions);
-	//_ratio = (EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, P1P2, P1P))
+	//_ratio = (EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P))
 	//			/ EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, P1P2);
 	double denomenator = EMPIRE::MathLibrary::vector2norm(P1P2, noSpatialDimensions);
 	denomenator = denomenator * denomenator;
-	_ratio = (EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, P1P2, P1P))
+	_ratio = (EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P))
 			/ denomenator;
 	return true;
 
@@ -1340,7 +1340,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //		return false;
 //    _w=w;
 //    _distance=d;
-//    _ratio=(dotProduct(noSpatialDimensions,P1P2,P1P))/sqrt(square2normVector(noSpatialDimensions,P1P2));
+//    _ratio=(computeDenseDotProduct(noSpatialDimensions,P1P2,P1P))/sqrt(square2normVector(noSpatialDimensions,P1P2));
 //    return true;
 //}
 
@@ -1561,18 +1561,18 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //        }
 //
 //        // 2ix. Compute the cosine of the angle with respect to u-parametric line
-//        uBaseVecXdistanceVector = dotProduct(noSpatialDimensions, uBaseVec, distanceVector);//R1
+//        uBaseVecXdistanceVector = computeDenseDotProduct(noSpatialDimensions, uBaseVec, distanceVector);//R1
 //        squareUBaseVec2norm = square2normVector(noSpatialDimensions, uBaseVec);
 //        uBaseVec2norm = sqrt(squareUBaseVec2norm);
 //        cosu = fabs(uBaseVecXdistanceVector) / uBaseVec2norm / distanceVector2norm;
 //
 //        // 2x. Compute the cosine of the angle with respect to v-parametric line
-//        vBaseVecXdistanceVector = dotProduct(noSpatialDimensions, vBaseVec, distanceVector);//R2
+//        vBaseVecXdistanceVector = computeDenseDotProduct(noSpatialDimensions, vBaseVec, distanceVector);//R2
 //        squareVBaseVec2norm = square2normVector(noSpatialDimensions, vBaseVec);
 //        vBaseVec2norm = sqrt(squareVBaseVec2norm);
 //        cosv = fabs(vBaseVecXdistanceVector) / vBaseVec2norm / distanceVector2norm;
 //        // 2x. Compute the cosine of the angle with respect to physical line
-//        cosT=fabs(dotProduct(noSpatialDimensions,distanceVector,P1P2))/
+//        cosT=fabs(computeDenseDotProduct(noSpatialDimensions,distanceVector,P1P2))/
 //        		sqrt(square2normVector(noSpatialDimensions,distanceVector))/
 //        		sqrt(square2normVector(noSpatialDimensions,P1P2));
 //        // 2xi. Check the orthogonality condition and if it is fulfilled break the loop
@@ -1593,23 +1593,23 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //        // 2xii. Compute the entries of the Jacobian matrix
 //        if(direction==0) {
 //        	jacobianMatrix[0] = square2normVector(noSpatialDimensions, P1P2);
-//			jacobianMatrix[1] = dotProduct(noSpatialDimensions, uBaseVec, P1P2);
+//			jacobianMatrix[1] = computeDenseDotProduct(noSpatialDimensions, uBaseVec, P1P2);
 //			jacobianMatrix[2] = jacobianMatrix[1];
-//			jacobianMatrix[3] = dotProduct(noSpatialDimensions, uBaseVecdu, distanceVector)
+//			jacobianMatrix[3] = computeDenseDotProduct(noSpatialDimensions, uBaseVecdu, distanceVector)
 //							- square2normVector(noSpatialDimensions,uBaseVec);
 //        } else {
 //        	jacobianMatrix[0] = square2normVector(noSpatialDimensions, P1P2);
-//			jacobianMatrix[1] = dotProduct(noSpatialDimensions, vBaseVec, P1P2);
+//			jacobianMatrix[1] = computeDenseDotProduct(noSpatialDimensions, vBaseVec, P1P2);
 //			jacobianMatrix[2] = jacobianMatrix[1];
-//			jacobianMatrix[3] = dotProduct(noSpatialDimensions, vBaseVecdv, distanceVector)
+//			jacobianMatrix[3] = computeDenseDotProduct(noSpatialDimensions, vBaseVecdv, distanceVector)
 //							- square2normVector(noSpatialDimensions,vBaseVec);
 //        }
 //        // 2xiii. Compute the entries of the right-hand side vector
-//        rightSideVct[0] = -dotProduct(noSpatialDimensions, P1P2, distanceVector);
+//        rightSideVct[0] = -computeDenseDotProduct(noSpatialDimensions, P1P2, distanceVector);
 //        if(direction==0)
-//        	rightSideVct[1] = -dotProduct(noSpatialDimensions, uBaseVec, distanceVector);
+//        	rightSideVct[1] = -computeDenseDotProduct(noSpatialDimensions, uBaseVec, distanceVector);
 //        else
-//        	rightSideVct[1] = -dotProduct(noSpatialDimensions, vBaseVec, distanceVector);
+//        	rightSideVct[1] = -computeDenseDotProduct(noSpatialDimensions, vBaseVec, distanceVector);
 //
 //
 //        bool flagLinearSystem = solve2x2linearSystem(rightSideVct, jacobianMatrix);
@@ -1889,13 +1889,13 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //        }
 //
 //        // 2ix. Compute the cosine of the angle with respect to u-parametric line
-//        uBaseVecXdistanceVector = dotProduct(noSpatialDimensions, uBaseVec, distanceVector);//R1
+//        uBaseVecXdistanceVector = computeDenseDotProduct(noSpatialDimensions, uBaseVec, distanceVector);//R1
 //        squareUBaseVec2norm = square2normVector(noSpatialDimensions, uBaseVec);
 //        uBaseVec2norm = sqrt(squareUBaseVec2norm);
 //        cosu = fabs(uBaseVecXdistanceVector) / uBaseVec2norm / distanceVector2norm;
 //
 //        // 2x. Compute the cosine of the angle with respect to v-parametric line
-//        vBaseVecXdistanceVector = dotProduct(noSpatialDimensions, vBaseVec, distanceVector);//R2
+//        vBaseVecXdistanceVector = computeDenseDotProduct(noSpatialDimensions, vBaseVec, distanceVector);//R2
 //        squareVBaseVec2norm = square2normVector(noSpatialDimensions, vBaseVec);
 //        vBaseVec2norm = sqrt(squareVBaseVec2norm);
 //        cosv = fabs(vBaseVecXdistanceVector) / vBaseVec2norm / distanceVector2norm;
@@ -1908,7 +1908,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //        else
 //        	cosW=cosv;
 //
-//        cosT=dotProduct(noSpatialDimensions,distanceVector,P1P2)/
+//        cosT=computeDenseDotProduct(noSpatialDimensions,distanceVector,P1P2)/
 //        		sqrt(square2normVector(noSpatialDimensions,distanceVector))/
 //        		sqrt(square2normVector(noSpatialDimensions,P1P2));
 //
@@ -1920,26 +1920,26 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Brute(double& _u, do
 //        // 2xii. Compute the entries of the Jacobian matrix
 //        if(direction==0) {
 //			// dR11=dGu/du * QP + Gu*Gu
-//        	jacobianMatrix[0] = dotProduct(noSpatialDimensions, uBaseVec, P1P2)/uBaseVec2norm;
+//        	jacobianMatrix[0] = computeDenseDotProduct(noSpatialDimensions, uBaseVec, P1P2)/uBaseVec2norm;
 //			// dR12=Gu * P1P2
-//			jacobianMatrix[1] = dotProduct(noSpatialDimensions, uBaseVecdu, distanceVector)-squareUBaseVec2norm;
+//			jacobianMatrix[1] = computeDenseDotProduct(noSpatialDimensions, uBaseVecdu, distanceVector)-squareUBaseVec2norm;
 //        	// dR21=dGv/du * QP + Gv*Gu
-//			jacobianMatrix[2] = dotProduct(noSpatialDimensions, vBaseVec, P1P2)/vBaseVec2norm;
+//			jacobianMatrix[2] = computeDenseDotProduct(noSpatialDimensions, vBaseVec, P1P2)/vBaseVec2norm;
 //			// dR22=Gv * P1P2
-//			jacobianMatrix[3] = -dotProduct(noSpatialDimensions, uBaseVec, vBaseVec)+dotProduct(noSpatialDimensions,dBaseVecMix,distanceVector);
+//			jacobianMatrix[3] = -computeDenseDotProduct(noSpatialDimensions, uBaseVec, vBaseVec)+computeDenseDotProduct(noSpatialDimensions,dBaseVecMix,distanceVector);
 //        } else {
 //			// dR11=Gu * P1P2
-//        	jacobianMatrix[0] = dotProduct(noSpatialDimensions, uBaseVec, P1P2)/uBaseVec2norm;
+//        	jacobianMatrix[0] = computeDenseDotProduct(noSpatialDimensions, uBaseVec, P1P2)/uBaseVec2norm;
 //			// dR12=dGu/dv * QP - Gv*Gu
-//			jacobianMatrix[1] = -dotProduct(noSpatialDimensions,uBaseVec,vBaseVec)+dotProduct(noSpatialDimensions,distanceVector,dBaseVecMix);
+//			jacobianMatrix[1] = -computeDenseDotProduct(noSpatialDimensions,uBaseVec,vBaseVec)+computeDenseDotProduct(noSpatialDimensions,distanceVector,dBaseVecMix);
 //        	// dR21=Gv * P1P2
-//			jacobianMatrix[2] = dotProduct(noSpatialDimensions, vBaseVec, P1P2)/vBaseVec2norm;
+//			jacobianMatrix[2] = computeDenseDotProduct(noSpatialDimensions, vBaseVec, P1P2)/vBaseVec2norm;
 //			// dR22=dGv/dv * QP - Gv*Gv
-//			jacobianMatrix[3] = dotProduct(noSpatialDimensions, vBaseVecdv, distanceVector)-squareVBaseVec2norm;
+//			jacobianMatrix[3] = computeDenseDotProduct(noSpatialDimensions, vBaseVecdv, distanceVector)-squareVBaseVec2norm;
 //        }
 //        // 2xiii. Compute the entries of the right-hand side vector
-//        rightSideVct[0] = dotProduct(noSpatialDimensions, uBaseVec, distanceVector)/uBaseVec2norm;
-//        rightSideVct[1] = dotProduct(noSpatialDimensions, vBaseVec, distanceVector)/vBaseVec2norm;
+//        rightSideVct[0] = computeDenseDotProduct(noSpatialDimensions, uBaseVec, distanceVector)/uBaseVec2norm;
+//        rightSideVct[1] = computeDenseDotProduct(noSpatialDimensions, vBaseVec, distanceVector)/vBaseVec2norm;
 //
 //
 //        bool flagLinearSystem = solve2x2linearSystem(rightSideVct, jacobianMatrix);
@@ -2138,7 +2138,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		EMPIRE::MathLibrary::crossProduct(n, P1P2, normalSurface);
 		R_previous2 = R_previous1;
 		R_previous1 = R;
-		R = EMPIRE::MathLibrary::dotProduct(dim, P1Q, n);
+		R = EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1Q, n);
 		// 2vii. Compute the stopping criteria
 		// If not converging quick enough
 		if(fabs(fabs(R)-fabs(R_previous1))<EPS_ORTHOGONALITY_CONDITION)
@@ -2155,16 +2155,16 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		if (direction == 0) {
 			EMPIRE::MathLibrary::crossProduct(product1, DGuDu, Gv);
 			EMPIRE::MathLibrary::crossProduct(product2, Gu, DGuDv);
-			dR = EMPIRE::MathLibrary::dotProduct(dim, Gu, n);
+			dR = EMPIRE::MathLibrary::computeDenseDotProduct(dim, Gu, n);
 		} else {
 			EMPIRE::MathLibrary::crossProduct(product1, DGuDv, Gv);
 			EMPIRE::MathLibrary::crossProduct(product2, Gu, DGvDv);
-			dR = EMPIRE::MathLibrary::dotProduct(dim, Gv, n);
+			dR = EMPIRE::MathLibrary::computeDenseDotProduct(dim, Gv, n);
 		}
 		for (int i = 0; i < dim; i++)
 			product1[i] += product2[i];
 		EMPIRE::MathLibrary::crossProduct(product3, P1P2, product1);
-		dR += EMPIRE::MathLibrary::dotProduct(dim, P1Q, product3);
+		dR += EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1Q, product3);
 
 		// Apply the variation dw on parameter and check if going outside of knot span then break
 		double dw=-R/dR;
@@ -2199,20 +2199,20 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 	for (int i = 0; i < dim; i++)
 		unitNormalSurface[i] = normalSurface[i]/normNormalSurface;
 	// Project P1Q onto the normal of the patch
-	double h10 = EMPIRE::MathLibrary::dotProduct(dim, P1Q, unitNormalSurface);
+	double h10 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1Q, unitNormalSurface);
     for (int i = 0; i < dim; i++) {
     	P1P[i] = P1Q[i];
         P1P[i] -= h10 * unitNormalSurface[i];
     }
 	// Project P1P2 onto the normal of the patch
-    double h12 = EMPIRE::MathLibrary::dotProduct(dim, P1P2, P1P);
+    double h12 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1P2, P1P);
     // Get the point on the line P1P2 from the intersection with the patch normal
     for (int i = 0; i < dim; i++) {
         P1P[i] -= h12 * unitNormalSurface[i];
     }
     //double normP1P2 = sqrt(EMPIRE::MathLibrary::square2normVector(dim, P1P2));
     double normP1P2 = EMPIRE::MathLibrary::vector2norm(P1P2,dim);
-    double normP1P = EMPIRE::MathLibrary::dotProduct(dim, P1P, P1P2)/normP1P2;
+    double normP1P = EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1P, P1P2)/normP1P2;
     _ratio = normP1P / normP1P2;
     // Compute distance between patch and the line
     double QP[3];
@@ -2444,9 +2444,9 @@ bool IGAPatchSurface::computePointMinimumDistanceToPatchBoundaryOnGivenEdge(doub
             dBaseVec[i] = baseVecAndDerivs[indexDerivativeBaseVector(derivDegreeBaseVcts,
                     1 - direction, direction, i, direction)];
         }
-        f = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, baseVec, distanceVector);
-        df = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, dBaseVec, distanceVector)
-                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, baseVec, baseVec);
+        f = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, baseVec, distanceVector);
+        df = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, dBaseVec, distanceVector)
+                + EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, baseVec, baseVec);
 
 
         if(df!=df)
@@ -2685,9 +2685,9 @@ bool IGAPatchSurface::computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(doubl
         EMPIRE::MathLibrary::crossProduct(product1, baseVec, distanceVector12);
         EMPIRE::MathLibrary::crossProduct(product2, dBaseVec, distanceVector12);
         EMPIRE::MathLibrary::crossProduct(product3, distanceVector01, distanceVector02);
-        f = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product1, product3);
-        df = EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product2, product3)
-                + EMPIRE::MathLibrary::dotProduct(noSpatialDimensions, product1, product1);
+        f = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, product1, product3);
+        df = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, product2, product3)
+                + EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, product1, product1);
 
         if(df==0)
         	continue;

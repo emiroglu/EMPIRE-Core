@@ -48,7 +48,7 @@ namespace MathLibrary {
  * \param[in] vec2 the 2nd vector
  * \author Stefan Sicklinger
  ***********/
-void copyVector(double *vec1, const double *vec2, const int elements);
+void copyDenseVector(double *vec1, const double *vec2, const int elements);
 
 /***********************************************************************************************
  * \brief Compute Euclidean norm of vector
@@ -67,7 +67,7 @@ double vector2norm(const double *vec1, const int elements);
  * \param[in] elements number of elements in vec1
  * \author Stefan Sicklinger
  ***********/
-void computeVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements);
+void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements);
 
 /***********************************************************************************************
  * \brief Computes vector scales by scalar vec1 <- vec1*a
@@ -76,7 +76,7 @@ void computeVectorAddition(double *vec1, const double *vec2 ,const double a, con
  * \param[in] elements number of elements in vec1
  * \author Stefan Sicklinger
  ***********/
-void computeVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
+void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
 
 /***********************************************************************************************
  * \brief Compute the square of the Euclidean distance of two points in n-D space.
@@ -86,7 +86,7 @@ void computeVectorMultiplicationScalar(double *vec1 ,const double a, const int e
  * \param[in] _Pj The second point
  * \author Andreas Apostolatos
  ***********/
-double euclideanDistance(int, double*, double*);
+double computeDenseEuclideanNorm(int, double*, double*);
 
 /***********************************************************************************************
  * \brief Compute the dot product between two vectors in the n-D space
@@ -97,7 +97,7 @@ double euclideanDistance(int, double*, double*);
  * \author Andreas Apostolatos
  * \edit Aditya Ghantasala (mixing Stefan's implementation)
  ***********/
-double dotProduct(int, double*, double*);
+double computeDenseDotProduct(int, double*, double*);
 
 /***********************************************************************************************
 * \brief Compute the cross product between two vectors in the 3-D space

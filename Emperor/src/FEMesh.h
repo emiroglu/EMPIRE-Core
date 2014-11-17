@@ -82,6 +82,12 @@ public:
      * \author Tianyang Wang
      ***********/
     void computeBoundingBox();
+    /***********************************************************************************************
+     * \brief Verify that the mesh is correct. No duplicated node in a single element and no pair of elements identical
+     * 			! WARNING ! comparaison of 2 elements strictly in same order, no permutation checked.
+     * \author Fabien Pean
+     ***********/
+    void validateMesh();
 
     /// triangulate all elments
     bool triangulateAll;

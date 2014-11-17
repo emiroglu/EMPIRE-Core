@@ -191,6 +191,43 @@ void FEMesh::computeBoundingBox() {
     boundingBox.isComputed = true;
 }
 
+void FEMesh::validateMesh() {
+    int count1 = 0;
+    int count2 = 0;
+    // Check that two nodes index are not identical in a same element
+    for(int elem=0; elem < numElems; elem++) {
+    	for(int node1=0; node1 < numNodesPerElem[elem]-1; node1++){
+        	for(int node2=node1+1; node2 < numNodesPerElem[elem]; node2++){
+        		bool identical=elems[count1+node1]==elems[count1+node2];
+        		if(identical)
+        			ERROR_BLOCK_OUT("FEMesh","validateMesh","Mesh not valid. Duplicated node in element");
+        		//assert(!identical);
+        	}
+    	}
+    	count1+=numNodesPerElem[elem];
+    }
+    // Check that two elements are not identical
+    // !WARNING! Check only element together in the same order
+	count1=0;
+    for(int elem1=0;elem1<numElems-1;elem1++) {
+    	count2=count1+numNodesPerElem[elem1];
+    	for(int elem2=elem1+1;elem2<numElems;elem2++) {
+    		if(numNodesPerElem[elem1]==numNodesPerElem[elem2]) {
+    			bool different=true;
+    			for(int k=0;k<numNodesPerElem[elem1];k++) {
+            		different = (elems[count1+k]!=elems[count2+k]);
+            		if(different) break;
+    			}
+    			if(!different)
+        			ERROR_BLOCK_OUT("FEMesh","validateMesh","Mesh not valid. Two strictly identical element present");
+    			//assert(different);
+    		}
+    		count2 += numNodesPerElem[elem2];
+    	}
+    	count1 += numNodesPerElem[elem1];
+    }
+}
+
 void revertSurfaceNormalOfFEMesh(FEMesh *mesh) {
     int count = 0;
     for (int i = 0; i < mesh->numElems; i++) {
@@ -206,6 +243,9 @@ void revertSurfaceNormalOfFEMesh(FEMesh *mesh) {
 }
 
 Message &operator<<(Message &message, FEMesh &mesh) {
+	// First validate the mesh
+	mesh.validateMesh();
+	// Display the mesh information
     message << "\t+" << "FEMesh name: " << mesh.name << endl;
     message << "\t\t+" << "no. of nodes: " << mesh.numNodes << endl;
     message << "\t\t+" << "no. of elements: " << mesh.numElems << endl;
@@ -228,6 +268,7 @@ Message &operator<<(Message &message, FEMesh &mesh) {
         message << endl;
     }
     message() << "\t+" << "---------------------------------" << endl;
+
     return message;
 }
 
