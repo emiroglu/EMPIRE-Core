@@ -1257,6 +1257,7 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 		const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
 		c.addPathClipper(clippingWindow);
 	}
+	c.setFilling(ClipperInterface::POSITIVE, 0);
 	c.addPathSubject(_polygonUV);
 	c.clip();
 	c.getSolution(_listPolygonUV);
