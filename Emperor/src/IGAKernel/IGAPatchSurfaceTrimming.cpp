@@ -1,6 +1,5 @@
- 
-/*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+/*  Copyright &copy; 2014, TU Muenchen, Chair of Structural Analysis,
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu, Munich
  *
  *  All rights reserved.
  *
@@ -19,6 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
+
 // Inclusion of standard libraries
 #include <iostream>
 #include <stdlib.h>
