@@ -1227,11 +1227,10 @@ void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchW
 		for (int nodeCount = 0; nodeCount < meshFE->numNodesPerElem[elemIndex]; nodeCount++) {
 			// Find the index of the node in the FE mesh
 			int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
-
 			// Find whether this index is in the projected nodes array
 			bool isNodeOnPatch = (*projectedCoords)[nodeIndex].find(patchCount)
 					!= (*projectedCoords)[nodeIndex].end();
-
+			// Update flag
 			if (!isNodeOnPatch) {
 				isAllNodesOnPatch = false;
 			} else {
