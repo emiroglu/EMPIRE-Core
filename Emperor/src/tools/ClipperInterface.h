@@ -105,11 +105,26 @@ public:
      * \brief Execute a standard intersection clipping by providing everything at once : subject/clipping window/solution
      * \author Fabien Pean
      ***********/
-	void clip(int _numNodesPolygonToClip, double* _nodesPolygonToClip, int _numNodesClipper,double* _nodesClipper, int& _numNodesOutputPolygon, double*& _nodesOutputPolygon);
-	void clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper,std::vector<double>& _nodesOutputPolygon);
-	std::vector<double> clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper);
-	void clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper, std::vector<std::pair<double,double> >& _nodesOutputPolygon);
-	std::vector<std::pair<double,double> > clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper);
+	void clip(int _numNodesPolygonToClip,
+			  double* _nodesPolygonToClip,
+			  int _numNodesClipper,
+			  double* _nodesClipper,
+			  int& _numNodesOutputPolygon,
+			  double*& _nodesOutputPolygon);
+
+	void clip(const std::vector<double>& _nodesPolygonToClip,
+			  const std::vector<double>& _nodesClipper,
+			  std::vector<double>& _nodesOutputPolygon);
+
+	std::vector<double> clip(const std::vector<double>& _nodesPolygonToClip,
+			                 const std::vector<double>& _nodesClipper);
+
+	void clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip,
+			  const std::vector<std::pair<double,double> >& _nodesClipper,
+			  std::vector<std::pair<double,double> >& _nodesOutputPolygon);
+
+	std::vector<std::pair<double,double> > clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip,
+			                                    const std::vector<std::pair<double,double> >& _nodesClipper);
     /***********************************************************************************************
      * \brief Static call to the inner clean of clipper library
      * \author Fabien Pean

@@ -45,10 +45,10 @@ class IGAMesh;
 class FEMesh;
 class DataField;
 
-namespace IGAMortarMath {
+namespace MathLibrary {
 
-class GaussQuadratureOnTriangle;
-class GaussQuadratureOnQuad;
+class IGAGaussQuadratureOnTriangle;
+class IGAGaussQuadratureOnQuad;
 
 }
 
@@ -81,10 +81,10 @@ private:
     MathLibrary::SparseMatrix<double> *C_NR;
 
     /// Quadrature rule over the triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnTriangle *gaussTriangle;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
 
     /// Quadrature rule over the non-triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnQuad *gaussQuad;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, double*> > *projectedCoords;

@@ -19,7 +19,9 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "NearestElementMapper.h"
-#include "MortarMath.h"
+//#include "MortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #ifdef FLANN
 #include "flann/flann.hpp"
 #endif
@@ -137,7 +139,7 @@ void NearestElementMapper::computeNeighborsAndWeights() {
         int numNodesThisElem = numNodesPerElemA[i];
         double thisElem[numNodesThisElem * 3];
         getElemCoorInA(i, thisElem);
-        MortarMath::computePolygonCenter(thisElem, numNodesThisElem, &(elementCentroidsA[i * 3]));
+        EMPIRE::MathLibrary::computePolygonCenter(thisElem, numNodesThisElem, &(elementCentroidsA[i * 3]));
     }
 
     int NUM_NEIGHBORS_TO_SEARCH = MAX_NUM_NEIGHBORS_TO_SEARCH;
@@ -171,15 +173,15 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                         double triangle[3 * 3];
                         getElemCoorInA(indexes_tmp[0][j], triangle);
                         double normal[3];
-                        MortarMath::computeNormalOfTriangle(triangle, true, normal);
-                        int planeToProject = MortarMath::computePlaneToProject(normal);
+                        EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                        int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
 
                         double projection[3];
-                        MortarMath::projectToPlane(&triangle[0], normal, &(nodesB[i * 3]), 1,
+                        EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &(nodesB[i * 3]), 1,
                                 projection);
 
                         double localCoors[3];
-                        MortarMath::computeLocalCoorInTriangle(triangle, planeToProject, projection,
+                        EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject, projection,
                                 localCoors);
                         bool inside = insideElement(3, localCoors);
                         if (inside) {
@@ -199,23 +201,23 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                         double quad[4 * 3];
                         getElemCoorInA(indexes_tmp[0][j], quad);
                         double normal[3];
-                        MortarMath::computeNormalOfQuad(quad, true, normal);
-                        int planeToProject = MortarMath::computePlaneToProject(normal);
+                        EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                        int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
 
                         { // replace the element by the projection of it on its "element plane"
                             double quadCenter[3];
-                            MortarMath::computePolygonCenter(quad, 4, quadCenter);
+                            EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
                             double quadPrj[12];
-                            MortarMath::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                            EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
                             for (int i = 0; i < 12; i++)
                             quad[i] = quadPrj[i];
                         }
                         double projection[3];
-                        MortarMath::projectToPlane(&quad[0], normal, &(nodesB[i * 3]), 1,
+                        EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &(nodesB[i * 3]), 1,
                                 projection);
 
                         double localCoors[2];
-                        MortarMath::computeLocalCoorInQuad(quad, planeToProject, projection,
+                        EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
                                 localCoors);
                         bool inside = insideElement(4, localCoors);
                         if (inside) {
@@ -226,7 +228,7 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                                         k);
                             }
                             weightsTable->at(i) = new double[4];
-                            MortarMath::computeShapeFuncOfQuad(localCoors, weightsTable->at(i));
+                            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weightsTable->at(i));
                             break;
                         }
                     } else {
@@ -238,15 +240,15 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                             double triangle[3 * 3];
                             getElemCoorInA(indexes_tmp[0][0], triangle);
                             double normal[3];
-                            MortarMath::computeNormalOfTriangle(triangle, true, normal);
-                            int planeToProject = MortarMath::computePlaneToProject(normal);
+                            EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                            int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
 
                             double projection[3];
-                            MortarMath::projectToPlane(&triangle[0], normal, &(nodesB[i * 3]), 1,
+                            EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &(nodesB[i * 3]), 1,
                                     projection);
 
                             double localCoors[3];
-                            MortarMath::computeLocalCoorInTriangle(triangle, planeToProject,
+                            EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject,
                                     projection, localCoors);
                             {
                                 numNodesPerNeighborElem[i] = 3;
@@ -264,23 +266,23 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                             double quad[4 * 3];
                             getElemCoorInA(indexes_tmp[0][0], quad);
                             double normal[3];
-                            MortarMath::computeNormalOfQuad(quad, true, normal);
-                            int planeToProject = MortarMath::computePlaneToProject(normal);
+                            EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                            int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
 
                             { // replace the element by the projection of it on its "element plane"
                                 double quadCenter[3];
-                                MortarMath::computePolygonCenter(quad, 4, quadCenter);
+                                EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
                                 double quadPrj[12];
-                                MortarMath::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                                EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
                                 for (int i = 0; i < 12; i++)
                                 quad[i] = quadPrj[i];
                             }
                             double projection[3];
-                            MortarMath::projectToPlane(&quad[0], normal, &(nodesB[i * 3]), 1,
+                            EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &(nodesB[i * 3]), 1,
                                     projection);
 
                             double localCoors[2];
-                            MortarMath::computeLocalCoorInQuad(quad, planeToProject, projection,
+                            EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
                                     localCoors);
                             {
                                 numNodesPerNeighborElem[i] = 4;
@@ -290,7 +292,7 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                                     directElemTableA[indexes_tmp[0][0]]->at(k);
                                 }
                                 weightsTable->at(i) = new double[4];
-                                MortarMath::computeShapeFuncOfQuad(localCoors, weightsTable->at(i));
+                                EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weightsTable->at(i));
                             }
                         } else {
                             assert(false);
