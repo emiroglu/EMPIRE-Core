@@ -426,9 +426,9 @@ void IGAMortarMapper::computeCouplingMatrices() {
 
 /// Loop over all the elements in the FE side
     for (int elemCount = 0; elemCount < meshFE->numElems; elemCount++) {
-    	INFO_OUT()<<"######################"<<endl;
-    	INFO_OUT()<<"# ELEMENT ["<<elemCount<<"] #"<<endl;
-    	INFO_OUT()<<"######################"<<endl;
+    	DEBUG_OUT()<<"######################"<<endl;
+    	DEBUG_OUT()<<"# ELEMENT ["<<elemCount<<"] #"<<endl;
+    	DEBUG_OUT()<<"######################"<<endl;
 
         // Compute the number of shape functions. Depending on number of nodes in the current element
         int numNodesElementFE = meshFE->numNodesPerElem[elemCount];
@@ -566,7 +566,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					nodeCounter++;
 					continue;
 				}
-
 				/// 2.1.1 NODE.1 OUTSIDE AND NODE.2 INSIDE
 				if(!isNodeInsidePatch && isNextNodeInsidePatch) {
 					// 1. First point
@@ -1246,6 +1245,7 @@ bool IGAMortarMapper::computeIntermediatePoints(const int patchIndex, const int 
 	if(polygonUV.empty()) {
 		u = (*projectedCoords)[nodeIndex1][patchIndex][0];
 		v = (*projectedCoords)[nodeIndex1][patchIndex][1];
+	} else {
 		u=polygonUV.back().first;
 		v=polygonUV.back().second;
 	}
