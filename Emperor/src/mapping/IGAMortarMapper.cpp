@@ -26,12 +26,11 @@
  */
 
 #include "IGAMortarMapper.h"
-#include "IGAMortarMath.h"
-#include "MortarMath.h"
-#include "MathLibrary.h"
-#include "FEMesh.h"
 #include "IGAPatchSurface.h"
 #include "IGAMesh.h"
+#include "FEMesh.h"
+#include "ClipperInterface.h"
+#include "MathLibrary.h"
 #include "DataField.h"
 #include <iostream>
 #include <fstream>
@@ -39,7 +38,7 @@
 #include <math.h>
 #include <set>
 #include <algorithm>
-#include "ClipperInterface.h"
+
 using namespace std;
 
 namespace EMPIRE {
@@ -76,12 +75,17 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesSlave = meshFE->numNodes;
         numNodesMaster = meshIGA->getNumNodes();
     }
+    DEBUG_OUT()<<"NumNodesIGA is "<<meshIGA->getNumNodes()<<endl;
+    DEBUG_OUT()<<"NumNodesFE is "<<meshFE->numNodes<<endl;
+    DEBUG_OUT()<<"NumNodesMaster is "<<numNodesMaster<<endl;
+    DEBUG_OUT()<<"NumNodesSlave is "<<numNodesSlave<<endl;
+
 
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
     C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
 
-    gaussTriangle = new IGAMortarMath::GaussQuadratureOnTriangle(numGPsTri);
-    gaussQuad = new IGAMortarMath::GaussQuadratureOnQuad(numGPsQuad);
+    gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(numGPsTri);
+    gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(numGPsQuad);
 
     initTables();
 
@@ -91,7 +95,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     writeProjectedNodesOntoIGAMesh();
 
     computeCouplingMatrices();
-
 
     printCouplingMatricesToFile();
 
@@ -313,7 +316,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 
                     /// 1iii.4ii.4. Check if the Newton-Rapshon iterations have converged
                     if (isConvergedInside
-                            && IGAMortarMath::computePointDistance(&meshFE->nodes[nodeIndex * 3],
+                            && MathLibrary::computePointDistance(&meshFE->nodes[nodeIndex * 3],
                                     cartesianCoords) < disTol) {
 
                         /// 1iii.4ii.4i. Set projection flag to true
@@ -373,7 +376,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 
                 /// 2iii.5. Check if the Newton-Rapshon iterations have converged and if the points are coinciding
                 bool hasConverged=isConvergedInside;
-                if (hasConverged && IGAMortarMath::computePointDistance(P, P_out) < disTol) {
+                if (hasConverged && MathLibrary::computePointDistance(P, P_out) < disTol) {
                     /// 2iii.5i. Set projection flag to true
                     isNodeProjected = true;
 
@@ -406,26 +409,26 @@ void IGAMortarMapper::computeCouplingMatrices() {
      * Computes the coupling matrices CNR and CNN.
      * Loop over all the elements in the FE side
      * ->
-     * 1. Find whether the projected FE element is located on one patch
+     * 1. Find whether the projected FE element is located on one patch or split
      *
      * 2. Compute the coupling matrices
      * ->
-     * 2i. If the current element can be projected on one patch
-     * 2ii. If the current element cannot be projected on one patch
+     * 2i. Loop over patches where element can be projected entirely on one patch
+     * 2ii. Loop over patches where element is split
      * <-
      */
 
 	//List of integrated element
 	set<int> elementIntegrated;
-// The vertices of the canonical polygons
+/// The vertices of the canonical polygons
     double parentTriangle[6] = { 0, 0, 1, 0, 0, 1 };
     double parentQuadriliteral[8] = { -1, -1, 1, -1, 1, 1, -1, 1 };
 
 /// Loop over all the elements in the FE side
     for (int elemCount = 0; elemCount < meshFE->numElems; elemCount++) {
-    	INFO_OUT()<<"######################"<<endl;
-    	INFO_OUT()<<"# ELEMENT ["<<elemCount<<"] #"<<endl;
-    	INFO_OUT()<<"######################"<<endl;
+    	DEBUG_OUT()<<"######################"<<endl;
+    	DEBUG_OUT()<<"# ELEMENT ["<<elemCount<<"] #"<<endl;
+    	DEBUG_OUT()<<"######################"<<endl;
 
         // Compute the number of shape functions. Depending on number of nodes in the current element
         int numNodesElementFE = meshFE->numNodesPerElem[elemCount];
@@ -462,6 +465,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			IGAPatchSurface* thePatch = meshIGA->getSurfacePatches()[patchIndex];
 			/// Get the projected coordinates for the current element
 			Polygon2D polygonUV;
+			map<int,Polygon2D> extraPolygonUV;
 			bool isProjectedOnPatchBoundary=true;
 			bool isProjectedOnPatch=false;
 			double u, v;
@@ -474,45 +478,18 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				int nodeCountNext = (nodeCounter + 1) % numNodesElementFE;
 				int nodeIndex = meshFEDirectElemTable[elemCount][nodeCount];
 				int nodeIndexNext = meshFEDirectElemTable[elemCount][nodeCountNext];
-
 				double* P1 = &(meshFE->nodes[nodeIndex * 3]);
 				double* P2 = &(meshFE->nodes[nodeIndexNext * 3]);
-				double P1P2[3];
-				for(int i=0;i<3;i++)
-					P1P2[i]=P2[i]-P1[i];
-
-				int nodeCountLast=(nodeCounter + 2) % numNodesElementFE;
-				int nodeIndexLast=meshFEDirectElemTable[elemCount][nodeCountLast];
 				/// 1.1.1 First point, just add it to polygon
 				u = (*projectedCoords)[nodeIndex][patchIndex][0];
 				v = (*projectedCoords)[nodeIndex][patchIndex][1];
 				polygonUV.push_back(make_pair(u,v));
 				/// 1.1.2 Compute intermediate points on the line
-				for(int sub=1;sub<MAX_DIV;sub++) {
-					double t = (double)sub/(double)MAX_DIV;
-					double P_projected[3];
-					for(int i=0;i<3;i++)
-						P_projected[i]=P1[i]+P1P2[i]*t;
-					// Try to project it on patch
-					isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-					if(isProjectedOnPatch) {
-						// If projected just add it to polygon
-						polygonUV.push_back(make_pair(u,v));
-					} else {
-						// Else compute intersection on patch boundary
-						for(int i=0;i<3;i++)
-							P_projected[i]=P1[i]+P1P2[i]*t;
-						double* P_last=&(meshFE->nodes[nodeIndexLast * 3]);
-						u = (*projectedCoords)[nodeIndexLast][patchIndex][0];
-						v = (*projectedCoords)[nodeIndexLast][patchIndex][1];
-						isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_last, P_projected);
-						if (isProjectedOnPatchBoundary && dis <= disTol) {
-							polygonUV.push_back(make_pair(u,v));
-						}
-					}
-				}
+				computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,P2,polygonUV,extraPolygonUV);
 			}
 			ClipperInterface::cleanPolygon(polygonUV);
+			if(polygonUV.size()<3)
+				continue;
 			bool isIntegrated=false;
 			ListPolygon2D listTrimmedPolygonUV(1, polygonUV);
 			/// 1.2 Apply trimming
@@ -527,7 +504,8 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
 				for(int index=0;index<listSpan.size();index++) {
 					ClipperInterface::cleanPolygon(listPolygonUV[index]);
-					if(listPolygonUV[index].size()<3) continue;
+					if(listPolygonUV[index].size()<3)
+						continue;
 					isIntegrated=true;
 					// Get canonical element
 					Polygon2D polygonWZ = computeCanonicalElement(thePatch,listPolygonUV[index],elemCount);
@@ -544,12 +522,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 		for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
 			int patchIndex=*it;
 			IGAPatchSurface* thePatch = meshIGA->getSurfacePatches()[patchIndex];
-			int numNodesClippedByPatchProjElementFE = 0;
-			// the parameter coordinates in IGA of the sub-element divided by the patch
-			double clippedByPatchProjElementFEUV[16];
-
-			// the parameter coordinates in low order element of the sub-element divided by the patch
-			double clippedByPatchProjElementFEWZ[16];
 
 			// Cartesian coordinates of the low order element
 			double elementFEXYZ[12];
@@ -569,8 +541,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			double u, v;
 			double w, z;
 			double div, dis;
-			int MAX_DIV=numDivision;
-			int nodeIndexLast=-1;
+			char edge1,edge2;
 			/// 2.1 Compute initial polygon by computing point on ever edge case
 			while(numEdgesProcessed!=numEdges) {
 				// Get the node indexes
@@ -588,105 +559,53 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				// Get the 2 points of the line
 				double* P1 = &(meshFE->nodes[nodeIndex * 3]);
 				double* P2 = &(meshFE->nodes[nodeIndexNext * 3]);
-				double P1P2[3],P[3];
-				for(int i=0;i<3;i++)
-					P1P2[i]=P2[i]-P1[i];
+				double P[3];
 
 				// Loop until starting predefined starting point 1st point outside and 2nd point outside
 				if(numEdgesProcessed==0 && (isNodeInsidePatch || !isNextNodeInsidePatch)) {
 					nodeCounter++;
 					continue;
 				}
-
 				/// 2.1.1 NODE.1 OUTSIDE AND NODE.2 INSIDE
 				if(!isNodeInsidePatch && isNextNodeInsidePatch) {
-					nodeIndexLast=nodeIndexNext;
 					// 1. First point
 					u = (*projectedCoords)[nodeIndexNext][patchIndex][0];
 					v = (*projectedCoords)[nodeIndexNext][patchIndex][1];
-					isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary(u, v, div, dis, P2, P1);
-					if (isProjectedOnPatchBoundary && dis <= disTol) {
+					edge1=thePatch->computePointProjectionOnPatchBoundary(u, v, div, dis, P2, P1);
+					isProjectedOnPatchBoundary = edge1;
+					if(isProjectedOnPatchBoundary && dis <= disTol) {
 						polygonUV.push_back(make_pair(u,v));
 					}
 					// 2. Compute intermediate points
-					double PP2[3];
 					for(int i=0;i<3;i++) {
 						P[i]=P2[i]*(1-div)+P1[i]*div;
-						PP2[i]=P2[i]-P[i];
 					}
-					for(int sub=1;sub<MAX_DIV;sub++) {
-						double t = (double)sub/(double)MAX_DIV;
-						double P_projected[3];
-						for(int i=0;i<3;i++)
-							P_projected[i]=P[i]+PP2[i]*t;
-						isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-						if(isProjectedOnPatch) {
-							polygonUV.push_back(make_pair(u,v));
-						} else {
-							double* P_last=&(meshFE->nodes[nodeIndexLast * 3]);
-							for(int i=0;i<3;i++) {
-								P_projected[i]	= P1[i]		+P1P2[i]*t;
-							}
-							u = (*projectedCoords)[nodeIndexLast][patchIndex][0];
-							v = (*projectedCoords)[nodeIndexLast][patchIndex][1];
-							isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_last, P_projected);
-							if (isProjectedOnPatchBoundary && dis <= disTol) {
-								polygonUV.push_back(make_pair(u,v));
-							}
-						}
-					}
+					computeIntermediatePoints(patchIndex,elemCount,nodeIndexNext,nodeIndex,P,P2,polygonUV,extraPolygonUV);
 					// 3. Second point
 					u = (*projectedCoords)[nodeIndexNext][patchIndex][0];
 					v = (*projectedCoords)[nodeIndexNext][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
 					// 4. Update processed edge
 					numEdgesProcessed++;
+
 				}
 				/// 2.1.2 NODE.1 INSIDE AND NODE.2 INSIDE
 				if(isNodeInsidePatch && isNextNodeInsidePatch) {
-					nodeIndexLast=nodeIndex;
 					// 1. First point
 					u = (*projectedCoords)[nodeIndex][patchIndex][0];
 					v = (*projectedCoords)[nodeIndex][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
 					// 2. Compute intermediate points
-					double PP2[3];
-					for(int i=0;i<3;i++) {
-						P[i]=P1[i];
-						PP2[i]=P2[i]-P[i];
-					}
-					for(int sub=1;sub<MAX_DIV;sub++) {
-						double t = (double)sub/(double)MAX_DIV;
-						double P_projected[3];
-						for(int i=0;i<3;i++)
-							P_projected[i]=P[i]+PP2[i]*t;
-						isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-						if(isProjectedOnPatch) {
-							polygonUV.push_back(make_pair(u,v));
-						} else {
-							//DEBUG_OUT()<<"elem "<<elemCount<<" with neighbour "<<getNeighbourElementofEdge(elemCount,nodeIndex,nodeIndexNext)<<endl;
-							for(int i=0;i<3;i++)
-								P_projected[i]=P1[i]+P1P2[i]*t;
-							double* P_last=&(meshFE->nodes[nodeIndexLast * 3]);
-							u = (*projectedCoords)[nodeIndexLast][patchIndex][0];
-							v = (*projectedCoords)[nodeIndexLast][patchIndex][1];
-							isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_last, P_projected);
-							if (isProjectedOnPatchBoundary && dis <= disTol) {
-								polygonUV.push_back(make_pair(u,v));
-							}
-						}
-					}
+					computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,P2,polygonUV,extraPolygonUV);
 					// 3. Second point
 					u = (*projectedCoords)[nodeIndexNext][patchIndex][0];
 					v = (*projectedCoords)[nodeIndexNext][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-
 					// 4. Update processed edge
 					numEdgesProcessed++;
 				}
 				/// 2.1.3 NODE.1 INSIDE AND NODE.2 OUTSIDE
 				if(isNodeInsidePatch && !isNextNodeInsidePatch) {
-					nodeIndexLast=nodeIndex;
 					// 1. First point
 					u = (*projectedCoords)[nodeIndex][patchIndex][0];
 					v = (*projectedCoords)[nodeIndex][patchIndex][1];
@@ -694,93 +613,31 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					// 2. Second point, intersection
 					u = (*projectedCoords)[nodeIndex][patchIndex][0];
 					v = (*projectedCoords)[nodeIndex][patchIndex][1];
-					isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary(u, v, div, dis, P1, P2);
+					edge2=thePatch->computePointProjectionOnPatchBoundary(u, v, div, dis, P1, P2);
+					isProjectedOnPatchBoundary = edge2;
 					pair<double, double> uv_tmp,wz_tmp;
 					if (isProjectedOnPatchBoundary && dis <= disTol) {
 						uv_tmp=make_pair(u,v);
 					}
 					// 3. Compute intermediate points
-					double P1P[3];
 					for(int i=0;i<3;i++) {
 						P[i]=P1[i]*(1-div)+P2[i]*div;
-						P1P[i]=P[i]-P1[i];
 					}
-					for(int sub=1;sub<MAX_DIV;sub++) {
-						double t = (double)sub/(double)MAX_DIV;
-						double P_projected[3];
-						for(int i=0;i<3;i++)
-							P_projected[i]=P1[i]+P1P[i]*t;
-						isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-						if(isProjectedOnPatch) {
-							polygonUV.push_back(make_pair(u,v));
-						} else {
-							for(int i=0;i<3;i++)
-								P_projected[i]=P1[i]+P1P2[i]*t;
-							double* P_last=&(meshFE->nodes[nodeIndexLast * 3]);
-							u = (*projectedCoords)[nodeIndexLast][patchIndex][0];
-							v = (*projectedCoords)[nodeIndexLast][patchIndex][1];
-							isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_last, P_projected);
-							if (isProjectedOnPatchBoundary && dis <= disTol) {
-								polygonUV.push_back(make_pair(u,v));
-							}
-						}
-					}
+					computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,P,polygonUV,extraPolygonUV);
 					// 3. Second point, store values
 					polygonUV.push_back(uv_tmp);
+					// Check if corners to be included
+//					if(numDivision<=1) {
+//						Polygon2D corners = thePatch->getCorner(edge1,edge2,ClipperInterface::isCounterclockwise(polygonUV));
+//						polygonUV.insert(polygonUV.end(),corners.begin(),corners.end());
+//					}
 					// 4. Update processed edge
 					numEdgesProcessed++;
 				}
 				/// 2.1.4 NODE.1 OUTSIDE AND NODE.2 OUTSIDE
 				if(!isNodeInsidePatch && !isNextNodeInsidePatch) {
 					// 1. Compute intermediate points
-					u=polygonUV.back().first;
-					v=polygonUV.back().second;
-					bool previousPointInside=0;
-					bool currentPointInside =0;
-					for(int sub=1;sub<=MAX_DIV;sub++) {
-						previousPointInside=currentPointInside;
-						double t = (double)sub/(double)MAX_DIV;
-						double P_projected[3];
-						for(int i=0;i<3;i++)
-							P_projected[i]=P1[i]+P1P2[i]*t;
-						isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-						int neighbourElement=getNeighbourElementofEdge(elemCount,nodeIndex,nodeIndexNext);
-						// If inside then compute boundary patch intersection between previous point and current point
-						if(isProjectedOnPatch && neighbourElement!=-1) {
-							currentPointInside=1;
-							pair<double,double> uv_tmp1(u,v);
-							pair<double,double> uv_tmp2;
-							if(currentPointInside != previousPointInside) {
-								double P_inside[3], P_outside[3];
-								for(int i=0;i<3;i++) {
-									if(currentPointInside) {
-										P_inside[i]= P1[i]+P1P2[i]*t;
-										P_outside[i]=P1[i]+P1P2[i]*(t-1./MAX_DIV);
-									} else {
-										P_inside[i]= P1[i]+P1P2[i]*(t-1./MAX_DIV);
-										P_outside[i]=P1[i]+P1P2[i]*t;
-									}
-								}
-								isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_inside, P_outside);
-								if (isProjectedOnPatchBoundary && dis <= disTol) {
-									uv_tmp2=make_pair(u,v);
-								}
-							}
-							if(currentPointInside && !previousPointInside) {
-								polygonUV.push_back(uv_tmp2);
-								extraPolygonUV[neighbourElement].push_back(uv_tmp2);
-							}
-							polygonUV.push_back(uv_tmp1);
-							extraPolygonUV[neighbourElement].push_back(uv_tmp1);
-							if(!currentPointInside && previousPointInside) {
-								polygonUV.push_back(uv_tmp2);
-								extraPolygonUV[neighbourElement].push_back(uv_tmp2);
-							}
-						// If outside then compute patch intersection on boundary
-						} else {
-							currentPointInside=0;
-						}
-					}
+						computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,P2,polygonUV,extraPolygonUV);
 					// 4. Update processed edge
 					numEdgesProcessed++;
 				}
@@ -835,41 +692,39 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				}
 				if(isIntegrated)
 					elementIntegrated.insert(elemCount);
-
-				DEBUG_OUT()<< "Number of polygon EXTRA "<<extraPolygonUV.size()<<endl;
-				/// Integrate the polygon appearing only on current patch from an external element.
-				/// Only the case when both points of an edge are outside and still the edge is partially projected in the patch
-				for (map<int,Polygon2D>::iterator it = extraPolygonUV.begin(); it != extraPolygonUV.end(); it++) {
-					ClipperInterface::cleanPolygon(it->second);
-					// Proceed toward integration if the polygon is valid, i.e. at least a triangle
-					if (it->second.size() < 3)
-						continue;
-					bool isIntegrated=false;
-					ListPolygon2D listTrimmedPolygonUV(1, it->second);
-					/// Apply trimming window
-					if(thePatch->isTrimmed())
-						clipByTrimming(thePatch,it->second,listTrimmedPolygonUV);
-					for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
-						Polygon2D listSpan;
-						ListPolygon2D listPolygonUV;
-						/// Apply knot span window
-						clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
-						for(int index=0;index<listSpan.size();index++) {
-							ClipperInterface::cleanPolygon(listPolygonUV[index]);
-							if(listPolygonUV[index].size()<3) continue;
-							isIntegrated=true;
-							/// Get FE canonical element for element in the map
-							Polygon2D polygonWZ = computeCanonicalElement(thePatch,listPolygonUV[index],it->first);
-							/// Integrate for element in the map
-							integrate(thePatch,listPolygonUV[index],listSpan[index].first,listSpan[index].second,polygonWZ,it->first);
-						}
-					}
-				}
-
 			} //end of if polygon has more than 3 edges
 
+//			DEBUG_OUT()<< "Number of polygon EXTRA "<<extraPolygonUV.size()<<endl;
+//			/// Integrate the polygon appearing only on current patch from an external element.
+//			/// Only the case when both points of an edge are outside and still the edge is partially projected in the patch
+//			for (map<int,Polygon2D>::iterator it = extraPolygonUV.begin(); it != extraPolygonUV.end(); it++) {
+//				debugPolygon(it->second,"extra polygon");
+//				ClipperInterface::cleanPolygon(it->second);
+//				// Proceed toward integration if the polygon is valid, i.e. at least a triangle
+//				if (it->second.size() < 3)
+//					continue;
+//				bool isIntegrated=false;
+//				ListPolygon2D listTrimmedPolygonUV(1, it->second);
+//				/// Apply trimming window
+//				if(thePatch->isTrimmed())
+//					clipByTrimming(thePatch,it->second,listTrimmedPolygonUV);
+//				for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
+//					Polygon2D listSpan;
+//					ListPolygon2D listPolygonUV;
+//					/// Apply knot span window
+//					clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
+//					for(int index=0;index<listSpan.size();index++) {
+//						ClipperInterface::cleanPolygon(listPolygonUV[index]);
+//						if(listPolygonUV[index].size()<3) continue;
+//						isIntegrated=true;
+//						/// Get FE canonical element for element in the map
+//						Polygon2D polygonWZ = computeCanonicalElement(thePatch,listPolygonUV[index],it->first);
+//						/// Integrate for element in the map
+//						integrate(thePatch,listPolygonUV[index],listSpan[index].first,listSpan[index].second,polygonWZ,it->first);
+//					}
+//				}
+//			}
 		} // end of loop over set of split patch
-
     } // end of loop over all the element
     if(elementIntegrated.size()!=meshFE->numElems) {
     	ERROR_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
@@ -974,20 +829,6 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             centerFE[0]  += _polygonWZ[i].first  / numNodesUV;
             centerFE[1]  += _polygonWZ[i].second / numNodesUV;
         }
-//        double nodeXYZ[3];
-//		double normalVec[3];
-//		_thePatch->computeCartesianCoordinatesAndNormalVector(nodeXYZ, normalVec, centerIGA[0], centerIGA[1]);
-//		if (_numNodesElementFE == 3) {
-//			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
-//					elementFEXYZ, nodeXYZ, normalVec, centerFE);
-//    		if(centerFE[0]<0 || centerFE[0]>1) return;
-//    		if(centerFE[1]<0 || centerFE[1]>1) return;
-//		} else {
-//			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
-//					elementFEXYZ, nodeXYZ, normalVec, centerFE);
-//    		if(centerFE[0]<-1 || centerFE[0]>1) return;
-//    		if(centerFE[1]<-1 || centerFE[1]>1) return;
-//		}
 
         double *triangleIGA;
         double *triangleFE;
@@ -1022,7 +863,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 
 /// 2.1 Choose gauss triangle or gauss quadriliteral
 
-        IGAMortarMath::GaussQuadrature *theGaussQuadrature;
+        MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
 
         int nNodesQuadrature;
         if (numNodesQuadrature[quadratureCount] == 3) {
@@ -1043,11 +884,11 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
 
             double shapeFuncs[nNodesQuadrature];
-            IGAMortarMath::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
+            MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
 
             /// 2.2.2 evaluate the coordinates in IGA patch from shape functions
             double GPIGA[2];
-            IGAMortarMath::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
+            MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
                     GPIGA);
 
 
@@ -1056,34 +897,23 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 //    		double nodeXYZ[3];
 //    		double normalVec[3];
 //    		_thePatch->computeCartesianCoordinatesAndNormalVector(nodeXYZ, normalVec, GPIGA[0], GPIGA[1]);
-//    		double coordFE[2];
 //    		if (_numNodesElementFE == 3) {
-//    			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
-//    					elementFEXYZ, nodeXYZ, normalVec, coordFE);
+//    			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndTriangle(
+//    					elementFEXYZ, nodeXYZ, normalVec, GPFE);
 //    			if(coordFE[0]<0 || coordFE[0]>1) continue;
 //        		if(coordFE[1]<0 || coordFE[1]>1) continue;
-//    			if(nNodesQuadrature==3)
-//            		IGAMortarMath::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
-//    			else
-//    				IGAMortarMath::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
-//
 //    		} else {
-//    			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
-//    					elementFEXYZ, nodeXYZ, normalVec, coordFE);
+//    			EMPIRE::MathLibrary::computeIntersectionBetweenLineAndQuad(
+//    					elementFEXYZ, nodeXYZ, normalVec, GPFE);
 //    			if(coordFE[0]<-1 || coordFE[0]>1) continue;
 //        		if(coordFE[1]<-1 || coordFE[1]>1) continue;
-//    			if(nNodesQuadrature==3)
-//            		IGAMortarMath::computeLocalCoordsInTriangle(quadratureWZ,coordFE,GPFE);
-//    			else
-//    				IGAMortarMath::computeLocalCoordsInQuad(quadratureWZ,coordFE, GPFE);
 //    		}
-
-            IGAMortarMath::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
+            MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
                     GPFE);
 
             /// 2.2.4 compute the shape function(in the linear element) of the current integration point
             double shapeFuncsFE[_numNodesElementFE];
-            IGAMortarMath::computeLowOrderShapeFunc(_numNodesElementFE, GPFE, shapeFuncsFE);
+            MathLibrary::computeLowOrderShapeFunc(_numNodesElementFE, GPFE, shapeFuncsFE);
             int derivDegree = 1;
 
             /// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
@@ -1099,14 +929,14 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
                     _spanV);
 
-            double JacobianUVToPhysical = IGAMortarMath::computeAreaTriangle(baseVectors[0],
+            double JacobianUVToPhysical = MathLibrary::computeAreaTriangle(baseVectors[0],
                     baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
                     * 2;
 
             /// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
             double JacobianCanonicalToUV;
             if (nNodesQuadrature == 3) {
-                JacobianCanonicalToUV = IGAMortarMath::computeAreaTriangle(
+                JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(
                         quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
                         quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
             } else {
@@ -1188,9 +1018,10 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof2 = dofIGA[j];
             }
             if (dof1 < dof2)
-                (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count++];
+                (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count];
             else
-                (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count++];
+                (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count];
+            count++;
         }
 
     count = 0;
@@ -1203,7 +1034,8 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof1 = dofIGA[i];
                 dof2 = meshFEDirectElemTable[_elementIndex][j];
             }
-            (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count++];
+            (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count];
+            count ++;
         }
 
     if (numNodesUV > 4)
@@ -1225,11 +1057,10 @@ void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchW
 		for (int nodeCount = 0; nodeCount < meshFE->numNodesPerElem[elemIndex]; nodeCount++) {
 			// Find the index of the node in the FE mesh
 			int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
-
 			// Find whether this index is in the projected nodes array
 			bool isNodeOnPatch = (*projectedCoords)[nodeIndex].find(patchCount)
 					!= (*projectedCoords)[nodeIndex].end();
-
+			// Update flag
 			if (!isNodeOnPatch) {
 				isAllNodesOnPatch = false;
 			} else {
@@ -1255,6 +1086,7 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 		const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
 		c.addPathClipper(clippingWindow);
 	}
+	c.setFilling(ClipperInterface::POSITIVE, 0);
 	c.addPathSubject(_polygonUV);
 	c.clip();
 	c.getSolution(_listPolygonUV);
@@ -1332,14 +1164,14 @@ IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(IGAPatchSurf
 		// Must exist !
 		double coordFE[2];
 		if (numNodesElementFE == 3) {
-			IGAMortarMath::computeIntersectionBetweenLineAndTriangle(
+			MathLibrary::computeIntersectionBetweenLineAndTriangle(
 					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 			if(coordFE[0]<0) coordFE[0]=0;
 			if(coordFE[1]<0) coordFE[1]=0;
 			if(coordFE[0]>1) coordFE[0]=1;
 			if(coordFE[1]>1) coordFE[1]=1;
 		} else {
-			IGAMortarMath::computeIntersectionBetweenLineAndQuad(
+			MathLibrary::computeIntersectionBetweenLineAndQuad(
 					elementFEXYZ, nodeXYZ, normalVec, coordFE);
 			if(coordFE[0]<-1) coordFE[0]=-1;
 			if(coordFE[1]<-1) coordFE[1]=-1;
@@ -1402,6 +1234,81 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
 	// If polygon is on boundary of mesh, can occur
 	return -1;
 }
+
+bool IGAMortarMapper::computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1, const int nodeIndex2,
+		const double* P1,const double* P2, Polygon2D& polygonUV, map<int,Polygon2D>& extraPolygonUV) {
+	if(numDivision<=1)
+		return 1;
+	IGAPatchSurface* thePatch = meshIGA->getSurfacePatches()[patchIndex];
+	// Get last point inside
+	double u,v;
+	if(polygonUV.empty()) {
+		u = (*projectedCoords)[nodeIndex1][patchIndex][0];
+		v = (*projectedCoords)[nodeIndex1][patchIndex][1];
+	} else {
+		u=polygonUV.back().first;
+		v=polygonUV.back().second;
+	}
+	//Gets the neighbour element to the line
+	int neighbourElement=getNeighbourElementofEdge(elemCount,nodeIndex1,nodeIndex2);
+	//Init some flags
+	bool isProjectedOnPatch=1, isProjectedOnPatchBoundary=1, outFlag=1;
+	bool previousPointInside=0, currentPointInside=1;
+	int MAX_DIV=numDivision;
+	//Init data
+	double div,dis;
+	double P1P2[3];
+	for(int i=0;i<3;i++)
+		P1P2[i]=P2[i]-P1[i];
+	//Loop in between the two point
+	for(int sub=1;sub<MAX_DIV;sub++) {
+		previousPointInside=currentPointInside;
+		double t = (double)sub/(double)MAX_DIV;
+		double P_projected[3];
+		for(int i=0;i<3;i++)
+			P_projected[i]=P1[i]+P1P2[i]*t;
+		isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
+		// If inside then compute boundary patch intersection between previous point and current point
+		if(isProjectedOnPatch && neighbourElement!=-1) {
+			currentPointInside=1;
+			pair<double,double> uv_tmp1(u,v);
+			pair<double,double> uv_tmp2;
+			// Opposite flag means crossing the boundary, so we project on point on boundary
+			if(currentPointInside != previousPointInside) {
+				double P_inside[3], P_outside[3];
+				for(int i=0;i<3;i++) {
+					if(currentPointInside) {
+						P_inside[i]= P1[i]+P1P2[i]*t;
+						P_outside[i]=P1[i]+P1P2[i]*(t-1./MAX_DIV);
+					} else {
+						P_inside[i]= P1[i]+P1P2[i]*(t-1./MAX_DIV);
+						P_outside[i]=P1[i]+P1P2[i]*t;
+					}
+				}
+				isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundary_Brute(u, v, div, dis, P_inside, P_outside);
+				if (isProjectedOnPatchBoundary && dis <= disTol) {
+					uv_tmp2=make_pair(u,v);
+				}
+			}
+			if(currentPointInside && !previousPointInside) {
+				polygonUV.push_back(uv_tmp2);
+//				extraPolygonUV[neighbourElement].push_back(uv_tmp2);
+			}
+			polygonUV.push_back(uv_tmp1);
+//			extraPolygonUV[neighbourElement].push_back(uv_tmp1);
+			if(!currentPointInside && previousPointInside) {
+				polygonUV.push_back(uv_tmp2);
+//				extraPolygonUV[neighbourElement].push_back(uv_tmp2);
+			}
+		// If outside then compute patch intersection on boundary
+		} else {
+			currentPointInside=0;
+		}
+		outFlag = isProjectedOnPatchBoundary && outFlag;
+	}
+	return outFlag;
+}
+
 
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
     /*
@@ -1553,5 +1460,7 @@ void IGAMortarMapper::checkConsistency() {
     	exit(-1);
     }
 }
+
 }
+
 

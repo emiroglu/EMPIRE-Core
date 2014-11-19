@@ -119,6 +119,9 @@ public:
     inline const std::vector<IGAPatchSurface*>& getSurfacePatches() const {
         return surfacePatches;
     }
+    inline int getNumPatches() const {
+    	return surfacePatches.size();
+    }
 
     /***********************************************************************************************
      * \brief Get the number of the Nodes

@@ -26,8 +26,11 @@
 
 // Inclusion of user defined libraries
 #include "NurbsBasis2D.h"
-#include "IGAMath.h"
+//#include "IGAMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "Message.h"
+#define GETINDEX(x,y) (x*49+y)
 
 using namespace std;
 
@@ -356,7 +359,7 @@ void NurbsBasis2D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
                                 counterBasis);
 
                         // Update the scalar value
-                        v -= binomialCoefficients[indexBinomialCoefficients(l, j)]
+                        v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(l, j)]
                                 * denominatorFct[j * (_derivDegree + 1)]
                                 * _basisFctsAndDerivs[indexNurbsBasis];
                     }
@@ -367,7 +370,7 @@ void NurbsBasis2D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
                                 counterBasis);
 
                         // Update the scalar value
-                        v -= binomialCoefficients[indexBinomialCoefficients(k, i)]
+                        v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(k, i)]
                                 * denominatorFct[i] * _basisFctsAndDerivs[indexNurbsBasis];
                         v2 = 0.0;
 
@@ -377,11 +380,11 @@ void NurbsBasis2D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
                                     l - j, counterBasis);
 
                             // Update the scalar value
-                            v2 += binomialCoefficients[indexBinomialCoefficients(l, j)]
+                            v2 += EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(l, j)]
                                     * denominatorFct[j * (_derivDegree + 1) + i]
                                     * _basisFctsAndDerivs[indexNurbsBasis];
                         }
-                        v -= binomialCoefficients[indexBinomialCoefficients(k, i)] * v2;
+                        v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(k, i)] * v2;
                     }
                     // Compute the NURBS basis function index
                     indexNurbsBasis = indexDerivativeBasisFunction(_derivDegree, k, l,

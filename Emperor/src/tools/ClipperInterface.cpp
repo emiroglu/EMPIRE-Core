@@ -1,8 +1,22 @@
-/*
- * ClipperInterface.cpp
+/*  Copyright &copy; 2014, TU Muenchen, Chair of Structural Analysis,
+ *  Fabien Pean, Munich
  *
- *  Created on: Nov 5, 2014
- *      Author: fabien
+ *  All rights reserved.
+ *
+ *  This file is part of EMPIRE.
+ *
+ *  EMPIRE is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  EMPIRE is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
 #include "ClipperInterface.h"
@@ -18,27 +32,62 @@ namespace EMPIRE {
 ClipperInterface::ClipperInterface():
 	accuracy(1e-9),
 	factor(1e9),
-	operation(ctIntersection) {
+	operation(ctIntersection),
+	fillingClipWindow(pftNonZero),
+	fillingSubject(pftNonZero) {
 }
 
 ClipperInterface::ClipperInterface(double _accuracy):
 		accuracy(_accuracy),
 		factor(1/_accuracy),
-		operation(ctIntersection) {
+		operation(ctIntersection),
+		fillingClipWindow(pftNonZero),
+		fillingSubject(pftNonZero) {
 }
 
 ClipperInterface::ClipperInterface(double _accuracy, Operation _operation):
 	accuracy(_accuracy),
-	factor(1.0/_accuracy) {
+	factor(1.0/_accuracy),
+	fillingClipWindow(pftNonZero),
+	fillingSubject(pftNonZero) {
 	setOperation(_operation);
 }
+ClipperInterface::ClipperInterface(double _accuracy, Operation _operation, Filling _filling):
+	accuracy(_accuracy),
+	factor(1.0/_accuracy) {
+	setOperation(_operation);
+	setFilling(_filling);
+}
 
-ClipperInterface::~ClipperInterface() {
+ClipperInterface::ClipperInterface(double _accuracy, Operation _operation, Filling _fillingClipWindow, Filling _fillingSubject):
+	accuracy(_accuracy),
+	factor(1.0/_accuracy) {
+	setOperation(_operation);
+	setFilling(_fillingClipWindow, 0);
+	setFilling(_fillingSubject, 1);
+}
+
+	ClipperInterface::~ClipperInterface() {
 }
 
 void ClipperInterface::setAccuracy(double _accuracy) {
 		accuracy=_accuracy;
 		factor=1.0/accuracy;
+}
+
+void ClipperInterface::setFilling(Filling _filling, int _subject) {
+	ClipperLib::PolyFillType filling;
+	switch(_filling) {
+	case EVENODD : 	filling=pftEvenOdd; break;
+	case NONZERO : 	filling=pftNonZero; break;
+	case POSITIVE : filling=pftPositive; break;
+	case NEGATIVE : filling=pftNegative; break;
+	}
+	switch(_subject) {
+	case 0 : fillingClipWindow=filling;break;
+	case 1 : fillingSubject=filling;break;
+	default :fillingSubject=filling; fillingClipWindow=filling; break;
+	}
 }
 
 void ClipperInterface::setOperation(Operation _operation) {
@@ -49,6 +98,7 @@ void ClipperInterface::setOperation(Operation _operation) {
 	case XOR : operation=ctXor; break;
 	}
 }
+
 void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container){
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
@@ -59,6 +109,7 @@ void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container
 		}
 	}
 }
+
 void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,double> > >& _container) {
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
@@ -70,7 +121,6 @@ void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,doub
 	}
 }
 
-
 void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
 	Path clip;
 	for(int p=0; p < _path.size()/2; p++) {
@@ -78,6 +128,7 @@ void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
 	}
 	clipWindow.push_back(clip);
 }
+
 void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double> >& _path) {
 	Path clip;
 	for(int p=0; p < _path.size(); p++) {
@@ -85,6 +136,7 @@ void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double>
 	}
 	clipWindow.push_back(clip);
 }
+
 void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
 	Path subj;
 	for(int p=0; p < _path.size()/2; p++) {
@@ -92,6 +144,7 @@ void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
 	}
 	subject.push_back(subj);
 }
+
 void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double> >& _path) {
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
@@ -100,11 +153,10 @@ void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double>
 	subject.push_back(subj);
 }
 
-
 void ClipperInterface::clip() {
 	assert(clipper.AddPaths(subject, ptSubject, true)==true);
 	assert(clipper.AddPaths(clipWindow, ptClip, true)==true);
-	assert(clipper.Execute(operation, solution, pftNonZero, pftNonZero)==true);
+	assert(clipper.Execute(operation, solution, fillingSubject, fillingClipWindow)==true);
 }
 
 void ClipperInterface::clip(int _numNodesPolygonToClip, double* _nodesPolygonToClip, int _numNodesClipper,double* _nodesClipper, int& _numNodesOutputPolygon, double*& _nodesOutputPolygon) {
@@ -235,6 +287,20 @@ std::vector<std::pair<double,double> > ClipperInterface::clip(const std::vector<
 	return nodesOutputPolygon;
 }
 
+int isPointIn(const std::pair<double,double>& _point, const std::vector<std::pair<double,double> >& _path, double _accuracy) {
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size(); p++) {
+		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
+	}
+	IntPoint point;
+	point.X=_point.first;
+	point.Y=_point.second;
+
+	return ClipperLib::PointInPolygon(point,subj);
+}
+
+
 void ClipperInterface::cleanPolygon(std::vector<std::pair<double,double> >& _path, double _accuracy) {
 	double factor = 1 / _accuracy;
 	Path subj;
@@ -249,7 +315,26 @@ void ClipperInterface::cleanPolygon(std::vector<std::pair<double,double> >& _pat
 		_path[p].second = subj[p].Y / factor;
 	}
 }
-
-
+bool ClipperInterface::isCounterclockwise(const std::vector<std::pair<double,double> >& _path, double _accuracy) {
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size(); p++) {
+		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
+	}
+	bool isCounterclockwise = Orientation(subj);
+	return isCounterclockwise;
+}
+void ClipperInterface::reversePolygon(std::vector<std::pair<double,double> >& _path, double _accuracy){
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size(); p++) {
+		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
+	}
+	ReversePath(subj);
+	for(int p=0; p < _path.size(); p++) {
+		_path[p].first  = subj[p].X / factor;
+		_path[p].second = subj[p].Y / factor;
+	}
+}
 
 } /* namespace EMPIRE */

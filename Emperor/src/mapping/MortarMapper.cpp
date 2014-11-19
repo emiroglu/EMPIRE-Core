@@ -164,9 +164,9 @@ void MortarMapper::consistentMapping(const double *slaveField, double *masterFie
     }
 #else
     if (!dual)
-        MortarMath::dcsrmv(noTrans, m, n, C_BA_A, C_BA_JA, C_BA_IA, slaveFieldCopy, masterField);
+    	 EMPIRE::MathLibrary::dcsrmv(noTrans, m, n, C_BA_A, C_BA_JA, C_BA_IA, slaveFieldCopy, masterField);
     else
-        MortarMath::dcsrmv(noTrans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, slaveFieldCopy,
+    	EMPIRE::MathLibrary::dcsrmv(noTrans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, slaveFieldCopy,
                 masterField);
 #endif
 
@@ -251,9 +251,9 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     }
 #else
     if (!dual)
-        MortarMath::dcsrmv(trans, m, n, C_BA_A, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
+    	EMPIRE::MathLibrary::dcsrmv(trans, m, n, C_BA_A, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
     else
-        MortarMath::dcsrmv(trans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
+    	EMPIRE::MathLibrary::dcsrmv(trans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
 #endif
     delete[] masterFieldCopy;
 }
@@ -283,11 +283,11 @@ void MortarMapper::computeC_BB() {
         }
         if (numNodesMasterElem == 4) { // replace the master element by the projection of it on its "element plane"
             double masterElemNormal[3];
-            MortarMath::computeNormalOfQuad(elem, true, masterElemNormal);
+            EMPIRE::MathLibrary::computeNormalOfQuad(elem, true, masterElemNormal);
             double masterQuadCenter[3];
-            MortarMath::computePolygonCenter(elem, 4, masterQuadCenter);
+            EMPIRE::MathLibrary::computePolygonCenter(elem, 4, masterQuadCenter);
             double masterQuadPrj[12];
-            MortarMath::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
+            EMPIRE::MathLibrary::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
             for (int i = 0; i < 12; i++)
                 elem[i] = masterQuadPrj[i];
         }
@@ -295,9 +295,9 @@ void MortarMapper::computeC_BB() {
         // make use of the symmetry
         double massMatrix[numNodesMasterElem * numNodesMasterElem];
         if (numNodesMasterElem == 4)
-            MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, dual, massMatrix);
+        	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, dual, massMatrix);
         else if (numNodesMasterElem == 3)
-            MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, dual, massMatrix);
+        	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, dual, massMatrix);
         else
             assert(false);
         if (!dual) {
@@ -389,9 +389,9 @@ void MortarMapper::computeC_BA() {
             // 2.2 find all candidates which may overlap the master element
             double masterElemNormal[3];
             if (numNodesMasterElem == 3) {
-                MortarMath::computeNormalOfTriangle(masterElem, true, masterElemNormal);
+            	EMPIRE::MathLibrary::computeNormalOfTriangle(masterElem, true, masterElemNormal);
             } else {
-                MortarMath::computeNormalOfQuad(masterElem, true, masterElemNormal);
+            	EMPIRE::MathLibrary::computeNormalOfQuad(masterElem, true, masterElemNormal);
             }
             set<int> *neighborElems = new set<int>;
             findCandidates(masterElem, numNodesMasterElem, masterElemNormal, radiusSqr,
@@ -402,9 +402,9 @@ void MortarMapper::computeC_BA() {
                 projectToElemPlane(masterElem, masterElemNormal, neighborElems, projections);
             if (numNodesMasterElem == 4) { // replace the master element by the projection of it on its "element plane"
                 double masterQuadCenter[3];
-                MortarMath::computePolygonCenter(masterElem, numNodesMasterElem, masterQuadCenter);
+                EMPIRE::MathLibrary::computePolygonCenter(masterElem, numNodesMasterElem, masterQuadCenter);
                 double masterQuadPrj[12];
-                MortarMath::projectToPlane(masterQuadCenter, masterElemNormal, masterElem, 4,
+                EMPIRE::MathLibrary::projectToPlane(masterQuadCenter, masterElemNormal, masterElem, 4,
                         masterQuadPrj);
                 for (int j = 0; j < 12; j++)
                     masterElem[j] = masterQuadPrj[j];
@@ -418,8 +418,8 @@ void MortarMapper::computeC_BA() {
                 posMasterNodes[j] = masterDirectElemTable[i]->at(j);
 
             // 2.3 create the point clipper
-            int planeToProject = MortarMath::computePlaneToProject(masterElemNormal);
-            MortarMath::PolygonClipper *clipper = new MortarMath::PolygonClipper(masterElem,
+            int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(masterElemNormal);
+            EMPIRE::MathLibrary::PolygonClipper *clipper = new EMPIRE::MathLibrary::PolygonClipper(masterElem,
                     numNodesMasterElem, planeToProject);
 
             // 2.4 if dual, compute the coefficient matrix here
@@ -469,7 +469,7 @@ void MortarMapper::computeC_BA() {
                         double result_dual[numNodesMasterElem * numNodesSlaveElem];
                         for (int ii = 0; ii < numNodesMasterElem * numNodesSlaveElem; ii++)
                             result_dual[ii] = result[ii]; // copy the value in result
-                        MortarMath::computeMatrixProduct(numNodesMasterElem, numNodesSlaveElem,
+                        EMPIRE::MathLibrary::computeMatrixProduct(numNodesMasterElem, numNodesSlaveElem,
                                 coeffMatrix, result_dual); // now it is dual
                         for (int ii = 0; ii < numNodesMasterElem; ii++) {
                             for (int jj = 0; jj < numNodesSlaveElem; jj++) {
@@ -596,7 +596,7 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
 
             if (sum < factor[i] * 0.5) { // if the master element is not fully covered by slave elements, use nearest neighbor
                 cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
-                MortarMath::printPoint(&masterNodeCoors[i*3]);
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
                 sparsityMapC_BA[i]->clear();
                 double dummy;
                 int nb;
@@ -829,8 +829,8 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
             for (int j = 0; j < 3; j++)
                 clipTriangle[i * 3 + j] = clippedPolygon->at(i)[j];
 
-        MortarMath::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-                new MortarMath::GaussQuadratureOnTriangle(clipTriangle, numGPs);
+        EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
+                new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(clipTriangle, numGPs);
         ShapeFunctionProduct *integrand = new ShapeFunctionProduct(masterElem, numNodesMasterElem,
                 slaveElem, numNodesSlaveElem, planeToProject);
         integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal,
@@ -853,14 +853,14 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
             for (int j = 0; j < 3; j++)
                 tmp[i * 3 + j] = clippedPolygon->at(i)[j];
         double center[3];
-        MortarMath::computePolygonCenter(tmp, size, center);
+        EMPIRE::MathLibrary::computePolygonCenter(tmp, size, center);
 
         for (int i = 0; i < size; i++) {
             double clipTriangle[9];
-            MortarMath::buildTrianagle(center, clippedPolygon->at(i),
+            EMPIRE::MathLibrary::buildTrianagle(center, clippedPolygon->at(i),
                     clippedPolygon->at((i + 1) % size), clipTriangle);
-            MortarMath::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-                    new MortarMath::GaussQuadratureOnTriangle(clipTriangle, numGPs);
+            EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
+                    new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(clipTriangle, numGPs);
             ShapeFunctionProduct *integrand = new ShapeFunctionProduct(masterElem,
                     numNodesMasterElem, slaveElem, numNodesSlaveElem, planeToProject);
             integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal,
@@ -883,8 +883,8 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
 double MortarMapper::computeSearchRadiusSquare(const double* masterElem, int numNodesMasterElem) {
     // 1. find the longest edge of this element (masterElem)
     double masterElemCopy[3 * numNodesMasterElem];
-    MortarMath::copyElem(masterElem, numNodesMasterElem, masterElemCopy);
-    double lengthSqr = MortarMath::longestEdgeLengthSquare(masterElemCopy, numNodesMasterElem);
+    EMPIRE::MathLibrary::copyElem(masterElem, numNodesMasterElem, masterElemCopy);
+    double lengthSqr = EMPIRE::MathLibrary::longestEdgeLengthSquare(masterElemCopy, numNodesMasterElem);
 
     // 2. find the longest edge of the neighboring elements (the slave side)
     // the neighboring elements are found by
@@ -920,7 +920,7 @@ double MortarMapper::computeSearchRadiusSquare(const double* masterElem, int num
         double elemTmp[3 * numNodesSlaveElem];
         // for a single element, find its longest edge
         getElemCoor(*it, MortarMapper::SLAVE, elemTmp);
-        lengthSqr = MortarMath::longestEdgeLengthSquare(elemTmp, numNodesSlaveElem);
+        lengthSqr = EMPIRE::MathLibrary::longestEdgeLengthSquare(elemTmp, numNodesSlaveElem);
         if (lengthSqr > searchRadiusSqr)
             searchRadiusSqr = lengthSqr;
     }
@@ -937,7 +937,7 @@ void MortarMapper::findCandidates(const double* masterElem, int masterElemNumNod
     // all elements containing these points are the overlapped candidates
     // 1. find all neighboring elements in the radius
     double masterElemCopy[masterElemNumNodes * 3];
-    MortarMath::copyElem(masterElem, masterElemNumNodes, masterElemCopy);
+    EMPIRE::MathLibrary::copyElem(masterElem, masterElemNumNodes, masterElemCopy);
     // OpenMP parallelize this loop
     // Ann is not thread safe
     for (int i = 0; i < masterElemNumNodes; i++) {
@@ -994,8 +994,8 @@ bool MortarMapper::kickOutCandidate(const double *masterUnitNormal, const double
     //acos(0.7) = pi/4
     //acos(0.01) = pi/2
     if (!oppositeSurfaceNormal)
-        return (MortarMath::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) < bound);
-    return (MortarMath::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) > -bound);
+        return (EMPIRE::MathLibrary::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) < bound);
+    return (EMPIRE::MathLibrary::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) > -bound);
 }
 
 void MortarMapper::projectToElemPlane(const double *elem, const double *planeUnitNormal,
@@ -1008,7 +1008,7 @@ void MortarMapper::projectToElemPlane(const double *elem, const double *planeUni
     //cout << neighborNodes.size();
     for (set<int>::iterator it = neighborNodes.begin(); it != neighborNodes.end(); it++) {
         double *projectionTmp = new double[3];
-        MortarMath::projectToPlane(&elem[0], planeUnitNormal, &slaveNodeCoors[(*it) * 3], 1,
+        EMPIRE::MathLibrary::projectToPlane(&elem[0], planeUnitNormal, &slaveNodeCoors[(*it) * 3], 1,
                 projectionTmp);
         projections->insert(projections->end(), pair<int, double*>(*it, projectionTmp));
     }
@@ -1050,9 +1050,9 @@ void MortarMapper::computeSlaveElemNormals() {
             }
         }
         if (numNodesSlaveElem == 3) {
-            MortarMath::computeNormalOfTriangle(slaveElem, true, &slaveElemNormals[i * 3]);
+        	EMPIRE::MathLibrary::computeNormalOfTriangle(slaveElem, true, &slaveElemNormals[i * 3]);
         } else if (numNodesSlaveElem == 4) {
-            MortarMath::computeNormalOfQuad(slaveElem, true, &slaveElemNormals[i * 3]);
+        	EMPIRE::MathLibrary::computeNormalOfQuad(slaveElem, true, &slaveElemNormals[i * 3]);
         } else {
             assert(false);
         }
@@ -1087,17 +1087,17 @@ void MortarMapper::computeDualCoeffMatrix(const double *elem, int numNodesElem,
         double *coeffMatrix) {
     double massMatrix[numNodesElem * numNodesElem];
     if (numNodesElem == 4)
-        MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrix);
     else if (numNodesElem == 3)
-        MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false, massMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false, massMatrix);
     else
         assert(false);
 
     // store the dual mass matrix in coeffMatrix temporarily
     if (numNodesElem == 4)
-        MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, true, coeffMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, true, coeffMatrix);
     else if (numNodesElem == 3)
-        MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
     else
         assert(false);
 
@@ -1140,7 +1140,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
         double shapeFuncValueMasterElem[numNodesMasterElem];
         if (numNodesMasterElem == 3) {
             double localCoor[3];
-            bool inside = MortarMath::computeLocalCoorInTriangle(masterElem, planeToProject,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(masterElem, planeToProject,
                     gaussPoint, localCoor);
             // debug
             if (!inside){
@@ -1158,7 +1158,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             }
         } else if (numNodesMasterElem == 4) {
             double localCoor[2];
-            bool inside = MortarMath::computeLocalCoorInQuad(masterElem, planeToProject, gaussPoint,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInQuad(masterElem, planeToProject, gaussPoint,
                     localCoor);
             // debug
             if (!inside){
@@ -1171,7 +1171,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
              }
             // debug end
             assert(inside);
-            MortarMath::computeShapeFuncOfQuad(localCoor, shapeFuncValueMasterElem);
+            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoor, shapeFuncValueMasterElem);
 
         } else {
             assert(false);
@@ -1180,7 +1180,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
         double shapeFuncValueSlaveElem[numNodesSlaveElem];
         if (numNodesSlaveElem == 3) {
             double localCoor[3];
-            bool inside = MortarMath::computeLocalCoorInTriangle(slaveElem, planeToProject,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(slaveElem, planeToProject,
                     gaussPoint, localCoor);
             // debug
             if (!inside){
@@ -1198,7 +1198,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             }
         } else if (numNodesSlaveElem == 4) {
             double localCoor[2];
-            bool inside = MortarMath::computeLocalCoorInQuad(slaveElem, planeToProject, gaussPoint,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInQuad(slaveElem, planeToProject, gaussPoint,
                     localCoor);
             // debug
             if (!inside){
@@ -1212,7 +1212,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             // debug end
             assert(inside);
 
-            MortarMath::computeShapeFuncOfQuad(localCoor, shapeFuncValueSlaveElem);
+            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoor, shapeFuncValueSlaveElem);
         } else {
             assert(false);
         }

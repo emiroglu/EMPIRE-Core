@@ -45,10 +45,10 @@ class IGAMesh;
 class FEMesh;
 class DataField;
 
-namespace IGAMortarMath {
+namespace MathLibrary {
 
-class GaussQuadratureOnTriangle;
-class GaussQuadratureOnQuad;
+class IGAGaussQuadratureOnTriangle;
+class IGAGaussQuadratureOnQuad;
 
 }
 
@@ -81,10 +81,10 @@ private:
     MathLibrary::SparseMatrix<double> *C_NR;
 
     /// Quadrature rule over the triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnTriangle *gaussTriangle;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
 
     /// Quadrature rule over the non-triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnQuad *gaussQuad;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, double*> > *projectedCoords;
@@ -234,7 +234,8 @@ private:
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
-
+    bool computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1,const int nodeIndex2,
+    		const double* P1,const double* P2, Polygon2D& polygonUV, std::map<int,Polygon2D>& extraPolygonUV);
     /// Writing output functions
 public:
     /***********************************************************************************************
@@ -264,6 +265,7 @@ public:
      * \author Fabien Pean
      ***********/
     void checkConsistency();
+
     /// unit test class
     friend class TestIGAMortarMapperTube;
     friend class TestIGAMortarMapperMultiPatchPlanarSurface;

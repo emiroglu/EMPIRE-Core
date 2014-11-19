@@ -29,7 +29,9 @@
 #include <vector>
 #include <set>
 #include <map>
-#include "MortarMath.h"
+//#include "MortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "AbstractMapper.h"
 
 class ANNkd_tree;
@@ -332,7 +334,7 @@ private:
     /********//**
      * \brief Class shapeFunctionProduct computes the shape function products of two elements
      ***********/
-    class ShapeFunctionProduct: public MortarMath::IntegrandFunction {
+    class ShapeFunctionProduct: public EMPIRE::MathLibrary::IntegrandFunction {
     public:
         /***********************************************************************************************
          * \brief Constructor

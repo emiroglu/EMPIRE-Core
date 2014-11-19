@@ -1,5 +1,5 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -18,19 +18,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
-// User defined libraries
-#include "IGAMath.h"
+#ifndef CONSTANTSANDVARIABLES_H_
+#define CONSTANTSANDVARIABLES_H_
 
-// External libraries
-#include <math.h>
-#include <assert.h>
-#include <stdlib.h>
 
-using namespace std;
 
 namespace EMPIRE {
+namespace MathLibrary {
 
-double const binomialCoefficients[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+/// The binomial coefficients stored in a vector format. The precomputed values are up to k=50
+const double binomialCoefficients[2500] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -189,182 +186,196 @@ double const binomialCoefficients[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         1093260079344, 482320623240, 192928249296, 69668534468, 22595200368, 6540715896, 1677106640,
         377348994, 73629072, 12271512, 1712304, 194580, 17296, 1128, 48, 1 };
 
+/// The tolerance for the linear equation system solvers
 const double EPS = 1e-16;
 
-int indexBinomialCoefficients(int _i, int _j) {
-    return _i * 49 + _j;
+
+// Normal FEM Quadrature points and weights
+const double triGaussPoints3[9] = { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 2.0 / 3.0, 1.0
+        / 6.0, 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 };
+const double triWeights3[3] = { 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0 };
+
+const double triGaussPoints6[18] = { 0.816847572980459, 0.091576213509771, 0.091576213509771,
+        0.091576213509771, 0.816847572980459, 0.09157621350977, 0.09157621350977, 0.09157621350977,
+        0.816847572980459, 0.108103018168070, 0.445948490915965, 0.445948490915965,
+        0.445948490915965, 0.108103018168070, 0.445948490915965, 0.445948490915965,
+        0.445948490915965, 0.108103018168070 };
+const double triWeights6[6] = { 0.109951743655322, 0.109951743655322, 0.109951743655322,
+        0.223381589678011, 0.223381589678011, 0.223381589678011 };
+
+const double triGaussPoints7[21] = { 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.797426985353087,
+        0.101286507323456, 0.101286507323456, 0.101286507323456, 0.797426985353087,
+        0.101286507323456, 0.101286507323456, 0.101286507323456, 0.797426985353087,
+        0.059715871789770, 0.470142064105115, 0.470142064105115, 0.470142064105115,
+        0.059715871789770, 0.470142064105115, 0.470142064105115, 0.470142064105115,
+        0.059715871789770 };
+const double triWeights7[7] = { 0.225000000000000, 0.125939180544827, 0.125939180544827,
+        0.125939180544827, 0.132394152788506, 0.132394152788506, 0.132394152788506 };
+
+const double triGaussPoints12[36] = { 0.873821971016996, 0.063089014491502, 0.063089014491502,
+        0.063089014491502, 0.873821971016996, 0.063089014491502, 0.063089014491502,
+        0.063089014491502, 0.873821971016996, 0.501426509658179, 0.249286745170910,
+        0.249286745170910, 0.249286745170910, 0.501426509658179, 0.249286745170910,
+        0.249286745170910, 0.249286745170910, 0.501426509658179, 0.636502499121399,
+        0.310352451033785, 0.053145049844816, 0.310352451033785, 0.053145049844816,
+        0.636502499121399, 0.053145049844816, 0.636502499121399, 0.310352451033785,
+        0.636502499121399, 0.053145049844816, 0.310352451033785, 0.310352451033785,
+        0.636502499121399, 0.053145049844816, 0.053145049844816, 0.310352451033785,
+        0.636502499121399 };
+const double triWeights12[12] = { 0.050844906370207, 0.050844906370207, 0.050844906370207,
+        0.116786275726379, 0.116786275726379, 0.116786275726379, 0.082851075618374,
+        0.082851075618374, 0.082851075618374, 0.082851075618374, 0.082851075618374,
+        0.082851075618374 };
+
+const double quadGaussPoints1[2] = { 0.0, 0.0 };
+const double quadWeights1[1] = { 4.0 };
+
+static const double tmpSqrt13 = sqrt(1.0 / 3.0);
+const double quadGaussPoints4[8] = { tmpSqrt13, tmpSqrt13, -tmpSqrt13, tmpSqrt13, -tmpSqrt13,
+        -tmpSqrt13, tmpSqrt13, -tmpSqrt13 };
+const double quadWeights4[4] = { 1.0, 1.0, 1.0, 1.0 };
+
+static const double tmpSqrt35 = sqrt(3.0 / 5.0);
+const double quadGaussPoints9[18] = { 0.0, 0.0, -tmpSqrt35, 0, 0, -tmpSqrt35, tmpSqrt35, 0, 0,
+        tmpSqrt35, -tmpSqrt35, -tmpSqrt35, tmpSqrt35, -tmpSqrt35, -tmpSqrt35, tmpSqrt35, tmpSqrt35,
+        tmpSqrt35 };
+const double quadWeights9[9] = { 64.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0,
+        25.0 / 81.0, 25.0 / 81.0, 25.0 / 81.0, 25.0 / 81.0 };
+
+
+// IGA Related constants
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/// Tolerance up to which square matrices are assumed regular
+const double EPS_IVERTIBILITYOFSQUAREMATRICES = 1e-14;
+
+
+/// IGA Quadrature weights and points
+const double IGAtriGaussPoints1[2] = { 0.33333333333333, 0.33333333333333 };
+const double IGAtriWeights1[1] = { 1.0 };
+
+const double IGAtriGaussPoints3[6] = { 0.16666666666667, 0.16666666666667, 0.16666666666667,
+        0.66666666666667, 0.66666666666667, 0.16666666666667 };
+const double IGAtriWeights3[3] = { 0.33333333333333, 0.33333333333333, 0.33333333333333 };
+
+const double IGAtriGaussPoints4[8] = { 0.33333333333333, 0.33333333333333, 0.20000000000000,
+        0.20000000000000, 0.20000000000000, 0.60000000000000, 0.60000000000000, 0.20000000000000 };
+const double IGAtriWeights4[4] = { -0.56250000000000, 0.52083333333333, 0.52083333333333,
+        0.52083333333333, };
+
+const double IGAtriGaussPoints6[12] = { 0.44594849091597, 0.44594849091597, 0.44594849091597,
+        0.10810301816807, 0.10810301816807, 0.44594849091597, 0.09157621350977, 0.09157621350977,
+        0.09157621350977, 0.81684757298046, 0.81684757298046, 0.09157621350977, };
+const double IGAtriWeights6[6] = { 0.22338158967801, 0.22338158967801, 0.22338158967801,
+        0.10995174365532, 0.10995174365532, 0.10995174365532 };
+
+const double IGAtriGaussPoints7[14] = { 0.33333333333333, 0.33333333333333, 0.47014206410511,
+        0.47014206410511, 0.47014206410511, 0.05971587178977, 0.05971587178977, 0.47014206410511,
+        0.10128650732346, 0.10128650732346, 0.10128650732346, 0.79742698535309, 0.79742698535309,
+        0.10128650732346, };
+const double IGAtriWeights7[7] = { 0.22500000000000, 0.13239415278851, 0.13239415278851,
+        0.13239415278851, 0.12593918054483, 0.12593918054483, 0.12593918054483 };
+
+const double IGAtriGaussPoints12[24] = { 0.24928674517091, 0.24928674517091, 0.24928674517091,
+        0.50142650965818, 0.50142650965818, 0.24928674517091, 0.06308901449150, 0.06308901449150,
+        0.06308901449150, 0.87382197101700, 0.87382197101700, 0.06308901449150, 0.31035245103378,
+        0.63650249912140, 0.63650249912140, 0.05314504984482, 0.05314504984482, 0.31035245103378,
+        0.63650249912140, 0.31035245103378, 0.31035245103378, 0.05314504984482, 0.05314504984482,
+        0.63650249912140 };
+const double IGAtriWeights12[12] = { 0.11678627572638, 0.11678627572638, 0.11678627572638,
+        0.05084490637021, 0.05084490637021, 0.05084490637021, 0.08285107561837, 0.08285107561837,
+        0.08285107561837, 0.08285107561837, 0.08285107561837, 0.08285107561837 };
+
+const double IGAtriGaussPoints13[26] = { 0.33333333333333, 0.33333333333333,
+        0.26034596607904, 0.26034596607904,
+        0.26034596607904, 0.47930806784192,
+        0.47930806784192, 0.26034596607904,
+
+        0.06513010290222, 0.06513010290222,
+        0.06513010290222, 0.86973979419557,
+        0.86973979419557, 0.06513010290222,
+
+        0.31286549600487, 0.63844418856981,
+        0.63844418856981, 0.04869031542532,
+        0.04869031542532, 0.31286549600487,
+        0.63844418856981, 0.31286549600487,
+        0.31286549600487, 0.04869031542532,
+        0.04869031542532, 0.63844418856981 };
+
+const double IGAtriWeights13[13] = { -0.14957004446768,
+        0.17561525743321, 0.17561525743321, 0.17561525743321,
+        0.05334723560884, 0.05334723560884, 0.05334723560884,
+        0.07711376089026, 0.07711376089026, 0.07711376089026, 0.07711376089026, 0.07711376089026, 0.07711376089026 };
+
+const double IGAtriGaussPoints16[32] = { 0.33333333333333, 0.33333333333333, 0.45929258829272,
+        0.45929258829272, 0.45929258829272, 0.08141482341455, 0.08141482341455, 0.45929258829272,
+        0.17056930775176, 0.17056930775176, 0.17056930775176, 0.65886138449648, 0.65886138449648,
+        0.17056930775176, 0.05054722831703, 0.05054722831703, 0.05054722831703, 0.89890554336594,
+        0.89890554336594, 0.05054722831703, 0.26311282963464, 0.72849239295540, 0.72849239295540,
+        0.00839477740996, 0.00839477740996, 0.26311282963464, 0.72849239295540, 0.26311282963464,
+        0.26311282963464, 0.00839477740996, 0.00839477740996, 0.72849239295540 };
+
+const double IGAtriWeights16[16] = { 0.14431560767779, 0.09509163426728, 0.09509163426728,
+        0.09509163426728, 0.10321737053472, 0.10321737053472, 0.10321737053472, 0.03245849762320,
+        0.03245849762320, 0.03245849762320, 0.02723031417443, 0.02723031417443, 0.02723031417443,
+        0.02723031417443, 0.02723031417443, 0.02723031417443 };
+
+const double IGAquadGaussPoints1[2] = { 0.0, 0.0 };
+const double IGAquadWeights1[1] = { 4.0 };
+
+//static const double tmpSqrt13 = sqrt(1.0 / 3.0);
+const double IGAquadGaussPoints4[8] = { tmpSqrt13, tmpSqrt13, -tmpSqrt13, tmpSqrt13, -tmpSqrt13,
+        -tmpSqrt13, tmpSqrt13, -tmpSqrt13 };
+const double IGAquadWeights4[4] = { 1.0, 1.0, 1.0, 1.0 };
+
+//static const double tmpSqrt35 = sqrt(3.0 / 5.0);
+const double IGAquadGaussPoints9[18] = { 0.0, 0.0, -tmpSqrt35, 0, 0, -tmpSqrt35, tmpSqrt35, 0, 0,
+        tmpSqrt35, -tmpSqrt35, -tmpSqrt35, tmpSqrt35, -tmpSqrt35, -tmpSqrt35, tmpSqrt35, tmpSqrt35,
+        tmpSqrt35 };
+const double IGAquadWeights9[9] = { 64.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0, 40.0 / 81.0,
+        25.0 / 81.0, 25.0 / 81.0, 25.0 / 81.0, 25.0 / 81.0 };
+
+static const double tmpG41 = sqrt((3.0 - 2.0 * sqrt(6.0 / 5.0)) / 7.0);
+static const double tmpW41 = 0.5 + sqrt(30.0) / 36.0;
+static const double tmpG42 = sqrt((3.0 + 2.0 * sqrt(6.0 / 5.0)) / 7.0);
+static const double tmpW42 = 0.5 - sqrt(30.0) / 36.0;
+const double GP4[4] = { -tmpG42, -tmpG41, tmpG41, tmpG42 };
+const double W4[4] = { tmpW42, tmpW41, tmpW41, tmpW42 };
+
+const double IGAquadGaussPoints16[32] = { GP4[0], GP4[0], GP4[0], GP4[1], GP4[0], GP4[2], GP4[0],
+        GP4[3], GP4[1], GP4[0], GP4[1], GP4[1], GP4[1], GP4[2], GP4[1], GP4[3], GP4[2], GP4[0],
+        GP4[2], GP4[1], GP4[2], GP4[2], GP4[2], GP4[3], GP4[3], GP4[0], GP4[3], GP4[1], GP4[3],
+        GP4[2], GP4[3], GP4[3] };
+
+const double IGAquadWeights16[16] = { W4[0] * W4[0], W4[0] * W4[1], W4[0] * W4[2], W4[0] * W4[3], W4[1]
+        * W4[0], W4[1] * W4[1], W4[1] * W4[2], W4[1] * W4[3], W4[2] * W4[0], W4[2] * W4[1], W4[2]
+        * W4[2], W4[2] * W4[3], W4[3] * W4[0], W4[3] * W4[1], W4[3] * W4[2], W4[3] * W4[3] };
+
+static const double tmpG51 = sqrt(5.0 - 2.0 * sqrt(10.0 / 7.0)) / 3;
+static const double tmpG52 = sqrt(5.0 + 2.0 * sqrt(10.0 / 7.0)) / 3;
+static const double tmpW51 = (322.0 + 13.0 * sqrt(70.0)) / 900.0;
+static const double tmpW52 = (322.0 - 13.0 * sqrt(70.0)) / 900.0;
+const double GP5[5] = { -tmpG52, -tmpG51, 0.0, tmpG51, tmpG52 };
+const double W5[5] = { tmpW52, tmpW51, 128.0 / 225.0, tmpW51, tmpW52 };
+
+const double IGAquadGaussPoints25[50] = { GP5[0], GP5[0], GP5[0], GP5[1], GP5[0], GP5[2], GP5[0],
+        GP5[3], GP5[0], GP5[4], GP5[1], GP5[0], GP5[1], GP5[1], GP5[1], GP5[2], GP5[1], GP5[3],
+        GP5[1], GP5[4], GP5[2], GP5[0], GP5[2], GP5[1], GP5[2], GP5[2], GP5[2], GP5[3], GP5[2],
+        GP5[4], GP5[3], GP5[0], GP5[3], GP5[1], GP5[3], GP5[2], GP5[3], GP5[3], GP5[3], GP5[4],
+        GP5[4], GP5[0], GP5[4], GP5[1], GP5[4], GP5[2], GP5[4], GP5[3], GP5[4], GP5[4] };
+
+const double IGAquadWeights25[25] = { W5[0] * W5[0], W5[0] * W5[1], W5[0] * W5[2], W5[0] * W5[3], W5[0]
+        * W5[4], W5[1] * W5[0], W5[1] * W5[1], W5[1] * W5[2], W5[1] * W5[3], W5[1] * W5[4], W5[2]
+        * W5[0], W5[2] * W5[1], W5[2] * W5[2], W5[2] * W5[3], W5[2] * W5[4], W5[3] * W5[0], W5[3]
+        * W5[1], W5[3] * W5[2], W5[3] * W5[3], W5[3] * W5[4], W5[4] * W5[0], W5[4] * W5[1], W5[4]
+        * W5[2], W5[4] * W5[3], W5[4] * W5[4] };
+
+
+
+
+}
 }
 
-double squareEuclideanDistance(int _length, double* _Pi, double* _Pj) {
-    /*
-     * Returns the square of the Euclidean distance of two points in n-D space.
-     * The input arguments are 1D arrays holding the coordinate information of the points:
-     *  _Pi = _Pj = double[_length]
-     */
-
-    double squareDistance = 0.0;
-    for (int i = 0; i < _length; i++)
-        squareDistance += pow(_Pi[i] - _Pj[i], 2.0);
-
-    return squareDistance;
-}
-
-double square2normVector(int _length, double* _vector) {
-    /*
-     * Returns the square of the 2-norm of a vector in _length-dimensional space
-     * _vector = double[_length]
-     */
-
-    // Initialize the square of the 2-norm of the _length-dimensional vector
-    double vector2norm = 0.0;
-
-    // Loop over all spatial dimensions
-    for (int i = 0; i < _length; i++)
-        vector2norm += pow(_vector[i], 2.0);
-
-    // Return the 2-norm of the _length-dimensional vector
-    return vector2norm;
-}
-
-double dotProduct(int _length, double* _vecI, double* _vecJ) {
-    // Initialize the dot product
-    double dotProduct = 0.0;
-
-    // Loop over all the entries of the vectors
-    for (int i = 0; i < _length; i++)
-        dotProduct += _vecI[i] * _vecJ[i];
-
-    // Return the dot product value
-    return dotProduct;
-}
-
-void crossProduct(double* _product, double* _v1, double* _v2) {
-    // Check input
-    assert(_product != NULL);
-    assert(_v1 != NULL);
-    assert(_v2 != NULL);
-
-    // Compute the cross product using the permutation tensor
-    _product[0] = _v1[1] * _v2[2] - _v1[2] * _v2[1];
-    _product[1] = _v1[2] * _v2[0] - _v1[0] * _v2[2];
-    _product[2] = _v1[0] * _v2[1] - _v1[1] * _v2[0];
-
-    // No return value
-    return;
-}
-
-bool solve2x2linearSystem(double* _b, double* _A) {
-    /*
-     * Solves a 2x2 linear equation system and stores the solution into the given right-hand side vector
-     * _b = double[2]
-     * _A = double[4], access of entry (i,j) by the rule (i,j) --> i * 2 + j
-     */
-
-    // Compute the partial determinants of the system
-    double detA = _A[0] * _A[3] - _A[2] * _A[1];
-    double det0 = _A[3] * _b[0] - _A[2] * _b[1];
-    double det1 = _A[0] * _b[1] - _A[1] * _b[0];
-
-    // Check the tolerance criterion
-    if (fabs(detA) < EPS * fabs(det0))
-    return false;
-    if (fabs(detA) < EPS * fabs(det1))
-    return false;
-    if (detA == 0)
-    return false;
-
-    // Return the solution to the right-hand side vector
-    _b[0] = det0 / detA;
-    _b[1] = det1 / detA;
-
-    // Return success
-    return true;
-}
-
-double distancePointSegment(double* _P, double* _P1, double* _P2) {
-	double distance[3];
-	double P1P[3], PP2[3];
-	double P1P2[3];
-	double normP1P2;
-	for(int i=0;i<3;i++){
-		P1P[i]=_P[i]-_P1[i];
-		PP2[i]=_P2[i]-_P[i];
-		P1P2[i]=_P2[i]-_P1[i];
-	}
-	normP1P2=sqrt(square2normVector(3,P1P2));
-
-    double projP1P = sqrt(dotProduct(3,P1P,P1P2));
-     if ( projP1P <= 0 )
-          return sqrt(square2normVector(3,P1P));
-
-     if ( normP1P2 <= projP1P )
-         return sqrt(square2normVector(3,PP2));
-
-	double t = projP1P / normP1P2;
-	double tmp[3];
-	for(int i=0;i<3;i++){
-	     tmp[i]= _P1[i] + t * P1P2[i];
-		 tmp[i]= _P[i] - tmp[i];
-	}
-    return sqrt(square2normVector(3,tmp));
-}
-
-double distanceLinePlane(double* Pline,double* Uline, double* Pplane,double* Nplane) {
-
-	double denom=dotProduct(3,Nplane,Uline);
-	if(denom<1e-9) return -1;
-	double PpPl[3];
-	for(int i=0;i<3;i++){
-		PpPl[i]=Pline[i]-Pplane[i];
-	}
-	return dotProduct(3,PpPl,Nplane)/denom;
-}
-
-double distanceLineLine(double& _ratioA, double& _ratioB, double* _P1, double* _P2,double* _P3, double* _P4) {
-	double distance[3];
-	double P1P2[3],P1P3[3], P3P4[3];
-	double normP1P2, normP3P4;
-	for(int i=0;i<3;i++){
-		P1P2[i]=_P2[i]-_P1[i];
-		P1P3[i]=_P3[i]-_P1[i];
-		P3P4[i]=_P4[i]-_P3[i];
-
-	}
-	normP1P2=sqrt(square2normVector(3,P1P2));
-	normP3P4=sqrt(square2normVector(3,P3P4));
-	if(normP3P4 < EPS)
-	    return -1;
-	if(normP1P2 < EPS)
-	    return -1;
-
-	double d13_34=dotProduct(3,P1P3,P3P4);
-	double d34_12=dotProduct(3,P3P4,P1P2);
-	double d13_12=dotProduct(3,P1P3,P1P2);
-	double d34_34=dotProduct(3,P3P4,P3P4);
-	double d12_12=dotProduct(3,P1P2,P1P2);
-
-	double numer,denom;
-	denom = d12_12 * d34_34 - d34_12 * d34_12;
-	if (fabs(denom) < EPS)
-	  return -1;
-	numer = d13_34 * d34_12 - d13_12 * d34_34;
-
-	_ratioA = numer / denom;
-	_ratioB = (d13_34 + d34_12 * _ratioA) / d34_34;
-
-	double Pa[3], Pb[3];
-	Pa[0] = _P1[0] + _ratioA * P1P2[0];
-	Pa[1] = _P1[1] + _ratioA * P1P2[1];
-	Pa[2] = _P1[2] + _ratioA * P1P2[2];
-	Pb[0] = _P3[0] + _ratioB * P3P4[0];
-	Pb[1] = _P3[1] + _ratioB * P3P4[1];
-	Pb[2] = _P3[2] + _ratioB * P3P4[2];
-	double PaPb[3];
-	for(int i=0;i<3;i++){
-		PaPb[i]=Pb[i]-Pa[i];
-	}
-	return sqrt(square2normVector(3,PaPb));
-}
 
 
-}/* IGAMATH_H_ */
+#endif /* CONSTANTSANDVARIABLES_H_ */

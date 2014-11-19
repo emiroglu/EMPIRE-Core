@@ -26,8 +26,11 @@
 
 // Inclusion of user defined libraries
 #include "NurbsBasis1D.h"
-#include "IGAMath.h"
+//#include "IGAMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "Message.h"
+#define GETINDEX(x,y) (x*49+y)
 
 using namespace std;
 
@@ -193,7 +196,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
 
             // Loop over all the involved derivatives
             for (int k = 1; k <= j; k++) {
-                v -= binomialCoefficients[indexBinomialCoefficients(j, k)] * denominatorFunction[k]
+                v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(j, k)] * denominatorFunction[k]
                         * _basisFctsAndDerivs[(j - k) * (pDegree + 1) + i];
             }
 
@@ -257,7 +260,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
 
             // Loop over all the involved derivatives
             for (int k = 1; k <= j; k++) {
-                v -= binomialCoefficients[indexBinomialCoefficients(j, k)]
+                v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(j, k)]
                         * _denominatorFctAndDerivs[k]
                         * _basisFctsAndDerivs[(j - k) * (pDegree + 1) + i];
             }

@@ -701,8 +701,8 @@ void TestMapper::doConservationAnalysis() {
         for (int j = 0; j < 3; j++) { // x,y,z
             resultantForceDiff[j] = resultantForceA[j] - resultantForceB[j];
         }
-        double relativeError = MortarMath::computeVectorLength(resultantForceDiff)
-                / MortarMath::computeVectorLength(resultantForceB);
+        double relativeError = EMPIRE::MathLibrary::computeVectorLength(resultantForceDiff)
+                / EMPIRE::MathLibrary::computeVectorLength(resultantForceB);
         cout << "\t" << "check conservation of force ..." << endl;
         cout << "\t\t" << "resultantForceA: " << "(" << resultantForceA[0] << ", "
                 << resultantForceA[1] << ", " << resultantForceA[2] << ")" << endl;

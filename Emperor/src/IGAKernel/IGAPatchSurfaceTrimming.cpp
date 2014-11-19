@@ -1,6 +1,5 @@
- 
-/*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+/*  Copyright &copy; 2014, TU Muenchen, Chair of Structural Analysis,
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu, Munich
  *
  *  All rights reserved.
  *
@@ -19,6 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
+
 // Inclusion of standard libraries
 #include <iostream>
 #include <stdlib.h>
@@ -30,7 +30,9 @@
 #include "IGAPatchSurfaceTrimming.h"
 #include "IGAPatchSurface.h"
 #include "IGAControlPoint.h"
-#include "IGAMath.h"
+//#include "IGAMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "Message.h"
 
 using namespace std;
@@ -181,7 +183,7 @@ double IGAPatchSurfaceTrimmingLoop::computeGrevilleAbscissae(const int cp, const
 		GrevilleAbscissae+=knotVector[limit+cp+i];
 	}
 	GrevilleAbscissae/=limit;
-	if(GrevilleAbscissae<knotVector[limit+cp]-EPS || GrevilleAbscissae>knotVector[limit+cp+(limit-1)]+EPS) {
+	if(GrevilleAbscissae<knotVector[limit+cp]-EMPIRE::MathLibrary::EPS || GrevilleAbscissae>knotVector[limit+cp+(limit-1)]+EMPIRE::MathLibrary::EPS) {
 		ERROR_OUT()<<"Greville abscissae "<<GrevilleAbscissae<<" is out of Knot vector bound ["
 				<<knotVector[limit+cp]<<", "<<knotVector[limit+cp+(limit-1)]<<"]"<<endl;
 		exit(-1);
@@ -205,7 +207,7 @@ void IGAPatchSurfaceTrimmingLoop::cleanPolygon() {
 		double v1[3]={v1x, v1y, 0};
 		double v2[3]={v2x, v2y, 0};
 		double v[3];
-		crossProduct(v,v1,v2);
+		EMPIRE::MathLibrary::crossProduct(v,v1,v2);
 		// Result of cross product only in Z direction
 		bool isColinear=fabs(v[2])>1e-9?false:true;
 		if(isSame || isColinear) {

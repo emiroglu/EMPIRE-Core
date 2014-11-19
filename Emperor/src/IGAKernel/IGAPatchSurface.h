@@ -57,7 +57,7 @@ protected:
 
     /// The set of the Control Points of the patch
     IGAControlPoint** ControlPointNet;
-    
+
     /// The class holding the trimming information
     IGAPatchSurfaceTrimming Trimming;
 
@@ -257,7 +257,7 @@ public:
      * \param[in] _P2 The second point of the line segment
      * \author Chenshen Wu
      ***********/
-    bool computePointProjectionOnPatchBoundary(double& _u, double& _v, double& _ratio,
+    char computePointProjectionOnPatchBoundary(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
     bool computePointProjectionOnPatchBoundary_Brute(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
@@ -350,6 +350,12 @@ public:
 
     /// Get and set functions
 public:
+    /***********************************************************************************************
+     * \brief Get the corners between edge 1 and edge 2 following the orientation
+     * \author Fabien pean
+     ***********/
+    std::vector<std::pair<double,double> > getCorner(const char _edge1, const char _edge2, bool _isCounterclockwise);
+
     /***********************************************************************************************
      * \brief Get the underlying IsoGeometric basis of the patch
      * \author Andreas Apostolatos
