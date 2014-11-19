@@ -234,7 +234,8 @@ private:
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
-
+    bool computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1,const int nodeIndex2,
+    		const double* P1,const double* P2, Polygon2D& polygonUV, std::map<int,Polygon2D>& extraPolygonUV);
     /// Writing output functions
 public:
     /***********************************************************************************************
