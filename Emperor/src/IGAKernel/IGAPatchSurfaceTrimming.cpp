@@ -46,14 +46,7 @@ IGAPatchSurfaceTrimming::~IGAPatchSurfaceTrimming() {
 	for(int i=0;i<loops.size();i++)
 		delete loops[i];
 }
-void IGAPatchSurfaceTrimming::addTrimInfo(int _uNoKnots, int _vNoKnots, int* _knotSpanBelonging) {
-	knotSpanBelonging.resize(_uNoKnots);
-	for(int i=0;i<knotSpanBelonging.size();i++)
-		knotSpanBelonging[i].resize(_vNoKnots);
-	for(int i=0;i<knotSpanBelonging.size();i++)
-		for(int j=0;j<knotSpanBelonging[i].size();j++)
-			knotSpanBelonging[i][j]=_knotSpanBelonging[i*_vNoKnots+j];
-}
+
 void IGAPatchSurfaceTrimming::addTrimLoop(int _inner, int _numCurves) {
     if(_inner) {
         loops.push_back(new IGAPatchSurfaceTrimmingLoop(_numCurves));
