@@ -157,11 +157,7 @@ double IGAPatchSurface::computePostprocessingScalarValue(double _u, double _v,
 
     return result;
 }
-void IGAPatchSurface::addTrimInfo(int* _knotSpanBelonging){
-	int u=IGABasis->getUBSplineBasis1D()->getNoKnots();
-	int v=IGABasis->getVBSplineBasis1D()->getNoKnots();
-	Trimming.addTrimInfo(u,v,_knotSpanBelonging);
-}
+
 void IGAPatchSurface::addTrimLoop(int inner, int numCurves) {
     Trimming.addTrimLoop(inner, numCurves);
 }
@@ -180,35 +176,6 @@ void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, d
     }
     Trimming.addTrimCurve(direction, IDBasis, _pDegree, _uNoKnots, _uKnotVector,
                                                _uNoControlPoints, cpNet); 
-}
-
-void IGAPatchSurface::getUntrimmedCPindexes(std::set<int>& out) {
-	const std::vector<std::vector<int> > knotSpan=Trimming.getKnotSpanInfo();
-
-	int uNoKnots=IGABasis->getUBSplineBasis1D()->getNoKnots();
-	int vNoKnots=IGABasis->getVBSplineBasis1D()->getNoKnots();
-
-	for(int uSpan=0;uSpan<uNoKnots-1;uSpan++) {
-		for(int vSpan=0;vSpan<vNoKnots-1;vSpan++) {
-			int notOutside=knotSpan[uSpan][vSpan]>=0;
-			if(notOutside) {
-				addCPidsToSet(out,uSpan,vSpan);
-			}
-		}
-	}
-}
-
-void IGAPatchSurface::addCPidsToSet(std::set<int>& CPids,const int uSpan, const int vSpan) {
-    int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
-    int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
-
-	for(int p=uSpan-pDegree;p<=uSpan+1;p++ ) {
-		for(int q=vSpan-qDegree;q<=vSpan+1;q++ ) {
-           int CPindex = q * uNoControlPoints + p;
-           int dofIndex=ControlPointNet[CPindex]->getDofIndex();
-           CPids.insert(dofIndex);
-		}
-	}
 }
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,

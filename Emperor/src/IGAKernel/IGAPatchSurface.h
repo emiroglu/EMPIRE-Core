@@ -113,10 +113,6 @@ public:
     
     void linearizeTrimming(){Trimming.linearizeLoops();};
 
-    void getUntrimmedCPindexes(std::set<int>& out);
-private:
-    void addCPidsToSet(std::set<int>& CPids,const int uSpan, const int vSpan);
-
     /// Basis related functions
 public:
     /***********************************************************************************************

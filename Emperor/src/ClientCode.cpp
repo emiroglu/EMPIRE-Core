@@ -189,11 +189,6 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         int numLoops = trimInfo[1];
         if(isTrimmed) {
             assert(numLoops>0);
-            //Get knot span belonging (OUT,TRIM,IN), useful ?
-            int* knotSpanBelonging = new int[uNoKnots*vNoKnots];
-            serverComm->receiveFromClientBlocking<int>(name, (uNoKnots-1)*(vNoKnots-1), knotSpanBelonging);
-            thePatch->addTrimInfo(knotSpanBelonging);
-            delete knotSpanBelonging;
             //Get every loop
             for(int loopCount = 0; loopCount < numLoops; loopCount++) {
                     

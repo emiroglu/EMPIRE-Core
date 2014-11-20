@@ -1,23 +1,23 @@
-  /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
-  *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
-  *
-  *  All rights reserved.
-  *
-  *  This file is part of EMPIRE.
-  *
-  *  EMPIRE is free software: you can redistribute it and/or modify
-  *  it under the terms of the GNU General Public License as published by
-  *  the Free Software Foundation, either version 3 of the License, or
-  *  (at your option) any later version.
-  *
-  *  EMPIRE is distributed in the hope that it will be useful,
-  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  *  GNU General Public License for more details.
-  *
-  *  You should have received a copy of the GNU General Public License
-  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
-  */
+/*  Copyright &copy; 2014, TU Muenchen, Chair of Structural Analysis,
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu, Munich
+ *
+ *  All rights reserved.
+ *
+ *  This file is part of EMPIRE.
+ *
+ *  EMPIRE is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  EMPIRE is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
+ */
  /***********************************************************************************************//**
  * \file IGAPatchSurfaceTrimming.h
  * This file holds the class IGAPatchSurfaceTrimming.h
@@ -50,8 +50,6 @@
     	 std::vector<IGAPatchSurfaceTrimmingLoop*> loops;
 
     	 int outter;
-
-    	 std::vector<std::vector<int> > knotSpanBelonging;
          
          /// The constructor and the destructor and the copy constructor
      public:
@@ -66,14 +64,7 @@
           * \author Fabien Pean
           ***********/
          ~IGAPatchSurfaceTrimming();
-         /***********************************************************************************************
-          * \brief Create data for the knot span matrix
-          * \param[in] _uNumKnots The number of knots in U direction
-          * \param[in] _vNumKnots The number of knots in V direction
-          * \param[in] _knotSpanBelonging The array indicating the knots state, inside,trimmed,outside
-          * \author Fabien Pean
-          ***********/
-         void addTrimInfo(int _uNoKnots, int _vNoKnots, int* _knotSpanBelonging);
+
          /***********************************************************************************************
           * \brief Setup information about the loop soon to be received
           * \param[in] inner 0 for outter and 1 for inner
@@ -150,20 +141,6 @@
          inline int getNumOfLoops() const {
         	 return loops.size();
          }
-         /***********************************************************************************************
-		  * \brief Get state of a specific knotSpan
-		  * \author Fabien Pean
-		  ***********/
-		 inline int getKnotSpanInfo(int u, int v) const {
-			 return knotSpanBelonging.at(u).at(v);
-		 }
-		 /***********************************************************************************************
-		  * \brief Get the number of loops.
-		  * \author Fabien Pean
-		  ***********/
-		 inline const std::vector<std::vector<int> >& getKnotSpanInfo() const {
-			 return knotSpanBelonging;
-		 }
      };
 
      /********//**

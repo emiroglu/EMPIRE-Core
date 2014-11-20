@@ -49,8 +49,6 @@ protected:
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;
-    /// The number of NOT TRIMMED OUT Control Points in the IGAMesh
-    int untrimmedNumNodes;
 
     /// The constructor, the destructor and the copy constructor
 public:
@@ -131,8 +129,6 @@ public:
     inline int getNumNodes() const {
         return numNodes;
     }
-
-    int getUntrimmedNumNodes();
 
 };
 
