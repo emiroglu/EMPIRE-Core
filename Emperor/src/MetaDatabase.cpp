@@ -64,7 +64,7 @@ MetaDatabase::MetaDatabase(char *inputFileName) {
         fillSettingConnectionVec();
         fillSettingCouplingLogic();
     } catch (ticpp::Exception& ex) {
-        cout << "ERROR Parser: " << ex.what() << endl;
+        ERROR_OUT() << "ERROR Parser: " << ex.what() << endl;
         exit(EXIT_FAILURE);
     }
 }

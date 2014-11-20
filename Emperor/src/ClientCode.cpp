@@ -132,8 +132,7 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
             INFO_OUT() << copyMesh->boundingBox << endl;
         }
     } else {
-        std::cout << "Not implemented for IGA yet" << std::endl;
-        assert(false);
+        ERROR_BLOCK_OUT("ClientCode","copyMesh","Not implemented for IGA yet");
     }
 }
 
