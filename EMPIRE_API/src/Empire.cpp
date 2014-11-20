@@ -112,9 +112,7 @@ void Empire::sendIGATrimmingInfo(int _isTrimmed, int _numLoops){
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,trimInfo);
     
 }
-void Empire::sendIGATrimmingPatchInfo(int _uNumKnots, int _vNumKnots, int* _knotSpanBelonging){
-    ClientCommunication::getSingleton()->sendToServerBlocking<int>((_uNumKnots-1)*(_vNumKnots-1), _knotSpanBelonging);
-}
+
 void Empire::sendIGATrimmingLoopInfo(int _inner, int _numCurves){
     const int BUFFER_SIZE = 2;
     int trimInfo[BUFFER_SIZE] = { _inner, _numCurves};
