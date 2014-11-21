@@ -363,13 +363,13 @@ bool computeLocalCoorInQuad(const double *quad, int planeToProject, const double
          }*/
         solve2x2LinearSystem(J_T, delta, EPS);
         if (i >= 10) { // normally should find a solution within 10 iterations
-            cout<<"WARNING(MortarMath::computeLocalCoorInQuad): More than 10 iterations are necessary for computing local coordinates in quad"<<endl;
-            cout << "iteration #: " << i << endl;
+        	WARNING_BLOCK_OUT("FEMMath","computeLocalCoordInQuad", "More than 10 iterations are necessary for computing local coordinates in quad");
+            WARNING_OUT() << "iteration #: " << i << endl;
             EMPIRE::MathLibrary::printElem(quad, 4);
             EMPIRE::MathLibrary::printPoint(point);
-            cout << "plane to project:  " << planeToProject << endl;
-            cout << "xi:  " << localCoor[0] << " ita: " << localCoor[1] << endl;
-            cout << "delta-xi:  " << delta[0] << " delta-ita: " << delta[1] << endl;
+            DEBUG_OUT() << "plane to project:  " << planeToProject << endl;
+            DEBUG_OUT() << "xi:  " << localCoor[0] << " ita: " << localCoor[1] << endl;
+            DEBUG_OUT() << "delta-xi:  " << delta[0] << " delta-ita: " << delta[1] << endl;
             // if point is far out of quad, return false
             for (int i = 0; i < 2; i++) { // do not care accuracy if point is far outside the quad
                 if (localCoor[i] > 2.0)

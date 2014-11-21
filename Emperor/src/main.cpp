@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
         } /// End of sections
     } /// End of parallel section
 
-    cout << "Stop openmp threading" << endl;
+    INFO_OUT() << "Stop openmp threading" << endl;
     delete emperor;
     MPI_Finalize();
 

@@ -83,11 +83,8 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     // check whether the necessary libraries are there
 #ifndef USE_INTEL_MKL
     if (!dual) {
-        cerr << endl;
-        cerr
-                << "MortarMapper::MortarMapper: No pardiso library is found, standard mortar mapper cannot be used!"
-                << endl << "\t Try dual mortar mapper!" << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("MortarMapper","MortarMapper",
+    			"No pardiso library is found, standard mortar mapper cannot be used!\n\t Try dual mortar mapper!");
     }
 #endif
 
@@ -186,8 +183,7 @@ void MortarMapper::consistentMapping(const double *slaveField, double *masterFie
                         iparm, &msglvl, masterField, ddum, &error);
 #endif
         if (error != 0) {
-            cerr << "Error in MortarMapper: pardiso solver failed!" << error << endl;
-            exit(EXIT_FAILURE);
+        	ERROR_BLOCK_OUT("MortarMapper","consistentMapping","pardiso solver failed!");
         }
         delete[] ddum;
     } else {
@@ -222,8 +218,7 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
                         iparm, &msglvl, masterFieldCopy, ddum, &error);
 #endif
         if (error != 0) {
-            cerr << "Error in MortarMapper: pardiso solver failed!" << error << endl;
-            exit(EXIT_FAILURE);
+        	ERROR_BLOCK_OUT("MortarMapper","conservativeMapping","pardiso solver failed!");
         }
         delete ddum;
     } else {
@@ -595,7 +590,7 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
             }
 
             if (sum < factor[i] * 0.5) { // if the master element is not fully covered by slave elements, use nearest neighbor
-                cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
+                WARNING_BLOCK_OUT("MortarMapper","enforceConsistency","Nearest neighbor is used for node: ");
                 EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
                 sparsityMapC_BA[i]->clear();
                 double dummy;
@@ -682,8 +677,7 @@ void MortarMapper::initPardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("MortarMapper","initPardiso","pardiso factorization failed!");
     }
 #endif
 }
@@ -697,8 +691,9 @@ void MortarMapper::deletePardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+        if (error != 0) {
+        	ERROR_BLOCK_OUT("MortarMapper","deletePardiso","pardiso factorization failed!");
+        }
     }
 #endif
 }
@@ -1144,11 +1139,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     gaussPoint, localCoor);
             // debug
             if (!inside){
-            	cout<<"Error in computing local coordinates in tria master element"<<endl;
-                cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-                cout<<"Element nodes:"<<endl;
+            	DEBUG_OUT()<<"Error in computing local coordinates in tria master element"<<endl;
+                DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+                DEBUG_OUT()<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesMasterElem;ctr++){
-                	cout<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
+                	DEBUG_OUT()<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
                 }
             }
             // debug end
@@ -1162,11 +1157,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     localCoor);
             // debug
             if (!inside){
-            	cout<<"Error in computing local coordinates in quad master element"<<endl;
-            	cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            	cout<<"Element nodes:"<<endl;
+            	DEBUG_OUT()<<"Error in computing local coordinates in quad master element"<<endl;
+            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+            	DEBUG_OUT()<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesMasterElem;ctr++){
-                	cout<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
+                	DEBUG_OUT()<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
                 }
              }
             // debug end
@@ -1184,11 +1179,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     gaussPoint, localCoor);
             // debug
             if (!inside){
-            	cout<<"Error in computing local coordinates in quad slave element"<<endl;
-                cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-                cout<<"Element nodes:"<<endl;
+            	DEBUG_OUT()<<"Error in computing local coordinates in quad slave element"<<endl;
+            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+            	DEBUG_OUT()<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesSlaveElem;ctr++){
-                	cout<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
+                	DEBUG_OUT()<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
                 }
             }
             // debug end
@@ -1202,11 +1197,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     localCoor);
             // debug
             if (!inside){
-            	cout<<"Error in computing local coordinates in quad slave element"<<endl;
-            	cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            	cout<<"Element nodes:"<<endl;
+            	DEBUG_OUT()<<"Error in computing local coordinates in quad slave element"<<endl;
+            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+            	DEBUG_OUT()<<"Element nodes:"<<endl;
             	for(int ctr=0;ctr<numNodesSlaveElem;ctr++){
-            		cout<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
+            		DEBUG_OUT()<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
             	}
             }
             // debug end
