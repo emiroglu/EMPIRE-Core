@@ -149,16 +149,16 @@ void IGAPatchSurfaceTrimmingLoop::linearize() {
 		int pDegree=IGABasis[j].getPolynomialDegree();
 		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner)
 		if(direction[j]) {
-			for(int k=0;k<uNoControlPoints[j];k++) {
-				double knotGreville=computeGrevilleAbscissae(k,pDegree,knotVector);
+			for(int cpIndex=0;cpIndex<uNoControlPoints[j];cpIndex++) {
+				double knotGreville=IGABasis[j].computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
 				computeCartesianCoordinates(j,parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
 			}
 		} else {
-			for(int k=uNoControlPoints[j]-1;k>=0;k--) {
-				double knotGreville=computeGrevilleAbscissae(k,pDegree,knotVector);
+			for(int cpIndex=uNoControlPoints[j]-1;cpIndex>=0;cpIndex--) {
+				double knotGreville=IGABasis[j].computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
 				computeCartesianCoordinates(j,parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
@@ -167,21 +167,6 @@ void IGAPatchSurfaceTrimmingLoop::linearize() {
 		}
 	}
 	cleanPolygon();
-}
-
-double IGAPatchSurfaceTrimmingLoop::computeGrevilleAbscissae(const int cp, const int pDeg, const double*const knotVector) {
-	double GrevilleAbscissae=0;
-	int limit=max(pDeg-1,1);
-	for(int i=0;i<limit;i++) {
-		GrevilleAbscissae+=knotVector[limit+cp+i];
-	}
-	GrevilleAbscissae/=limit;
-	if(GrevilleAbscissae<knotVector[limit+cp]-EMPIRE::MathLibrary::EPS || GrevilleAbscissae>knotVector[limit+cp+(limit-1)]+EMPIRE::MathLibrary::EPS) {
-		ERROR_OUT()<<"Greville abscissae "<<GrevilleAbscissae<<" is out of Knot vector bound ["
-				<<knotVector[limit+cp]<<", "<<knotVector[limit+cp+(limit-1)]<<"]"<<endl;
-		exit(-1);
-	}
-	return GrevilleAbscissae;
 }
 
 void IGAPatchSurfaceTrimmingLoop::cleanPolygon() {

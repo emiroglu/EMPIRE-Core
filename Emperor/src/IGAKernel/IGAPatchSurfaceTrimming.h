@@ -182,17 +182,6 @@
           ***********/
          void linearize();
      private:
-         /***********************************************************************************************
-          * \brief Compute Greville abscissae for the control point k.
-          * The Greville abscissae is the knot where the control point k has the most influence.
-          * This should results as the physical shortest distance, or close to it, between curve and the control point
-          * \param[in] cp The index of the control point in the local nurbs curve
-          * \param[in] pDeg The polynomial degree of the curve
-          * \param[in] knotVector The knot vector of the curve
-          * \return k The knot vector value corresponding to Greville abscissae
-          * \author Fabien Pean
-          ***********/
-         double computeGrevilleAbscissae(const int cp, const int pDeg, const double*const knotVector);
 
          void cleanPolygon();
 

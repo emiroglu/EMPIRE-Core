@@ -89,6 +89,23 @@ BSplineBasis1D::~BSplineBasis1D() {
 
 }
 
+double BSplineBasis1D::computeGrevilleAbscissae(const int _controlPointIndex) {
+	double GrevilleAbscissae=0;
+	// Upper bound, handles case where PDegree == 1, avoids division by 0
+	int ub = max(PDegree-1,1);
+	for(int i=0;i<ub;i++) {
+		GrevilleAbscissae+=KnotVector[ub+_controlPointIndex+i];
+	}
+	GrevilleAbscissae/=ub;
+	if(GrevilleAbscissae < KnotVector[ub+_controlPointIndex] - EPS_ACCPETEDINTOKNOTSPAN
+			|| GrevilleAbscissae > KnotVector[ub+_controlPointIndex+(ub-1)] + EPS_ACCPETEDINTOKNOTSPAN) {
+		ERROR_OUT()<<"Greville abscissae "<<GrevilleAbscissae<<" is out of Knot vector bound ["
+				<<KnotVector[ub+_controlPointIndex]<<", "<<KnotVector[ub+_controlPointIndex+(ub-1)]<<"]"<<endl;
+		exit(-1);
+	}
+	return GrevilleAbscissae;
+}
+
 bool BSplineBasis1D::clampKnot(double& _uPrm) {
 	bool isInside=true;
 
