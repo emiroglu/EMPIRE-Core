@@ -46,7 +46,6 @@ protected:
     /// The set of the Control Points of the patch
     std::vector<IGAControlPoint> ControlPointNet;
 
-
 public:
     /***********************************************************************************************
      * \brief Constructor
@@ -107,8 +106,18 @@ public:
     inline const std::vector<IGAControlPoint>& getControlPointNet() const {
         return ControlPointNet;
     }
-    inline const IGAControlPoint& getControlPoint(int i) const {
+    inline const IGAControlPoint& getControlPoint(const unsigned int i) const {
         return ControlPointNet.at(i);
+    }
+    inline const IGAControlPoint& operator[](const unsigned int i) {
+    	return ControlPointNet.at(i);
+    }
+    /***********************************************************************************************
+     * \brief Find knot span on u direction
+     * \author Fabien Pean
+     ***********/
+    inline int findSpan(double _u) const {
+        return getIGABasis()->findKnotSpan(_u);
     }
 };
 
