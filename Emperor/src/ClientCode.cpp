@@ -190,7 +190,6 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             assert(numLoops>0);
             //Get every loop
             for(int loopCount = 0; loopCount < numLoops; loopCount++) {
-                    
                 const int BUFFER_SIZE_TRIM = 2;
                 int loopInfo[BUFFER_SIZE_TRIM];
                 serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_TRIM, loopInfo);
@@ -211,11 +210,11 @@ void ClientCode::recvIGAMesh(std::string meshName) {
                     int uNoControlPoints = curveInfo[3];
                     
                     double* uKnotVector = new double[uNoKnots];
-                    double* controlPointNet = new double[uNoControlPoints * 4];
+                    double controlPointNet[uNoControlPoints * 4];
                     
                     serverComm->receiveFromClientBlocking<double>(name, uNoKnots, uKnotVector);
                     serverComm->receiveFromClientBlocking<double>(name, uNoControlPoints * 4, controlPointNet);
-                    
+
                     thePatch->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
                     		uNoControlPoints, controlPointNet);
                 } // end curve

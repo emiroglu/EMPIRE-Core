@@ -28,10 +28,6 @@
 
 // Inclusion of user defined libraries
 #include "IGAPatchSurfaceTrimming.h"
-#include "IGAPatchSurface.h"
-#include "IGAControlPoint.h"
-//#include "IGAMath.h"
-// Edit Aditya
 #include "MathLibrary.h"
 #include "Message.h"
 
@@ -63,7 +59,9 @@ void IGAPatchSurfaceTrimming::addTrimLoop(int _inner, int _numCurves) {
 }
 
 void IGAPatchSurfaceTrimming::addTrimCurve(int _direction,int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
-                                           int _uNoControlPoints, IGAControlPoint** _controlPointNet) {
+                                           int _uNoControlPoints, double* _controlPointNet) {
+	DEBUG_OUT()<<"patch trimming"<<endl;
+
     // Read input
     bool ucondition = _uNoControlPoints != _uNoKnots - _pDegree - 1;
     
@@ -77,42 +75,12 @@ void IGAPatchSurfaceTrimming::addTrimCurve(int _direction,int _IDBasis, int _pDe
     // Get the loop currently worked on
     IGAPatchSurfaceTrimmingLoop& loop=*loops.back();
     // Check that size is not going over allocated during instantiation
-    assert(loop.IGABasis.size()<loop.IGABasis.capacity());
+    assert(loop.IGACurve.size()<loop.IGACurve.capacity());
     assert(loop.direction.size()<loop.direction.capacity());
-    assert(loop.uNoControlPoints.size()<loop.uNoControlPoints.capacity());
-    assert(loop.ControlPointNet.size()<loop.ControlPointNet.capacity());
     // Add direction of the curve
     loop.direction.push_back(_direction);
-    // Add number of control points of the curve
-    loop.uNoControlPoints.push_back(_uNoControlPoints);
-    // Figure out whether the patch has a B-Spline or a NURBS underlying basis
-    int isNurbs = 0;
-    int counter = 0;
-    for (int i = 0; i < _uNoControlPoints; i++) {
-        if (_controlPointNet[counter]->getW() != 1.0) {
-            isNurbs = 1;
-            break;
-        }
-        // Update the counter
-        counter++;
-    }
     // Create the NURBS or the B-Spline underlying basis
-    if (!isNurbs) {
-        loop.IGABasis.push_back(BSplineBasis1D(_IDBasis, _pDegree, _uNoKnots, _uKnotVector));
-    } else {
-        double* controlPointWeights = new double[_uNoControlPoints];
-        for (int i = 0; i < _uNoControlPoints; i++)
-            controlPointWeights[i] = _controlPointNet[i]->getW();
-        loop.IGABasis.push_back(NurbsBasis1D(_IDBasis, _pDegree, _uNoKnots, _uKnotVector, _uNoControlPoints, controlPointWeights));
-    }
-    // On the Control Point net
-    assert(_controlPointNet != NULL);
-    // Push back new vector of control points dedicated to this curve
-    (loop.ControlPointNet).push_back(std::vector<IGAControlPoint*>());
-    // Fill it
-    for (int i = 0; i < _uNoControlPoints; i++) {
-        (loop.ControlPointNet.back()).push_back(_controlPointNet[i]);
-    }
+    loop.IGACurve.push_back(new IGAPatchCurve(_IDBasis, _pDegree, _uNoKnots, _uKnotVector,_uNoControlPoints,_controlPointNet));
 }
 
 void IGAPatchSurfaceTrimming::linearizeLoops() {
@@ -122,12 +90,15 @@ void IGAPatchSurfaceTrimming::linearizeLoops() {
 }
 
 IGAPatchSurfaceTrimmingLoop::IGAPatchSurfaceTrimmingLoop(int _numCurves) {
-	 IGABasis.reserve(_numCurves);
+	 IGACurve.reserve(_numCurves);
 	 direction.reserve(_numCurves);
-	 uNoControlPoints.reserve(_numCurves);
-	 ControlPointNet.reserve(_numCurves);
-	 assert(IGABasis.size()==0);
-	 assert(IGABasis.capacity()!=0);
+	 assert(IGACurve.size()==0);
+	 assert(IGACurve.capacity()!=0);
+}
+
+IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
+	for(int i=0;i<getNoCurves();i++)
+		delete IGACurve[i];
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
@@ -144,23 +115,21 @@ void IGAPatchSurfaceTrimmingLoop::linearize() {
      * 1.1.3. Compute position in parametric space
      * 1.1.4. Store point in data structure of polylines
      */
-	for(int j=0;j<IGABasis.size();j++) {
-		double* knotVector=IGABasis[j].getKnotVector();
-		int pDegree=IGABasis[j].getPolynomialDegree();
+	for(int j=0;j<IGACurve.size();j++) {
 		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner)
 		if(direction[j]) {
-			for(int cpIndex=0;cpIndex<uNoControlPoints[j];cpIndex++) {
-				double knotGreville=IGABasis[j].computeGrevilleAbscissae(cpIndex);
+			for(int cpIndex=0;cpIndex<getIGACurve(j).getNoControlPoints();cpIndex++) {
+				double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
-				computeCartesianCoordinates(j,parametricCoordinates,knotGreville);
+				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
 			}
 		} else {
-			for(int cpIndex=uNoControlPoints[j]-1;cpIndex>=0;cpIndex--) {
-				double knotGreville=IGABasis[j].computeGrevilleAbscissae(cpIndex);
+			for(int cpIndex=getIGACurve(j).getNoControlPoints()-1;cpIndex>=0;cpIndex--) {
+				double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
-				computeCartesianCoordinates(j,parametricCoordinates,knotGreville);
+				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
 			}
@@ -199,48 +168,6 @@ void IGAPatchSurfaceTrimmingLoop::cleanPolygon() {
 	}
 }
 
-void IGAPatchSurfaceTrimmingLoop::computeCartesianCoordinates(int _curve, double* _cartesianCoordinates, double _uPrm,
-        int _uKnotSpanIndex) {
-    // Read input
-    assert(_cartesianCoordinates != NULL);
-
-    // Initialize the coordinates of the point
-    for (int i = 0; i < 2; i++)
-        _cartesianCoordinates[i] = 0;
-    // Compute the local basis functions in the vicinity of the point
-    int pDegree = IGABasis[_curve].getPolynomialDegree();
-    int noLocalBasisFunctions = IGABasis[_curve].computeNoBasisFunctions();
-    double* localBasisFunctions = new double[noLocalBasisFunctions];
-    IGABasis[_curve].computeLocalBasisFunctions(localBasisFunctions,_uPrm,_uKnotSpanIndex);
-    // Initialize the Control Point index
-    int CPindex = 0;
-    // Initialize a basis functions counter
-    int counter_basis = 0;
-    // Loop over all the non-zero contributions
-	for (int i = 0; i <= pDegree; i++) {
-
-		// Update the correct index for the Control Points in 2D. Pattern A[i][j] = V[j*n+i]
-		CPindex =(_uKnotSpanIndex - pDegree + i);
-
-		// Compute iteratively the x-coordinate of the point
-		_cartesianCoordinates[0] += localBasisFunctions[counter_basis]
-				* ControlPointNet[_curve][CPindex]->getX();
-		// Compute iteratively the y-coordinate of the point
-		_cartesianCoordinates[1] += localBasisFunctions[counter_basis]
-				* ControlPointNet[_curve][CPindex]->getY();
-
-		// Update basis function's counter
-		counter_basis++;
-	}
-    // Free the memory from the heap
-    delete[] localBasisFunctions;
-}
-
-void IGAPatchSurfaceTrimmingLoop::computeCartesianCoordinates(int _curve, double* _cartesianCoordinates, double _localCoordinates) {
-    int _uKnotSpanIndex = IGABasis[_curve].findKnotSpan(_localCoordinates);
-    IGAPatchSurfaceTrimmingLoop::computeCartesianCoordinates(_curve, _cartesianCoordinates, _localCoordinates, _uKnotSpanIndex);
-}
-
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
     message << "\t" << "---------------------------------Start Trimming" << endl;
     message << "\t" << "Trimming Info"<< endl;
@@ -259,22 +186,22 @@ Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
 
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimmingLoop &trim) {
     /// output loop
-    for(int i=0;i<trim.getIGABasis().size();++i) {
+    for(int i=0;i<trim.getIGACurve().size();++i) {
         message << "\t" << "Curve["<<i<<"]"<< endl;
-        message << "\t\tpDegree:  " << trim.getIGABasis(i).getPolynomialDegree()<< endl;
+        message << "\t\tpDegree:  " << trim.getIGACurve(i).getIGABasis()->getPolynomialDegree()<< endl;
 
         message << "\t\tKnots Vector U: \t";
-        for (int k = 0; k < trim.getIGABasis(i).getNoKnots(); k++)
-            message << trim.getIGABasis(i).getKnotVector()[k] << "  ";
+        for (int k = 0; k < trim.getIGACurve(i).getIGABasis()->getNoKnots(); k++)
+            message << trim.getIGACurve(i).getIGABasis()->getKnotVector()[k] << "  ";
         message << endl;
         message << "\t\t" << "number of control points: " << trim.getNoControlPoints(i) << endl;
 
         message << "\t\tControl Points Net: " << endl;
         for (int k = 0; k < trim.getNoControlPoints(i); k++) {
             message << "\t\t";
-            message << trim.getControlPointNet(i)[k]->getX() << ", "
-                    << trim.getControlPointNet(i)[k]->getY() << ", "
-                    << trim.getControlPointNet(i)[k]->getZ() << endl;
+            message << trim.getIGACurve(i).getControlPoint(k).getX() << ", "
+                    << trim.getIGACurve(i).getControlPoint(k).getY() << ", "
+                    << trim.getIGACurve(i).getControlPoint(k).getZ() << endl;
         }
     }
     message << "\tLinear Polygon: " << endl;

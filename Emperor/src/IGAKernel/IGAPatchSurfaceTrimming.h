@@ -28,7 +28,8 @@
  #define IGAPatchSurfaceTrimming_H_
  
  // Inclusion of user defined libraries
- #include "NurbsBasis1D.h"
+ #include "IGAPatchCurve.h"
+ #include "IGAControlPoint.h"
  #include <vector>
  #include <utility>
  #include <assert.h>
@@ -85,7 +86,7 @@
           * \author Fabien Pean
           ***********/
          void addTrimCurve(int _direction,int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
-                           int _uNoControlPoints, IGAControlPoint** _controlPointNet);
+                           int _uNoControlPoints, double* _controlPointNet);
          
          /***********************************************************************************************
           * \brief Create a linear approximation for every loop using position computed at Greville abscissae
@@ -160,17 +161,13 @@
           * \brief Destructor
           * \author Fabien Pean
           ***********/
-		 ~IGAPatchSurfaceTrimmingLoop(){};
+		 ~IGAPatchSurfaceTrimmingLoop();
 	 private:
          /// The basis functions of the curves
-         std::vector<BSplineBasis1D> IGABasis;
+         std::vector<IGAPatchCurve*> IGACurve;
          /// Direction = if curve is in the correct orientation C1(1)=C2(0) or not C1(1)=C2(1)
          ///	WARNING : this has not been tested, so code may break if it is used
          std::vector<bool> direction;
-         /// Number of control points for each curve
-         std::vector<int> uNoControlPoints;
-         /// The set of the Control Points of the curves
-         std::vector<std::vector<IGAControlPoint*> > ControlPointNet;
          // List of points making up the linearized version of the trimming loop
          std::vector<double> polylines;
 
@@ -185,46 +182,41 @@
 
          void cleanPolygon();
 
-         /// Basis related functions
-     public:
-         /***********************************************************************************************
-          * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters are known
-          * \param[in] _curve The index of the curve
-          * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the Patch whose surface parameters are _uPrm and _vPrm
-          * \param[in] _uPrm The parameter on the u-coordinate line
-          * \param[in] _uKnotSpanIndex The index of the knot span where the parametric coordinates _uPrm lives in
-          * \author Fabien Pean, Andreas Apostolatos
-          ***********/
-         void computeCartesianCoordinates(int, double*, double, int);
-
-         /***********************************************************************************************
-          * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
-          * \param[in] _curve The index of the curve
-          * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the patch whose surface parameters are _uPrm and _vPrm
-          * \param[in] _localCoordinates the local coordinates of the point we want to find
-          * \compute the knot span Index inside the function. Convenient but in-efficient.
-          * \author Fabien Pean, Chenshen Wu
-          ***********/
-         void computeCartesianCoordinates(int, double*, double);
-
          /// get functions
 	 public:
          /***********************************************************************************************
-          * \brief Get the underlying IsoGeometric basis of index i of the loop
+          * \brief Get the underlying IsoGeometric curve of index i of the loop
           * \author Fabien Pean
           ***********/
-         inline const BSplineBasis1D& getIGABasis(int i) const {
-             return (const BSplineBasis1D&)IGABasis.at(i);
+         inline const IGAPatchCurve& operator[](int i) const {
+        	 return (const IGAPatchCurve&)*IGACurve.at(i);
+         }
+         inline IGAPatchCurve& operator[](int i) {
+        	 return *IGACurve.at(i);
          }
          /***********************************************************************************************
-          * \brief Get the underlying IsoGeometric basis of the loop
+          * \brief Get the underlying IsoGeometric curve of index i of the loop
           * \author Fabien Pean
           ***********/
-         inline const std::vector<BSplineBasis1D>& getIGABasis() const {
-             return IGABasis;
+         inline const IGAPatchCurve& getIGACurve(int i) const {
+             return (const IGAPatchCurve&)*IGACurve.at(i);
          }
          /***********************************************************************************************
-          * \brief 	Get the direction for basis i
+          * \brief Get the underlying IsoGeometric curve of the loop
+          * \author Fabien Pean
+          ***********/
+         inline const std::vector<IGAPatchCurve*>& getIGACurve() const {
+             return IGACurve;
+         }
+         /***********************************************************************************************
+          * \brief Get the number of curves in this loop
+          * \author Fabien Pean
+          ***********/
+         inline int getNoCurves() const  {
+        	 return IGACurve.size();
+         }
+         /***********************************************************************************************
+          * \brief 	Get the direction for curve i
           * \author Fabien Pean
           ***********/
          inline bool getDirection(int i) const {
@@ -235,14 +227,14 @@
           * \author Fabien Pean
           ***********/
          inline int getNoControlPoints(int i) const {
-             return uNoControlPoints.at(i);
+             return IGACurve.at(i)->getNoControlPoints();
          }
          /***********************************************************************************************
           * \brief Get the Control Points of the curve i
           * \author Andreas Apostolatos
           ***********/
-         inline const std::vector<IGAControlPoint*>& getControlPointNet(int i) const {
-             return ControlPointNet.at(i);
+         inline const std::vector<IGAControlPoint>& getControlPointNet(int i) const {
+             return IGACurve.at(i)->getControlPointNet();
          }
          /***********************************************************************************************
           * \brief Get the linearized version of the curve

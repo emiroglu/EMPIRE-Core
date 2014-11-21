@@ -164,18 +164,12 @@ void IGAPatchSurface::addTrimLoop(int inner, int numCurves) {
 
 void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                   int _uNoControlPoints, double* _controlPointNet) {
-                    
+	DEBUG_OUT()<<"patch surface"<<endl;
+
     int IDBasis = 0; ///???
-    
-    int numCPs = _uNoControlPoints;
-    IGAControlPoint **cpNet;
-    cpNet = new IGAControlPoint*[numCPs];
-    
-    for (int i = 0; i < numCPs; i++) {
-            cpNet[i] = new IGAControlPoint(i, &_controlPointNet[i * 4]);
-    }
+
     Trimming.addTrimCurve(direction, IDBasis, _pDegree, _uNoKnots, _uKnotVector,
-                                               _uNoControlPoints, cpNet); 
+                                               _uNoControlPoints, _controlPointNet);
 }
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
