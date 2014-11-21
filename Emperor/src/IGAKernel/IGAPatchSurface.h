@@ -348,7 +348,11 @@ public:
 public:
     /***********************************************************************************************
      * \brief Get the corners between edge 1 and edge 2 following the orientation
-     * \author Fabien pean
+     * \param[in]	_edgeIn		The id of the edge going in the patch
+     * \param[in]	_edgeOut	The id of the edge going out of the patch
+     * \param[in]	_isCounterclockwise		The orientation of the polygon
+     * \return The list of corner in between edgeIn and edgeOut
+     * \author Fabien Pean
      ***********/
     std::vector<std::pair<double,double> > getCorner(const char _edge1, const char _edge2, bool _isCounterclockwise);
 

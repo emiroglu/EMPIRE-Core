@@ -1980,15 +1980,15 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     _normal[2] = baseVec[0] * baseVec[4] - baseVec[1] * baseVec[3];
 }
 
-std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _edge1, const char _edge2, bool _isCounterclockwise) {
+std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _edgeIn, const char _edgeOut, bool _isCounterclockwise) {
 	std::vector<std::pair<double,double> > corners;
-	if(_edge1 & _edge2)
+	if(_edgeIn & _edgeOut)
 		return corners;
 	double u0 = getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
 	double uN = getIGABasis()->getUBSplineBasis1D()->getLastKnot();
 	double v0 = getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
 	double vN = getIGABasis()->getVBSplineBasis1D()->getLastKnot();
-	const char corner = _edge1 | _edge2;
+	const char corner = _edgeIn | _edgeOut;
 	if(corner ==(EDGE_U0 | EDGE_V0)) {
 		corners.push_back(make_pair(u0,v0));
 		return corners;
@@ -2005,44 +2005,44 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 		corners.push_back(make_pair(uN,vN));
 		return corners;
 	}
-	if(_edge1 == EDGE_U0 && _edge2 == EDGE_UN && _isCounterclockwise) {
-		corners.push_back(make_pair(u0,v0));
-		corners.push_back(make_pair(uN,v0));
-		return corners;
-	}
-	if(_edge1 == EDGE_U0 && _edge2 == EDGE_UN && !_isCounterclockwise) {
-		corners.push_back(make_pair(u0,vN));
-		corners.push_back(make_pair(uN,vN));
-		return corners;
-	}
-	if(_edge1 == EDGE_UN && _edge2 == EDGE_U0 && _isCounterclockwise) {
+	if(_edgeIn == EDGE_U0 && _edgeOut == EDGE_UN && _isCounterclockwise) {
 		corners.push_back(make_pair(uN,vN));
 		corners.push_back(make_pair(u0,vN));
 		return corners;
 	}
-	if(_edge1 == EDGE_UN && _edge2 == EDGE_U0 && !_isCounterclockwise) {
+	if(_edgeIn == EDGE_U0 && _edgeOut == EDGE_UN && !_isCounterclockwise) {
 		corners.push_back(make_pair(uN,v0));
 		corners.push_back(make_pair(u0,v0));
 		return corners;
 	}
-	if(_edge1 == EDGE_V0 && _edge2 == EDGE_VN && _isCounterclockwise) {
+	if(_edgeIn == EDGE_UN && _edgeOut == EDGE_U0 && _isCounterclockwise) {
+		corners.push_back(make_pair(u0,v0));
+		corners.push_back(make_pair(uN,v0));
+		return corners;
+	}
+	if(_edgeIn == EDGE_UN && _edgeOut == EDGE_U0 && !_isCounterclockwise) {
+		corners.push_back(make_pair(u0,vN));
+		corners.push_back(make_pair(uN,vN));
+		return corners;
+	}
+	if(_edgeIn == EDGE_V0 && _edgeOut == EDGE_VN && _isCounterclockwise) {
+		corners.push_back(make_pair(u0,vN));
+		corners.push_back(make_pair(u0,v0));
+		return corners;
+	}
+	if(_edgeIn == EDGE_V0 && _edgeOut == EDGE_VN && !_isCounterclockwise) {
+		corners.push_back(make_pair(uN,vN));
+		corners.push_back(make_pair(uN,v0));
+		return corners;
+	}
+	if(_edgeIn == EDGE_VN && _edgeOut == EDGE_V0 && _isCounterclockwise) {
 		corners.push_back(make_pair(uN,v0));
 		corners.push_back(make_pair(uN,vN));
 		return corners;
 	}
-	if(_edge1 == EDGE_V0 && _edge2 == EDGE_VN && !_isCounterclockwise) {
+	if(_edgeIn == EDGE_VN && _edgeOut == EDGE_V0 && !_isCounterclockwise) {
 		corners.push_back(make_pair(u0,v0));
 		corners.push_back(make_pair(u0,vN));
-		return corners;
-	}
-	if(_edge1 == EDGE_VN && _edge2 == EDGE_V0 && _isCounterclockwise) {
-		corners.push_back(make_pair(u0,vN));
-		corners.push_back(make_pair(u0,v0));
-		return corners;
-	}
-	if(_edge1 == EDGE_VN && _edge2 == EDGE_V0 && !_isCounterclockwise) {
-		corners.push_back(make_pair(uN,vN));
-		corners.push_back(make_pair(uN,v0));
 		return corners;
 	}
 	assert(0);
