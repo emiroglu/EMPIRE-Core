@@ -1,5 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -108,8 +109,8 @@ public:
 public:
     /***********************************************************************************************
      * \brief Get the surface patches
-     * \param[out] A container vector of type std::vector<IGAPatchSurface*>
-     * \author Chenshen Wu
+     * \return A container vector of type std::vector<IGAPatchSurface*>
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     inline std::vector<IGAPatchSurface*> getSurfacePatches() {
 		return surfacePatches;
@@ -117,6 +118,29 @@ public:
     inline const std::vector<IGAPatchSurface*>& getSurfacePatches() const {
         return surfacePatches;
     }
+    /***********************************************************************************************
+     * \brief Get a specific patch
+     * \param[in] The id of the patch
+     * \return The pointer to the patch
+     * \author Fabien Pean
+     ***********/
+    inline IGAPatchSurface* getSurfacePatch(const unsigned int i) {
+		return surfacePatches.at(i);
+    }
+    inline IGAPatchSurface* getSurfacePatch(const unsigned int i) const {
+        return surfacePatches.at(i);
+    }
+    inline IGAPatchSurface* operator[](const unsigned int i) {
+    	return surfacePatches.at(i);
+    }
+    inline const IGAPatchSurface* operator[](const unsigned int i) const {
+    	return surfacePatches.at(i);
+    }
+
+    /***********************************************************************************************
+     * \brief Get the number of patches
+     * \author Fabien Pean
+     ***********/
     inline int getNumPatches() const {
     	return surfacePatches.size();
     }
