@@ -24,7 +24,7 @@
 #include "IGAPatchSurface.h"
 #include "IGAMesh.h"
 #include "FEMesh.h"
-#include "ClipperInterface.h"
+#include "ClipperAdapter.h"
 #include "MathLibrary.h"
 #include "DataField.h"
 #include <iostream>
@@ -472,7 +472,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				/// 1.1.2 Compute intermediate points on the line
 				computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,1,P2,1,polygonUV);
 			}
-			ClipperInterface::cleanPolygon(polygonUV);
+			ClipperAdapter::cleanPolygon(polygonUV);
 			if(polygonUV.size()<3)
 				continue;
 			bool isIntegrated=false;
@@ -488,7 +488,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
 				/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
 				for(int index=0;index<listSpan.size();index++) {
-					ClipperInterface::cleanPolygon(listPolygonUV[index]);
+					ClipperAdapter::cleanPolygon(listPolygonUV[index]);
 					if(listPolygonUV[index].size()<3)
 						continue;
 					isIntegrated=true;
@@ -554,7 +554,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					// Check if corners to be included
 					if(numDivision<=1 || !specialCase) {
 						specialCase = false;
-						Polygon2D corners = thePatch->getCorner(edge1,edge2,ClipperInterface::isCounterclockwise(polygonUV));
+						Polygon2D corners = thePatch->getCorner(edge1,edge2,ClipperAdapter::isCounterclockwise(polygonUV));
 						polygonUV.insert(polygonUV.end(),corners.begin(),corners.end());
 					}
 					if(isProjectedOnPatchBoundary && dis <= disTol) {
@@ -650,7 +650,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					}
 				}
 			}
-			ClipperInterface::cleanPolygon(polygonUV);
+			ClipperAdapter::cleanPolygon(polygonUV);
 			// Proceed toward integration if the polygon is valid, i.e. at least a triangle
 			if (polygonUV.size() >= 3) {
 				bool isIntegrated=false;
@@ -664,7 +664,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					/// Apply knot span window
 					clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
 					for(int index=0;index<listSpan.size();index++) {
-						ClipperInterface::cleanPolygon(listPolygonUV[index]);
+						ClipperAdapter::cleanPolygon(listPolygonUV[index]);
 						if(listPolygonUV[index].size()<3) continue;
 						isIntegrated=true;
 						/// Get FE canonical element
@@ -682,7 +682,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			/// Only the case when both points of an edge are outside and still the edge is partially projected in the patch
 			for (map<int,Polygon2D>::iterator it = extraPolygonUV.begin(); it != extraPolygonUV.end(); it++) {
 				debugPolygon(it->second,"extra polygon");
-				ClipperInterface::cleanPolygon(it->second);
+				ClipperAdapter::cleanPolygon(it->second);
 				// Proceed toward integration if the polygon is valid, i.e. at least a triangle
 				if (it->second.size() < 3)
 					continue;
@@ -697,7 +697,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					/// Apply knot span window
 					clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
 					for(int index=0;index<listSpan.size();index++) {
-						ClipperInterface::cleanPolygon(listPolygonUV[index]);
+						ClipperAdapter::cleanPolygon(listPolygonUV[index]);
 						if(listPolygonUV[index].size()<3) continue;
 						isIntegrated=true;
 						/// Get FE canonical element for element in the map
@@ -758,12 +758,12 @@ void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchW
 }
 
 void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
-	ClipperInterface c;
+	ClipperAdapter c;
 	for(int loop=0;loop<_thePatch->getTrimming().getNumOfLoops();loop++) {
 		const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
 		c.addPathClipper(clippingWindow);
 	}
-	c.setFilling(ClipperInterface::POSITIVE, 0);
+	c.setFilling(ClipperAdapter::POSITIVE, 0);
 	c.addPathSubject(_polygonUV);
 	c.clip();
 	c.getSolution(_listPolygonUV);
@@ -789,7 +789,7 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 	} else {
 		for (int spanU = minSpanU; spanU <= maxSpanU; spanU++) {
 			for (int spanV = minSpanV; spanV <= maxSpanV; spanV++) {
-				ClipperInterface c(1e-12);
+				ClipperAdapter c(1e-12);
 				if (knotVectorU[spanU] != knotVectorU[spanU + 1]
 						&& knotVectorV[spanV] != knotVectorV[spanV + 1]) {
 					Polygon2D knotSpanWindow(4);

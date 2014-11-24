@@ -268,7 +268,15 @@ public:
 
     /// Debugging functions
 public:
+    /***********************************************************************************************
+     * \brief Print a polygon in debug stream
+     * \author Fabien Pean
+     ***********/
     void debugPolygon(const Polygon2D& _polygon, std::string _name="");
+    /***********************************************************************************************
+     * \brief Print a set of polygon
+     * \author Fabien Pean
+     ***********/
     void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
 
     /***********************************************************************************************

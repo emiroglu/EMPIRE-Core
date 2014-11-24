@@ -178,9 +178,6 @@
           * \author Fabien Pean
           ***********/
          void linearize();
-     private:
-
-         void cleanPolygon();
 
          /// get functions
 	 public:

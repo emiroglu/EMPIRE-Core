@@ -28,6 +28,7 @@
 
 // Inclusion of user defined libraries
 #include "IGAPatchSurfaceTrimming.h"
+#include "ClipperAdapter.h"
 #include "MathLibrary.h"
 #include "Message.h"
 
@@ -133,37 +134,7 @@ void IGAPatchSurfaceTrimmingLoop::linearize() {
 			}
 		}
 	}
-	cleanPolygon();
-}
-
-void IGAPatchSurfaceTrimmingLoop::cleanPolygon() {
-	// Remove duplicated points and consecutive aligned points
-	int tmp_n_pts=polylines.size()/2;
-	for(int k=0;k<tmp_n_pts;k++) {
-		int p1=k%tmp_n_pts;
-		int p2=(k+1)%tmp_n_pts;
-		int p3=(k+2)%tmp_n_pts;
-		bool isSame=polylines[p1*2]==polylines[p2*2] && polylines[p1*2+1]==polylines[p2*2+1];
-
-		double v1x=polylines[p2*2]-polylines[p1*2];
-		double v1y=polylines[p2*2+1]-polylines[p1*2+1];
-		double v2x=polylines[p3*2]-polylines[p1*2];
-		double v2y=polylines[p3*2+1]-polylines[p1*2+1];
-		double v1[3]={v1x, v1y, 0};
-		double v2[3]={v2x, v2y, 0};
-		double v[3];
-		EMPIRE::MathLibrary::crossProduct(v,v1,v2);
-		// Result of cross product only in Z direction
-		bool isColinear=fabs(v[2])>1e-9?false:true;
-		if(isSame || isColinear) {
-			// Remove middle point, noted as idx2 here
-			polylines.erase(polylines.begin()+p2*2+1);
-			polylines.erase(polylines.begin()+p2*2);
-			// Update loop to keep loop traversal consistent
-			tmp_n_pts=polylines.size()/2;
-			k--;
-		}
-	}
+	ClipperAdapter::cleanPolygon(polylines);
 }
 
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
