@@ -164,8 +164,6 @@ void IGAPatchSurface::addTrimLoop(int inner, int numCurves) {
 
 void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                   int _uNoControlPoints, double* _controlPointNet) {
-	DEBUG_OUT()<<"patch surface"<<endl;
-
     int IDBasis = 0; ///???
 
     Trimming.addTrimCurve(direction, IDBasis, _pDegree, _uNoKnots, _uKnotVector,
@@ -985,10 +983,11 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection
 }
 bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
-	DEBUG_OUT()<<"\t Project line on boundary using Bisection for line ("
-			"("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
-			"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "
-			"with initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
+	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+	DEBUG_OUT()<<"\t Project line on boundary using Bisection for line"<<endl
+			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
+			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
+			<<"\t\twith initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
     double distance = numeric_limits<double>::max();
     double div = 0.0;
     bool isConverged = false;
@@ -998,9 +997,10 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u
 	// Compute point projection from the line to the NURBS patch boundary
 	isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(u,v, div,distance, _P1, _P2);
 	if(isConverged){
-		DEBUG_OUT()<<"\tAlgorithm has converged and distance to patch is "<<distance
-				<<" and ratio P1P/P1P2 is "<<div
-				<<" and parametric value are (u,v)("<<u<<" , "<<v<<")"<<endl;
+		DEBUG_OUT()<<"\tAlgorithm has converged and distance to patch is "<<distance<<endl
+				<<"\t\t and ratio P1P/P1P2 is "<<div<<endl
+				<<"\t\t and parametric value are (u,v)("<<u<<" , "<<v<<")"<<endl;
+		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
 		// Fix possible numerical error
 		if(fabs(div-1.0)<EPS_DISTANCE_RELAXED && div-1.0>0) div=1.0;
 		if(fabs(div)	<EPS_DISTANCE_RELAXED && div<0) div=0.0;
@@ -1214,23 +1214,20 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
     	P1P[i] = P1Q[i];
         P1P[i] -= h10 * unitNormalSurface[i];
     }
-	// Project P1P2 onto the normal of the patch
-    double h12 = MathLibrary::computeDenseDotProduct(dim, P1P2, P1P);
-    // Get the point on the line P1P2 from the intersection with the patch normal
-    for (int i = 0; i < dim; i++) {
-        P1P[i] -= h12 * unitNormalSurface[i];
-    }
-    //double normP1P2 = sqrt(EMPIRE::MathLibrary::square2normVector(dim, P1P2));
+//	// Project P1P2 onto the normal of the patch
+//    double h12 = MathLibrary::computeDenseDotProduct(dim, P1P2, P1P);
+//    // Get the point on the line P1P2 from the intersection with the patch normal
+//    for (int i = 0; i < dim; i++) {
+//        P1P[i] -= h12 * unitNormalSurface[i];
+//    }
     double normP1P2 = MathLibrary::vector2norm(P1P2,dim);
     double normP1P = MathLibrary::computeDenseDotProduct(dim, P1P, P1P2)/normP1P2;
     _ratio = normP1P / normP1P2;
     // Compute distance between patch and the line
     double QP[3];
     for (int i = 0; i < dim; i++) {
-    	QP[i] = P1P[i];
-        QP[i] += _P1[i]-Q[i];
+    	QP[i] = _P1[i] + _ratio * (_P2[i] - _P1[i]) - Q[i];
     }
-    //_distance = sqrt(EMPIRE::MathLibrary::square2normVector(dim, QP));
     _distance = EMPIRE::MathLibrary::vector2norm(QP,dim);
 
 	// 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
@@ -1244,10 +1241,11 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 
 char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
-	DEBUG_OUT()<<"\t Project line on boundary using Newton-Rhapson for line ("
-			"("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
-			"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "
-			"with initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
+	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+	DEBUG_OUT()<<"\tProject line on boundary using Newton-Rhapson for line"<<endl
+			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
+			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
+			<<"\t\twith initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
     double u1 = _u;
     double v1 = _v;
     double t;
@@ -1255,7 +1253,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
     double div = 0.0;
     bool isConverged = false;
     _distance = numeric_limits<double>::max();
-    char edgeOut=0;
+    char edgeOut=0, _edge=0;
     // Loop over all the edges of the NURBS patch (for tensor product surfaces there are 4 edges)
     for (int edge = 0; edge < 4; edge++) {
     	// Store intermediate results
@@ -1296,25 +1294,25 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 			if (isConverged) {
 				switch (edge) {
 				case 0:
-					edgeOut=EDGE_V0 | edgeOut;
+					edgeOut=EDGE_V0;
 					IGABasis->getUBSplineBasis1D()->clampKnot(t);
 					u[point] = t;
 					v[point] = IGABasis->getVBSplineBasis1D()->getFirstKnot();
 					break;
 				case 1:
-					edgeOut=EDGE_VN | edgeOut;
+					edgeOut=EDGE_VN;
 					IGABasis->getUBSplineBasis1D()->clampKnot(t);
 					u[point] = t;
 					v[point] = IGABasis->getVBSplineBasis1D()->getLastKnot();
 					break;
 				case 2:
-					edgeOut=EDGE_U0 | edgeOut;
+					edgeOut=EDGE_U0;
 					IGABasis->getVBSplineBasis1D()->clampKnot(t);
 					u[point] = IGABasis->getUBSplineBasis1D()->getFirstKnot();
 					v[point] = t;
 					break;
 				case 3:
-					edgeOut=EDGE_UN | edgeOut;
+					edgeOut=EDGE_UN;
 					IGABasis->getVBSplineBasis1D()->clampKnot(t);
 					u[point] = IGABasis->getUBSplineBasis1D()->getLastKnot();
 					v[point] = t;
@@ -1326,24 +1324,26 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 				// If it is not a point to take into account, continue
 				if(!(validPoint1 || validPoint2) && point<2) continue;
 				//Otherwise store it under following conditions
-				if (distance < _distance && div >= 0.0 && div <= 1.0) {
+				if (distance <= _distance && div >= 0.0 && div <= 1.0) {
 					hasConverged=true;
 					_u=u[point];
 					_v=v[point];
 					_distance = distance;
 					_ratio = div;
-					DEBUG_OUT()<<"\tAlgorithm has converged for point "<<point<<" and edge "<<edgeOut
-							<<" and new distance found to patch is "<<_distance
-							<<" and ratio P1P/P1P2 is "<<_ratio
-							<<" and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
+					_edge=_edge | edgeOut;
+					DEBUG_OUT()<<"\tAlgorithm has converged for initial guess point "<<point<<" and edge "<<int(edgeOut)<<endl
+							<<"\t\t and new distance found to patch is "<<_distance<<endl
+							<<"\t\t and ratio P1P/P1P2 is "<<_ratio<<endl
+							<<"\t\t and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
 				}
 			}
     	}
     }
+	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
     if (_distance == numeric_limits<double>::max())
         return false;
     else if (_ratio >= 0.0 && _ratio <= 1.0) {
-        return edgeOut;
+        return _edge;
     } else {
         return false;
     }
