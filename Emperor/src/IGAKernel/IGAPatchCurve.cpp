@@ -29,7 +29,6 @@ namespace EMPIRE {
 IGAPatchCurve::IGAPatchCurve(int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
 		int _uNoControlPoints, double* _controlPointNet):
 		uNoControlPoints(_uNoControlPoints) {
-	DEBUG_OUT()<<"patch curve"<<endl;
 	// Read input
 	bool ucondition = _uNoControlPoints != _uNoKnots - _pDegree - 1;
 	if (ucondition) {
@@ -49,8 +48,6 @@ IGAPatchCurve::IGAPatchCurve(int _IDBasis, int _pDegree, int _uNoKnots, double* 
 			break;
 		}
 	}
-	DEBUG_OUT()<<"/uNoKnots"<<_uNoKnots<<endl;
-
 	// Create the NURBS or the B-Spline underlying basis
 	if (!isNurbs) {
 		IGABasis = new BSplineBasis1D(_IDBasis, _pDegree, _uNoKnots, _uKnotVector);

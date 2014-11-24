@@ -60,8 +60,6 @@ void IGAPatchSurfaceTrimming::addTrimLoop(int _inner, int _numCurves) {
 
 void IGAPatchSurfaceTrimming::addTrimCurve(int _direction,int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
                                            int _uNoControlPoints, double* _controlPointNet) {
-	DEBUG_OUT()<<"patch trimming"<<endl;
-
     // Read input
     bool ucondition = _uNoControlPoints != _uNoKnots - _pDegree - 1;
     
