@@ -20,7 +20,6 @@
  */
 
 #include "DebugMath.h"
-#include "Message.h"
 #include <math.h>
 #include <assert.h>
 #include <iostream>
@@ -38,14 +37,12 @@ namespace MathLibrary {
  * \author Tianyang Wang
  ***********/
 void printElem(const double *elem, int size) {
-    stringstream s;
-    DEBUG_OUT() << "Element: " << endl;
+    cout << endl << "Element: " << endl;
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < 3; j++)
-            s << elem[i * 3 + j] << "  ";
-        s << endl;
+            cout << elem[i * 3 + j] << "  ";
+        cout << endl;
     }
-    DEBUG_OUT() << s;
 }
 
 
@@ -55,13 +52,11 @@ void printElem(const double *elem, int size) {
  * \author Tianyang Wang
  ***********/
 void printPoint(const double *p) {
-    stringstream s;
-    s << "Point: ";
+    cout << endl << "Point: ";
     for (int i = 0; i < 3; i++) {
-        s << p[i] << "  ";
+        cout << p[i] << "  ";
     }
-    s << endl;
-    DEBUG_OUT()<<s;
+    cout << endl;
 }
 
 /***********************************************************************************************
@@ -71,20 +66,18 @@ void printPoint(const double *p) {
  * \author Tianyang Wang
  ***********/
 void printDiagonalMatrix(const double *A, int numRows) {
-    stringstream s;
-    DEBUG_OUT() << "======================================================" << endl;
-    s << "diagonal matrix:" << endl;
+    cout << "======================================================" << endl;
+    cout << "diagonal matrix:" << endl;
     for (int i = 0; i < numRows; i++) {
         for (int j = 0; j < numRows; j++) {
             if (i==j)
-                s << setw(15) << A[i];
+                cout << setw(15) << A[i];
             else
-                s << setw(15) << 0.0;
+                cout << setw(15) << 0.0;
         }
-        s << endl;
+        cout << endl;
     }
-    DEBUG_OUT() << s;
-    DEBUG_OUT() << "======================================================" << endl;
+    cout << "======================================================" << endl;
 }
 
 /***********************************************************************************************
@@ -95,17 +88,15 @@ void printDiagonalMatrix(const double *A, int numRows) {
  * \author Tianyang Wang
  ***********/
 void printGeneralMatrix(const double *A, int numRows, int numCols) {
-    stringstream s;
-    DEBUG_OUT() << "======================================================" << endl;
-    s << "general matrix:" << endl;
+    cout << "======================================================" << endl;
+    cout << "general matrix:" << endl;
     for (int i = 0; i < numRows; i++) {
         for (int j = 0; j < numCols; j++) {
-            s << setw(15) << A[i * numCols + j];
+            cout << setw(15) << A[i * numCols + j];
         }
-        s << endl;
+        cout << endl;
     }
-    DEBUG_OUT() << s;
-    DEBUG_OUT() << "======================================================" << endl;
+    cout << "======================================================" << endl;
 }
 
 /***********************************************************************************************
@@ -131,17 +122,15 @@ void printCSRMatrixUnsymmetric(const double *A, const int *IA, const int *JA, in
             matrix[i * numCols + col] = A[j];
         }
     }
-    stringstream s;
-    DEBUG_OUT() << "======================================================" << endl;
-    s << "unsymmetric CSR matrix:" << endl;
+    cout << "======================================================" << endl;
+    cout << "unsymmetric CSR matrix:" << endl;
     for (int i = 0; i < numRows; i++) {
         for (int j = 0; j < numCols; j++) {
-            s << setw(15) << matrix[i * numCols + j];
+            cout << setw(15) << matrix[i * numCols + j];
         }
-        s << endl;
+        cout << endl;
     }
-    DEBUG_OUT() << s;
-    DEBUG_OUT() << "======================================================" << endl;
+    cout << "======================================================" << endl;
     delete[] matrix;
 }
 
@@ -173,21 +162,20 @@ void printCSRMatrixSymmetric(const double *A, const int *IA, const int *JA, int 
             matrix[i * n + j] = matrix[j * n + i];
         }
     }
-    stringstream s;
-    DEBUG_OUT() << "======================================================" << endl;
-    s << "symmetric CSR matrix:" << endl;
+    cout << "======================================================" << endl;
+    cout << "symmetric CSR matrix:" << endl;
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            s << setw(15) << matrix[i * n + j];
+            cout << setw(15) << matrix[i * n + j];
         }
-        s << endl;
+        cout << endl;
     }
-    DEBUG_OUT() << s;
-    DEBUG_OUT() << "======================================================" << endl;
+    cout << "======================================================" << endl;
     delete[] matrix;
 }
 
-} // end namespace MathLibrary
-} // end namespace EMPIRE
+
+}
+}
 
 
