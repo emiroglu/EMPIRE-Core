@@ -88,7 +88,6 @@ public:
     
     /// Trimming related functions
 public:
-    void addTrimInfo(int* _knotSpanBelonging);
     /***********************************************************************************************
      * \brief Setup information about the loop soon to be received
      * \param[in] inner 0 for outter and 1 for inner

@@ -125,6 +125,7 @@ Message &operator<<(Message & _message, const IGAMesh & _mesh) {
     _message << "\t" << "---------------------------------Start Mesh" << endl;
     _message << "\t" << "IGA Mesh name: " << _mesh.name << endl;
     _message << "\t\tNumber of Patches: " << _mesh.getSurfacePatches().size() << endl;
+    _message << "\t\tNumber of Nodes: " << _mesh.getNumNodes() << endl;
     //_message << "\t" << "---------------------------------" << endl;
     for (int k = 0; k < _mesh.getSurfacePatches().size(); k++) {
         _message << "\t" << "---------------------------------Start Patch" << endl;
