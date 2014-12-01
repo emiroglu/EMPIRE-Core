@@ -82,6 +82,60 @@ void ClientCode::recvFEMesh(std::string meshName, bool triangulateAll) {
         INFO_OUT() << mesh->boundingBox << endl;
     }
 }
+
+void ClientCode::sendMesh(std::string meshName){
+    assert(serverComm != NULL);
+//    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+
+    AbstractMesh *mesh = this->getMeshByName(meshName);
+    if (mesh->type == EMPIRE_Mesh_FEMesh){
+        FEMesh* femesh = dynamic_cast<FEMesh*>( mesh );
+        int numNodes2send = femesh->numNodes;
+        int *numNodes2sendPtr = &numNodes2send;
+        int numElems2send = femesh->numElems;
+        int *numElems2sendPtr = &numElems2send;
+        serverComm->sendToClientBlocking<int>(name, 1, numNodes2sendPtr);
+        serverComm->sendToClientBlocking<int>(name, 1, numElems2sendPtr);
+        serverComm->sendToClientBlocking<double>(name, femesh->numNodes * 3, femesh->nodes);
+        serverComm->sendToClientBlocking<int>(name, femesh->numNodes, femesh->nodeIDs);
+        serverComm->sendToClientBlocking<int>(name, femesh->numElems, femesh->numNodesPerElem);
+        int count = 0;
+        for (int i = 0; i < numElems2send; i++)
+            count += femesh->numNodesPerElem[i];
+        serverComm->sendToClientBlocking<int>(name, count, femesh->elems);
+     } else{
+        DEBUG_OUT() << "Not implemented for IGA yet" << endl;
+        assert(false);
+    }
+}
+
+void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
+    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+    if (meshToCopyFrom->type == EMPIRE_Mesh_FEMesh){
+        { // output to shell
+            HEADING_OUT(3, "ClientCode", "copying mesh (" + meshToCopyFrom->name + ") to (" + meshName + ") of ["+name+"]...",
+                    infoOut);
+        }
+        FEMesh* femesh = dynamic_cast<FEMesh*>( meshToCopyFrom );
+        int numNodes = femesh->numNodes;
+        int numElems = femesh->numElems;
+        FEMesh *copyMesh = new FEMesh(meshName, numNodes, numElems, false); //triangulateAll=false
+        copyMesh->nodes = femesh->nodes;
+        copyMesh->nodeIDs = femesh->nodeIDs;
+        copyMesh->numNodesPerElem = femesh->numNodesPerElem;
+        copyMesh->initElems();
+        copyMesh->elems = femesh->elems;
+        nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
+        { // output to shell
+            DEBUG_OUT() << (*copyMesh) << endl;
+            copyMesh->computeBoundingBox();
+            INFO_OUT() << copyMesh->boundingBox << endl;
+        }
+    } else {
+        ERROR_BLOCK_OUT("ClientCode","copyMesh","Not implemented for IGA yet");
+    }
+}
+
 void ClientCode::recvIGAMesh(std::string meshName) {
     assert(serverComm != NULL);
     assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
@@ -124,10 +178,50 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         serverComm->receiveFromClientBlocking<int>(name, uNoControlPoints * vNoControlPoints,
                 dofIndexNet);
 
-        theIGAMesh->addPatch(pDegree, uNoKnots, uKnotVector, qDegree, vNoKnots, vKnotVector,
+        IGAPatchSurface* thePatch = theIGAMesh->addPatch(pDegree, uNoKnots, uKnotVector, qDegree, vNoKnots, vKnotVector,
                 uNoControlPoints, vNoControlPoints, controlPointNet, dofIndexNet);
+        
 
-    }
+        int trimInfo[2];
+        serverComm->receiveFromClientBlocking<int>(name, 2, trimInfo);
+        int isTrimmed = trimInfo[0];
+        int numLoops = trimInfo[1];
+        if(isTrimmed) {
+            assert(numLoops>0);
+            //Get every loop
+            for(int loopCount = 0; loopCount < numLoops; loopCount++) {
+                const int BUFFER_SIZE_TRIM = 2;
+                int loopInfo[BUFFER_SIZE_TRIM];
+                serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_TRIM, loopInfo);
+
+                int inner = loopInfo[0];
+                int numCurves = loopInfo[1];
+                thePatch->addTrimLoop(inner, numCurves);
+                
+                const int BUFFER_SIZE_CURVE = 4;
+                int curveInfo[BUFFER_SIZE_CURVE];
+                //Get every curve
+                for(int curveCount = 0; curveCount < numCurves; curveCount++) {
+                    serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_CURVE, curveInfo);
+                    
+                    int direction = curveInfo[0];
+                    int pDegree = curveInfo[1];
+                    int uNoKnots = curveInfo[2];
+                    int uNoControlPoints = curveInfo[3];
+                    
+                    double* uKnotVector = new double[uNoKnots];
+                    double controlPointNet[uNoControlPoints * 4];
+                    
+                    serverComm->receiveFromClientBlocking<double>(name, uNoKnots, uKnotVector);
+                    serverComm->receiveFromClientBlocking<double>(name, uNoControlPoints * 4, controlPointNet);
+
+                    thePatch->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
+                    		uNoControlPoints, controlPointNet);
+                } // end curve
+            } // end trimming loops
+            thePatch->linearizeTrimming();
+        } // end isTrimmed
+    } // end patch
 
     { // output to shell
         DEBUG_OUT() << (*theIGAMesh) << endl;

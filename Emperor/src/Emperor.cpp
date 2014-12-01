@@ -238,8 +238,17 @@ void Emperor::initClientCodes() {
 			const structClientCode::structMesh &settingMesh = settingMeshes[j];
 			if (settingMesh.type == EMPIRE_Mesh_FEMesh) {
 			    clientCode->recvFEMesh(settingMesh.name, settingMesh.triangulateAll);
-			} else if (settingMesh.type == EMPIRE_Mesh_FEMesh) {
+			} else if (settingMesh.type == EMPIRE_Mesh_IGAMesh) {
 			    clientCode->recvIGAMesh(settingMesh.name);
+			} else if (settingMesh.type == EMPIRE_Mesh_copyFEMesh){
+			    ClientCode *clientToCopyFrom = nameToClientCodeMap[settingMesh.clientNameToCopyFrom];
+			    AbstractMesh *meshToCopyFrom = clientToCopyFrom->getMeshByName(settingMesh.meshNameToCopyFrom);
+			    clientCode->copyMesh(settingMesh.name, meshToCopyFrom);
+			    if (settingMesh.sendMeshToClient){
+				clientCode->sendMesh(settingMesh.name);
+			    } else {
+				INFO_OUT() << "Mesh copied but not sent" << endl;
+			    }
 			} else {
 			    assert(false);
 			}
@@ -306,7 +315,8 @@ void Emperor::initMappers() {
 		} else if (settingMapper.type == EMPIRE_IGAMortarMapper) {
 			mapper->initIGAMortarMapper(settingMapper.igaMortarMapper.tolProjectionDistance,
 					settingMapper.igaMortarMapper.numGPsTriangle,
-					settingMapper.igaMortarMapper.numGPsQuad);
+					settingMapper.igaMortarMapper.numGPsQuad,
+					settingMapper.igaMortarMapper.numDivision);
 			nameToMapperMap.insert(pair<string, MapperAdapter*>(name, mapper));
 		} else {
 			assert(false);

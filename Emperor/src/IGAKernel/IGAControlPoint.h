@@ -113,7 +113,7 @@ public:
      * \brief Get the x-Cartesian coordinate of the point
      * \author Andreas Apostolatos
      ***********/
-    inline double getX() {
+    inline double getX() const {
         return X;
     }
 
@@ -121,7 +121,7 @@ public:
      * \brief Get the y-Cartesian coordinate of the point
      * \author Andreas Apostolatos
      ***********/
-    inline double getY() {
+    inline double getY() const {
         return Y;
     }
 
@@ -129,7 +129,7 @@ public:
      * \brief Get the z-Cartesian coordinate of the point
      * \author Andreas Apostolatos
      ***********/
-    inline double getZ() {
+    inline double getZ() const {
         return Z;
     }
 
@@ -137,7 +137,7 @@ public:
      * \brief Get the weight of the point
      * \author Andreas Apostolatos
      ***********/
-    inline double getW() {
+    inline double getW() const {
         return W;
     }
 

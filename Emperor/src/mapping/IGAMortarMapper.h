@@ -1,5 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -45,10 +46,10 @@ class IGAMesh;
 class FEMesh;
 class DataField;
 
-namespace IGAMortarMath {
+namespace MathLibrary {
 
-class GaussQuadratureOnTriangle;
-class GaussQuadratureOnQuad;
+class IGAGaussQuadratureOnTriangle;
+class IGAGaussQuadratureOnQuad;
 
 }
 
@@ -56,7 +57,11 @@ class GaussQuadratureOnQuad;
  * \brief This class is related to IGA mortar mapping
  * ***********/
 class IGAMortarMapper: public AbstractMapper {
-
+private:
+	/// Type definitions
+    typedef std::pair<double,double> Point2D;
+    typedef std::vector<Point2D> Polygon2D;
+    typedef std::vector<Polygon2D> ListPolygon2D;
 private:
     /// Name of the mapper
     std::string name;
@@ -77,15 +82,17 @@ private:
     MathLibrary::SparseMatrix<double> *C_NR;
 
     /// Quadrature rule over the triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnTriangle *gaussTriangle;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
 
     /// Quadrature rule over the non-triangulated subdomains
-    IGAMortarMath::GaussQuadratureOnQuad *gaussQuad;
+    EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, double*> > *projectedCoords;
 //    std::vector<std::map<int, bool> > *isProjectionOrthogonal;
 
+    /// Number of division made for linearization on boundary
+    int numDivision;
 /// Tolerance up to which projection is trusted
     double disTol;
 
@@ -113,13 +120,31 @@ public:
      * \author Chenshen Wu
      ***********/
     IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, double _disTol,
-            int _numGPsTri, int _numGPsQuad, bool _isMappingIGA2FEM);
+            int _numGPsTri, int _numGPsQuad, bool _isMappingIGA2FEM, int _numDivision=3);
 
     /***********************************************************************************************
      * \brief Destructor Chenshen Wu
      ***********/
     virtual ~IGAMortarMapper();
 
+    /***********************************************************************************************
+     * \brief Perform consistent mapping from IGA to FE (map displacements)
+     * \param[in] fieldIGA is the input data
+     * \param[out] fieldFE is the output data
+     * \author Chenshen Wu
+     ***********/
+    void consistentMapping(const double *fieldIGA, double *fieldFE);
+
+    /***********************************************************************************************
+     * \brief Perform conservative mapping from FE to IGA (map forces)
+     * \param[in] fieldFE is the input data
+     * \param[out] fieldIGA is the output data
+     * \author Chenshen Wu
+     ***********/
+    void conservativeMapping(const double *fieldFE, double *fieldIGA);
+
+    /// intern function used for mapping
+private:
     /***********************************************************************************************
      * \brief Initialization of the element freedom tables
      * \author Chenshen Wu
@@ -139,44 +164,95 @@ public:
     void computeCouplingMatrices();
 
     /***********************************************************************************************
-     * \brief Computes coupling matrices in the given patch for the element which is split into more than one patches
-     * \author Chenshen Wu
+     * \brief Get the patches index on which the FE-side element is projected
+     * \param[in] _elemIndex The index of the element one is getting the patches for
+     * \param[out] _patchWithFullElt The set of patch indexes on which the element is fully projected (All nodes inside)
+     * \param[out] _patchWithSplitElement The set of patch indexes on which the element is partially projected (At least 1 outside)
+     * \author Fabien Pean
      ***********/
-    void computeCouplingMatrices4ClippedByPatchProjectedElement(IGAPatchSurface* _thePatch,
-            int _numNodesInPatch, double* _elementInPatchIGA, double* _elementInPatchFE,
-            int _elemCount, int _nShapeFuncsFE);
+    void getPatchesIndexElementIsOn(int _elemIndex, std::set<int>& _patchWithFullElt, std::set<int>& _patchWithSplitElt);
+
+    /***********************************************************************************************
+     * \brief Clip the input polygon by the trimming window of the patch
+     * \param[in] _thePatch 	The patch for which trimming curves are used
+     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[out] _listPolygon	A set of polygons after application of trimming polygon
+     * \author Fabien Pean
+     ***********/
+    void clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV);
+
+    /***********************************************************************************************
+     * \brief Clip the input polygon for every knot span of the patch it is crossing
+     * \param[in] _thePatch 	The patch for which trimming curves are used
+     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[out] _listPolygon	A set of polygons after application of knot span clipping
+     * \param[out] _listSpan	The list of span index every polygon of the list above is linked to
+     * \author Fabien Pean
+     ***********/
+    void clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan);
+
+    /***********************************************************************************************
+     * \brief Subdivides the input polygon according to member numDivision and compute the canonical element
+     * \param[in] _thePatch 	The patch for which trimming curves are used
+     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[in] _elementIndex	The element for which the canonical space is related to
+     * \return					The polygon in canonical space of the polygonUV which is defined in nurbs parametric space
+     * \author Fabien Pean
+     ***********/
+    Polygon2D computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _polygonUV, int _elementIndex);
 
     /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
-     * \param[in] _igaPatchSurface The patch to compute the coupling matrices for
-     * \param[in] _numNodes The number of nodes of the clipped polygon
-     * \param[in] _polygonIGA The resulting from the clipping polygon at each knot span in the NURBS space
-     * \param[in] _spanU The knot span index in the u-direction
-     * \param[in] _spanV The knot span index in the v-direction
-     * \param[in] _polygonFE The resulting from the clipping polygon at each knot span in the bilinear/linear space
-     * \param[in] _elementIndex The global numbering of the element from the FE mesh
-     * \param[in] _nShapeFuncsFE The number of the shape functions in the clipped element of the FE side
-     * \author Chenshen Wu
+     * \param[in] _igaPatchSurface 	The patch to compute the coupling matrices for
+     * \param[in] _polygonIGA 		The resulting from the clipping polygon at each knot span in the NURBS space
+     * \param[in] _spanU 			The knot span index in the u-direction where basis will be evaluated
+     * \param[in] _spanV 			The knot span index in the v-direction where basis will be evaluated
+     * \param[in] _polygonFE 		The resulting from the clipping polygon at each knot span in the bilinear/linear space
+     * \param[in] _elementIndex 	The global numbering of the element from the FE mesh the shape functions are evaluated for
+     * \author Chenshen Wu, Fabien Pean
      ***********/
-    void integrate(IGAPatchSurface* _igaPatchSurface, int _numNodes, double* _polygonIGA,
-            int _spanU, int _spanV, double* _polygonFE, int _elementIndex, int _nShapeFuncsFE);
+    void integrate(IGAPatchSurface* _igaPatchSurface, Polygon2D _polygonIGA,
+            int _spanU, int _spanV, Polygon2D _polygonFE, int _elementIndex);
+
+    /// helper functions used for the computation of coupling matrix process
+private:
+    /***********************************************************************************************
+     * \brief Compute the span of the projected element living in _thePatch
+     * \param[in] _thePatch 	The patch to compute the coupling matrices for
+     * \param[in] _polygonUV 	The resulting from the clipping polygon at each knot span in the NURBS space
+     * \param[out] _span 		An array size 4 containing [minSpanU maxSpanU minSpanV maxSpanV]
+     * \return 					True if inside a single knot span, false otherwise
+     * \author Fabien Pean
+     ***********/
+    bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
     /***********************************************************************************************
-     * \brief Perform consistent mapping from IGA to FE (map displacements)
-     * \param[in] fieldIGA is the input data
-     * \param[out] fieldFE is the output data
-     * \author Chenshen Wu
+     * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
+     * \param[in] _element		The element for which we want the neighbor
+     * \param[in] _node1	 	The first node index of the edge
+     * \param[in] _node2 		The second node of the edge
+     * \return 					The index of the neighbor element, or -1 if does not exist
+     * \author Fabien Pean
      ***********/
-    void consistentMapping(const double *fieldIGA, double *fieldFE);
+    int getNeighbourElementofEdge(int _element, int _node1, int _node2);
 
     /***********************************************************************************************
-     * \brief Perform conservative mapping from FE to IGA (map forces)
-     * \param[in] fieldFE is the input data
-     * \param[out] fieldIGA is the output data
-     * \author Chenshen Wu
+     * \brief Compute numDivision points projection between P1 and P2 and add them in parametric polygon
+     * \param[in] _patchIndex		The index of the patch to project on
+     * \param[in] _elemCount	 	The first of the element to project
+     * \param[in] _nodeIndex1 		The index of the first node
+     * \param[in] _nodeIndex2 		The index of the second node
+     * \param[in] _P1				The first point of the line on FE element
+     * \param[in] _isIn1			The first point was projected inside the patch
+     * \param[in] _P2				The second point of the line on FE element
+     * \param[in] _isIn2			The second point was projected inside the patch
+     * \param[in/out]				The parametric polygon of the projection of the FE element
+     * \return 1 if no problem have been found on the boundary
+     * \author Fabien Pean
      ***********/
-    void conservativeMapping(const double *fieldFE, double *fieldIGA);
-
+    bool computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1,const int nodeIndex2,
+    		const double* P1, const bool isIn1, const double* P2, const bool isIn2,
+    		Polygon2D& polygonUV, std::map<int,Polygon2D>* extraPolygonUV=NULL);
     /// Writing output functions
 public:
     /***********************************************************************************************
@@ -184,14 +260,36 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void writeProjectedNodesOntoIGAMesh();
+    /***********************************************************************************************
+     * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
+     * \author Fabien Pean
+     ***********/
+    void printCouplingMatricesToFile();
 
     /// Debugging functions
 public:
+    /***********************************************************************************************
+     * \brief Print a polygon in debug stream
+     * \author Fabien Pean
+     ***********/
+    void debugPolygon(const Polygon2D& _polygon, std::string _name="");
+    /***********************************************************************************************
+     * \brief Print a set of polygon
+     * \author Fabien Pean
+     ***********/
+    void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
+
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR
      * \author Chenshen Wu
      ***********/
     void printCouplingMatrices();
+
+    /***********************************************************************************************
+     * \brief Check consistency of the coupling, constant field gives constant field
+     * \author Fabien Pean
+     ***********/
+    void checkConsistency();
 
     /// unit test class
     friend class TestIGAMortarMapperTube;

@@ -19,7 +19,8 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "DataFieldIntegration.h"
-#include "MortarMath.h"
+#include "MathLibrary.h"
+#include "Message.h"
 #include <map>
 #include <vector>
 #include <assert.h>
@@ -81,11 +82,11 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         // we do it here because we have done the same in MortarMapper
         if (numNodesThisElem == 4) {
             double masterElemNormal[3];
-            MortarMath::computeNormalOfQuad(elem, true, masterElemNormal);
+            EMPIRE::MathLibrary::computeNormalOfQuad(elem, true, masterElemNormal);
             double masterQuadCenter[3];
-            MortarMath::computePolygonCenter(elem, 4, masterQuadCenter);
+            EMPIRE::MathLibrary::computePolygonCenter(elem, 4, masterQuadCenter);
             double masterQuadPrj[12];
-            MortarMath::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
+            EMPIRE::MathLibrary::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
             for (int i = 0; i < 12; i++)
                 elem[i] = masterQuadPrj[i];
         }
@@ -93,9 +94,9 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         // make use of the symmetry
         double massMatrixElem[numNodesThisElem * numNodesThisElem];
         if (numNodesThisElem == 4)
-            MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrixElem);
+        	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrixElem);
         else if (numNodesThisElem == 3)
-            MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false,
+        	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false,
                     massMatrixElem);
         else
             assert(false);
@@ -166,7 +167,7 @@ void DataFieldIntegration::integrate(const double *tractions, double *forces) {
 #ifdef USE_INTEL_MKL
     mkl_dcsrsymv(&up, &n, massMatrix_A, massMatrix_IA, massMatrix_JA, const_cast<double*>(tractions), forces);
 #else
-    MortarMath::dcsrsymv(n, massMatrix_A, massMatrix_IA, massMatrix_JA, tractions, forces);
+    EMPIRE::MathLibrary::dcsrsymv(n, massMatrix_A, massMatrix_IA, massMatrix_JA, tractions, forces);
 #endif
 }
 
@@ -216,8 +217,7 @@ void DataFieldIntegration::initPardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("DataFieldIntegration","initPardiso","pardiso factorization failed!");
     }
 #endif
 }
@@ -231,8 +231,7 @@ void DataFieldIntegration::deletePardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("DataFieldIntegration","deletePardiso","pardiso factorization failed!");
     }
 #endif
 }

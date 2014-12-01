@@ -31,7 +31,9 @@
 #include "AbstractMesh.h"
 #include "NurbsBasis2D.h"
 #include "IGAControlPoint.h"
+#include "IGAPatchSurfaceTrimming.h"
 #include <limits>
+#include <set>
 
 namespace EMPIRE {
 class DataField;
@@ -56,6 +58,9 @@ protected:
     /// The set of the Control Points of the patch
     IGAControlPoint** ControlPointNet;
 
+    /// The class holding the trimming information
+    IGAPatchSurfaceTrimming Trimming;
+
     /// The constructor and the destructor and the copy constructor
 public:
     /***********************************************************************************************
@@ -79,6 +84,33 @@ public:
      * \author Andreas Apostolatos
      ***********/
     ~IGAPatchSurface();
+
+    
+    /// Trimming related functions
+public:
+    /***********************************************************************************************
+     * \brief Setup information about the loop soon to be received
+     * \param[in] inner 0 for outter and 1 for inner
+     * \param[in] numCurves Number of curves to be received for this loop 
+     * \author Fabien Pean
+     ***********/
+    void addTrimLoop(int inner, int numCurves);
+    /***********************************************************************************************
+     * \brief Add a Nurbs curve for the current loop and its attached information
+     * \param[in] inner Value 0 for outter and 1 for inner
+     * \param[in] direction The direction of the curve if is following standard or not
+     * \param[in] ID The id of the curve
+     * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
+     * \param[in] _uNoKnots The number of knots for the knot vector in the u-direction
+     * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
+     * \param[in] _uNoControlPoints The number of the Control Points for the 1D NURBS patch in the u-direction
+     * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
+     * \author Fabien Pean
+     ***********/
+    void addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
+                      int _uNoControlPoints, double* _controlPointNet);
+    
+    void linearizeTrimming(){Trimming.linearizeLoops();};
 
     /// Basis related functions
 public:
@@ -203,11 +235,12 @@ public:
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
      * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
-     * \author Chenshen Wu
+     * \author Fabien Pean
      ***********/
     bool computePointProjectionOnPatchBoundaryOnGivenEdge(double& _t, double& _ratio,
             double& _distance, double* _P1, double* _P2, int _edge);
-
+    bool computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(double& _u,double& _v, double& _ratio,
+            double& _distance, double* _P1, double* _P2);
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
      * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
@@ -217,37 +250,13 @@ public:
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
-     * \author Chenshen Wu
+     * \return The id of the edge it is crossing
+     * \author Fabien Pean
      ***********/
-    bool computePointProjectionOnPatchBoundary(double& _u, double& _v, double& _ratio,
+    char computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
-
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the line segment
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the point to the line segment
-     * \param[in] _P1 The first point of the line segment
-     * \param[in] _P2 The second point of the line segment
-     * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
-     * \author Chenshen Wu
-     ***********/
-    bool computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(double& _t, double& _distance,
-            double* _P1, double* _P2, int _edge);
-
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the line segment
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the point to the line segment
-     * \param[in] _P1 The first point of the line segment
-     * \param[in] _P2 The second point of the line segment
-     * \author Chenshen Wu
-     ***********/
-    void computeLineMinimumDistanceToPatchBoundary(double& _u, double& _v, double& _distance,
-            double* _P1, double* _P2);
+    bool computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+            double& _distance, double* _P1, double* _P2);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection
@@ -271,6 +280,8 @@ public:
      ***********/
     void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal, double _u,
             double _v);
+    void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
+            double _u, double _v, int _spanU, int _spanV);
 
     /// Postprocessing functions
 public:
@@ -287,18 +298,37 @@ public:
     /// Get and set functions
 public:
     /***********************************************************************************************
+     * \brief Get the corners between edge 1 and edge 2 following the orientation
+     * \param[in]	_edgeIn		The id of the edge going in the patch
+     * \param[in]	_edgeOut	The id of the edge going out of the patch
+     * \param[in]	_isCounterclockwise		The orientation of the polygon
+     * \return The list of corner in between edgeIn and edgeOut
+     * \author Fabien Pean
+     ***********/
+    std::vector<std::pair<double,double> > getCorner(const char _edge1, const char _edge2, bool _isCounterclockwise);
+
+    /***********************************************************************************************
      * \brief Get the underlying IsoGeometric basis of the patch
      * \author Andreas Apostolatos
      ***********/
-    inline BSplineBasis2D* getIGABasis() {
+    inline BSplineBasis2D* getIGABasis() const {
         return IGABasis;
+    }
+    inline BSplineBasis1D* getIGABasis(bool _u0v1) const {
+    	if(_u0v1==0)	return IGABasis->getUBSplineBasis1D();
+    	else 			return IGABasis->getVBSplineBasis1D();
+    }
+    inline BSplineBasis1D* operator[](const char _uOrV) const {
+    	if(_uOrV=='u')		return IGABasis->getUBSplineBasis1D();
+    	else if(_uOrV=='v') return IGABasis->getVBSplineBasis1D();
+    	assert(0);			return NULL;
     }
 
     /***********************************************************************************************
      * \brief Get the number of the Control Points of the patch in u-direction
      * \author Andreas Apostolatos
      ***********/
-    inline int getUNoControlPoints() {
+    inline int getUNoControlPoints() const {
         return uNoControlPoints;
     }
 
@@ -306,7 +336,7 @@ public:
      * \brief Get the number of the Control Points of the patch in v-direction
      * \author Andreas Apostolatos
      ***********/
-    inline int getVNoControlPoints() {
+    inline int getVNoControlPoints() const {
         return vNoControlPoints;
     }
 
@@ -314,7 +344,7 @@ public:
      * \brief Get the number of the Control Points of the patch
      * \author Chenshen Wu
      ***********/
-    inline int getNoControlPoints() {
+    inline int getNoControlPoints() const {
         return uNoControlPoints * vNoControlPoints;
     }
 
@@ -322,15 +352,18 @@ public:
      * \brief Get the Control Points of the patch
      * \author Andreas Apostolatos
      ***********/
-    inline IGAControlPoint** getControlPointNet() {
+    inline IGAControlPoint** getControlPointNet() const {
         return ControlPointNet;
+    }
+    inline IGAControlPoint* operator[](int i) const {
+        return ControlPointNet[i];
     }
 
     /***********************************************************************************************
      * \brief Find know span on u direction
      * \author Chenshen Wu
      ***********/
-    inline int findSpanU(double _u) {
+    inline int findSpanU(double _u) const {
         return getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_u);
     }
 
@@ -338,8 +371,26 @@ public:
      * \brief Find know span on v direction
      * \author Chenshen Wu
      ***********/
-    inline int findSpanV(double _v) {
+    inline int findSpanV(double _v) const {
         return getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_v);
+    }
+
+    /***********************************************************************************************
+     * \brief Get Trimming class
+     * \author Fabien Pean
+     ***********/
+    inline IGAPatchSurfaceTrimming& getTrimming() {
+    	return Trimming;
+    }
+    inline const IGAPatchSurfaceTrimming& getTrimming() const {
+        return Trimming;
+    }
+    /***********************************************************************************************
+     * \brief Check if patch is trimmed
+     * \author Fabien Pean
+     ***********/
+    inline bool isTrimmed() const {
+    	return Trimming.isTrimmed();
     }
 
     /// The maximum number of Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
@@ -353,13 +404,23 @@ public:
 
     /// The tolerance for the distance of the computed point to the surface
     static const double EPS_DISTANCE;
+
+    /// The tolerance for the distance of the computed point to the surface for points which are expected to be projected in irregular locations of the patch
+    static const double EPS_DISTANCE_RELAXED;
+
+    static const char EDGE_U0;
+    static const char EDGE_UN;
+    static const char EDGE_V0;
+    static const char EDGE_VN;
+    static const char EDGES[4];
+
 };
 
 /***********************************************************************************************
  * \brief Allows for nice debug output
- * \author Chenshen Wu
+ * \author Fabien Pean, Chenshen Wu
  ***********/
-Message &operator<<(Message &message, IGAPatchSurface &mesh);
+Message &operator<<(Message &message, const IGAPatchSurface &mesh);
 
 }/* namespace EMPIRE */
 

@@ -1,5 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -56,8 +57,6 @@ public:
      * \brief Constructor
      * \param[in] _name The name of the IGA mesh
      * \param[in] _numControlPoints The number of the Control Points
-     * \param[in] _globalControlPoints The coordinates and the weights of the Control Points sorted in an array
-     * \param[in] _controlPointID The Control Point IDs sorted in an array
      * \author Chenshen Wu
      ***********/
     IGAMesh(std::string _name, int _numNodes);
@@ -80,11 +79,12 @@ public:
      * \param[in] _vNoControlPoints The number of the Control Points for the 2D NURBS patch in the v-direction
      * \param[in] _controlPointNet The set of the Control Points related to the 2D NURBS patch
      * \param[in] _dofIndexNet The index of the dof of the each Control Points related to
+     * \return The pointer to the patch just created
      * \author Chenshen Wu
      ***********/
-    void addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree, int _vNoKnots,
-            double* _vKnotVector, int _uNoControlPoints, int _vNoControlPoints,
-            double* controlPointNet, int* _dofIndexNet);
+    IGAPatchSurface* addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree, int _vNoKnots,
+                  double* _vKnotVector, int _uNoControlPoints, int _vNoControlPoints,
+                  double* controlPointNet, int* _dofIndexNet);
 
     /// Specializing abstract functions from AbstractMesh class
 public:
@@ -109,11 +109,40 @@ public:
 public:
     /***********************************************************************************************
      * \brief Get the surface patches
-     * \param[out] A container vector of type std::vector<IGAPatchSurface*>
-     * \author Chenshen Wu
+     * \return A container vector of type std::vector<IGAPatchSurface*>
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     inline std::vector<IGAPatchSurface*> getSurfacePatches() {
+		return surfacePatches;
+    }
+    inline const std::vector<IGAPatchSurface*>& getSurfacePatches() const {
         return surfacePatches;
+    }
+    /***********************************************************************************************
+     * \brief Get a specific patch
+     * \param[in] The id of the patch
+     * \return The pointer to the patch
+     * \author Fabien Pean
+     ***********/
+    inline IGAPatchSurface* getSurfacePatch(const unsigned int i) {
+		return surfacePatches.at(i);
+    }
+    inline IGAPatchSurface* getSurfacePatch(const unsigned int i) const {
+        return surfacePatches.at(i);
+    }
+    inline IGAPatchSurface* operator[](const unsigned int i) {
+    	return surfacePatches.at(i);
+    }
+    inline const IGAPatchSurface* operator[](const unsigned int i) const {
+    	return surfacePatches.at(i);
+    }
+
+    /***********************************************************************************************
+     * \brief Get the number of patches
+     * \author Fabien Pean
+     ***********/
+    inline int getNumPatches() const {
+    	return surfacePatches.size();
     }
 
     /***********************************************************************************************
@@ -121,7 +150,7 @@ public:
      * \param[out] The number of the Nodes
      * \author Chenshen Wu
      ***********/
-    inline int getNumNodes() {
+    inline int getNumNodes() const {
         return numNodes;
     }
 
@@ -129,9 +158,9 @@ public:
 
 /***********************************************************************************************
  * \brief Allows for nice debug output
- * \author Chenshen Wu
+ * \author Fabien Pean, Chenshen Wu
  ***********/
-Message &operator<<(Message &message, IGAMesh &mesh);
+Message &operator<<(Message &message, const IGAMesh &mesh);
 
 }/* namespace EMPIRE */
 

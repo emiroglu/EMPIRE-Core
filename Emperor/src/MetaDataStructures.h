@@ -46,6 +46,9 @@ struct structClientCode {
         };
         std::string name;
         EMPIRE_Mesh_type type;
+        std::string clientNameToCopyFrom;
+        std::string meshNameToCopyFrom;
+        bool sendMeshToClient;
         bool triangulateAll;
         std::vector<structDataField> dataFields;
     };
@@ -111,6 +114,7 @@ struct structMapper {
         double tolProjectionDistance;
         int numGPsTriangle;
         int numGPsQuad;
+        int numDivision;
     };
     std::string name;
     structMeshRef meshRefA;

@@ -15,6 +15,7 @@
 #include "DataField.h"
 #include <iostream>
 #include <math.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -219,7 +220,7 @@ public:
         theFEMesh->nodes[5 * 3 + 2] = 0.95;
 
         bool isMappingIGA2FEM = true;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh, 0.5, 16,
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper for Cube", theIGAMesh, theFEMesh, 0.5, 16,
                 25, isMappingIGA2FEM);
 
     }
@@ -247,7 +248,6 @@ public:
         theMapper->consistentMapping(fieldS, fieldF);
         for (int i = 0; i < nF; i++)
             CPPUNIT_ASSERT(fabs(fieldF[i] - 1.0) < Tol);
-
     }
 
 // Make the tests
@@ -255,10 +255,9 @@ public:
 
     CPPUNIT_TEST (testMapping);
 //	CPPUNIT_TEST(testMappingPrint);
-    CPPUNIT_TEST_SUITE_END()
-    ;
+    CPPUNIT_TEST_SUITE_END();
 }
 ;
 
 } /* namespace EMPIRE */
-//CPPUNIT_TEST_SUITE_REGISTRATION (EMPIRE::TestIGAMortarMapperCube);
+CPPUNIT_TEST_SUITE_REGISTRATION (EMPIRE::TestIGAMortarMapperCube);

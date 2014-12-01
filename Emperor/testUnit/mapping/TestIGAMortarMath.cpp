@@ -27,11 +27,13 @@
 #include <iostream>
 #include <vector>
 #include <assert.h>
-#include "IGAMortarMath.h"
+//#include "IGAMortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 
 namespace EMPIRE {
 using namespace std;
-using namespace IGAMortarMath;
+using namespace MathLibrary;
 
 
 
@@ -66,6 +68,7 @@ public:
     				   1.0, 0.0, 1.0};
     	double b[2];
     	computeIntersectionBetweenLineAndTriangle(X, X0, n, b);
+    	std::cout<<"B[0] = " <<b[0]<<"  B[1] = "<<b[1]<<std::endl;
     	CPPUNIT_ASSERT(fabs(b[0]-(0.55))<1e-12);
     	CPPUNIT_ASSERT(fabs(b[1]-(0.05))<1e-12);
     }

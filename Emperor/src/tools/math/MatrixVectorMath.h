@@ -18,42 +18,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
-/***********************************************************************************************//**
- * \file MathLibrary.h
- * The header file of math functions in EMPIRE.
- * \date 4/19/2013
- **************************************************************************************************/
-#ifndef MATHLIBRARY_H_
-#define MATHLIBRARY_H_
+#ifndef MATRIXVECTORMATH_H_
+#define MATRIXVECTORMATH_H_
 
+#include <fstream>
 #include <vector>
 #include <cstdlib>
 #include <map>
 #include <vector>
 #include <assert.h>
 #include <typeinfo>
+#include <cmath>
+#include "Message.h"
 #include "AuxiliaryParameters.h"
 #include "mkl.h"
 
+
 namespace EMPIRE {
 namespace MathLibrary {
-/***********************************************************************************************
- * \brief Compute the dot product of two dense vectors
- * \param[in] vec1 the 1st vector
- * \param[in] vec2 the 2nd vector
- * \return dot product
- * \author Stefan Sicklinger
- ***********/
-double computeDenseDotProduct(const std::vector<double> &vec1, const std::vector<double> &vec2);
-/***********************************************************************************************
- * \brief Compute the dot product of two dense vectors
- * \param[in] vec1 the 1st vector
- * \param[in] vec2 the 2nd vector
- * \param[in] elements number of elements in vec1 (vec2)
- * \return dot product
- * \author Stefan Sicklinger
- ***********/
-double computeDenseDotProduct(const double *vec1, const double *vec2, const int elements);
+
+// Variables
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+// Methods
+
 /***********************************************************************************************
  * \brief Copy dense vector vec1 <- vec2
  * \param[in] vec1 the 1st vector
@@ -61,6 +50,7 @@ double computeDenseDotProduct(const double *vec1, const double *vec2, const int 
  * \author Stefan Sicklinger
  ***********/
 void copyDenseVector(double *vec1, const double *vec2, const int elements);
+
 /***********************************************************************************************
  * \brief Compute Euclidean norm of vector
  * \param[in] vec1 the 1st vector
@@ -68,7 +58,8 @@ void copyDenseVector(double *vec1, const double *vec2, const int elements);
  * \return Euclidean norm
  * \author Stefan Sicklinger
  ***********/
-double computeDenseEuclideanNorm(const double *vec1, const int elements);
+double vector2norm(const double *vec1, const int elements);
+
 /***********************************************************************************************
  * \brief Computes a vector-scalar product and adds the result to a vector. vec1 <- a*vec1 + vec2
  * \param[in] vec1 the 1st vector
@@ -78,6 +69,7 @@ double computeDenseEuclideanNorm(const double *vec1, const int elements);
  * \author Stefan Sicklinger
  ***********/
 void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements);
+
 /***********************************************************************************************
  * \brief Computes vector scales by scalar vec1 <- vec1*a
  * \param[in] vec1 the 1st vector
@@ -87,7 +79,121 @@ void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a
  ***********/
 void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
 
+/***********************************************************************************************
+ * \brief Compute the square of the Euclidean distance of two points in n-D space.
+ * \param[out] The square of the Euclidean distance between two points in the n-D space
+ * \param[in] _length The length of the n-dimensional space
+ * \param[in] _Pi The first point
+ * \param[in] _Pj The second point
+ * \author Andreas Apostolatos
+ ***********/
+double computeDenseEuclideanNorm(int, double*, double*);
 
+/***********************************************************************************************
+ * \brief Compute the dot product between two vectors in the n-D space
+ * \param[out] The dot product between two vectors in the n-D space
+ * \param[in] _length The dimensinality of the n-D space
+ * \param[in] _vecI The 1st vector
+ * \param[in] _vecJ The 2nd vector
+ * \author Andreas Apostolatos
+ * \edit Aditya Ghantasala (mixing Stefan's implementation)
+ ***********/
+double computeDenseDotProduct(int, double*, double*);
+
+/***********************************************************************************************
+* \brief Compute the cross product between two vectors in the 3-D space
+* \param[in/out] _product The product of vector1 and vector 2
+* \param[in] _v1 The 1st vector
+* \param[in] _v2 The 2nd vector
+* \author Chenshen Wu
+***********/
+void crossProduct(double* _product, double* _v1, double* _v2);
+
+/***********************************************************************************************
+ * \brief Solve a 2x2 linear system by close form formula
+ * \param[in] A the left hand side matrix
+ * \param[in] b the right hand side vector
+ * \param[out] b the solution is written to b
+ * \return whether the determinant is zero or not
+ * \author Tianyang Wang
+ ***********/
+bool solve2x2LinearSystem(const double *A, double *b, double EPS = 1E-13);
+
+/***********************************************************************************************
+ * \brief Solve a 3x3 linear system by close form formula, the system has one row which has all entries 1.
+ * \brief Therefore, it cannot solve general 3x3 linear system.
+ * \param[in] A the left hand side matrix
+ * \param[in] b the right hand side vector
+ * \param[in] planeToProject project to plane (case: {2:x-y ; 0:y-z ;1: z-x} )
+ * \param[out] b the solution is written to b
+ * \author Tianyang Wang
+ ***********/
+void solve3x3LinearSystem(const double *A, int planeToProject, double *b);
+
+/***********************************************************************************************
+ * \brief Compute the matrix product between two matrices (for mortar, not so general)
+ * \param[in] n n
+ * \param[in] m m
+ * \param[in] A the matrix with size n*n
+ * \param[in] B the matrix with size n*m
+ * \param[out] B B is overwritten by A*B (n*m)
+ * \author Tianyang Wang
+ ***********/
+void computeMatrixProduct(int n, int m, const double *A, double *B);
+
+/***********************************************************************************************
+ * \brief My own sparse matrix (csr format, non-symmetric) vector multiplication routine (A * x = y).
+ *        The interface is simplified and compatible with mkl_dcsrmv.
+ *        This routine supports only one-based indexing of the input arrays.
+ * \param[in] trans 'N' --- no transpose, 'T' --- transpose
+ * \param[in] numRows number of rows of matrix A
+ * \param[in] numCols number of columns of matrix A
+ * \param[in] A sparse matrix A in CSR format
+ * \param[in] JA JA of A
+ * \param[in] IA IA of A
+ * \param[in] x vector x
+ * \param[in] y vector y
+ * \author Tianyang Wang
+ ***********/
+void dcsrmv(char trans, int numRows, int numCols, const double *A, const int *JA, const int *IA,
+        const double *x, double *y);
+
+/***********************************************************************************************
+ * \brief My own sparse matrix (csr format, symmetric) vector multiplication routine (A * x = y).
+ *        The interface is simplified and compatible with mkl_dcsrsymv.
+ *        This routine supports only one-based indexing of the input arrays.
+ * \param[in] n size of matrix A
+ * \param[in] A sparse matrix A in CSR format (symmetric)
+ * \param[in] IA IA of A
+ * \param[in] JA JA of A
+ * \param[in] x vector x
+ * \param[in] y vector y
+ * \author Tianyang Wang
+ ***********/
+void dcsrsymv(int n, const double *A, const int *IA, const int *JA, const double *x, double *y);
+
+/***********************************************************************************************
+ * \brief Solve 3x3 Linear system, Ax = b
+ * \param[in] _A Square 3x3 matirx
+ * \param[in/out] _b Right hand side vector which stores also the solution
+ * \param[in] _EPS tolerance up to which matrix _A is regular
+ * \param[out] Flag on the solvability of the system
+ * \author Chenshen Wu
+ ***********/
+bool solve3x3LinearSystem(const double* _A, double* _b, double _EPS);
+
+/***********************************************************************************************
+ * \brief Computes the Determinant of a given 3x3 matrix
+ * \param[in] _A Matrix
+ * \param[out] The Determinant of the given matrix
+ * \author Chenshen Wu
+ ***********/
+double det3x3(const double* _A);
+
+
+
+// Classes
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /********//**
  * \brief This is a template class does compressed sparse row matrix computations: CSR Format (3-Array Variation)
  *        http://software.intel.com/sites/products/documentation/hpc/mkl/mklman/GUID-9FCEB1C4-670D-4738-81D2-F378013412B0.htm
@@ -233,7 +339,7 @@ public:
             y[ii] += sum;
         }
     }
-    
+
     /***********************************************************************************************
      * \brief This function is a fast alternative to the operator overloading alternative
      * \param[in] x vector to be multiplied
@@ -246,22 +352,22 @@ public:
 	    assert(0);
 	if (isSymmetric) {
 	    mulitplyVec(x, y, elements);
-	    return;  
+	    return;
 	}
-	
+
 	size_t iter;
 	for (iter = 0; iter < this->n; iter++) {
-	    y[iter] = 0;	  
+	    y[iter] = 0;
 	}
-	
+
 	row_iter ii;
 	col_iter jj;
-	
+
 	for (ii = 0; ii < m; ii++)
 	    for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++)
-	        y[(*jj).first] += (*jj).second * x[ii];      
+	        y[(*jj).first] += (*jj).second * x[ii];
     }
-    
+
 
 /***********************************************************************************************
  * \brief This function analysis and factorize the matrix
@@ -292,7 +398,7 @@ public:
                 &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
                 &pardiso_error);
         if (pardiso_error != 0) {
-            std::cerr << "Error pardiso factorization failed with error code: " << pardiso_error
+            ERROR_OUT() << "Error pardiso factorization failed with error code: " << pardiso_error
                     << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -351,7 +457,7 @@ public:
                 &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
                 &pardiso_error);
         if (pardiso_error != 0) {
-            std::cerr << "Error deallocation of pardiso failed with error code: " << pardiso_error
+            ERROR_OUT() << "Error deallocation of pardiso failed with error code: " << pardiso_error
                     << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -398,6 +504,34 @@ public:
         }
         std::cout << std::endl;
 
+    }
+    /***********************************************************************************************
+     * \brief This prints the matrix in full style in a file ready to be imported in matlab via dlmread('filename',' ')
+     * \author Fabien Pean
+     ***********/
+    void printToFile(std::string filename) {
+        size_t ii_counter;
+        size_t jj_counter;
+
+        std::ofstream ofs;
+        ofs.open(filename.c_str(), std::ofstream::out);
+        ofs << std::scientific;
+        for (ii_counter = 0; ii_counter < m; ii_counter++) {
+            for (jj_counter = 0; jj_counter < n; jj_counter++) {
+            	if(jj_counter!=0) ofs<<" ";
+                if(isSymmetric) {
+                    if(ii_counter<=jj_counter) {
+                        ofs<<(this->operator()(ii_counter,jj_counter));
+                    } else {
+                        ofs<<(this->operator()(jj_counter,ii_counter));
+                    }
+                }else{
+                    ofs<<(this->operator()(ii_counter,jj_counter));
+                }
+            }
+            ofs<<std::endl;
+        }
+        ofs.close();
     }
 private:
     /// pointer to the vector of maps
@@ -463,6 +597,10 @@ private:
     }
 };
 
-} /* namespace Math */
-} /* namespace EMPIRE */
-#endif /* MATHLIBRARY_H_ */
+
+
+}
+}
+
+
+#endif /* MATRIXVECTORMATH_H_ */

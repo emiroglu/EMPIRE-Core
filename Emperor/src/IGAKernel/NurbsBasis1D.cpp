@@ -26,8 +26,11 @@
 
 // Inclusion of user defined libraries
 #include "NurbsBasis1D.h"
-#include "IGAMath.h"
+//#include "IGAMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 #include "Message.h"
+#define GETINDEX(x,y) (x*49+y)
 
 using namespace std;
 
@@ -61,7 +64,7 @@ NurbsBasis1D::NurbsBasis1D(const NurbsBasis1D& _nurbsBasis1D) :
 }
 
 void NurbsBasis1D::computeLocalBasisFunctions(double* _localBasisFunctions, double _uPrm,
-        int _KnotSpanIndex) {
+        int _KnotSpanIndex) const {
 
     /* Initialize the output array (It must be initialized outside the function call)
      * _localBasisFunctions = double_array[Number of non-zero basis functions];
@@ -96,7 +99,7 @@ void NurbsBasis1D::computeLocalBasisFunctions(double* _localBasisFunctions, doub
 }
 
 void NurbsBasis1D::computeDenominatorFunctionAndDerivatives(double* _denominatorFctAndDerivs,
-        double* _bSplineBasisFctsAndDerivs, int _derivDegree, int _knotSpanIndex) {
+        double* _bSplineBasisFctsAndDerivs, int _derivDegree, int _knotSpanIndex) const {
     /*
      * Initialize the output array (This must be done outside of the function call):
      * _denominatorFctAndDerivs = new double[_derivDegree + 1]
@@ -138,7 +141,7 @@ void NurbsBasis1D::computeDenominatorFunctionAndDerivatives(double* _denominator
 }
 
 void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAndDerivs,
-        int _derivDegree, double _uPrm, int _knotSpanIndex) {
+        int _derivDegree, double _uPrm, int _knotSpanIndex) const {
     /*
      * Initialize the output array (This must be done outside of the function call):
      * _localBasisFctsAndDerivs = double_array[(_derivDegree + 1)*(pDegree + 1)]
@@ -193,7 +196,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
 
             // Loop over all the involved derivatives
             for (int k = 1; k <= j; k++) {
-                v -= binomialCoefficients[indexBinomialCoefficients(j, k)] * denominatorFunction[k]
+                v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(j, k)] * denominatorFunction[k]
                         * _basisFctsAndDerivs[(j - k) * (pDegree + 1) + i];
             }
 
@@ -209,7 +212,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
 
 void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAndDerivs,
         double* _bSplineBasisFctsAndDerivs, double* _denominatorFctAndDerivs, int _derivDegree,
-        double _uPrm, int _knotSpanIndex) {
+        double _uPrm, int _knotSpanIndex) const {
     /* Initialize the output array (This must be done outside of the function call). On the input/output parameters:
      *
      * The local NURBS basis functions and their derivatives: _localBasisFctsAndDerivs = double_array[(_derivDegree + 1)*(pDegree + 1)]
@@ -257,7 +260,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
 
             // Loop over all the involved derivatives
             for (int k = 1; k <= j; k++) {
-                v -= binomialCoefficients[indexBinomialCoefficients(j, k)]
+                v -= EMPIRE::MathLibrary::binomialCoefficients[GETINDEX(j, k)]
                         * _denominatorFctAndDerivs[k]
                         * _basisFctsAndDerivs[(j - k) * (pDegree + 1) + i];
             }
@@ -268,7 +271,7 @@ void NurbsBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _basisFctsAn
     }
 }
 
-double* NurbsBasis1D::getControlPointWeights() {
+double* NurbsBasis1D::getControlPointWeights() const {
     return ControlPointWeights;
 }
 

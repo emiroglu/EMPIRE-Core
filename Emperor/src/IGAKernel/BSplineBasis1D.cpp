@@ -22,7 +22,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <math.h>
-#include<assert.h>
+#include <assert.h>
 
 // Inclusion of user defined libraries
 #include "Message.h"
@@ -37,7 +37,6 @@ const double BSplineBasis1D::EPS_ACCPETEDINTOKNOTSPAN = 1e-14;
 BSplineBasis1D::BSplineBasis1D(int _ID = 0, int _pDegree = 0, int _noKnots = 0,
         double* _KnotVector = 0) :
         AbstractBSplineBasis1D(_ID), PDegree(_pDegree), NoKnots(_noKnots) {
-
     // Assign the given pointer to the knot vector
     assert(_KnotVector!=NULL);
     KnotVector = _KnotVector;
@@ -63,6 +62,7 @@ BSplineBasis1D::BSplineBasis1D(const BSplineBasis1D& _bsplineBasis1D) :
 
     PDegree = _bsplineBasis1D.PDegree;
     NoKnots = _bsplineBasis1D.NoKnots;
+
     KnotVector = new double[NoKnots];
     for (int i = 0; i < NoKnots; i++) {
         KnotVector[i] = _bsplineBasis1D.KnotVector[i];
@@ -89,18 +89,53 @@ BSplineBasis1D::~BSplineBasis1D() {
 
 }
 
-int BSplineBasis1D::findKnotSpan(double _uPrm) {
-    // Check input
-    if (_uPrm < KnotVector[0] && KnotVector[0] - _uPrm < EPS_ACCPETEDINTOKNOTSPAN)
-        _uPrm = KnotVector[0];
-    if (_uPrm > KnotVector[NoKnots - 1] && _uPrm - KnotVector[NoKnots - 1] < EPS_ACCPETEDINTOKNOTSPAN)
+double BSplineBasis1D::computeGrevilleAbscissae(const int _controlPointIndex) const {
+	double GrevilleAbscissae=0;
+	// Upper bound, handles case where PDegree == 1, avoids division by 0
+	int ub = max(PDegree-1,1);
+	for(int i=0;i<ub;i++) {
+		GrevilleAbscissae+=KnotVector[ub+_controlPointIndex+i];
+	}
+	GrevilleAbscissae/=ub;
+	if(GrevilleAbscissae < KnotVector[ub+_controlPointIndex] - EPS_ACCPETEDINTOKNOTSPAN
+			|| GrevilleAbscissae > KnotVector[ub+_controlPointIndex+(ub-1)] + EPS_ACCPETEDINTOKNOTSPAN) {
+		ERROR_OUT()<<"Greville abscissae "<<GrevilleAbscissae<<" is out of Knot vector bound ["
+				<<KnotVector[ub+_controlPointIndex]<<", "<<KnotVector[ub+_controlPointIndex+(ub-1)]<<"]"<<endl;
+		exit(-1);
+	}
+	return GrevilleAbscissae;
+}
 
-        _uPrm = KnotVector[0];
-    if (_uPrm < KnotVector[0] || _uPrm > KnotVector[NoKnots - 1]) {
-        ERROR_OUT("in BSplineBasis1D::BSplineBasis1D");
-        ERROR_OUT("Given parameter is outside of the knot span");
-        exit(EXIT_FAILURE);
+bool BSplineBasis1D::clampKnot(double& _uPrm) const {
+	bool isInside=true;
+
+	// Clamp to lower boundary according to tolerance
+	double firstKnot=getFirstKnot();
+    if (_uPrm < firstKnot && firstKnot - _uPrm < EPS_ACCPETEDINTOKNOTSPAN) {
+    	_uPrm = firstKnot;
+    //In case knot is fully outside, clamp it anyway but set up output flag to false
+    } else if(_uPrm < firstKnot){
+    	isInside=false;
+    	_uPrm = firstKnot;
     }
+	// Clamp to upper boundary according to tolerance
+	double lastKnot=getLastKnot();
+    if (_uPrm > lastKnot && _uPrm - lastKnot < EPS_ACCPETEDINTOKNOTSPAN) {
+        _uPrm = lastKnot;
+    } else if(_uPrm > lastKnot){
+    	isInside=false;
+        _uPrm = lastKnot;
+    }
+    return isInside;
+}
+
+int BSplineBasis1D::findKnotSpan(double _uPrm) const {
+    // Check input
+	if(!clampKnot(_uPrm)) {
+        ERROR_OUT("in BSplineBasis1D::findKnotSpan");
+        ERROR_OUT("Given parameter is outside of the knot span");
+		exit(EXIT_FAILURE);
+	}
 
     // Compute the number of basis functions
     int n = computeNoBasisFunctions();
@@ -125,7 +160,7 @@ int BSplineBasis1D::findKnotSpan(double _uPrm) {
 }
 
 void BSplineBasis1D::computeLocalBasisFunctions(double* _localBasisFunctions, double _uPrm,
-        int _KnotSpanIndex) {
+        int _KnotSpanIndex) const {
 
     /* Initialize the output array (It must be initialized outside the function call)
      * _localBasisFunctions = double_array[Number of non-zero basis functions];
@@ -162,7 +197,7 @@ void BSplineBasis1D::computeLocalBasisFunctions(double* _localBasisFunctions, do
 }
 
 void BSplineBasis1D::computeLocalBasisFunctionsAndDerivatives(double* _localBasisFctsAndDerivs,
-        int _derivDegree, double _uPrm, int _KnotSpanIndex) {
+        int _derivDegree, double _uPrm, int _KnotSpanIndex) const {
 
     /* Initialize the output array (This must be done outside of the function call)
      * _localBasisFctsAndDerivs = double_array[Number of derivatives to be computed*Number of non-zero basis functions]
