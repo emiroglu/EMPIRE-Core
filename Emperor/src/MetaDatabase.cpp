@@ -472,6 +472,11 @@ void MetaDatabase::fillSettingConnectionVec() {
                     filter.scalingFilter.factor =
                             xmlFilter->FirstChildElement("scalingFilter")->GetAttribute<double>(
                                     "factor");
+                } else if (xmlFilter->GetAttribute<string>("type") == "weakCouplingFilter") {
+                    filter.type = EMPIRE_WeakCouplingFilter;
+                    filter.weakCouplingFilter.beta =
+                            xmlFilter->FirstChildElement("weakCouplingFilter")->GetAttribute<double>(
+                                    "beta");
                 } else if (xmlFilter->GetAttribute<string>("type") == "setFilter") {
                     filter.type = EMPIRE_SetFilter;
                     string valueString = xmlFilter->FirstChildElement("setFilter")->GetAttribute<

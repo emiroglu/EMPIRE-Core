@@ -36,6 +36,7 @@
 #include "MappingFilter.h"
 #include "LocationFilter.h"
 #include "ScalingFilter.h"
+#include "WeakCouplingFilter.h"
 #include "DataFieldIntegrationFilter.h"
 #include "AdditionFilter.h"
 #include "MapperAdapter.h"
@@ -438,6 +439,8 @@ void Emperor::initConnections() {
 				filter = new LocationFilter();
 			} else if (settingFilter.type == EMPIRE_ScalingFilter) {
 				filter = new ScalingFilter(settingFilter.scalingFilter.factor);
+			} else if (settingFilter.type == EMPIRE_WeakCouplingFilter) {
+				filter = new WeakCouplingFilter(settingFilter.weakCouplingFilter.beta);
 			} else if (settingFilter.type == EMPIRE_SetFilter) {
 				filter = new SetFilter(settingFilter.setFilter.value);
 			} else if (settingFilter.type == EMPIRE_CopyFilter) {
