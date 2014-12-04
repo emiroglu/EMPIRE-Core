@@ -88,7 +88,7 @@ private:
     EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
-    std::vector<std::map<int, double*> > *projectedCoords;
+    std::vector<std::map<int, std::vector<double> > > projectedCoords;
 //    std::vector<std::map<int, bool> > *isProjectionOrthogonal;
 
     /// Number of division made for linearization on boundary
