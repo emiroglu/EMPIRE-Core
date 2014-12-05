@@ -26,6 +26,13 @@
 #ifndef DATAFIELDINTEGRATION_H_
 #define DATAFIELDINTEGRATION_H_
 
+namespace EMPIRE{
+namespace MathLibrary{
+template<class T>
+class SparseMatrix;
+}
+}
+
 namespace EMPIRE {
 /********//**
  * \brief Class DataFieldIntegration is an operator from traction to force or vice versa
@@ -81,45 +88,13 @@ private:
     const int *elems;
 
     /// massMatrix csr format
-    double *massMatrix_A;
-    /// massMatrix csr format
-    int *massMatrix_IA;
-    /// massMatrix csr format
-    int *massMatrix_JA;
+    EMPIRE::MathLibrary::SparseMatrix<double> *massMatrix;
 
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
     /// number of Gauss points used for computing quad element mass matrix
     static const int numGPsMassMatrixQuad;
 
-    /// pardiso variable
-    void *pt[64]; // this is related to internal memory management, see PARDISO manual
-    /// pardiso variable
-    int iparm[64];
-    /// pardiso variable
-    int mtype;
-    /// pardiso variable
-    int maxfct;
-    /// pardiso variable
-    int mnum;
-    /// pardiso variable
-    int msglvl;
-    /// pardiso variable
-    int neq;
-    /// pardiso variable
-    int nrhs;
-    /// whether pardiso is initialized
-    bool pardisoInitialized;
-    /***********************************************************************************************
-     * \brief Initialize pardiso to factorize massMatrix
-     * \author Tianyang Wang
-     ***********/
-    void initPardiso();
-    /***********************************************************************************************
-     * \brief Deallocate the memory of pardiso
-     * \author Tianyang Wang
-     ***********/
-    void deletePardiso();
 };
 
 } /* namespace EMPIRE */

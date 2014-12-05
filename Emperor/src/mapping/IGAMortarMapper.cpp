@@ -107,9 +107,9 @@ IGAMortarMapper::~IGAMortarMapper() {
     delete gaussTriangle;
     delete gaussQuad;
 
-    C_NN->cleanPardiso();
-    delete C_NR;
-    delete C_NN;
+    //C_NN->cleanPardiso();
+    //delete C_NR;
+    //delete C_NN;
 }
 
 void IGAMortarMapper::initTables() {
@@ -232,8 +232,6 @@ void IGAMortarMapper::projectPointsToSurface() {
 
         /// 1ii. Initialize all projection flags to false
         isProjected.assign(isProjected.size(),false);
-//        for(int i = 0; i < meshFE->numNodes; i++)
-//        	isProjected[i] = false;
 
         /// 1iii. Loop over all the elements on the fluid side
         for (int i = 0; i < meshFE->numElems; i++) {
@@ -433,7 +431,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
     	DEBUG_OUT()<<"######################"<<endl;
     	DEBUG_OUT()<<"### ELEMENT ["<<elemCount<<"] ###"<<endl;
     	DEBUG_OUT()<<"######################"<<endl;
-
 
         // Compute the number of shape functions. Depending on number of nodes in the current element
         int numNodesElementFE = meshFE->numNodesPerElem[elemCount];
@@ -1338,7 +1335,7 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
     double* tmpVec = new double[numNodesMaster];
 
 // 1. matrix vector product (x_tmp = C_NR * x_slave)
-    C_NR->mulitplyVec(_slaveField, tmpVec, numNodesMaster);
+    C_NR->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, numNodesMaster);
 
 // 2. solve C_NN * x_master = x_tmp
     C_NN->solve(_masterField, tmpVec);

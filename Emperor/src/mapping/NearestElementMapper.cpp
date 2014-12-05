@@ -20,8 +20,6 @@
  */
 #include "NearestElementMapper.h"
 //#include "MortarMath.h"
-// Edit Aditya
-#include "MathLibrary.h"
 #ifdef FLANN
 #include "flann/flann.hpp"
 #endif
@@ -30,6 +28,8 @@
 #include "ANN/ANN.h"
 #endif
 
+// Edit Aditya
+#include "MathLibrary.h"
 #include <assert.h>
 #include <math.h>
 #include <map>

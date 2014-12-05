@@ -72,19 +72,31 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 _masterNodeNumbers), masterElemTable(_masterElemTable), oppositeSurfaceNormal(
                 _oppositeSurfaceNormal), dual(_dual), toEnforceConsistency(_toEnforceConsistency) {
     // a could-be NULL pointer must be initialized to NULL, otherwise there could be segmentation fault when delete it
-    C_BB_A = NULL;
-    C_BB_IA = NULL;
-    C_BB_JA = NULL;
     C_BB_A_DUAL = NULL;
-    C_BA_A = NULL;
-    C_BA_IA = NULL;
-    C_BA_JA = NULL;
-    C_BA_A_DUAL = NULL;
     // check whether the necessary libraries are there
+
+    /// Initializing the sparse matrices
+    /// This is symmetric square matrix of size "masterNumNodes". For first attempt
+    /// we store it as non symmetric.
+    C_BB = new MathLibrary::SparseMatrix<double>(masterNumNodes, false);
+
+    /// This is a rectangular matrix of size
+    /// masterNumNodes X slaveNumNodes
+    if(!dual){
+    	C_BA = new MathLibrary::SparseMatrix<double>((size_t)(masterNumNodes),(size_t)(slaveNumNodes));
+    	C_BA_DUAL = NULL;
+    }else{
+    	C_BA_DUAL = new MathLibrary::SparseMatrix<double>((size_t)(masterNumNodes),(size_t)(slaveNumNodes));
+    	C_BA = NULL;
+    }
+
 #ifndef USE_INTEL_MKL
     if (!dual) {
-    	ERROR_BLOCK_OUT("MortarMapper","MortarMapper",
-    			"No pardiso library is found, standard mortar mapper cannot be used!\n\t Try dual mortar mapper!");
+        cerr << endl;
+        cerr
+                << "MortarMapper::MortarMapper: No pardiso library is found, standard mortar mapper cannot be used!"
+                << endl << "\t Try dual mortar mapper!" << endl;
+        exit(EXIT_FAILURE);
     }
 #endif
 
@@ -109,25 +121,19 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     deleteANNTree();
     deleteTables();
 
-    // 4. use pardiso to do factorization on C_BB
-    if (!dual)
-        initPardiso();
-
-    // 5. check NULL pointers
-    checkNullPointers();
 }
 
 MortarMapper::~MortarMapper() {
-    if (!dual)
-        deletePardiso();
-    delete[] C_BB_A;
-    delete[] C_BB_IA;
-    delete[] C_BB_JA;
-    delete[] C_BB_A_DUAL;
-    delete[] C_BA_A;
-    delete[] C_BA_IA;
-    delete[] C_BA_JA;
-    delete[] C_BA_A_DUAL;
+    delete C_BB;
+    delete C_BB_A_DUAL;
+    if(C_BA != NULL){
+    	delete C_BA;
+    }
+
+    if(C_BA_DUAL != NULL){
+    	delete C_BA_DUAL;
+    }
+
 #ifdef ANN
     for (int i = 0; i < slaveNumNodes; i++) {
         delete[] ANNSlaveNodes[i];
@@ -148,42 +154,21 @@ void MortarMapper::consistentMapping(const double *slaveField, double *masterFie
     char descra[] = "G00F"; // general matrix, indexing from 1
     double alpha = 1.0;
     double beta = 0.0;
-#ifdef USE_INTEL_MKL
     if (!dual) {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&noTrans, &m, &n, &alpha, descra, C_BA_A, C_BA_JA, C_BA_IA, &C_BA_IA[1], slaveFieldCopy,
-                &beta, masterField);
+    	(*C_BA).mulitplyVec(false,slaveFieldCopy,masterField,masterNumNodes);
     }
     else {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&noTrans, &m, &n, &alpha, descra, C_BA_A_DUAL, C_BA_JA, C_BA_IA, &C_BA_IA[1], slaveFieldCopy,
-                &beta, masterField);
+    	(*C_BA_DUAL).mulitplyVec(false,slaveFieldCopy,masterField,masterNumNodes);
     }
-#else
-    if (!dual)
-    	 EMPIRE::MathLibrary::dcsrmv(noTrans, m, n, C_BA_A, C_BA_JA, C_BA_IA, slaveFieldCopy, masterField);
-    else
-    	EMPIRE::MathLibrary::dcsrmv(noTrans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, slaveFieldCopy,
-                masterField);
-#endif
 
     delete[] slaveFieldCopy;
 
     // 2. solve C_BB * W_B = W_tmp
     if (!dual) {
-        // pardiso forward and backward substitution
-        int phase = 33; // forward and backward substitution
-        int idum; // integer dummy
-        double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
-        int error = 0;
-        iparm[5] = 1; // write solution to b
-#ifdef USE_INTEL_MKL
-                mkl_set_num_threads(mklSetNumThreads);
-                pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs,
-                        iparm, &msglvl, masterField, ddum, &error);
-#endif
-        if (error != 0) {
-        	ERROR_BLOCK_OUT("MortarMapper","consistentMapping","pardiso solver failed!");
+        double *ddum = new double[masterNumNodes]; // Temporary variable to store the solution of the system.
+        (*C_BB).solve(ddum, masterField);
+        for(int i=0; i<masterNumNodes; i++){
+        	masterField[i] = ddum[i];
         }
         delete[] ddum;
     } else {
@@ -206,21 +191,13 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
         masterFieldCopy[i] = masterField[i];
     // 1. solve C_BB * F_tmp = F_B
     if (!dual) {
-        // pardiso forward and backward substitution
-        int phase = 33; // forward and backward substitution
-        int idum; // integer dummy
-        double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
-        int error = 0;
-        iparm[5] = 1; // write solution to x
-#ifdef USE_INTEL_MKL
-                mkl_set_num_threads(mklSetNumThreads);
-                pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs,
-                        iparm, &msglvl, masterFieldCopy, ddum, &error);
-#endif
-        if (error != 0) {
-        	ERROR_BLOCK_OUT("MortarMapper","conservativeMapping","pardiso solver failed!");
-        }
-        delete ddum;
+
+    	double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
+    	(*C_BB).solve(ddum, masterFieldCopy);
+    	for(int i=0; i<masterNumNodes; i++){
+    		masterFieldCopy[i] = ddum[i];
+    	}
+    	delete ddum;
     } else {
         for (int i = 0; i < masterNumNodes; i++)
             masterFieldCopy[i] /= C_BB_A_DUAL[i];
@@ -233,34 +210,23 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     char descra[] = "G00F"; // general matrix, indexing from 1
     double alpha = 1.0;
     double beta = 0.0;
-#ifdef USE_INTEL_MKL
     if (!dual) {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&trans, &m, &n, &alpha, descra, C_BA_A, C_BA_JA, C_BA_IA, &C_BA_IA[1], masterFieldCopy,
-                &beta, slaveField);
+    	(*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
+    	//assert(0);
     }
     else {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&trans, &m, &n, &alpha, descra, C_BA_A_DUAL, C_BA_JA, C_BA_IA, &C_BA_IA[1], masterFieldCopy,
-                &beta, slaveField);
+    	(*C_BA_DUAL).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
+    	//assert(0);
     }
-#else
-    if (!dual)
-    	EMPIRE::MathLibrary::dcsrmv(trans, m, n, C_BA_A, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
-    else
-    	EMPIRE::MathLibrary::dcsrmv(trans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
-#endif
+
     delete[] masterFieldCopy;
 }
 
 void MortarMapper::computeC_BB() {
     // 1. compute the sparsity map
     // sparsity map has the information of a, ia, ja in a CSR formated matrix
-    map<int, double> **sparsityMapC_BB = NULL; // a "could be" NULL pointer is better to be init to NULL
     if (!dual) {
-        sparsityMapC_BB = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BB[i] = new map<int, double>;
+
     } else {
         C_BB_A_DUAL = new double[masterNumNodes];
         for (int i = 0; i < masterNumNodes; i++)
@@ -296,72 +262,23 @@ void MortarMapper::computeC_BB() {
         else
             assert(false);
         if (!dual) {
-            for (int j = 0; j < numNodesMasterElem; j++) {
-                for (int k = j; k < numNodesMasterElem; k++) {
-                    int smaller, larger;
-                    if (pos[j] > pos[k]) {
-                        larger = pos[j];
-                        smaller = pos[k];
-                    } else {
-                        larger = pos[k];
-                        smaller = pos[j];
-                    }
-                    double massMatrixJK = massMatrix[j * numNodesMasterElem + k];
-                    bool inserted = sparsityMapC_BB[smaller]->insert(
-                            pair<int, double>(larger, massMatrixJK)).second; // *.second is a bool indicating inserted or not
-                    if (!inserted)
-                        (sparsityMapC_BB[smaller]->at(larger)) += massMatrixJK; // at() returns a reference, so using "+=" is correct
-                }
+
+        	for (int j = 0; j < numNodesMasterElem; j++) {
+            	for (int k = 0; k < numNodesMasterElem; k++) {
+            		double massMatrixJK = massMatrix[j * numNodesMasterElem + k];
+            		(*C_BB)(pos[j], pos[k]) += massMatrixJK;
+            	}
             }
+
         } else {
             for (int j = 0; j < numNodesMasterElem; j++) {
                 C_BB_A_DUAL[pos[j]] += massMatrix[j * numNodesMasterElem + j];
             }
         }
     }
-
-    // 2. according to sparsity map, compute a, ia, ja of CSR formated C_BB
-    if (!dual) {
-        C_BB_IA = new int[masterNumNodes + 1];
-        C_BB_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BB[i]->size();
-            C_BB_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BB_JA = new int[nnz];
-        C_BB_A = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BB[i]->begin();
-                    it != sparsityMapC_BB[i]->end(); it++) {
-                C_BB_JA[count] = it->first + 1; // numbering from 1
-                C_BB_A[count] = it->second;
-                count++;
-            }
-        }assert(nnz == count);
-
-        // delete spasity map
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BB[i];
-        delete[] sparsityMapC_BB;
-    }
 }
 
 void MortarMapper::computeC_BA() {
-    // 1. initialize sparsity map, which has the information of a, ia, ja in a CSR formated matrix
-    map<int, double> **sparsityMapC_BA = NULL;
-    map<int, double> **sparsityMapC_BA_DUAL = NULL;
-    if (!dual) {
-        sparsityMapC_BA = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BA[i] = new map<int, double>;
-    } else {
-        sparsityMapC_BA_DUAL = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BA_DUAL[i] = new map<int, double>;
-    }
 
     // 2. compute entries in the sparsity map by looping over the master elements
 #ifdef FLANN
@@ -451,12 +368,7 @@ void MortarMapper::computeC_BA() {
 #pragma omp critical (map1)
 #endif
                                 {
-                                    bool inserted = sparsityMapC_BA[posMasterNodes[ii]]->insert(
-                                            pair<int, double>(posSlaveNodes[jj],
-                                                    result[ii * numNodesSlaveElem + jj])).second; // *.second is a bool indicating inserted or not
-                                    if (!inserted)
-                                        (sparsityMapC_BA[posMasterNodes[ii]]->at(posSlaveNodes[jj])) +=
-                                                result[ii * numNodesSlaveElem + jj]; // at() returns a reference, hence using "+=" is correct
+                                	(*C_BA)(posMasterNodes[ii], posSlaveNodes[jj]) += result[ii * numNodesSlaveElem + jj];
                                 } //omp critical
                             }
                         }
@@ -472,15 +384,7 @@ void MortarMapper::computeC_BA() {
 #pragma omp critical (map2)
 #endif
                                 {
-                                    bool inserted =
-                                            sparsityMapC_BA_DUAL[posMasterNodes[ii]]->insert(
-                                                    pair<int, double>(
-                                                            posSlaveNodes[jj],
-                                                            result_dual[ii * numNodesSlaveElem + jj])).second; // *.second is a bool indicating inserted or not
-                                    if (!inserted)
-                                        (sparsityMapC_BA_DUAL[posMasterNodes[ii]]->at(
-                                                posSlaveNodes[jj])) += result_dual[ii
-                                                * numNodesSlaveElem + jj]; // at() returns a reference, hence using "+=" is correct
+                                	(*C_BA_DUAL)(posMasterNodes[ii], posSlaveNodes[jj]) += result_dual[ii * numNodesSlaveElem + jj];
                                 } //omp critical
                             }
                         }
@@ -502,97 +406,50 @@ void MortarMapper::computeC_BA() {
 
     // 3. modify C_BA to enforce consistency
     if (toEnforceConsistency) {
-        if (!dual)
-            enforceConsistency(sparsityMapC_BA);
-        else
-            enforceConsistency(sparsityMapC_BA_DUAL);
+        if (!dual){
+            enforceConsistency(C_BA);
+        }else{
+            enforceConsistency( C_BA_DUAL);
+        }
     }
 
-    // 4. according to sparsity map, compute a, ia, ja of CSR formated C_BA
-    if (!dual) {
-        C_BA_IA = new int[masterNumNodes + 1];
-        C_BA_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BA[i]->size();
-            C_BA_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BA_JA = new int[nnz];
-        C_BA_A = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                C_BA_JA[count] = it->first + 1; // numbering from 1
-                C_BA_A[count] = it->second;
-                count++;
-            }
-        }
-        assert(nnz == count);
-    } else {
-        C_BA_IA = new int[masterNumNodes + 1];
-        C_BA_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BA_DUAL[i]->size();
-            C_BA_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BA_JA = new int[nnz];
-        C_BA_A_DUAL = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA_DUAL[i]->begin();
-                    it != sparsityMapC_BA_DUAL[i]->end(); it++) {
-                C_BA_JA[count] = it->first + 1; // numbering from 1
-                C_BA_A_DUAL[count] = it->second;
-                count++;
-            }
-        }
-        assert(nnz == count);
-    }
+//    	if(C_BA_A == NULL){
+//    		std::cout<<"printing DUAL stuff"<<std::endl;
+//    		MathLibrary::printCSRMatrixUnsymmetric(C_BA_A_DUAL,C_BA_IA,C_BA_JA,masterNumNodes,slaveNumNodes);
+//    		(*C_BA_DUAL).print();
+//    	}else{
+//    		std::cout<<"printing NON DUAL stuff"<<std::endl;
+//    		MathLibrary::printCSRMatrixUnsymmetric(C_BA_A,C_BA_IA,C_BA_JA,masterNumNodes,slaveNumNodes);
+//        	(*C_BA).print();
+//    	}
+//    	//assert(0);
 
-    // delete
-    if (!dual) {
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BA[i];
-        delete[] sparsityMapC_BA;
-    } else {
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BA_DUAL[i];
-        delete[] sparsityMapC_BA_DUAL;
-    }
+
 }
 
-void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
+void MortarMapper::enforceConsistency( MathLibrary::SparseMatrix<double> *BA) {
     // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
     if (!dual) {
         double *factor = new double[masterNumNodes];
+        double *factor1 = new double[masterNumNodes];
         for (int i = 0; i < masterNumNodes; i++) {
             factor[i] = 0.0;
         }
+
         for (int i = 0; i < masterNumNodes; i++) {
-            for (int j = C_BB_IA[i]; j < C_BB_IA[i + 1]; j++) {
-                factor[i] += C_BB_A[j - 1];
-            }
+                factor[i] += (*C_BB).getRowSum(i);
         }
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (int j = C_BB_IA[i] + 1; j < C_BB_IA[i + 1]; j++) {
-                factor[C_BB_JA[j - 1] - 1] += C_BB_A[j - 1];
-            }
-        }
+
         for (int i = 0; i < masterNumNodes; i++) {
             double sum = 0.0;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                sum += it->second;
-            }
+            // Row sum of the sparse Matrix
+            sum = (*BA).getRowSum(i);
 
             if (sum < factor[i] * 0.5) { // if the master element is not fully covered by slave elements, use nearest neighbor
-                WARNING_BLOCK_OUT("MortarMapper","enforceConsistency","Nearest neighbor is used for node: ");
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
                 EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
-                sparsityMapC_BA[i]->clear();
+                //sparsityMapC_BA[i]->clear();
+                (*BA).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -605,31 +462,26 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
                 FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
                 nb = indexes_tmp[0][0];
 #endif
-                sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                //sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                (*BA)(i,nb) = factor[i];
                 sum = factor[i];
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             assert(sum<factor[i]*(1+1E-2));
             factor[i] /= sum;
-        }
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                it->second *= factor[i];
-            }
+
+            (*BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
         }
         delete[] factor;
-    } else {
+    } else { // If dual
         for (int i = 0; i < masterNumNodes; i++) {
             double factor = C_BB_A_DUAL[i];
-            double sum = 0.0;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                sum += it->second;
-            }
+            // Row sum of the sparse Matrix
+            double sum = (*BA).getRowSum(i);
 
             if ((sum < factor * 0.5) || (sum > factor * 1.5)) { // if the master element is not fully covered by slave elements, use nearest neighbor
-                sparsityMapC_BA[i]->clear();
+                //sparsityMapC_BA[i]->clear();
+                (*BA).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -642,61 +494,19 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
                 FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
                 nb = indexes_tmp[0][0];
 #endif
-                sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor));
+                // Inserting the new element of the sparse matrix.
+                (*BA)(i,nb) = factor;
                 sum = factor;
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             //assert(sum<factor*(1+1E-2)); // This is not the case for dual
             factor /= sum;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                it->second *= factor;
-            }
+            (*BA).multiplyRowWith(i,factor);
+
         }
     }
 }
 
-void MortarMapper::initPardiso() {
-#ifdef USE_INTEL_MKL
-    mtype = 2; // real symmetric matrix
-    // set pardiso default parameters
-    pardisoinit(pt, &mtype, iparm);
-    iparm[2] = mklSetNumThreads;
-    //cout << endl << "iparm[3]: " << iparm[2] << endl;
-    maxfct = 1;// max number of factorizations
-    mnum = 1;// which factorization to use
-    msglvl = 0;// do NOT print statistical information
-    neq = masterNumNodes;// number of rows of C_BB
-    nrhs = 1;// number of right hand side
-    int phase = 12;// analysis and factorization
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    //cout<<"factorizing"<<endl;
-    mkl_set_num_threads(mklSetNumThreads);
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-    	ERROR_BLOCK_OUT("MortarMapper","initPardiso","pardiso factorization failed!");
-    }
-#endif
-}
-
-void MortarMapper::deletePardiso() {
-#ifdef USE_INTEL_MKL
-    int phase = -1; // deallocate memory
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-        if (error != 0) {
-        	ERROR_BLOCK_OUT("MortarMapper","deletePardiso","pardiso factorization failed!");
-        }
-    }
-#endif
-}
 
 void MortarMapper::initTables() {
     // using the map to store the nodeNumbers
@@ -1056,25 +866,11 @@ void MortarMapper::computeSlaveElemNormals() {
 
 void MortarMapper::checkNullPointers() {
     if (!dual) {
-        assert(C_BB_A!=NULL);
-        assert(C_BB_IA!=NULL);
-        assert(C_BB_JA!=NULL);
+    	assert(C_BB == NULL);
         assert(C_BB_A_DUAL==NULL);
-
-        assert(C_BA_A!=NULL);
-        assert(C_BA_IA!=NULL);
-        assert(C_BA_JA!=NULL);
-        assert(C_BA_A_DUAL==NULL);
     } else {
-        assert(C_BB_A==NULL);
-        assert(C_BB_IA==NULL);
-        assert(C_BB_JA==NULL);
-        assert(C_BB_A_DUAL!=NULL);
-
-        assert(C_BA_A==NULL);
-        assert(C_BA_IA!=NULL);
-        assert(C_BA_JA!=NULL);
-        assert(C_BA_A_DUAL!=NULL);
+    	assert(C_BA==NULL);
+        assert(C_BA_DUAL!=NULL);
     }
 }
 
@@ -1139,11 +935,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     gaussPoint, localCoor);
             // debug
             if (!inside){
-            	DEBUG_OUT()<<"Error in computing local coordinates in tria master element"<<endl;
-                DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-                DEBUG_OUT()<<"Element nodes:"<<endl;
+            	cout<<"Error in computing local coordinates in tria master element"<<endl;
+                cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+                cout<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesMasterElem;ctr++){
-                	DEBUG_OUT()<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
+                	cout<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
                 }
             }
             // debug end
@@ -1157,11 +953,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     localCoor);
             // debug
             if (!inside){
-            	DEBUG_OUT()<<"Error in computing local coordinates in quad master element"<<endl;
-            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            	DEBUG_OUT()<<"Element nodes:"<<endl;
+            	cout<<"Error in computing local coordinates in quad master element"<<endl;
+            	cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+            	cout<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesMasterElem;ctr++){
-                	DEBUG_OUT()<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
+                	cout<<ctr+1<<": "<<masterElem[ctr*3]<<"\t"<<masterElem[ctr*3+1]<<"\t"<<masterElem[ctr*3+2]<<endl;
                 }
              }
             // debug end
@@ -1179,11 +975,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     gaussPoint, localCoor);
             // debug
             if (!inside){
-            	DEBUG_OUT()<<"Error in computing local coordinates in quad slave element"<<endl;
-            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            	DEBUG_OUT()<<"Element nodes:"<<endl;
+            	cout<<"Error in computing local coordinates in quad slave element"<<endl;
+                cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+                cout<<"Element nodes:"<<endl;
                 for(int ctr=0;ctr<numNodesSlaveElem;ctr++){
-                	DEBUG_OUT()<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
+                	cout<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
                 }
             }
             // debug end
@@ -1197,11 +993,11 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
                     localCoor);
             // debug
             if (!inside){
-            	DEBUG_OUT()<<"Error in computing local coordinates in quad slave element"<<endl;
-            	DEBUG_OUT()<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            	DEBUG_OUT()<<"Element nodes:"<<endl;
+            	cout<<"Error in computing local coordinates in quad slave element"<<endl;
+            	cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+            	cout<<"Element nodes:"<<endl;
             	for(int ctr=0;ctr<numNodesSlaveElem;ctr++){
-            		DEBUG_OUT()<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
+            		cout<<ctr+1<<": "<<slaveElem[ctr*3]<<slaveElem[ctr*3+1]<<slaveElem[ctr*3+2]<<endl;
             	}
             }
             // debug end
@@ -1248,5 +1044,10 @@ double MortarMapper::ShapeFunctionProduct::operator ()(double *gaussPoint) {
     assert(false);
     return 0.0;
 }
+
+
+
+
+
 
 } /* namespace EMPIRE */
