@@ -189,13 +189,13 @@ public:
         assert(vec != NULL);
         assert(resultVec != NULL);
         for(int i = 0; i<m; i++)
-        	std::cout<<"Entry ["<<i<<"] is :: "<<columns[i]<<std::endl;
+        	//std::cout<<"Entry ["<<i<<"] is :: "<<columns[i]<<std::endl;
 
         if(isSymmetric){
-        	mkl_dcsrsymv(&up, &m, mat_values, rowIndex, columns, vec, resultVec);
+        	//mkl_dcsrsymv(&up, &m, mat_values, rowIndex, columns, vec, resultVec);
         }else{
-            std::cout<<"From Intel Adapter Multiplied :: !! "<<std::endl;
-        	mkl_dcsrmv(&pardiso_trans, &m, &n, &pardiso_alpha, pardiso_descra, mat_values, rowIndex, columns, &columns[1], vec, &pardiso_beta, resultVec);
+            //std::cout<<"From Intel Adapter Multiplied :: !! "<<std::endl;
+        	//mkl_dcsrmv(&pardiso_trans, &m, &n, &pardiso_alpha, pardiso_descra, mat_values, rowIndex, columns, &columns[1], vec, &pardiso_beta, resultVec);
         }
 	 }
 
