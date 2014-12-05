@@ -6,7 +6,6 @@ MACRO_APPEND_GLOBAL_VARIABLE(Emperor_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR};${CMA
 #------------------------------------------------------------------------------------#
 
 #------------------------------------------------------------------------------------#
-#------------------------------------------------------------------------------------#
 FILE(GLOB Emperor_src_sub_subdirectories "*")
 FOREACH(sf ${Emperor_src_sub_subdirectories})
   IF(NOT sf MATCHES "\\.txt" AND IS_DIRECTORY ${sf} )
