@@ -107,9 +107,9 @@ IGAMortarMapper::~IGAMortarMapper() {
     delete gaussTriangle;
     delete gaussQuad;
 
-    C_NN->cleanPardiso();
-    delete C_NR;
-    delete C_NN;
+    //C_NN->cleanPardiso();
+    //delete C_NR;
+    //delete C_NN;
 }
 
 void IGAMortarMapper::initTables() {
@@ -1335,7 +1335,7 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
     double* tmpVec = new double[numNodesMaster];
 
 // 1. matrix vector product (x_tmp = C_NR * x_slave)
-    C_NR->mulitplyVec(_slaveField, tmpVec, numNodesMaster);
+    C_NR->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, numNodesMaster);
 
 // 2. solve C_NN * x_master = x_tmp
     C_NN->solve(_masterField, tmpVec);
