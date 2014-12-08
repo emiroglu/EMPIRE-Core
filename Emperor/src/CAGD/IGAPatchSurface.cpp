@@ -1438,6 +1438,8 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 	std::vector<std::pair<double,double> > corners;
 	if(_edgeIn & _edgeOut)
 		return corners;
+	if(_edgeIn == 0 || _edgeOut == 0)
+		return corners;
 	double u0 = getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
 	double uN = getIGABasis()->getUBSplineBasis1D()->getLastKnot();
 	double v0 = getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
@@ -1499,6 +1501,8 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 		corners.push_back(make_pair(u0,vN));
 		return corners;
 	}
+	ERROR_OUT()<<"No corner found to add in polygon"<<endl;
+	ERROR_OUT()<<"Edge IN is ["<<int(_edgeIn)<<"] and Edge OUT is ["<<int(_edgeOut)<<"] with direction "<<_isCounterclockwise<<endl;
 	assert(0);
 	return corners;
 }
