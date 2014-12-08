@@ -31,7 +31,9 @@
 #include <cmath>
 #include "Message.h"
 #include "AuxiliaryParameters.h"
-#include "mkl.h"
+#include "IntelMKLAdaptor.hpp"
+
+
 
 
 namespace EMPIRE {
@@ -191,13 +193,12 @@ bool solve3x3LinearSystem(const double* _A, double* _b, double _EPS);
 double det3x3(const double* _A);
 
 
-
-// Classes
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /********//**
  * \brief This is a template class does compressed sparse row matrix computations: CSR Format (3-Array Variation)
  *        http://software.intel.com/sites/products/documentation/hpc/mkl/mklman/GUID-9FCEB1C4-670D-4738-81D2-F378013412B0.htm
  * \author Stefan Sicklinger
+ * \edit Aditya Ghantasala
  **************************************************************************************************/
 template<class T>
 class SparseMatrix {
@@ -206,23 +207,27 @@ public:
     typedef size_t row_iter;
     typedef std::map<size_t, T> col_t;
     typedef typename col_t::iterator col_iter;
+
     /***********************************************************************************************
      * \brief Constructor for symmetric matrices
      * \param[in] _m is the number of rows & columns
      * \param[in] _isSymmetric only the upper triangular form is stored
      * \author Stefan Sicklinger
      ***********/
-    SparseMatrix(const size_t _m, const bool _isSymmetric) {
+    SparseMatrix(const size_t _m, const bool _isSymmetric=false) {
         m = _m;
         n = _m;
         isSquare = true;
         isSymmetric = _isSymmetric;
+        isDetermined = false;
         if (!((typeid(T) == typeid(double)) || (typeid(T) == typeid(float)))) {
             assert(0);
         }
         mat = new mat_t(m);
         rowIndex = new std::vector<int>(m + 1);
-
+#ifdef USE_INTEL_MKL
+        intelMKL = new PardisoAdapter(isSymmetric);
+#endif
     }
     /***********************************************************************************************
      * \brief Constructor for unsymmetric matrices
@@ -235,6 +240,7 @@ public:
         n = _n;
         isSquare = false;
         isSymmetric = false;
+        isDetermined = false;
         mat = new mat_t(m);
         rowIndex = new std::vector<int>(m + 1);
     }
@@ -243,9 +249,22 @@ public:
      * \author Stefan Sicklinger
      ***********/
     virtual ~SparseMatrix() {
+#ifdef USE_INTEL_MKL
+    	//std::cout<<"Cleaning Pardiso"<<std::endl;
+    	//intelMKL->cleanPardiso(&values[0], &((*rowIndex)[0]), &columns[0]);
+#endif
         delete mat;
     }
-    ;
+
+
+    /***********************************************************************************************
+     * \brief Getters for the dimensions of the matrix
+     * \param[out] number of rows and columns
+     * \author Aditya Ghantasala
+     ***********/
+    inline size_t getNumberOfRows(){return m;};
+    inline size_t getNumberOfColumns(){return n;};
+
     /***********************************************************************************************
      * \brief Operator overloaded () for assignment of value e.g. A(i,j)=10
      * \param[in] i is the number of rows
@@ -274,194 +293,223 @@ public:
         //not allowed
         return (*mat)[i][j];
     }
+
+
     /***********************************************************************************************
-     * \brief Operator overloaded * for Matrix vector multiplication
-     * \return std vector
+     * \brief This fills the three vectors of the CSR format (one-based)
      * \author Stefan Sicklinger
      ***********/
-    std::vector<T> operator*(const std::vector<T>& x) { //Computes y=A*x
-        if (this->m != x.size())
-            assert(0);
-        //not allowed
+    void determineCSR() {
+    	// Check if this function is already called once.
+    	if(isDetermined)
+    		return;
 
-        std::vector<T> y(this->m, 0);
-        T sum;
-        T sumSym;
+    	row_iter ii;
+    	col_iter jj;
+    	size_t ele_row = 0; //elements in current row
+    	std::cout << std::scientific;
 
-        row_iter ii;
-        col_iter jj;
+    	for (ii = 0; ii < m; ii++) {
+    		(*rowIndex)[ii] = (ele_row + 1);
+    		for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
+    			columns.push_back(((*jj).first) + 1);
+    			values.push_back((*jj).second);
+    			ele_row++;
+    		}
 
-        for (ii = 0; ii < m; ii++) {
-            sum = 0;
-            for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
-                sum += (*jj).second * x[(*jj).first];
+    	}
+    	(*rowIndex)[m] = (ele_row + 1);
 
-                if ((ii != (*jj).first) && isSymmetric) { //not on the main diagonal
-                    //   std::cout << (*ii).first << " ssss "<< (*jj).second <<" tttt "<< x[(*ii).first] << "uuuu" << (*jj).first << std::endl;
-                    y[(*jj).first] += (*jj).second * x[ii];
-                }
-
-            }
-            y[ii] += sum;
-        }
-
-        return y;
+    	// Tell the matrix that it is determined once.
+    	isDetermined = true;
     }
-    /***********************************************************************************************
-     * \brief This function is a fast alternative to the operator overloading alternative
-     * \param[in] x vector to be multiplied
-     * \param[out] y result vector
-     * \param[in] elements are the number of entries in the vector
-     * \author Stefan Sicklinger
-     ***********/
-    void mulitplyVec(const T* x, T* y, const size_t elements) { //Computes y=A*x
-        if (this->m != elements)
-            assert(0);
-        //not allowed
-        T sum;
-        size_t iter;
-        for (iter = 0; iter < elements; iter++) {
-            y[iter] = 0;
-        }
 
-        row_iter ii;
-        col_iter jj;
 
-        for (ii = 0; ii < m; ii++) {
-            sum = 0;
-            for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
-                sum += (*jj).second * x[(*jj).first];
-                if ((ii != (*jj).first) && isSymmetric) { //not on the main diagonal
-                    //   std::cout << (*ii).first << " ssss "<< (*jj).second <<" tttt "<< x[(*ii).first] << "uuuu" << (*jj).first << std::endl;
-                    y[(*jj).first] += (*jj).second * x[ii];
-                }
-            }
-            y[ii] += sum;
-        }
-    }
 
     /***********************************************************************************************
      * \brief This function is a fast alternative to the operator overloading alternative
-     * \param[in] x vector to be multiplied
-     * \param[out] y result vector
-     * \param[in] elements are the number of entries in the vector
+     * \param[in] 	-- transpose 	Bool flag specifying if a transpose of the matrix should be multiplied or not.
+     * \param[in] 	-- x 			vector to be multiplied
+     * \param[out] 	-- y 			result vector
+     * \param[in] 	-- elements 	are the number of entries in the resultant vector (number of rows of the matrix m)
+     * \author Stefan Sicklinger
+     * \edit   Aditya Ghantasala
+     ***********/
+    void mulitplyVec(bool transpose, T* vec, T* resultVec, size_t elements) { //Computes y=A*x
+    		// Checking the possibility of multiplication.
+    		assert(elements == m);
+    		assert(vec != NULL);
+    		assert(resultVec != NULL);
+
+    		// Formulating the vectors of the sparse matrix
+    		determineCSR();
+//#ifdef USE_INTEL_MKL
+    		// TODO :: get this running.
+//    	intelMKL->multiply(transpose, m, n, &values[0], &((*rowIndex)[0]), &columns[0], vec, resultVec, isSymmetric);
+//#else
+    	//not allowed
+    	// TODO :: Implement a transpose multiplication if a transpose should be multiplied.
+
+    	T sum;
+    	size_t iter;
+    	for (iter = 0; iter < elements; iter++) {
+    		resultVec[iter] = 0;
+    	}
+
+    	row_iter ii;
+    	col_iter jj;
+
+    	for (ii = 0; ii < m; ii++) {
+    		sum = 0;
+    		for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
+    			sum += (*jj).second * vec[(*jj).first];
+    			if ((ii != (*jj).first) && isSymmetric) { //not on the main diagonal
+    				//   std::cout << (*ii).first << " ssss "<< (*jj).second <<" tttt "<< x[(*ii).first] << "uuuu" << (*jj).first << std::endl;
+    				resultVec[(*jj).first] += (*jj).second * vec[ii];
+    			}
+    		}
+    		resultVec[ii] = sum;
+    	}
+//#endif
+    }
+
+    /***********************************************************************************************
+     * \brief This function is a fast alternative to the operator overloading alternative
+     * \param[in] 	-- x 			Vector to be multiplied
+     * \param[out] 	-- y 			Result vector
+     * \param[in] 	-- elements 	The number of entries in the vector
      * \author Chenshen Wu
      ***********/
-    void transposeMulitplyVec(const T* x, T* y, const size_t elements) { //Computes y=A*x
-        if (this->m != elements)
-	    assert(0);
-	if (isSymmetric) {
-	    mulitplyVec(x, y, elements);
-	    return;
-	}
+    void transposeMulitplyVec(T* x, T* y, const size_t elements) { //Computes y=A*x
+    	if (this->m != elements)
+    		assert(0);
+    	if (isSymmetric) {
+    		mulitplyVec(true, x, y, elements);
+    		return;
+    	}
 
-	size_t iter;
-	for (iter = 0; iter < this->n; iter++) {
-	    y[iter] = 0;
-	}
+    	size_t iter;
+    	for (iter = 0; iter < this->n; iter++) {
+    		y[iter] = 0;
+    	}
 
-	row_iter ii;
-	col_iter jj;
+    	row_iter ii;
+    	col_iter jj;
 
-	for (ii = 0; ii < m; ii++)
-	    for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++)
-	        y[(*jj).first] += (*jj).second * x[ii];
+    	for (ii = 0; ii < m; ii++)
+    		for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++)
+    			y[(*jj).first] += (*jj).second * x[ii];
     }
 
 
-/***********************************************************************************************
- * \brief This function analysis and factorize the matrix
- * \author Stefan Sicklinger
- ***********/
-    void factorize(){
-#ifdef USE_INTEL_MKL
-    	this->determineCSR();
-        if (isSymmetric) {
-            pardiso_mtype = 2;  // real symmetric matrix postive definite matrix
-        } else {
-            pardiso_mtype = 11; // real and unsymmetric matrix
-        }
-        // set pardiso default parameters
-        pardisoinit(pardiso_pt, &pardiso_mtype, pardiso_iparm);
-        pardiso_iparm[2] = 3; //The parallel (OpenMP) version of the nested dissection algorithm
-        pardiso_maxfct = 1; // max number of factorizations
-        pardiso_mnum = 1; // which factorization to use
-        pardiso_msglvl = 0; // do NOT print statistical information
-        pardiso_neq = m; // number of rows of C_BB
-        pardiso_nrhs = 1; // number of right hand side
-        pardiso_phase = 12; // analysis and factorization
-        pardiso_error = 0;
-        //cout<<"factorizing"<<endl;
-        mkl_set_num_threads(1);
-        pardiso(pardiso_pt, &pardiso_maxfct, &pardiso_mnum, &pardiso_mtype, &pardiso_phase,
-                &pardiso_neq, &values[0], &((*rowIndex)[0]), &columns[0], &pardiso_idum,
-                &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
-                &pardiso_error);
-        if (pardiso_error != 0) {
-            ERROR_OUT() << "Error pardiso factorization failed with error code: " << pardiso_error
-                    << std::endl;
-            exit(EXIT_FAILURE);
-        }
-#endif
+    /***********************************************************************************************
+     * \brief This function returns the sum of a requested row of the sparse matrix
+     * \param[in] 	-- row 			Row number of the sparse matrix for which sum should be obtained
+     * \param[out] 	-- sum 			Sum of the row'th row.
+     * \author Aditya Ghantasala
+     ***********/
+    T getRowSum(size_t row) { //Computes y=A*x
+    	// Checking if the row requested is with in the limits
+    	assert(row <= this->m);
+
+    	if (isSymmetric) {
+    		// TODO Check how to return the right value for a symmetric matrix.
+    	}
+
+    	T sum = 0.0;
+    	col_iter jj;
+
+   		for (jj = (*mat)[row].begin(); jj != (*mat)[row].end(); jj++)
+    		sum += (*jj).second;
+
+   		return sum;
     }
+
+
+    /***********************************************************************************************
+     * \brief This function deletes or resets a whole row in sparse matrix.
+     * \param[in] 	-- row 			Row number of the sparse matrix for which should be deleted.
+     * \author Aditya Ghantasala
+     ***********/
+    void deleteRow(size_t row){
+    	(*mat)[row].clear();
+    }
+
+
+    /***********************************************************************************************
+     * \brief This function multiplies the whole row of the sparse matrix with a given number
+     * \param[in] 	-- row 			Row number of the sparse matrix for which should be multiplied with.
+     * \param[in] 	-- face 		factor with which the row should be multiplied.
+     * \author Aditya Ghantasala
+     ***********/
+    void multiplyRowWith(size_t row, T fact) { //Computes y=A*x
+    	// Checking if the row requested is with in the limits
+    	assert(row <= this->m);
+
+    	if (isSymmetric) {
+    		// TODO Check how to return the right value for a symmetric matrix.
+    	}
+    	col_iter jj;
+    	T dum;
+   		for (jj = (*mat)[row].begin(); jj != (*mat)[row].end(); jj++){
+    		dum = (*jj).second;
+    		(*jj).second = dum * fact;
+   		}
+
+    }
+
+
+
 
     /***********************************************************************************************
      * \brief This function performs the prepare of a solution
-     * \param[in]  pointer to rhs vector
-     * \param[out] pointer to solution vector
-     * \return std vector
+     * \param[in]  	-- x pointer to solution vector
+     * \param[out] 	-- b pointer to rhs vector
+     * \return std vectordetermineCSR
      * \author Stefan Sicklinger
+     * \ȩdit Aditya Ghantasala
      ***********/
-    void solve(T* x, T* b) { //Computes x=A^-1 *y
+    void solve(T* x, T* b) { //Computes x=A^-1 *b
+
+    	// Constructing the sparse matrix entities
+    	determineCSR();
 #ifdef USE_INTEL_MKL
-        // pardiso forward and backward substitution
-        pardiso_phase = 33; // forward and backward substitution
-        pardiso_error = 0;
-        pardiso_iparm[5] = 0; // write solution to b if true otherwise to x
-        mkl_set_num_threads(1); // set number of threads to 1 for mkl call only
-        pardiso(pardiso_pt, &pardiso_maxfct, &pardiso_mnum, &pardiso_mtype, &pardiso_phase,
-                &pardiso_neq, &values[0], &((*rowIndex)[0]), &columns[0], &pardiso_idum,
-                &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, b, x, &pardiso_error);
+    	intelMKL->solve(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0], x, b);
+#else
+    	// TODO :: any other solver library can be called here.
 #endif
     }
 
     /***********************************************************************************************
-     * \brief This function clean Pardiso
+     * \brief This function factorizes and prepares for a solution
      * \author Stefan Sicklinger
+     * \ȩdit Aditya Ghantasala
      ***********/
-    void resetPardiso(){
+    void factorize() {
+
+    	// Constructing the sparse matrix entities
+    	determineCSR();
+
 #ifdef USE_INTEL_MKL
-        // clean pardiso
-        pardiso_phase = 0; //Release internal memory for L and U matrix number mnum
-        pardiso(pardiso_pt, &pardiso_maxfct, &pardiso_mnum, &pardiso_mtype, &pardiso_phase,
-                &pardiso_neq, &values[0], &((*rowIndex)[0]), &columns[0], &pardiso_idum,
-                &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
-                &pardiso_error);
-        pardiso_phase = -1; //Release all internal memory for all matrices
-        values.clear();
-        columns.clear();
-        (*rowIndex).clear();
+    	intelMKL->factorize(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0]);
+#else
+
 #endif
+
     }
 
-    /***********************************************************************************************
-     * \brief This function clean Pardiso
-     * \author Stefan Sicklinger
-     ***********/
-    void cleanPardiso(){
+
+	/***********************************************************************************************
+	 * \brief This function clean Pardiso
+	 * \author Stefan Sicklinger
+	 ***********/
+    void reset(){
 #ifdef USE_INTEL_MKL
-        // clean pardiso
-        pardiso_phase = -1; // deallocate memory
-        pardiso(pardiso_pt, &pardiso_maxfct, &pardiso_mnum, &pardiso_mtype, &pardiso_phase,
-                &pardiso_neq, &values[0], &((*rowIndex)[0]), &columns[0], &pardiso_idum,
-                &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
-                &pardiso_error);
-        if (pardiso_error != 0) {
-            ERROR_OUT() << "Error deallocation of pardiso failed with error code: " << pardiso_error
-                    << std::endl;
-            exit(EXIT_FAILURE);
-        }
+    	intelMKL->resetPardiso(&values[0], &((*rowIndex)[0]), &columns[0] );
 #endif
+		values.clear();
+		columns.clear();
+		(*rowIndex).clear();
     }
 
     /***********************************************************************************************
@@ -540,6 +588,8 @@ private:
     bool isSquare;
     /// true if a symmetric matrix should be stored
     bool isSymmetric;
+    /// true if the determineCSR function is used once
+    bool isDetermined;
     /// number of rows
     size_t m;
     /// number of columns
@@ -550,54 +600,13 @@ private:
     std::vector<int> columns;
     /// Element j of the integer array rowIndex gives the index of the element in the values array that is first non-zero element in a row j.
     std::vector<int>* rowIndex;
-    /// pardiso variable
-    void *pardiso_pt[64]; // this is related to internal memory management, see PARDISO manual
-    /// pardiso variable
-    int pardiso_iparm[64];
-    /// pardiso variable
-    int pardiso_mtype;
-    /// pardiso variable
-    int pardiso_maxfct;
-    /// pardiso variable
-    int pardiso_mnum;
-    /// pardiso variable
-    int pardiso_msglvl;
-    /// pardiso variable
-    int pardiso_neq;
-    /// pardiso variable
-    int pardiso_nrhs;
-    /// pardiso variable
-    int pardiso_phase;
-    /// pardiso variable
-    double pardiso_ddum;
-    /// pardiso variable
-    int pardiso_idum;
-    /// pardiso variable
-    int pardiso_error;
-    /***********************************************************************************************
-     * \brief This fills the three vectors of the CSR format (one-based)
-     * \author Stefan Sicklinger
-     ***********/
-    void determineCSR() {
-        row_iter ii;
-        col_iter jj;
-        size_t ele_row = 0; //elements in current row
-        std::cout << std::scientific;
 
-        for (ii = 0; ii < m; ii++) {
-            (*rowIndex)[ii] = (ele_row + 1);
-            for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
-                columns.push_back(((*jj).first) + 1);
-                values.push_back((*jj).second);
-                ele_row++;
-            }
+#ifdef USE_INTEL_MKL
+    /// Object to access intel MKL functions
+    PardisoAdapter* intelMKL;
+#endif
 
-        }
-        (*rowIndex)[m] = (ele_row + 1);
-    }
 };
-
-
 
 }
 }

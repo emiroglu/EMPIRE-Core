@@ -42,3 +42,4 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/tools/AuxiliaryParameters.cpp.in
 add_subdirectory(src)
 add_subdirectory(testUnit)
 add_subdirectory(testMapper)
+add_subdirectory(mapperLib)

@@ -36,6 +36,9 @@ namespace EMPIRE {
 namespace MathLibrary{
 template<typename T>
 class SparseMatrix;
+
+template<class T>
+class SparseMatrix;
 }
 
 class ConnectionIO;
@@ -129,6 +132,7 @@ private:
     double *correctorVec;
     /// global interface Jacobian matrix
     MathLibrary::SparseMatrix<double> *interfaceJacGlobal;
+
     /// friend class in unit test
     friend class TestIJCSA;
     /// old function input

@@ -17,10 +17,14 @@ fi
 # Set PATH ENV variables for INCLUDE, LINKING and EXECUTION
 
 	export EMPIRE_API_LIB_NAME=EMPIRE_API
+	export EMPIRE_MAPPER_LIB_NAME=EMPIRE_MapperLib
 	export EMPIRE_LD_LIBRARY_PATH=$EMPIRE_CORE_BASE_DIR/lib
 	export EMPIRE_API_INC_ON_MACHINE=$EMPIRE_CORE_BASE_DIR/EMPIRE_API/src/include/
 	export EMPIRE_API_LIB_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_API_LIB_NAME.a	
 	export EMPIRE_API_LIBSO_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_API_LIB_NAME.so
+	export EMPIRE_MAPPER_LIB_INC_ON_MACHINE=$EMPIRE_CORE_BASE_DIR/Emperor/mapperLib/src/include
+	export EMPIRE_MAPPER_LIB_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_MAPPER_LIB_NAME.a
+	export EMPIRE_MAPPER_LIBSO_ON_MACHINE=$EMPIRE_LD_LIBRARY_PATH/lib$EMPIRE_MAPPER_LIB_NAME.so
 	export EMP_PATH=$EMPIRE_CORE_BASE_DIR/bin:$EMP_PATH
 	
 # INTEL MPI variables
@@ -30,7 +34,7 @@ fi
 ######################################################################################
 #Code metric
 export EMP_PATH=$EMPIRE_CORE_BASE_DIR/../EMPIRE-Libraries/bin:$EMP_PATH
-EMPIRECodeMetric() { cloc-1.60.pl $EMPIRE_CORE_BASE_DIR/Emperor/src $EMPIRE_CORE_BASE_DIR/Emperor/testUnit/ $EMPIRE_CORE_BASE_DIR/Emperor/testMapper/ $EMPIRE_CORE_BASE_DIR/EMPIRE_API/src/; }
+EMPIRECodeMetric() { cloc-1.60.pl $EMPIRE_CORE_BASE_DIR/Emperor/src $EMPIRE_CORE_BASE_DIR/Emperor/testUnit/ $EMPIRE_CORE_BASE_DIR/Emperor/testMapper/ $EMPIRE_CORE_BASE_DIR/EMPIRE_API/src/ $EMPIRE_CORE_BASE_DIR/Emperor/mapperLib/; }
 ######################################################################################
 export PATH=$EMP_PATH:$PATH
 export LD_LIBRARY_PATH=$EMPIRE_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
