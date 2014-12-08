@@ -81,8 +81,8 @@
           * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
           * \param[in] _uNoKnots The number of knots for the knot vector in the u-direction
           * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
-          * \param[in] _uNoControlPoints The number of the Control Points for the 2D NURBS patch in the u-direction
-          * \param[in] _controlPointNet The set of the Control Points related to the 2D NURBS patch
+          * \param[in] _uNoControlPoints The number of the Control Points for the 1D NURBS patch in the u-direction
+          * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
           * \author Fabien Pean
           ***********/
          void addTrimCurve(int _direction,int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
