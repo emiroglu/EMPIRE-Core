@@ -19,9 +19,6 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "BarycentricInterpolationMapper.h"
-//#include "MortarMath.h"
-// Edit Aditya
-#include "MathLibrary.h"
 #include <assert.h>
 #include <math.h>
 #include <vector>
@@ -33,6 +30,11 @@
 #ifdef ANN
 #include "ANN/ANN.h"
 #endif
+
+//#include "MortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
+
 
 using namespace std;
 

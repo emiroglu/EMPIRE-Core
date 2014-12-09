@@ -37,7 +37,7 @@ namespace EMPIRE {
 
 class IGAPatchCurve {
 protected:
-    /// The basis functions of the 2D NURBS patch
+    /// The basis functions of the 1D NURBS patch
     BSplineBasis1D* IGABasis;
 
     /// Number of Control Points in u-direction
@@ -106,6 +106,10 @@ public:
     inline const std::vector<IGAControlPoint>& getControlPointNet() const {
         return ControlPointNet;
     }
+    /***********************************************************************************************
+     * \brief Get a specific Control Point
+     * \author Fabien Pean
+     ***********/
     inline const IGAControlPoint& getControlPoint(const unsigned int i) const {
         return ControlPointNet.at(i);
     }
@@ -116,7 +120,7 @@ public:
      * \brief Find knot span on u direction
      * \author Fabien Pean
      ***********/
-    inline int findSpan(double _u) const {
+    inline int findKnotSpan(double _u) const {
         return getIGABasis()->findKnotSpan(_u);
     }
 };

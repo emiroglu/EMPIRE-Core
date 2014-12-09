@@ -26,11 +26,7 @@
 #include <assert.h>
 #include <iostream>
 #include <stdlib.h>
-#ifdef USE_INTEL_MKL
-#include <mkl.h>
-#include <mkl_lapacke.h>
-#include <mkl_spblas.h>
-#endif
+
 
 using namespace std;
 
@@ -44,7 +40,9 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         const int *_numNodesPerElem, const double *_nodes, const int *_nodeIDs, const int *_elems) :
         numNodes(_numNodes), numElems(_numElems), numNodesPerElem(_numNodesPerElem), nodes(_nodes), nodeIDs(
                 _nodeIDs), elems(_elems) {
-    pardisoInitialized = false;
+    // Edit Aditya
+    massMatrix = new EMPIRE::MathLibrary::SparseMatrix<double>(numNodes,false);
+
     // compute directElemTable which link the element to the all its nodes' positions (instead of IDs)
     vector<int> **directElemTable = new vector<int>*[numElems];
     for (int i = 0; i < numElems; i++)
@@ -120,22 +118,18 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
     }
 
     // 2. according to sparsity map, compute a, ia, ja of CSR formated massMatrix
-    massMatrix_IA = new int[numNodes + 1];
-    massMatrix_IA[0] = 1; // numbering from 1
     int nnz = 1; // number of non-zero entries
     for (int i = 0; i < numNodes; i++) {
         nnz += sparsityMap[i]->size();
-        massMatrix_IA[i + 1] = nnz;
     }
     nnz--;
-    massMatrix_JA = new int[nnz];
-    massMatrix_A = new double[nnz];
     int count2 = 0;
     for (int i = 0; i < numNodes; i++) {
         for (map<int, double>::iterator it = sparsityMap[i]->begin(); it != sparsityMap[i]->end();
                 it++) {
-            massMatrix_JA[count2] = it->first + 1; // numbering from 1
-            massMatrix_A[count2] = it->second;
+        	// Edit Aditya
+        	(*massMatrix)(i,it->first) = it->second;
+        	(*massMatrix)(it->first,i) = it->second;
             count2++;
         }
     }assert(nnz == count2);
@@ -153,87 +147,29 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
 }
 
 DataFieldIntegration::~DataFieldIntegration() {
-    delete[] massMatrix_A;
-    delete[] massMatrix_IA;
-    delete[] massMatrix_JA;
-    if (pardisoInitialized)
-        deletePardiso();
+    delete massMatrix;
 }
 
 void DataFieldIntegration::integrate(const double *tractions, double *forces) {
     int n = numNodes;
     char up = 'u';
     // This routine supports only one-based indexing of the input arrays.
-#ifdef USE_INTEL_MKL
-    mkl_dcsrsymv(&up, &n, massMatrix_A, massMatrix_IA, massMatrix_JA, const_cast<double*>(tractions), forces);
-#else
-    EMPIRE::MathLibrary::dcsrsymv(n, massMatrix_A, massMatrix_IA, massMatrix_JA, tractions, forces);
-#endif
+    // Edit Aditya
+    massMatrix->determineCSR();
+    massMatrix->mulitplyVec(false,const_cast<double *>(tractions),forces,n);
+
 }
 
 void DataFieldIntegration::deIntegrate(const double *forces, double *tractions) {
-    if (!pardisoInitialized) {
-        initPardiso();
-        pardisoInitialized = true;
-    }
     int n = numNodes;
     char up = 'u';
     // use pardiso solver
     // pardiso forward and backward substitution
-    int phase = 33; // forward and backward substitution
-    int idum; // integer dummy
     double *ddum = new double[n]; // dummy but the memory is asked for
-    int error = 0;
-    iparm[5] = 1; // write solution to b (i.e. overwrite)
-    for (int i = 0; i < n; i++)
-        tractions[i] = forces[i];
-#ifdef USE_INTEL_MKL
-    mkl_set_num_threads(mklSetNumThreads);
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs,
-            iparm, &msglvl, tractions, ddum, &error);
-#endif
-    assert(error == 0);
+    // Edit Aditya
+    massMatrix->solve(tractions,const_cast<double*>(forces));
+
     delete[] ddum;
-}
-
-void DataFieldIntegration::initPardiso() {
-#ifdef USE_INTEL_MKL
-    mtype = 2; // real symmetric matrix
-    // set pardiso default parameters
-    pardisoinit(pt, &mtype, iparm);
-    iparm[2] = mklSetNumThreads;
-    //cout << endl << "iparm[3]: " << iparm[2] << endl;
-    maxfct = 1;// max number of factorizations
-    mnum = 1;// which factorization to use
-    msglvl = 0;// do NOT print statistical information
-    neq = numNodes;// number of rows of massMatrix
-    nrhs = 1;// number of right hand side
-    int phase = 12;// analysis and factorization
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    //cout<<"factorizing"<<endl;
-    mkl_set_num_threads(mklSetNumThreads);
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-    	ERROR_BLOCK_OUT("DataFieldIntegration","initPardiso","pardiso factorization failed!");
-    }
-#endif
-}
-
-void DataFieldIntegration::deletePardiso() {
-#ifdef USE_INTEL_MKL
-    int phase = -1; // deallocate memory
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-    	ERROR_BLOCK_OUT("DataFieldIntegration","deletePardiso","pardiso factorization failed!");
-    }
-#endif
 }
 
 } /* namespace EMPIRE */

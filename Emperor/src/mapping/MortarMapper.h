@@ -22,16 +22,16 @@
  * \file MortarMapper.h
  * The header file of class MortarMapper.
  * \date 9/21/2011
+ * \author Tianyang Wang
+ * \edit Aditya Ghantasala (All the implementation of the new sparse matrix class)
  *********************************************************************************/
 #ifndef MORTARMAPPER_H_
 #define MORTARMAPPER_H_
 
+#include "MathLibrary.h"
 #include <vector>
 #include <set>
 #include <map>
-//#include "MortarMath.h"
-// Edit Aditya
-#include "MathLibrary.h"
 #include "AbstractMapper.h"
 
 class ANNkd_tree;
@@ -153,23 +153,15 @@ private:
     /// compute normals of all slave elements
     double *slaveElemNormals;
 
-    /// C_BB csr format
-    double *C_BB_A;
-    /// C_BB csr format
-    int *C_BB_IA;
-    /// C_BB csr format
-    int *C_BB_JA;
     /// dual version of C_BB_A, which is diagonal
     double *C_BB_A_DUAL;
+    /// New sparse matrix.
+    MathLibrary::SparseMatrix<double> *C_BB;
 
-    /// C_BA csr format
-    double *C_BA_A;
-    /// C_BA csr format
-    int *C_BA_IA;
-    /// C_BA csr format
-    int *C_BA_JA;
-    /// dual version of C_BA_A, it shares the same IA and JA with C_BA_A
-    double *C_BA_A_DUAL;
+    /// New sparse matrix.
+    MathLibrary::SparseMatrix<double> *C_BA;
+    MathLibrary::SparseMatrix<double> *C_BA_DUAL;
+
 
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
@@ -220,17 +212,7 @@ private:
      * \param[in] sparsity map of C_BA
      * \author Tianyang Wang
      ***********/
-    void enforceConsistency(std::map<int, double> **sparsityMapC_BA);
-    /***********************************************************************************************
-     * \brief Initialize pardiso to factorize C_BB
-     * \author Tianyang Wang
-     ***********/
-    void initPardiso();
-    /***********************************************************************************************
-     * \brief Deallocate the memory of pardiso
-     * \author Tianyang Wang
-     ***********/
-    void deletePardiso();
+    void enforceConsistency(MathLibrary::SparseMatrix<double> *CB);
     /***********************************************************************************************
      * \brief Initialize all tables that help referring from an element to its nodes or vice versa
      * \author Tianyang Wang

@@ -88,7 +88,7 @@ private:
     EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
-    std::vector<std::map<int, double*> > *projectedCoords;
+    std::vector<std::map<int, std::vector<double> > > projectedCoords;
 //    std::vector<std::map<int, bool> > *isProjectionOrthogonal;
 
     /// Number of division made for linearization on boundary
@@ -260,6 +260,14 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void writeProjectedNodesOntoIGAMesh();
+    /***********************************************************************************************
+     * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
+     * \param[in] _patchIndex	The id of the patch the parametric coordinates must be used with
+     * \param[in] __polygonUV	The parametric coordinates of the polygon to write in the file
+     * \author Fabien Pean
+     ***********/
+    void writeParametricProjectedPolygon(void);
+    void writeParametricProjectedPolygon(int _patchIndex, const Polygon2D& _polygonUV);
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
