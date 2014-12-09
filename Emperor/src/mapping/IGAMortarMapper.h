@@ -1,5 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
+ *  Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -234,8 +235,24 @@ private:
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
+
+    /***********************************************************************************************
+     * \brief Compute numDivision points projection between P1 and P2 and add them in parametric polygon
+     * \param[in] _patchIndex		The index of the patch to project on
+     * \param[in] _elemCount	 	The first of the element to project
+     * \param[in] _nodeIndex1 		The index of the first node
+     * \param[in] _nodeIndex2 		The index of the second node
+     * \param[in] _P1				The first point of the line on FE element
+     * \param[in] _isIn1			The first point was projected inside the patch
+     * \param[in] _P2				The second point of the line on FE element
+     * \param[in] _isIn2			The second point was projected inside the patch
+     * \param[in/out]				The parametric polygon of the projection of the FE element
+     * \return 1 if no problem have been found on the boundary
+     * \author Fabien Pean
+     ***********/
     bool computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1,const int nodeIndex2,
-    		const double* P1,const double* P2, Polygon2D& polygonUV, std::map<int,Polygon2D>& extraPolygonUV);
+    		const double* P1, const bool isIn1, const double* P2, const bool isIn2,
+    		Polygon2D& polygonUV, std::map<int,Polygon2D>* extraPolygonUV=NULL);
     /// Writing output functions
 public:
     /***********************************************************************************************
@@ -251,7 +268,15 @@ public:
 
     /// Debugging functions
 public:
+    /***********************************************************************************************
+     * \brief Print a polygon in debug stream
+     * \author Fabien Pean
+     ***********/
     void debugPolygon(const Polygon2D& _polygon, std::string _name="");
+    /***********************************************************************************************
+     * \brief Print a set of polygon
+     * \author Fabien Pean
+     ***********/
     void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
 
     /***********************************************************************************************

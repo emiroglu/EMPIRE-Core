@@ -88,7 +88,6 @@ public:
     
     /// Trimming related functions
 public:
-    void addTrimInfo(int* _knotSpanBelonging);
     /***********************************************************************************************
      * \brief Setup information about the loop soon to be received
      * \param[in] inner 0 for outter and 1 for inner
@@ -112,10 +111,6 @@ public:
                       int _uNoControlPoints, double* _controlPointNet);
     
     void linearizeTrimming(){Trimming.linearizeLoops();};
-
-    void getUntrimmedCPindexes(std::set<int>& out);
-private:
-    void addCPidsToSet(std::set<int>& CPids,const int uSpan, const int vSpan);
 
     /// Basis related functions
 public:
@@ -240,11 +235,11 @@ public:
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
      * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
-     * \author Chenshen Wu
+     * \author Fabien Pean
      ***********/
     bool computePointProjectionOnPatchBoundaryOnGivenEdge(double& _t, double& _ratio,
             double& _distance, double* _P1, double* _P2, int _edge);
-    bool computePointProjectionOnPatchBoundaryOnGivenEdge_Brute(double& _u,double& _v, double& _ratio,
+    bool computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(double& _u,double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
@@ -255,61 +250,13 @@ public:
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
-     * \author Chenshen Wu
-     ***********/
-    char computePointProjectionOnPatchBoundary(double& _u, double& _v, double& _ratio,
-            double& _distance, double* _P1, double* _P2);
-    bool computePointProjectionOnPatchBoundary_Brute(double& _u, double& _v, double& _ratio,
-            double& _distance, double* _P1, double* _P2);
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the physical point provided
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _t The running parameter on the given NURBS patch boundary
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the NURBS boundary to the physical point
-     * \param[in] _P1 The physical point
-     * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
+     * \return The id of the edge it is crossing
      * \author Fabien Pean
      ***********/
-    bool computePointMinimumDistanceToPatchBoundaryOnGivenEdge(double& _w,
-            double& _distance, double* _P1, int _edge);
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the physical point provided
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the point to the physical point
-     * \param[in] _P1 The physical point
-     * \param[out] _edge The list of edge the point is on
-     * \author Fabien Pean
-     ***********/
-    void computePointMinimumDistanceToPatchBoundary(double& _u, double& _v, double& _distance, double* _P1, int* _edge);
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the line segment
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the point to the line segment
-     * \param[in] _P1 The first point of the line segment
-     * \param[in] _P2 The second point of the line segment
-     * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
-     * \author Chenshen Wu
-     ***********/
-    bool computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(double& _t, double& _distance,
-            double* _P1, double* _P2, int _edge);
-
-    /***********************************************************************************************
-     * \brief Returns the point on the NURBS patch boundary which is closest to the line segment
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _distance The distance from the point to the line segment
-     * \param[in] _P1 The first point of the line segment
-     * \param[in] _P2 The second point of the line segment
-     * \author Chenshen Wu
-     ***********/
-    void computeLineMinimumDistanceToPatchBoundary(double& _u, double& _v, double& _distance,
-            double* _P1, double* _P2);
+    char computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
+            double& _distance, double* _P1, double* _P2);
+    bool computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+            double& _distance, double* _P1, double* _P2);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection
@@ -352,7 +299,11 @@ public:
 public:
     /***********************************************************************************************
      * \brief Get the corners between edge 1 and edge 2 following the orientation
-     * \author Fabien pean
+     * \param[in]	_edgeIn		The id of the edge going in the patch
+     * \param[in]	_edgeOut	The id of the edge going out of the patch
+     * \param[in]	_isCounterclockwise		The orientation of the polygon
+     * \return The list of corner in between edgeIn and edgeOut
+     * \author Fabien Pean
      ***********/
     std::vector<std::pair<double,double> > getCorner(const char _edge1, const char _edge2, bool _isCounterclockwise);
 
@@ -362,6 +313,15 @@ public:
      ***********/
     inline BSplineBasis2D* getIGABasis() const {
         return IGABasis;
+    }
+    inline BSplineBasis1D* getIGABasis(bool _u0v1) const {
+    	if(_u0v1==0)	return IGABasis->getUBSplineBasis1D();
+    	else 			return IGABasis->getVBSplineBasis1D();
+    }
+    inline BSplineBasis1D* operator[](const char _uOrV) const {
+    	if(_uOrV=='u')		return IGABasis->getUBSplineBasis1D();
+    	else if(_uOrV=='v') return IGABasis->getVBSplineBasis1D();
+    	assert(0);			return NULL;
     }
 
     /***********************************************************************************************
@@ -395,12 +355,15 @@ public:
     inline IGAControlPoint** getControlPointNet() const {
         return ControlPointNet;
     }
+    inline IGAControlPoint* operator[](int i) const {
+        return ControlPointNet[i];
+    }
 
     /***********************************************************************************************
      * \brief Find know span on u direction
      * \author Chenshen Wu
      ***********/
-    inline int findSpanU(double _u) {
+    inline int findSpanU(double _u) const {
         return getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_u);
     }
 
@@ -408,7 +371,7 @@ public:
      * \brief Find know span on v direction
      * \author Chenshen Wu
      ***********/
-    inline int findSpanV(double _v) {
+    inline int findSpanV(double _v) const {
         return getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_v);
     }
 

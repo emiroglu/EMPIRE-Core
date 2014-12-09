@@ -432,14 +432,14 @@ public:
         double P2[3] = { -1, 3, 5 };
         double t = 0.8;
         double dis = 0;
-        igaPatch2D->computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(t, dis, P1, P2, 2);
-        CPPUNIT_ASSERT(fabs(t - 0.759200451513055) < Tol);
-
-        double u = 0.2;
-        double v = 0.8;
-        igaPatch2D->computeLineMinimumDistanceToPatchBoundary(u, v, dis, P1, P2);
-        CPPUNIT_ASSERT(fabs(u - 0.265254116918079) < Tol);
-        CPPUNIT_ASSERT(fabs(v - 1.0) < Tol);
+//        igaPatch2D->computeLineMinimumDistanceToPatchBoundaryOnGivenEdge(t, dis, P1, P2, 2);
+//        CPPUNIT_ASSERT(fabs(t - 0.759200451513055) < Tol);
+//
+//        double u = 0.2;
+//        double v = 0.8;
+//        igaPatch2D->computeLineMinimumDistanceToPatchBoundary(u, v, dis, P1, P2);
+//        CPPUNIT_ASSERT(fabs(u - 0.265254116918079) < Tol);
+//        CPPUNIT_ASSERT(fabs(v - 1.0) < Tol);
     }
 
     /***********************************************************************************************

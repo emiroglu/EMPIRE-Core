@@ -19,9 +19,8 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "DataFieldIntegration.h"
-//#include "MortarMath.h"
-// Edit Aditya
 #include "MathLibrary.h"
+#include "Message.h"
 #include <map>
 #include <vector>
 #include <assert.h>
@@ -218,8 +217,7 @@ void DataFieldIntegration::initPardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("DataFieldIntegration","initPardiso","pardiso factorization failed!");
     }
 #endif
 }
@@ -233,8 +231,7 @@ void DataFieldIntegration::deletePardiso() {
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, massMatrix_A, massMatrix_IA, massMatrix_JA, &idum, &nrhs, iparm,
             &msglvl, &ddum, &ddum, &error);
     if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
+    	ERROR_BLOCK_OUT("DataFieldIntegration","deletePardiso","pardiso factorization failed!");
     }
 #endif
 }

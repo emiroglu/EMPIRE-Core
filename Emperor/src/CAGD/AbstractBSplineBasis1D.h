@@ -74,7 +74,7 @@ public:
      * \param[in] _KnotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    virtual void computeLocalBasisFunctions(double*, double, int) = 0;
+    virtual void computeLocalBasisFunctions(double*, double, int) const = 0;
 
     /***********************************************************************************************
      * \brief Compute the non-zero NURBS basis functions and their derivatives of the  at the given parameter and stores them in a vector of doubles
@@ -84,7 +84,7 @@ public:
      * \param[in] _knotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    virtual void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int) = 0;
+    virtual void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int) const = 0;
 };
 
 }/* namespace EMPIRE */

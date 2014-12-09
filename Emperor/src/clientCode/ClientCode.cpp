@@ -132,8 +132,7 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
             INFO_OUT() << copyMesh->boundingBox << endl;
         }
     } else {
-        std::cout << "Not implemented for IGA yet" << std::endl;
-        assert(false);
+        ERROR_BLOCK_OUT("ClientCode","copyMesh","Not implemented for IGA yet");
     }
 }
 
@@ -189,14 +188,8 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         int numLoops = trimInfo[1];
         if(isTrimmed) {
             assert(numLoops>0);
-            //Get knot span belonging (OUT,TRIM,IN), useful ?
-            int* knotSpanBelonging = new int[uNoKnots*vNoKnots];
-            serverComm->receiveFromClientBlocking<int>(name, (uNoKnots-1)*(vNoKnots-1), knotSpanBelonging);
-            thePatch->addTrimInfo(knotSpanBelonging);
-            delete knotSpanBelonging;
             //Get every loop
             for(int loopCount = 0; loopCount < numLoops; loopCount++) {
-                    
                 const int BUFFER_SIZE_TRIM = 2;
                 int loopInfo[BUFFER_SIZE_TRIM];
                 serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_TRIM, loopInfo);
@@ -217,11 +210,11 @@ void ClientCode::recvIGAMesh(std::string meshName) {
                     int uNoControlPoints = curveInfo[3];
                     
                     double* uKnotVector = new double[uNoKnots];
-                    double* controlPointNet = new double[uNoControlPoints * 4];
+                    double controlPointNet[uNoControlPoints * 4];
                     
                     serverComm->receiveFromClientBlocking<double>(name, uNoKnots, uKnotVector);
                     serverComm->receiveFromClientBlocking<double>(name, uNoControlPoints * 4, controlPointNet);
-                    
+
                     thePatch->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
                     		uNoControlPoints, controlPointNet);
                 } // end curve

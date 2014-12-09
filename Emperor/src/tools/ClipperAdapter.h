@@ -19,8 +19,8 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
-#ifndef CLIPPERINTERFACE_H_
-#define CLIPPERINTERFACE_H_
+#ifndef CLIPPERADAPTER_H_
+#define CLIPPERADAPTER_H_
 
 #include "clipper.hpp"
 
@@ -29,7 +29,7 @@ namespace EMPIRE {
 /********//**
  * \brief class ClipperInterface is a wrapper to the library clipper made by Angus Johnson @ http://www.angusj.com/delphi/clipper.php
  ***********/
-class ClipperInterface {
+class ClipperAdapter {
 public:
     /***********************************************************************************************
      * \brief Enum Operation defines the type of boolean operation required
@@ -45,16 +45,16 @@ public:
      * \brief Constructors
      * \author Fabien Pean
      ***********/
-	ClipperInterface();
-	ClipperInterface(double _accuracy);
-	ClipperInterface(double _accuracy, Operation _operation);
-	ClipperInterface(double _accuracy, Operation _operation, Filling _filling);
-	ClipperInterface(double _accuracy, Operation _operation, Filling _fillingClipWindow, Filling _fillingSubject);
+	ClipperAdapter();
+	ClipperAdapter(double _accuracy);
+	ClipperAdapter(double _accuracy, Operation _operation);
+	ClipperAdapter(double _accuracy, Operation _operation, Filling _filling);
+	ClipperAdapter(double _accuracy, Operation _operation, Filling _fillingClipWindow, Filling _fillingSubject);
     /***********************************************************************************************
      * \brief Destructor
      * \author Fabien Pean
      ***********/
-	virtual ~ClipperInterface();
+	virtual ~ClipperAdapter();
     /***********************************************************************************************
      * \brief Set the desired clipping operation
      * \param[in] _operation	The operation as defined by the public enum Operation
@@ -130,6 +130,7 @@ public:
      * \author Fabien Pean
      ***********/
 	static void cleanPolygon(std::vector<std::pair<double,double> >& _path, double _accuracy=1e-9);
+	static void cleanPolygon(std::vector<double>& _path, double _accuracy=1e-9);
     /***********************************************************************************************
      * \brief Static call to the function PointInpolygon in clipper library
      * 			Returns 0 if false, -1 if pt is on poly and +1 if pt is in poly.

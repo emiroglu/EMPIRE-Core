@@ -19,17 +19,16 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
-#include "ClipperInterface.h"
+#include "ClipperAdapter.h"
 #include "Message.h"
 #include "assert.h"
 
 using namespace ClipperLib;
 using namespace std;
 
-
 namespace EMPIRE {
 
-ClipperInterface::ClipperInterface():
+ClipperAdapter::ClipperAdapter():
 	accuracy(1e-9),
 	factor(1e9),
 	operation(ctIntersection),
@@ -37,7 +36,7 @@ ClipperInterface::ClipperInterface():
 	fillingSubject(pftNonZero) {
 }
 
-ClipperInterface::ClipperInterface(double _accuracy):
+ClipperAdapter::ClipperAdapter(double _accuracy):
 		accuracy(_accuracy),
 		factor(1/_accuracy),
 		operation(ctIntersection),
@@ -45,21 +44,21 @@ ClipperInterface::ClipperInterface(double _accuracy):
 		fillingSubject(pftNonZero) {
 }
 
-ClipperInterface::ClipperInterface(double _accuracy, Operation _operation):
+ClipperAdapter::ClipperAdapter(double _accuracy, Operation _operation):
 	accuracy(_accuracy),
 	factor(1.0/_accuracy),
 	fillingClipWindow(pftNonZero),
 	fillingSubject(pftNonZero) {
 	setOperation(_operation);
 }
-ClipperInterface::ClipperInterface(double _accuracy, Operation _operation, Filling _filling):
+ClipperAdapter::ClipperAdapter(double _accuracy, Operation _operation, Filling _filling):
 	accuracy(_accuracy),
 	factor(1.0/_accuracy) {
 	setOperation(_operation);
 	setFilling(_filling);
 }
 
-ClipperInterface::ClipperInterface(double _accuracy, Operation _operation, Filling _fillingClipWindow, Filling _fillingSubject):
+ClipperAdapter::ClipperAdapter(double _accuracy, Operation _operation, Filling _fillingClipWindow, Filling _fillingSubject):
 	accuracy(_accuracy),
 	factor(1.0/_accuracy) {
 	setOperation(_operation);
@@ -67,15 +66,15 @@ ClipperInterface::ClipperInterface(double _accuracy, Operation _operation, Filli
 	setFilling(_fillingSubject, 1);
 }
 
-	ClipperInterface::~ClipperInterface() {
+	ClipperAdapter::~ClipperAdapter() {
 }
 
-void ClipperInterface::setAccuracy(double _accuracy) {
+void ClipperAdapter::setAccuracy(double _accuracy) {
 		accuracy=_accuracy;
 		factor=1.0/accuracy;
 }
 
-void ClipperInterface::setFilling(Filling _filling, int _subject) {
+void ClipperAdapter::setFilling(Filling _filling, int _subject) {
 	ClipperLib::PolyFillType filling;
 	switch(_filling) {
 	case EVENODD : 	filling=pftEvenOdd; break;
@@ -90,7 +89,7 @@ void ClipperInterface::setFilling(Filling _filling, int _subject) {
 	}
 }
 
-void ClipperInterface::setOperation(Operation _operation) {
+void ClipperAdapter::setOperation(Operation _operation) {
 	switch(_operation) {
 	case INTERSECTION : operation=ctIntersection; break;
 	case UNION : operation=ctUnion; break;
@@ -99,7 +98,7 @@ void ClipperInterface::setOperation(Operation _operation) {
 	}
 }
 
-void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container){
+void ClipperAdapter::getSolution(std::vector<std::vector<double> >& _container){
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
 		_container[i].resize(2*solution[i].size());
@@ -110,7 +109,7 @@ void ClipperInterface::getSolution(std::vector<std::vector<double> >& _container
 	}
 }
 
-void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,double> > >& _container) {
+void ClipperAdapter::getSolution(std::vector<std::vector<std::pair<double,double> > >& _container) {
 	_container.resize(solution.size());
 	for(int i = 0; i < solution.size(); i++) {
 		_container[i].resize(solution[i].size());
@@ -121,7 +120,7 @@ void ClipperInterface::getSolution(std::vector<std::vector<std::pair<double,doub
 	}
 }
 
-void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
+void ClipperAdapter::addPathClipper(const std::vector<double>& _path) {
 	Path clip;
 	for(int p=0; p < _path.size()/2; p++) {
 		clip<<IntPoint((cInt)(_path[2*p]*factor),(cInt)(_path[2*p+1]*factor));
@@ -129,7 +128,7 @@ void ClipperInterface::addPathClipper(const std::vector<double>& _path) {
 	clipWindow.push_back(clip);
 }
 
-void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double> >& _path) {
+void ClipperAdapter::addPathClipper(const std::vector<std::pair<double,double> >& _path) {
 	Path clip;
 	for(int p=0; p < _path.size(); p++) {
 		clip<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
@@ -137,7 +136,7 @@ void ClipperInterface::addPathClipper(const std::vector<std::pair<double,double>
 	clipWindow.push_back(clip);
 }
 
-void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
+void ClipperAdapter::addPathSubject(const std::vector<double>& _path) {
 	Path subj;
 	for(int p=0; p < _path.size()/2; p++) {
 		subj<<IntPoint((cInt)(_path[2*p]*factor),(cInt)(_path[2*p+1]*factor));
@@ -145,7 +144,7 @@ void ClipperInterface::addPathSubject(const std::vector<double>& _path) {
 	subject.push_back(subj);
 }
 
-void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double> >& _path) {
+void ClipperAdapter::addPathSubject(const std::vector<std::pair<double,double> >& _path) {
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
 		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
@@ -153,13 +152,13 @@ void ClipperInterface::addPathSubject(const std::vector<std::pair<double,double>
 	subject.push_back(subj);
 }
 
-void ClipperInterface::clip() {
+void ClipperAdapter::clip() {
 	assert(clipper.AddPaths(subject, ptSubject, true)==true);
 	assert(clipper.AddPaths(clipWindow, ptClip, true)==true);
 	assert(clipper.Execute(operation, solution, fillingSubject, fillingClipWindow)==true);
 }
 
-void ClipperInterface::clip(int _numNodesPolygonToClip, double* _nodesPolygonToClip, int _numNodesClipper,double* _nodesClipper, int& _numNodesOutputPolygon, double*& _nodesOutputPolygon) {
+void ClipperAdapter::clip(int _numNodesPolygonToClip, double* _nodesPolygonToClip, int _numNodesClipper,double* _nodesClipper, int& _numNodesOutputPolygon, double*& _nodesOutputPolygon) {
 	Path subj,clip;
 	Paths solution;
 	for(int p=0; p < _numNodesPolygonToClip; p++) {
@@ -183,7 +182,7 @@ void ClipperInterface::clip(int _numNodesPolygonToClip, double* _nodesPolygonToC
 	}
 }
 
-void ClipperInterface::clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper,std::vector<double>& _nodesOutputPolygon) {
+void ClipperAdapter::clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper,std::vector<double>& _nodesOutputPolygon) {
 	Path subj,clip;
 	Paths solution;
 	for(int p=0; p < _nodesPolygonToClip.size()/2; p++) {
@@ -208,7 +207,7 @@ void ClipperInterface::clip(const std::vector<double>& _nodesPolygonToClip, cons
 	}
 }
 
-std::vector<double> ClipperInterface::clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper) {
+std::vector<double> ClipperAdapter::clip(const std::vector<double>& _nodesPolygonToClip, const std::vector<double>& _nodesClipper) {
 	Path subj,clip;
 	Paths solution;
 	for(int p=0; p < _nodesPolygonToClip.size()/2; p++) {
@@ -234,7 +233,7 @@ std::vector<double> ClipperInterface::clip(const std::vector<double>& _nodesPoly
 	return nodesOutputPolygon;
 }
 
-void ClipperInterface::clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper, std::vector<std::pair<double,double> >& _nodesOutputPolygon) {
+void ClipperAdapter::clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper, std::vector<std::pair<double,double> >& _nodesOutputPolygon) {
 	Path subj,clip;
 	Paths solution;
 	for(int p=0; p < _nodesPolygonToClip.size(); p++) {
@@ -260,7 +259,7 @@ void ClipperInterface::clip(const std::vector<std::pair<double,double> >& _nodes
 	}
 }
 
-std::vector<std::pair<double,double> > ClipperInterface::clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper) {
+std::vector<std::pair<double,double> > ClipperAdapter::clip(const std::vector<std::pair<double,double> >& _nodesPolygonToClip, const std::vector<std::pair<double,double> >& _nodesClipper) {
 	Path subj,clip;
 	Paths solution;
 	for(int p=0; p < _nodesPolygonToClip.size(); p++) {
@@ -300,8 +299,7 @@ int isPointIn(const std::pair<double,double>& _point, const std::vector<std::pai
 	return ClipperLib::PointInPolygon(point,subj);
 }
 
-
-void ClipperInterface::cleanPolygon(std::vector<std::pair<double,double> >& _path, double _accuracy) {
+void ClipperAdapter::cleanPolygon(std::vector<std::pair<double,double> >& _path, double _accuracy) {
 	double factor = 1 / _accuracy;
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
@@ -315,7 +313,22 @@ void ClipperInterface::cleanPolygon(std::vector<std::pair<double,double> >& _pat
 		_path[p].second = subj[p].Y / factor;
 	}
 }
-bool ClipperInterface::isCounterclockwise(const std::vector<std::pair<double,double> >& _path, double _accuracy) {
+void ClipperAdapter::cleanPolygon(std::vector<double>& _path, double _accuracy) {
+	double factor = 1 / _accuracy;
+	Path subj;
+	for(int p=0; p < _path.size()/2; p++) {
+		subj<<IntPoint((cInt)(_path[2*p]*factor),(cInt)(_path[2*p+1]*factor));
+	}
+	CleanPolygon(subj);
+	int numNodesOutputPolygon = subj.size();
+	_path.resize(2*numNodesOutputPolygon);
+	for(int p=0; p < numNodesOutputPolygon; p++) {
+		_path[2*p]   = subj[p].X / factor;
+		_path[2*p+1] = subj[p].Y / factor;
+	}
+}
+
+bool ClipperAdapter::isCounterclockwise(const std::vector<std::pair<double,double> >& _path, double _accuracy) {
 	double factor = 1 / _accuracy;
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
@@ -324,7 +337,7 @@ bool ClipperInterface::isCounterclockwise(const std::vector<std::pair<double,dou
 	bool isCounterclockwise = Orientation(subj);
 	return isCounterclockwise;
 }
-void ClipperInterface::reversePolygon(std::vector<std::pair<double,double> >& _path, double _accuracy){
+void ClipperAdapter::reversePolygon(std::vector<std::pair<double,double> >& _path, double _accuracy){
 	double factor = 1 / _accuracy;
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {

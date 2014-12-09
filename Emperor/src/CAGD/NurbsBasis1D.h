@@ -80,7 +80,7 @@ public:
      * \param[in] _KnotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeLocalBasisFunctions(double*, double, int);
+    void computeLocalBasisFunctions(double*, double, int) const;
 
     /***********************************************************************************************
      * \brief Compute the denominator function w(u) = Sum_(i=1)^n N_(i,p)*w_i and its derivatives at the given NURBS parameter u
@@ -90,7 +90,7 @@ public:
      * \param[in] _knotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeDenominatorFunctionAndDerivatives(double*, double*, int, int);
+    void computeDenominatorFunctionAndDerivatives(double*, double*, int, int) const;
 
     /***********************************************************************************************
      * \brief Compute the non-zero NURBS basis functions and their derivatives of the  at the given parameter (returns a 2D pointer array)
@@ -100,7 +100,7 @@ public:
      * \param[in] _knotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int);
+    void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int) const;
 
     /***********************************************************************************************
      * \brief Compute the non-zero NURBS basis functions and their derivatives of the  at the given parameter (returns a 2D pointer array)-overloaded
@@ -112,7 +112,7 @@ public:
      * \param[in] _knotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeLocalBasisFunctionsAndDerivatives(double*, double*, double*, int, double, int);
+    void computeLocalBasisFunctionsAndDerivatives(double*, double*, double*, int, double, int) const;
 
     /// Get and set functions
 public:
@@ -121,7 +121,7 @@ public:
      * \param[out] NoControlPoints
      * \author Andreas Apostolatos
      ***********/
-    inline int getNoControlPoints() {
+    inline int getNoControlPoints() const {
         return NoControlPoints;
     }
 
@@ -130,7 +130,7 @@ public:
      * \param[out] _controlPointWeights
      * \author Andreas Apostolatos
      ***********/
-    double* getControlPointWeights();
+    double* getControlPointWeights() const;
 
     /***********************************************************************************************
      * \brief Sets the Control Point weights

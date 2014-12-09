@@ -163,6 +163,9 @@ struct structFilter {
     struct structScalingFilter {
         double factor;
     };
+    struct structWeakCouplingFilter {
+        double beta;
+    };
     struct structCopyFilter {
         int signalOffset;
     };
@@ -178,6 +181,7 @@ struct structFilter {
     EMPIRE_DataFieldFilter_type type;
     structMappingFilter mappingFilter;
     structScalingFilter scalingFilter;
+    structWeakCouplingFilter weakCouplingFilter;
     structSetFilter setFilter;
     structCopyFilter copyFilter;
     structDataFieldIntegrationFilter dataFieldIntegrationFilter;

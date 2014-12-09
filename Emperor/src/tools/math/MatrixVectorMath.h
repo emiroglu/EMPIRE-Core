@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <typeinfo>
 #include <cmath>
+#include "Message.h"
 #include "AuxiliaryParameters.h"
 #include "mkl.h"
 
@@ -397,7 +398,7 @@ public:
                 &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
                 &pardiso_error);
         if (pardiso_error != 0) {
-            std::cerr << "Error pardiso factorization failed with error code: " << pardiso_error
+            ERROR_OUT() << "Error pardiso factorization failed with error code: " << pardiso_error
                     << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -456,7 +457,7 @@ public:
                 &pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
                 &pardiso_error);
         if (pardiso_error != 0) {
-            std::cerr << "Error deallocation of pardiso failed with error code: " << pardiso_error
+            ERROR_OUT() << "Error deallocation of pardiso failed with error code: " << pardiso_error
                     << std::endl;
             exit(EXIT_FAILURE);
         }

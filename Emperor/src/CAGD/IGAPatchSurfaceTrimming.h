@@ -1,23 +1,23 @@
-  /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
-  *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
-  *
-  *  All rights reserved.
-  *
-  *  This file is part of EMPIRE.
-  *
-  *  EMPIRE is free software: you can redistribute it and/or modify
-  *  it under the terms of the GNU General Public License as published by
-  *  the Free Software Foundation, either version 3 of the License, or
-  *  (at your option) any later version.
-  *
-  *  EMPIRE is distributed in the hope that it will be useful,
-  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  *  GNU General Public License for more details.
-  *
-  *  You should have received a copy of the GNU General Public License
-  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
-  */
+/*  Copyright &copy; 2014, TU Muenchen, Chair of Structural Analysis,
+ *  Fabien Pean, Andreas Apostolatos, Chenshen Wu, Munich
+ *
+ *  All rights reserved.
+ *
+ *  This file is part of EMPIRE.
+ *
+ *  EMPIRE is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  EMPIRE is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
+ */
  /***********************************************************************************************//**
  * \file IGAPatchSurfaceTrimming.h
  * This file holds the class IGAPatchSurfaceTrimming.h
@@ -28,7 +28,8 @@
  #define IGAPatchSurfaceTrimming_H_
  
  // Inclusion of user defined libraries
- #include "NurbsBasis1D.h"
+ #include "IGAPatchCurve.h"
+ #include "IGAControlPoint.h"
  #include <vector>
  #include <utility>
  #include <assert.h>
@@ -50,8 +51,6 @@
     	 std::vector<IGAPatchSurfaceTrimmingLoop*> loops;
 
     	 int outter;
-
-    	 std::vector<std::vector<int> > knotSpanBelonging;
          
          /// The constructor and the destructor and the copy constructor
      public:
@@ -66,14 +65,7 @@
           * \author Fabien Pean
           ***********/
          ~IGAPatchSurfaceTrimming();
-         /***********************************************************************************************
-          * \brief Create data for the knot span matrix
-          * \param[in] _uNumKnots The number of knots in U direction
-          * \param[in] _vNumKnots The number of knots in V direction
-          * \param[in] _knotSpanBelonging The array indicating the knots state, inside,trimmed,outside
-          * \author Fabien Pean
-          ***********/
-         void addTrimInfo(int _uNoKnots, int _vNoKnots, int* _knotSpanBelonging);
+
          /***********************************************************************************************
           * \brief Setup information about the loop soon to be received
           * \param[in] inner 0 for outter and 1 for inner
@@ -94,7 +86,7 @@
           * \author Fabien Pean
           ***********/
          void addTrimCurve(int _direction,int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
-                           int _uNoControlPoints, IGAControlPoint** _controlPointNet);
+                           int _uNoControlPoints, double* _controlPointNet);
          
          /***********************************************************************************************
           * \brief Create a linear approximation for every loop using position computed at Greville abscissae
@@ -150,20 +142,6 @@
          inline int getNumOfLoops() const {
         	 return loops.size();
          }
-         /***********************************************************************************************
-		  * \brief Get state of a specific knotSpan
-		  * \author Fabien Pean
-		  ***********/
-		 inline int getKnotSpanInfo(int u, int v) const {
-			 return knotSpanBelonging.at(u).at(v);
-		 }
-		 /***********************************************************************************************
-		  * \brief Get the number of loops.
-		  * \author Fabien Pean
-		  ***********/
-		 inline const std::vector<std::vector<int> >& getKnotSpanInfo() const {
-			 return knotSpanBelonging;
-		 }
      };
 
      /********//**
@@ -183,17 +161,13 @@
           * \brief Destructor
           * \author Fabien Pean
           ***********/
-		 ~IGAPatchSurfaceTrimmingLoop(){};
+		 ~IGAPatchSurfaceTrimmingLoop();
 	 private:
          /// The basis functions of the curves
-         std::vector<BSplineBasis1D> IGABasis;
+         std::vector<IGAPatchCurve*> IGACurve;
          /// Direction = if curve is in the correct orientation C1(1)=C2(0) or not C1(1)=C2(1)
          ///	WARNING : this has not been tested, so code may break if it is used
          std::vector<bool> direction;
-         /// Number of control points for each curve
-         std::vector<int> uNoControlPoints;
-         /// The set of the Control Points of the curves
-         std::vector<std::vector<IGAControlPoint*> > ControlPointNet;
          // List of points making up the linearized version of the trimming loop
          std::vector<double> polylines;
 
@@ -204,61 +178,42 @@
           * \author Fabien Pean
           ***********/
          void linearize();
-     private:
-         /***********************************************************************************************
-          * \brief Compute Greville abscissae for the control point k.
-          * The Greville abscissae is the knot where the control point k has the most influence.
-          * This should results as the physical shortest distance, or close to it, between curve and the control point
-          * \param[in] cp The index of the control point in the local nurbs curve
-          * \param[in] pDeg The polynomial degree of the curve
-          * \param[in] knotVector The knot vector of the curve
-          * \return k The knot vector value corresponding to Greville abscissae
-          * \author Fabien Pean
-          ***********/
-         double computeGrevilleAbscissae(const int cp, const int pDeg, const double*const knotVector);
-
-         void cleanPolygon();
-
-         /// Basis related functions
-     public:
-         /***********************************************************************************************
-          * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters are known
-          * \param[in] _curve The index of the curve
-          * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the Patch whose surface parameters are _uPrm and _vPrm
-          * \param[in] _uPrm The parameter on the u-coordinate line
-          * \param[in] _uKnotSpanIndex The index of the knot span where the parametric coordinates _uPrm lives in
-          * \author Fabien Pean, Andreas Apostolatos
-          ***********/
-         void computeCartesianCoordinates(int, double*, double, int);
-
-         /***********************************************************************************************
-          * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
-          * \param[in] _curve The index of the curve
-          * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the patch whose surface parameters are _uPrm and _vPrm
-          * \param[in] _localCoordinates the local coordinates of the point we want to find
-          * \compute the knot span Index inside the function. Convenient but in-efficient.
-          * \author Fabien Pean, Chenshen Wu
-          ***********/
-         void computeCartesianCoordinates(int, double*, double);
 
          /// get functions
 	 public:
          /***********************************************************************************************
-          * \brief Get the underlying IsoGeometric basis of index i of the loop
+          * \brief Get the underlying IsoGeometric curve of index i of the loop
           * \author Fabien Pean
           ***********/
-         inline const BSplineBasis1D& getIGABasis(int i) const {
-             return (const BSplineBasis1D&)IGABasis.at(i);
+         inline const IGAPatchCurve& operator[](int i) const {
+        	 return (const IGAPatchCurve&)*IGACurve.at(i);
+         }
+         inline IGAPatchCurve& operator[](int i) {
+        	 return *IGACurve.at(i);
          }
          /***********************************************************************************************
-          * \brief Get the underlying IsoGeometric basis of the loop
+          * \brief Get the underlying IsoGeometric curve of index i of the loop
           * \author Fabien Pean
           ***********/
-         inline const std::vector<BSplineBasis1D>& getIGABasis() const {
-             return IGABasis;
+         inline const IGAPatchCurve& getIGACurve(int i) const {
+             return (const IGAPatchCurve&)*IGACurve.at(i);
          }
          /***********************************************************************************************
-          * \brief 	Get the direction for basis i
+          * \brief Get the underlying IsoGeometric curve of the loop
+          * \author Fabien Pean
+          ***********/
+         inline const std::vector<IGAPatchCurve*>& getIGACurve() const {
+             return IGACurve;
+         }
+         /***********************************************************************************************
+          * \brief Get the number of curves in this loop
+          * \author Fabien Pean
+          ***********/
+         inline int getNoCurves() const  {
+        	 return IGACurve.size();
+         }
+         /***********************************************************************************************
+          * \brief 	Get the direction for curve i
           * \author Fabien Pean
           ***********/
          inline bool getDirection(int i) const {
@@ -269,14 +224,14 @@
           * \author Fabien Pean
           ***********/
          inline int getNoControlPoints(int i) const {
-             return uNoControlPoints.at(i);
+             return IGACurve.at(i)->getNoControlPoints();
          }
          /***********************************************************************************************
           * \brief Get the Control Points of the curve i
           * \author Andreas Apostolatos
           ***********/
-         inline const std::vector<IGAControlPoint*>& getControlPointNet(int i) const {
-             return ControlPointNet.at(i);
+         inline const std::vector<IGAControlPoint>& getControlPointNet(int i) const {
+             return IGACurve.at(i)->getControlPointNet();
          }
          /***********************************************************************************************
           * \brief Get the linearized version of the curve

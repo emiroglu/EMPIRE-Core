@@ -85,9 +85,19 @@ public:
      * \brief Returns the number of basis functions
      * \author Andreas Apostolatos
      ***********/
-    inline int computeNoBasisFunctions() {
+    inline int computeNoBasisFunctions() const {
         return NoKnots - PDegree - 1;
     }
+
+    /***********************************************************************************************
+     * \brief Compute Greville abscissae for the control point k.
+     * The Greville abscissae is the knot where the control point k has the most influence.
+     * This should results as the physical shortest distance, or close to it, between curve and the control point
+     * \param[in] cp The index of the control point in the local nurbs curve (starts from 0)
+     * \return k The knot vector value corresponding to Greville abscissae
+     * \author Fabien Pean
+     ***********/
+    double computeGrevilleAbscissae(const int _controlPointIndex) const;
 
     /***********************************************************************************************
      * \brief Clamps the parameter to the Knot vector bounds
@@ -95,14 +105,14 @@ public:
      * \return bool Gives 1 if the input knot was inside the Knot vector or close enough, 0 if outside
      * \author Fabien Pean
      ***********/
-    bool clampKnot(double&);
+    bool clampKnot(double&) const;
 
     /***********************************************************************************************
      * \brief Returns the polynomial degree of the B-Spline 1D basis
      * \param[in] _uPrm The parameter on which the knot span is searched
      * \author Andreas Apostolatos
      ***********/
-    int findKnotSpan(double);
+    int findKnotSpan(double) const;
 
     /***********************************************************************************************
      * \brief Compute the non-zero B-Spline basis functions at the given parameter
@@ -111,7 +121,7 @@ public:
      * \param[in] _KnotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeLocalBasisFunctions(double*, double, int);
+    void computeLocalBasisFunctions(double*, double, int) const;
 
     /***********************************************************************************************
      * \brief Compute the non-zero basis functions and their derivatives of the  at the given parameter and stores them in a double array
@@ -121,7 +131,7 @@ public:
      * \param[in] _KnotSpanIndex The index of the knot span where _uPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int);
+    void computeLocalBasisFunctionsAndDerivatives(double*, int, double, int) const;
 
     /// Get and set functions
 public:
