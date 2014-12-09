@@ -41,7 +41,7 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         numNodes(_numNodes), numElems(_numElems), numNodesPerElem(_numNodesPerElem), nodes(_nodes), nodeIDs(
                 _nodeIDs), elems(_elems) {
     // Edit Aditya
-    massMatrix = new EMPIRE::MathLibrary::SparseMatrix<double>(numNodes,true);
+    massMatrix = new EMPIRE::MathLibrary::SparseMatrix<double>(numNodes,false);
 
     // compute directElemTable which link the element to the all its nodes' positions (instead of IDs)
     vector<int> **directElemTable = new vector<int>*[numElems];
@@ -128,7 +128,8 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         for (map<int, double>::iterator it = sparsityMap[i]->begin(); it != sparsityMap[i]->end();
                 it++) {
         	// Edit Aditya
-        	(*massMatrix)(i,count2) = it->second;
+        	(*massMatrix)(i,it->first) = it->second;
+        	(*massMatrix)(it->first,i) = it->second;
             count2++;
         }
     }assert(nnz == count2);
@@ -146,7 +147,7 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
 }
 
 DataFieldIntegration::~DataFieldIntegration() {
-    delete[] massMatrix;
+    delete massMatrix;
 }
 
 void DataFieldIntegration::integrate(const double *tractions, double *forces) {
