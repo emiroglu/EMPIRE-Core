@@ -128,7 +128,7 @@ DataFieldIntegration::DataFieldIntegration(int _numNodes, int _numElems,
         for (map<int, double>::iterator it = sparsityMap[i]->begin(); it != sparsityMap[i]->end();
                 it++) {
         	// Edit Aditya
-        	(*massMatrix)(i,count2) = it->second;
+        	(*massMatrix)(i,it->first) = it->second;
             count2++;
         }
     }assert(nnz == count2);
