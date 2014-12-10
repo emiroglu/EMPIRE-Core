@@ -58,7 +58,7 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     IGAPatchSurface* patch;
     for (int patchCount = 0; patchCount < numPatches; patchCount++) {
         patch = surfacePatches[patchCount];
-        myfile << "%% Patch: " << patchCount + 1 << endl;
+        myfile << "% Patch: " << patchCount + 1 << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").p = "
                 << patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree() << ";" << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").q = "
