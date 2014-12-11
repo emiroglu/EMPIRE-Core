@@ -29,9 +29,11 @@
 #include <string>
 
 namespace EMPIRE {
+class FEMesh;
 class IGAMesh;
 class DataField;
 namespace MatlabIGAFileIO {
+
 /***********************************************************************************************
  * \brief Write file
  * \param[in] igaMesh Information on the IGA mesh (polynomial orders, knot vectors, Control Points etc.)

@@ -30,6 +30,7 @@
 
 #include "MatlabIGAFileIO.h"
 #include "IGAMesh.h"
+#include "FEMesh.h"
 #include "IGAPatchSurface.h"
 #include "BSplineBasis2D.h"
 #include "BSplineBasis1D.h"
@@ -91,9 +92,6 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     }
 
     myfile.close();
-
-
-
 }
 
 void writeVectorFieldOnCPs(string _dataFieldName, int _step, DataField* _dataField) {
