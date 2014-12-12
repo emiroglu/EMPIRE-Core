@@ -761,8 +761,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             distanceVector[i] = _P[i] - point[i];
 
         // 2vi. Compute the 2-norm of the distance vector
-//        distanceVector2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, distanceVector);
-//        distanceVector2norm = sqrt(distanceVector2norm);
         distanceVector2norm = EMPIRE::MathLibrary::vector2norm(distanceVector, noSpatialDimensions);
 
         if (distanceVector2norm < EPS_DISTANCE)
@@ -796,25 +794,18 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         }
 
         // 2ix. Compute the cosine of the angle with respect to u-parametric line
-        // Edit Aditya
-        GuXdistanceVector = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, distanceVector);
-        Gu2norm = EMPIRE::MathLibrary::vector2norm(Gu, noSpatialDimensions);
+        GuXdistanceVector = MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, distanceVector);
+        Gu2norm = MathLibrary::vector2norm(Gu, noSpatialDimensions);
         squareGu2norm = Gu2norm * Gu2norm;
-//        squareGu2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gu);
-//        Gu2norm = sqrt(squareGu2norm);
         cosu = fabs(GuXdistanceVector) / Gu2norm / distanceVector2norm;
 
         // 2x. Compute the cosine of the angle with respect to v-parametric line
-        GvXdistanceVector = EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gv, distanceVector);
-//        squareGv2norm = EMPIRE::MathLibrary::square2normVector(noSpatialDimensions, Gv);
-//        Gv2norm = sqrt(squareGv2norm);
-        Gv2norm = EMPIRE::MathLibrary::vector2norm(Gv,noSpatialDimensions);
+        GvXdistanceVector = MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gv, distanceVector);
+        Gv2norm = MathLibrary::vector2norm(Gv,noSpatialDimensions);
         squareGv2norm = Gv2norm*Gv2norm;
-
         cosv = fabs(GvXdistanceVector) / Gv2norm / distanceVector2norm;
 
         // 2xi. Check the orthogonality condition and if it is fulfilled break the loop
-
         if (cosu <= EPS_ORTHOGONALITY_CONDITION && cosv <= EPS_ORTHOGONALITY_CONDITION)
             break;
 
@@ -869,7 +860,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     	IGABasis->getUBSplineBasis1D()->clampKnot(_u);
     	IGABasis->getVBSplineBasis1D()->clampKnot(_v);
     }
-
 ////     3. Check whether maximum number of iterations has been reached and if yes return 0 to the flag (non-converged iterations)
     if (counter > MAX_NUM_ITERATIONS) {
         if (cosu <= EPS_ORTHOGONALITY_CONDITION_RELAXED
@@ -975,19 +965,19 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection
 	}
 	_u = UV1[0];
 	_v = UV1[1];
-	_distance = EMPIRE::MathLibrary::vector2norm(QP,noSpatialDimensions);
+	_distance = MathLibrary::vector2norm(QP,noSpatialDimensions);
 	_ratio =  MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P)
 			/ MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P2);
 	return true;
 
 }
-bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+char IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
-	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
-	DEBUG_OUT()<<"\t Project line on boundary using Bisection for line"<<endl
+	DEBUG_OUT()<<"\t======================================================"<<endl;
+	DEBUG_OUT()<<"\tPROJECT line on boundary using Bisection for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
 			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
-			<<"\t\twith initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
+			<<"\t\twith initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<")"<<endl;
     double distance = numeric_limits<double>::max();
     double div = 0.0;
     bool isConverged = false;
@@ -997,20 +987,22 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u
 	// Compute point projection from the line to the NURBS patch boundary
 	isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(u,v, div,distance, _P1, _P2);
 	if(isConverged){
-		DEBUG_OUT()<<"\tAlgorithm has converged and distance to patch is "<<distance<<endl
+		char edge = getEdge(u, v);
+		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+		DEBUG_OUT()<<"\tAlgorithm has CONVERGED on edge "<<int(edge)<<" and distance to patch is "<<distance<<endl
 				<<"\t\t and ratio P1P/P1P2 is "<<div<<endl
 				<<"\t\t and parametric value are (u,v)("<<u<<" , "<<v<<")"<<endl;
-		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+		DEBUG_OUT()<<"\t======================================================"<<endl;
 		// Fix possible numerical error
-		if(fabs(div-1.0)<EPS_DISTANCE_RELAXED && div-1.0>0) div=1.0;
-		if(fabs(div)	<EPS_DISTANCE_RELAXED && div<0) div=0.0;
+		if(fabs(div-1.0) < EPS_DISTANCE_RELAXED && div-1.0 > 0) div = 1.0;
+		if(fabs(div)	 < EPS_DISTANCE_RELAXED && div < 0) div = 0.0;
 		_ratio=div;
 		_distance=distance;
 		_u=u;
 		_v=v;
-		return true;
+		return edge;
 	}
-	WARNING_OUT()<<"\tAlgorithm has not converged"<<endl;
+	WARNING_OUT()<<"\tAlgorithm has NOT CONVERGED"<<endl;
 	return false;
 }
 
@@ -1214,12 +1206,6 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
     	P1P[i] = P1Q[i];
         P1P[i] -= h10 * unitNormalSurface[i];
     }
-//	// Project P1P2 onto the normal of the patch
-//    double h12 = MathLibrary::computeDenseDotProduct(dim, P1P2, P1P);
-//    // Get the point on the line P1P2 from the intersection with the patch normal
-//    for (int i = 0; i < dim; i++) {
-//        P1P[i] -= h12 * unitNormalSurface[i];
-//    }
     double normP1P2 = MathLibrary::vector2norm(P1P2,dim);
     double normP1P = MathLibrary::computeDenseDotProduct(dim, P1P, P1P2)/normP1P2;
     _ratio = normP1P / normP1P2;
@@ -1228,7 +1214,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
     for (int i = 0; i < dim; i++) {
     	QP[i] = _P1[i] + _ratio * (_P2[i] - _P1[i]) - Q[i];
     }
-    _distance = EMPIRE::MathLibrary::vector2norm(QP,dim);
+    _distance = MathLibrary::vector2norm(QP,dim);
 
 	// 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
 	// Clear the memory on the heap
@@ -1241,11 +1227,11 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 
 char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
-	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
-	DEBUG_OUT()<<"\tProject line on boundary using Newton-Rhapson for line"<<endl
+	DEBUG_OUT()<<"\t======================================================"<<endl;
+	DEBUG_OUT()<<"\tPROJECT line on boundary using Newton-Rhapson for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
 			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
-			<<"\t\twith initial guess  projection of P1 : (u,v)=("<<_u<<" , "<<_v<<endl;
+			<<"\t\twith initial guess is projection of P1 : (u,v)=("<<_u<<" , "<<_v<<")"<<endl;
     double u1 = _u;
     double v1 = _v;
     double t;
@@ -1289,8 +1275,6 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 			if(fabs(div-1.0)<EPS_DISTANCE && div-1.0>0) div=1.0;
 			if(fabs(div)	<EPS_DISTANCE && div<0) div=0.0;
 
-			// Debug information about computePointOnPatchBoundaryOnGivenEdge result
-
 			if (isConverged) {
 				switch (edge) {
 				case 0:
@@ -1331,7 +1315,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 					_distance = distance;
 					_ratio = div;
 					_edge=_edge | edgeOut;
-					DEBUG_OUT()<<"\tAlgorithm has converged for initial guess point "<<point<<" and edge "<<int(edgeOut)<<endl
+					DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+					DEBUG_OUT()<<"\tAlgorithm has CONVERGED for initial guess point "<<point<<" on edge "<<int(edgeOut)<<endl
 							<<"\t\t and new distance found to patch is "<<_distance<<endl
 							<<"\t\t and ratio P1P/P1P2 is "<<_ratio<<endl
 							<<"\t\t and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
@@ -1339,7 +1324,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 			}
     	}
     }
-	DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+	DEBUG_OUT()<<"\t======================================================"<<endl;
     if (_distance == numeric_limits<double>::max())
         return false;
     else if (_ratio >= 0.0 && _ratio <= 1.0) {
@@ -1388,7 +1373,7 @@ void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, d
 
             for (int k = 0; k < noSpatialDimensions; k++)
                 coords[k] -= _P[k];
-            Dis = EMPIRE::MathLibrary::vector2norm(coords, noSpatialDimensions);
+            Dis = MathLibrary::vector2norm(coords, noSpatialDimensions);
             if (Dis < minDis) {
                 minDis = Dis;
                 _u = uv[0];
@@ -1419,8 +1404,6 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
 }
 void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
         double _u, double _v, int _spanU, int _spanV) {
-
-
     // Compute the Cartesian coordinates of (_u,_v)
     computeCartesianCoordinates(_coords, _u, _spanU, _v, _spanV);
 
@@ -1429,17 +1412,31 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     computeBaseVectors(baseVec, _u, _spanU, _v, _spanV);
 
     // Compute the cross product of the surface base vectors to get the surface normal
-    _normal[0] = baseVec[1] * baseVec[5] - baseVec[2] * baseVec[4];
-    _normal[1] = baseVec[2] * baseVec[3] - baseVec[0] * baseVec[5];
-    _normal[2] = baseVec[0] * baseVec[4] - baseVec[1] * baseVec[3];
+    MathLibrary::computeVectorCrossProduct(&baseVec[0], &baseVec[3],_normal);
 }
 
+char IGAPatchSurface::getEdge(const double _u, const double _v) {
+	char edge = 0;
+	if(fabs(_u - getIGABasis(0)->getFirstKnot()) < EPS_DISTANCE_RELAXED) {
+		edge = edge | EDGE_U0;
+	}
+	else if(fabs(_u - getIGABasis(0)->getLastKnot()) < EPS_DISTANCE_RELAXED) {
+		edge = edge | EDGE_UN;
+	}
+	if(fabs(_v - getIGABasis(1)->getFirstKnot()) < EPS_DISTANCE_RELAXED) {
+		edge = edge | EDGE_V0;
+	}
+	else if(fabs(_v - getIGABasis(1)->getLastKnot()) < EPS_DISTANCE_RELAXED) {
+		edge = edge | EDGE_VN;
+	}
+	return edge;
+}
 std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _edgeIn, const char _edgeOut, bool _isCounterclockwise) {
 	std::vector<std::pair<double,double> > corners;
 	if(_edgeIn & _edgeOut)
 		return corners;
-	if(_edgeIn == 0 || _edgeOut == 0)
-		return corners;
+//	if(_edgeIn == 0 || _edgeOut == 0)
+//		return corners;
 	double u0 = getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
 	double uN = getIGABasis()->getUBSplineBasis1D()->getLastKnot();
 	double v0 = getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
@@ -1502,7 +1499,8 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 		return corners;
 	}
 	ERROR_OUT()<<"No corner found to add in polygon"<<endl;
-	ERROR_OUT()<<"Edge IN is ["<<int(_edgeIn)<<"] and Edge OUT is ["<<int(_edgeOut)<<"] with direction "<<_isCounterclockwise<<endl;
+	ERROR_OUT()<<"Edge going IN the patch is ["<<int(_edgeIn)<<"] and Edge going OUT is [" << int(_edgeOut) << "] with direction "
+			<<(_isCounterclockwise?"counterclockwise":"clockwise")<<endl;
 	assert(0);
 	return corners;
 }

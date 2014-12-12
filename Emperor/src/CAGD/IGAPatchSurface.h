@@ -255,7 +255,7 @@ public:
      ***********/
     char computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
-    bool computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+    char computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
 
     /***********************************************************************************************
@@ -297,6 +297,7 @@ public:
 
     /// Get and set functions
 public:
+    char getEdge(const double _u, const double _v);
     /***********************************************************************************************
      * \brief Get the corners between edge 1 and edge 2 following the orientation
      * \param[in]	_edgeIn		The id of the edge going in the patch
