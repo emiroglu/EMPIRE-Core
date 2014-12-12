@@ -141,7 +141,20 @@ public:
      * \author Stefan Sicklinger
      ***********/
     static void writeASCIIArt();
-
+    /***********************************************************************************************
+     * \brief To know if Empire is run in debug
+     * \author Fabien Pean
+     ***********/
+    static bool isDebugMode() {
+    	return userSetOutputLevel >= DEBUG ? true : false;
+    }
+    /***********************************************************************************************
+     * \brief To know if Empire is run in debug
+     * \author Fabien Pean
+     ***********/
+    static bool isInfoMode() {
+    	return userSetOutputLevel >= INFO ? true : false;
+    }
 private:
     /// outputLevel enum
     OutputLevel outputLevel;
