@@ -1498,6 +1498,16 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 		corners.push_back(make_pair(u0,vN));
 		return corners;
 	}
+	if(_edgeIn == EDGE_VN && _edgeOut == EDGE_V0 && _isCounterclockwise) {
+		corners.push_back(make_pair(uN,v0));
+		corners.push_back(make_pair(uN,vN));
+		return corners;
+	}
+	if(_edgeIn == EDGE_VN && _edgeOut == EDGE_V0 && !_isCounterclockwise) {
+		corners.push_back(make_pair(u0,v0));
+		corners.push_back(make_pair(u0,vN));
+		return corners;
+	}
 	ERROR_OUT()<<"No corner found to add in polygon"<<endl;
 	ERROR_OUT()<<"Edge going IN the patch is ["<<int(_edgeIn)<<"] and Edge going OUT is [" << int(_edgeOut) << "] with direction "
 			<<(_isCounterclockwise?"counterclockwise":"clockwise")<<endl;

@@ -30,6 +30,7 @@
 
 #include "MatlabIGAFileIO.h"
 #include "IGAMesh.h"
+#include "FEMesh.h"
 #include "IGAPatchSurface.h"
 #include "BSplineBasis2D.h"
 #include "BSplineBasis1D.h"
@@ -58,7 +59,7 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     IGAPatchSurface* patch;
     for (int patchCount = 0; patchCount < numPatches; patchCount++) {
         patch = surfacePatches[patchCount];
-        myfile << "%% Patch: " << patchCount + 1 << endl;
+        myfile << "% Patch: " << patchCount + 1 << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").p = "
                 << patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree() << ";" << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").q = "
@@ -91,9 +92,6 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     }
 
     myfile.close();
-
-
-
 }
 
 void writeVectorFieldOnCPs(string _dataFieldName, int _step, DataField* _dataField) {
