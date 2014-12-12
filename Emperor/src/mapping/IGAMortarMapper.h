@@ -159,9 +159,15 @@ private:
 
     /***********************************************************************************************
      * \brief Compute matrices C_NN and C_NR
-     * \author Chenshen Wu
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     void computeCouplingMatrices();
+
+    /***********************************************************************************************
+     * \brief Compute local matrices C_NN and C_NR for element i  on patch j
+     * \author Fabien Pean
+     ***********/
+    bool computeLocalCouplingMatrix(const int _elemIndex, const int _patchIndex, Polygon2D& _projectedElement);
 
     /***********************************************************************************************
      * \brief Get the patches index on which the FE-side element is projected
