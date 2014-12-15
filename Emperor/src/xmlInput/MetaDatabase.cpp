@@ -302,15 +302,8 @@ void MetaDatabase::fillSettingMapperVec() {
         } else if (xmlMapper->GetAttribute<string>("type") == "IGAMortarMapper") {
             mapper.type = EMPIRE_IGAMortarMapper;
             ticpp::Element *xmlIGAMortar = xmlMapper->FirstChildElement("IGAMortarMapper");
-            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration");
-            if(xmlIntegration != NULL) {
-                mapper.igaMortarMapper.integration.numGPTriangle = xmlIntegration->GetAttribute<int>(
-                        "numGPTriangle");
-                mapper.igaMortarMapper.integration.numGPQuad = xmlIntegration->GetAttribute<int>("numGPQuad");
-            } else {
-                assert(0);
-            }
-            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties");
+            assert(xmlIGAMortar != NULL);
+            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties", false);
             if(xmlProjection != NULL) {
                 mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = xmlProjection->GetAttribute<double>(
                         "maxProjectionDistance");
@@ -319,28 +312,42 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = xmlProjection->GetAttribute<double>(
                         "maxDistanceForProjectedPointsOnDifferentPatches");
             } else {
-                assert(0);
+            	mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = 1e-2;
+            	mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = 10;
+            	mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = 1e-3;
             }
-            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphson");
+            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphson", false);
             if(xmlNewtonRaphson != NULL) {
                 mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
                 mapper.igaMortarMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<double>("tolerance");
             } else {
-                assert(0);
+            	mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = 20;
+            	mapper.igaMortarMapper.newtonRaphson.tolerance = 1e-9;
             }
-            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement("newtonRaphsonBoundary");
+            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement("newtonRaphsonBoundary", false);
             if(xmlNewtonRaphsonBoundary != NULL) {
                 mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = xmlNewtonRaphsonBoundary->GetAttribute<int>("maxNumOfIterations");
                 mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = xmlNewtonRaphsonBoundary->GetAttribute<double>("tolerance");
             } else {
-                assert(0);
+            	mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = 20;
+            	mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = 1e-9;
             }
-            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("bisection");
+            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("bisection", false);
             if(xmlBisection != NULL) {
                 mapper.igaMortarMapper.bisection.maxNumOfIterations = xmlBisection->GetAttribute<int>("maxNumOfIterations");
                 mapper.igaMortarMapper.bisection.tolerance = xmlBisection->GetAttribute<double>("tolerance");
             } else {
-                assert(0);
+            	mapper.igaMortarMapper.bisection.maxNumOfIterations = 40;
+            	mapper.igaMortarMapper.bisection.tolerance = 1e-6;
+            }
+            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration", false);
+            if(xmlIntegration != NULL) {
+                mapper.igaMortarMapper.integration.numGPTriangle = xmlIntegration->GetAttribute<int>(
+                        "numGPTriangle");
+                mapper.igaMortarMapper.integration.numGPQuad = xmlIntegration->GetAttribute<int>("numGPQuad");
+            } else {
+            	mapper.igaMortarMapper.integration.numGPTriangle = 16;
+            	mapper.igaMortarMapper.integration.numGPQuad = 25;
             }
         } else {
             assert(false);
