@@ -128,8 +128,13 @@ void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int
 }
 
 void IGAMortarMapper::buildCouplingMatrices() {
+	//Instantiate quadrature rules
     gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(integration.numGPTriangle);
     gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(integration.numGPQuad);
+
+    //Set default scheme values
+    IGAPatchSurface::MAX_NUM_ITERATIONS = newtonRaphson.maxNumOfIterations;
+    IGAPatchSurface::TOL_ORTHOGONALITY = newtonRaphson.tolerance;
 
     initTables();
 
@@ -311,8 +316,8 @@ void IGAMortarMapper::projectPointsToSurface() {
                     U = initialU;
                     V = initialV;
                     /// 1iii.4ii.3. Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
-                    hasConverged = thePatch->computePointProjectionOnPatch(U,
-                            V, projectedP, hasResidualConverged);
+                    hasConverged = thePatch->computePointProjectionOnPatch(U, V, projectedP,
+                    		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
                     /// 1iii.4ii.4. Check if the Newton-Rapshon iterations have converged
                     double distance = MathLibrary::computePointDistance(P, projectedP);
                     if (hasResidualConverged &&  distance < projectionProperties.maxProjectionDistance) {
@@ -392,7 +397,8 @@ void IGAMortarMapper::projectPointsToSurface() {
                 thePatch->findInitialGuess4PointProjection(U, V, P,
                         projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
                 /// 2iii.4. Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
-                hasConverged = thePatch->computePointProjectionOnPatch(U, V, projectedP, hasResidualConverged);
+                hasConverged = thePatch->computePointProjectionOnPatch(U, V, projectedP,
+                		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
                 /// 2iii.5. Check if the Newton-Rapshon iterations have converged and if the points are coinciding
                 double distance = MathLibrary::computePointDistance(P, projectedP);
                 if (hasConverged && distance < projectionProperties.maxProjectionDistance) {
@@ -569,10 +575,12 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					// 1. First point
 					u = projectedCoords[nodeIndexNext][patchIndex][0];
 					v = projectedCoords[nodeIndexNext][patchIndex][1];
-					edge1 = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, P2, P1);
+					edge1 = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, P2, P1,
+							newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
                     if(!edge1 || dis > projectionProperties.maxProjectionDistance) {
 						WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm.");
-						edge1 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P2, P1);
+						edge1 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P2, P1,
+								bisection.maxNumOfIterations, bisection.tolerance);
 					}
 					isProjectedOnPatchBoundary = edge1;
                     if(isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
@@ -608,10 +616,12 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					// 2. Second point, intersection and store
 					u = projectedCoords[nodeIndex][patchIndex][0];
 					v = projectedCoords[nodeIndex][patchIndex][1];
-					edge2=thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, P1, P2);
+					edge2=thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, P1, P2,
+							newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
                     if(!edge2 || dis > projectionProperties.maxProjectionDistance) {
 						WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm.");
-						edge2 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P1, P2);
+						edge2 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P1, P2,
+								bisection.maxNumOfIterations, bisection.tolerance);
 					}
 					isProjectedOnPatchBoundary = edge2;
                     if (isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
