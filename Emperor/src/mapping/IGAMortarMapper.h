@@ -89,24 +89,26 @@ private:
 
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, std::vector<double> > > projectedCoords;
-//    std::vector<std::map<int, bool> > *isProjectionOrthogonal;
-
-    /// Number of division made for linearization on boundary
-    int numDivision;
-/// Tolerance up to which projection is trusted
-    double disTol;
-
-    /// number of Gauss points used for computing triangle element
-    int numGPsTri;
-
-    /// number of Gauss points used for computing quad element
-    int numGPsQuad;
 
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
 
     size_t numNodesSlave;
     size_t numNodesMaster;
+
+    struct integration {
+        int numGPTriangle;
+        int numGPQuad;
+    } integration;
+    struct nonlinearSchemeProperties {
+        int maxNumOfIterations;
+        double tolerance;
+    } newtonRaphson, newtonRaphsonBoundary, bisection;
+    struct projectionProperties {
+        double maxProjectionDistance;
+        int numRefinementForIntialGuess;
+        int maxDistanceForProjectedPointsOnDifferentPatches;
+    } projectionProperties;
 
 public:
     /***********************************************************************************************
@@ -119,13 +121,19 @@ public:
      * \param[in] _numGPsQuad The number of Gauss points used for computing quad element
      * \author Chenshen Wu
      ***********/
-    IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, double _disTol,
-            int _numGPsTri, int _numGPsQuad, bool _isMappingIGA2FEM, int _numDivision=3);
+    IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isMappingIGA2FEM);
 
     /***********************************************************************************************
      * \brief Destructor Chenshen Wu
      ***********/
     virtual ~IGAMortarMapper();
+
+    void setParametersIntegration(int _numGPTriangle=16, int _numGPQuad=25);
+    void setParametersNewtonRaphson(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    void setParametersNewtonRaphsonBoundary(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    void setParametersBisection(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    void setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess,
+                                 int _maxDistanceForProjectedPointsOnDifferentPatches);
 
     /***********************************************************************************************
      * \brief Perform consistent mapping from IGA to FE (map displacements)
@@ -145,6 +153,7 @@ public:
 
     /// intern function used for mapping
 private:
+    void buildCouplingMatrices();
     /***********************************************************************************************
      * \brief Initialization of the element freedom tables
      * \author Chenshen Wu
@@ -310,8 +319,6 @@ public:
     friend class TestIGAMortarMapperMultiPatchPlanarSurface;
     friend class TestIGAMortarMapperCylinder;
 
-    /// Number of refined parametric locations where to find the candidate closest points for the projection
-    static const int REFINED_NUM_PARAMETRIC_LOCATIONS = 10;
 };
 }
 

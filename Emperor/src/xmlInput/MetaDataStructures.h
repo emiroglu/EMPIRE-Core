@@ -111,10 +111,19 @@ struct structMapper {
         bool enforceConsistency;
     };
     struct structIGAMortarMapper {
-        double tolProjectionDistance;
-        int numGPsTriangle;
-        int numGPsQuad;
-        int numDivision;
+        struct projectionProperties {
+            double maxProjectionDistance;
+            int numRefinementForIntialGuess;
+            int maxDistanceForProjectedPointsOnDifferentPatches;
+        } projectionProperties;
+        struct nonlinearSchemeProperties {
+            int maxNumOfIterations;
+            double tolerance;
+        } newtonRaphson, newtonRaphsonBoundary, bisection;
+        struct integration {
+            int numGPTriangle;
+            int numGPQuad;
+        } integration;
     };
     std::string name;
     structMeshRef meshRefA;

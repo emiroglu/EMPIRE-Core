@@ -227,7 +227,7 @@ public:
     bool computePointProjectionOnPatch(double&, double&, double*);
 
     /***********************************************************************************************
-     * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
+     * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary
      * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \param[in/out] _t The running parameter on the given NURBS patch boundary
      * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
@@ -237,10 +237,22 @@ public:
      * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
      * \author Fabien Pean
      ***********/
-    bool computePointProjectionOnPatchBoundaryOnGivenEdge(double& _t, double& _ratio,
+    bool solvePointProjectionOnPatchBoundaryNewtonRaphson(double& _t, double& _ratio,
             double& _distance, double* _P1, double* _P2, int _edge);
-    bool computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(double& _u,double& _v, double& _ratio,
+
+    /***********************************************************************************************
+     * \brief Solves the bisection problem for computing the closest point projection of a straight line over a patch boundary
+     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \param[in/out] _t The running parameter on the given NURBS patch boundary
+     * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in] _P1 The first point of the line segment
+     * \param[in] _P2 The second point of the line segment
+     * \author Fabien Pean
+     ***********/
+    bool solvePointProjectionOnPatchBoundaryBisection(double& _u,double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
+
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
      * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
@@ -253,9 +265,22 @@ public:
      * \return The id of the edge it is crossing
      * \author Fabien Pean
      ***********/
-    char computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
+    char computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
-    char computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+
+    /***********************************************************************************************
+     * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary using the bisection method
+     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
+     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
+     * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in] _P1 The first point of the line segment
+     * \param[in] _P2 The second point of the line segment
+     * \return The id of the edge it is crossing
+     * \author Fabien Pean
+     ***********/
+    char computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2);
 
     /***********************************************************************************************

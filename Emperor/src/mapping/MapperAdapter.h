@@ -66,7 +66,11 @@ public:
      * \param[in] _numDivision number of division made on parametric polygon lines projected back to canonical space
      * \author Chenshen Wu, Fabien Pean
      ***********/
-    void initIGAMortarMapper(double tolProjectionDistance, int numGPsTriangle, int numGPsQuad, int numDivision);
+    void initIGAMortarMapper(double maxProjectionDistance, int numRefinementForIntialGuess, double maxDistanceForProjectedPointsOnDifferentPatches,
+                             int newtonRaphsonMaxIt, double newtonRaphsonTol,
+                             int newtonRaphsonBoundaryMaxIt, double newtonRaphsonBoundaryTol,
+                             int bisectionMaxIt, double bisectionTol,
+                             int numGPTriangle, int numGPQuad);
     /***********************************************************************************************
      * \brief Initialize NearestNeighborMapper
      * \author Tianyang Wang
