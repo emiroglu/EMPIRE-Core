@@ -78,6 +78,12 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
 
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
     C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
+
+    setParametersProjection();
+    setParametersNewtonRaphson();
+    setParametersNewtonRaphsonBoundary();
+    setParametersBisection();
+    setParametersIntegration();
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
@@ -219,6 +225,8 @@ void IGAMortarMapper::projectPointsToSurface() {
     // Array of booleans containing flags on the projection of the FE nodes onto the NURBS patch
 	vector<bool> isProjected(meshFE->numNodes);
     vector<double> projectionDistance(meshFE->numNodes, 1e9);
+    vector<vector<double> > projectionPoint(meshFE->numNodes);
+
     // Flag on whether a node is projected on the IGA mesh
     bool isNodeProjected = false;
 
@@ -285,7 +293,7 @@ void IGAMortarMapper::projectPointsToSurface() {
                 P[1] = meshFE->nodes[nodeIndex * 3 + 1];
                 P[2] = meshFE->nodes[nodeIndex * 3 + 2];
                 // Get accordingly an initial guess for the projection onto the NURBS patch
-                thePatch->findInitialGuess4PointProjection(initialU, initialV, P);
+                thePatch->findInitialGuess4PointProjection(initialU, initialV, P, projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
             }
 
             /// 1iii.4. Loop over each node at the current element in the FE side
@@ -309,27 +317,34 @@ void IGAMortarMapper::projectPointsToSurface() {
                     double distance = MathLibrary::computePointDistance(P, projectedP);
                     if (hasResidualConverged &&  distance < projectionProperties.maxProjectionDistance) {
                         /// 1iii.4ii.4i. Discard point if too far away from previous projection
-                        if(distance < projectionDistance[nodeIndex]) {
-                            if(distance < projectionDistance[nodeIndex] - (projectionProperties.maxProjectionDistance/10) && !projectedCoords[nodeIndex].empty()) {
-                            	stringstream sstream;
-                                sstream << "Node " << nodeIndex << " is projected on at least two patches.\n\t\t\tThis one is closer < 0.1*" << projectionProperties.maxProjectionDistance << " than previous projection.\n\t\t\tPrevious point discarded!";
-                            	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                            	// Erase previous projection
-                        		projectedCoords[nodeIndex].clear();
-                        	}
-                        	projectionDistance[nodeIndex] = distance;
-                        }
-                        else if(distance <= projectionDistance[nodeIndex] + (projectionProperties.maxProjectionDistance*0.1) && distance <= projectionProperties.maxProjectionDistance) {
+                    	if( 	!projectionPoint[nodeIndex].empty() &&
+                    			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
+                    			> projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches
+                    			&& distance > projectionDistance[nodeIndex] ) {
+                        	stringstream sstream;
+                            sstream << "Node " << nodeIndex << " is projected at least on two patches.\n" <<
+                            		"\t\t\tThis projection on patch "<<patchCount<<" is physically farther >" << projectionProperties.maxProjectionDistance << " than previous.\n" <<
+                            		"\t\t\tCurrent point discarded!";
+                        	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
+                        	continue;
+                    	} else if(!projectionPoint[nodeIndex].empty() &&
+                    			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
+                				<= projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
                         	stringstream sstream;
                         	sstream << "Node " << nodeIndex << " is projected on at least two patches.";
                         	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                        }
-                        else if(distance >  projectionDistance[nodeIndex] + (projectionProperties.maxProjectionDistance*0.1)) {
+                    	} else if(projectionDistance[nodeIndex] < projectionProperties.maxProjectionDistance
+                    			&& distance < projectionDistance[nodeIndex]) {
                         	stringstream sstream;
-                            sstream << "Node " << nodeIndex << " is projected on at least two patches.\n\t\t\tThis one is farther > 0.1*" << projectionProperties.maxProjectionDistance << " than previous projection.\n\t\t\tCurrent point discarded!";
+                            sstream << "Node " << nodeIndex << " is projected on at least two patches.\n" <<
+                            		"\t\t\tThis one is closer of " << projectionDistance[nodeIndex] - distance<< " than previous projection.\n" <<
+                            		"\t\t\tPrevious point discarded!";
                         	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                        	continue;
-                        }
+                        	// Erase previous projection
+                    		projectedCoords[nodeIndex].clear();
+                    		projectionDistance[nodeIndex] = distance;
+                    		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
+                    	}
                         /// 1iii.4ii.4ii. Set projection flag to true
                         isProjected[nodeIndex] = true;
                         /// 1iii.4ii.4iii. Insert the parametric locations of the projected FE nodes into the map projectedCoords
@@ -382,27 +397,34 @@ void IGAMortarMapper::projectPointsToSurface() {
                 double distance = MathLibrary::computePointDistance(P, projectedP);
                 if (hasConverged && distance < projectionProperties.maxProjectionDistance) {
                     /// 2iii.5i. Discard point if too far away from previous projection
-                    if(distance < projectionDistance[nodeIndex]) {
-                        if(distance < projectionDistance[nodeIndex] - (projectionProperties.maxProjectionDistance/10) && !projectedCoords[nodeIndex].empty()) {
-                        	stringstream sstream;
-                            sstream << "Node " << nodeIndex << " is projected on at least two patches.\n\t\t\tThis one is closer < 0.1*" << projectionProperties.maxProjectionDistance << " than previous projection.\n\t\t\tPrevious point discarded!";
-                        	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                        	// Erase previous projection
-                    		projectedCoords[nodeIndex].clear();
-                    	}
-                    	projectionDistance[nodeIndex] = distance;
-                    }
-                    else if(distance <= projectionDistance[nodeIndex] + (projectionProperties.maxProjectionDistance*0.1) && distance <= projectionProperties.maxProjectionDistance) {
+                	if( 	!projectionPoint[nodeIndex].empty() &&
+                			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
+                			> projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches
+                			&& distance > projectionDistance[nodeIndex] ) {
+                    	stringstream sstream;
+                        sstream << "Node " << nodeIndex << " is projected at least on two patches.\n" <<
+                        		"\t\t\tThis projection on patch "<<patchCount<<" is physically farther >" << projectionProperties.maxProjectionDistance << " than previous.\n" <<
+                        		"\t\t\tCurrent point discarded!";
+                    	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
+                    	continue;
+                	} else if(!projectionPoint[nodeIndex].empty() &&
+                			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
+            				<= projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
                     	stringstream sstream;
                     	sstream << "Node " << nodeIndex << " is projected on at least two patches.";
                     	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                    }
-                    else if(distance >  projectionDistance[nodeIndex] + (projectionProperties.maxProjectionDistance*0.1)) {
+                	} else if(projectionDistance[nodeIndex] < projectionProperties.maxProjectionDistance
+                			&& distance < projectionDistance[nodeIndex]) {
                     	stringstream sstream;
-                        sstream << "Node " << nodeIndex << " is projected on at least two patches.\n\t\t\tThis one is farther > 0.1*" << projectionProperties.maxProjectionDistance << " than previous projection.\n\t\t\tCurrent point discarded!";
+                        sstream << "Node " << nodeIndex << " is projected on at least two patches.\n" <<
+                        		"\t\t\tThis one is closer of" << projectionDistance[nodeIndex] - distance<< " than previous projection.\n" <<
+                        		"\t\t\tPrevious point discarded!";
                     	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                    	continue;
-                    }
+                    	// Erase previous projection
+                		projectedCoords[nodeIndex].clear();
+                		projectionDistance[nodeIndex] = distance;
+                		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
+                	}
                     /// 2iii.5ii. Set projection flag to true
                     isNodeProjected = true;
                     /// 2iii.5iii. Insert the parametric locations of the projected FE nodes into the map projectedCoords
@@ -495,8 +517,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				double u = projectedCoords[nodeIndex][patchIndex][0];
 				double v = projectedCoords[nodeIndex][patchIndex][1];
 				polygonUV.push_back(make_pair(u,v));
-				/// 1.1.2 Compute intermediate points on the line if needed
-				computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,1,P2,1,polygonUV);
 			}
 			ClipperAdapter::cleanPolygon(polygonUV);
 			bool isIntegrated = computeLocalCouplingMatrix(elemCount,patchIndex,polygonUV);
@@ -555,25 +575,14 @@ void IGAMortarMapper::computeCouplingMatrices() {
 						edge1 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P2, P1);
 					}
 					isProjectedOnPatchBoundary = edge1;
-					// Check if corners to be included
-//					if(numDivision<=1 || !specialCase) {
-//						specialCase = false;
-//						Polygon2D corners = thePatch->getCorner(edge1,edge2,ClipperAdapter::isCounterclockwise(polygonUV));
-//						polygonUV.insert(polygonUV.end(),corners.begin(),corners.end());
-//					}
                     if(isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
 						polygonUV.push_back(make_pair(u,v));
 					}
-					// 2. Compute intermediate points
-					for(int i=0;i<3;i++) {
-						P[i]=P2[i]*(1-div)+P1[i]*div;
-					}
-					computeIntermediatePoints(patchIndex,elemCount,nodeIndexNext,nodeIndex,P1,0,P2,1,polygonUV);
-					// 3. Second point
+					// 2. Second point
 					u = projectedCoords[nodeIndexNext][patchIndex][0];
 					v = projectedCoords[nodeIndexNext][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-					// 4. Update processed edge
+					// 3. Update processed edge
 					numEdgesProcessed++;
 
 				}
@@ -583,13 +592,11 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					u = projectedCoords[nodeIndex][patchIndex][0];
 					v = projectedCoords[nodeIndex][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-					// 2. Compute intermediate points
-					computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,1,P2,1,polygonUV);
-					// 3. Second point
+					// 2. Second point
 					u = projectedCoords[nodeIndexNext][patchIndex][0];
 					v = projectedCoords[nodeIndexNext][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-					// 4. Update processed edge
+					// 3. Update processed edge
 					numEdgesProcessed++;
 				}
 				/// 2.1.3 NODE.1 INSIDE AND NODE.2 OUTSIDE
@@ -598,7 +605,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					u = projectedCoords[nodeIndex][patchIndex][0];
 					v = projectedCoords[nodeIndex][patchIndex][1];
 					polygonUV.push_back(make_pair(u,v));
-					// 2. Second point, intersection
+					// 2. Second point, intersection and store
 					u = projectedCoords[nodeIndex][patchIndex][0];
 					v = projectedCoords[nodeIndex][patchIndex][1];
 					edge2=thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, P1, P2);
@@ -607,29 +614,15 @@ void IGAMortarMapper::computeCouplingMatrices() {
 						edge2 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P1, P2);
 					}
 					isProjectedOnPatchBoundary = edge2;
-					pair<double, double> uv_tmp,wz_tmp;
                     if (isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
-						uv_tmp=make_pair(u,v);
+    					polygonUV.push_back(make_pair(u,v));
 					}
-					// 3. Compute intermediate points
-					for(int i=0;i<3;i++) {
-						P[i]=P1[i]*(1-div)+P2[i]*div;
-					}
-					computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,1,P2,0,polygonUV);
-					// 3. Second point, store values
-					polygonUV.push_back(uv_tmp);
-					// 4. Update processed edge
+					// 3. Update processed edge
 					numEdgesProcessed++;
 				}
 				/// 2.1.4 NODE.1 OUTSIDE AND NODE.2 OUTSIDE
 				if(!isNodeInsidePatch && !isNextNodeInsidePatch) {
-					// 1. Compute intermediate points
-					int sizeBefore=extraPolygonUV.size();
-					computeIntermediatePoints(patchIndex,elemCount,nodeIndex,nodeIndexNext,P1,0,P2,0,polygonUV,&extraPolygonUV);
-					int sizeAfter=extraPolygonUV.size();
-					if(sizeBefore!=sizeAfter)
-						specialCase = true;
-					// 4. Update processed edge
+					// 1. Update processed edge
 					numEdgesProcessed++;
 				}
 				if(!isProjectedOnPatchBoundary) {
@@ -670,16 +663,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			bool isIntegrated = computeLocalCouplingMatrix(elemCount,patchIndex,polygonUV);
 			if(isIntegrated)
 				elementIntegrated.insert(elemCount);
-
-			DEBUG_OUT()<< "Number of polygon EXTRA "<<extraPolygonUV.size()<<endl;
-			/// Integrate the polygon appearing only on current patch from an external element.
-			/// Only the case when both points of an edge are outside and still the edge is partially projected in the patch
-			for (map<int,Polygon2D>::iterator it = extraPolygonUV.begin(); it != extraPolygonUV.end(); it++) {
-				debugPolygon(it->second,"extra polygon");
-				ClipperAdapter::cleanPolygon(it->second);
-				// Proceed toward integration if the polygon is valid, i.e. at least a triangle
-				computeLocalCouplingMatrix(elemCount, it->first, it->second);
-			}
 		} // end of loop over set of split patch
     } // end of loop over all the element
     if(elementIntegrated.size()!=meshFE->numElems) {
@@ -1227,107 +1210,6 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
 	return -1;
 }
 
-bool IGAMortarMapper::computeIntermediatePoints(const int patchIndex, const int elemCount, const int nodeIndex1, const int nodeIndex2,
-		const double* P1,const bool isIn1, const double* P2, const bool isIn2, Polygon2D& polygonUV, map<int,Polygon2D>* extraPolygonUV) {
-    int MAX_DIV=1;//numDivision;
-	if(MAX_DIV<=1)
-		return 1;
-	IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
-	// Get last point inside
-	double u,v;
-	if(polygonUV.empty()) {
-		u = projectedCoords[nodeIndex1][patchIndex][0];
-		v = projectedCoords[nodeIndex1][patchIndex][1];
-	} else {
-		u=polygonUV.back().first;
-		v=polygonUV.back().second;
-	}
-	//Gets the neighbour element to the line
-	int neighbourElement=getNeighbourElementofEdge(elemCount,nodeIndex1,nodeIndex2);
-	//Init some flags
-	bool isProjectedOnPatch=1, isProjectedOnPatchBoundary=1, outFlag=1;
-	bool previousPointInside=isIn1, currentPointInside=isIn1;
-	//Init data
-	double div,dis;
-	double P1P2[3];
-	for(int i=0;i<3;i++)
-		P1P2[i]=P2[i]-P1[i];
-	//Temporary polygon for extraPolygonUV
-	Polygon2D tmp;
-	//Loop in between the two point
-	for(int sub=1;sub<MAX_DIV;sub++) {
-		previousPointInside=currentPointInside;
-		double t = (double)sub/(double)MAX_DIV;
-		double P_projected[3];
-		for(int i=0;i<3;i++)
-			P_projected[i]=P1[i]+P1P2[i]*t;
-		isProjectedOnPatch=thePatch->computePointProjectionOnPatch(u,v,P_projected);
-		// If inside then compute boundary patch intersection between previous point and current point
-		if(isProjectedOnPatch && neighbourElement!=-1) {
-			currentPointInside=1;
-			pair<double,double> uv_tmp1(u,v);
-			pair<double,double> uv_tmp2;
-			// Opposite flag means crossing the boundary, so we project on point on boundary
-			if(currentPointInside != previousPointInside) {
-				double P_inside[3], P_outside[3];
-				for(int i=0;i<3;i++) {
-					if(currentPointInside) {
-						P_inside[i]= P1[i]+P1P2[i]*t;
-						P_outside[i]=P1[i]+P1P2[i]*(t-1./MAX_DIV);
-					} else {
-						P_inside[i]= P1[i]+P1P2[i]*(t-1./MAX_DIV);
-						P_outside[i]=P1[i]+P1P2[i]*t;
-					}
-				}
-				isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P_inside, P_outside);
-                if (isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
-					uv_tmp2=make_pair(u,v);
-				}
-			}
-			if(currentPointInside && !previousPointInside) {
-				polygonUV.push_back(uv_tmp2);
-				tmp.push_back(uv_tmp2);
-			}
-			polygonUV.push_back(uv_tmp1);
-			tmp.push_back(uv_tmp1);
-			if(!currentPointInside && previousPointInside) {
-				polygonUV.push_back(uv_tmp2);
-				tmp.push_back(uv_tmp2);
-			}
-		// If outside then compute patch intersection on boundary
-		} else {
-			currentPointInside=0;
-		}
-		outFlag = isProjectedOnPatchBoundary && outFlag;
-	}
-	//Deal with last point
-	previousPointInside = currentPointInside;
-	currentPointInside = isIn2;
-	// Opposite flag means crossing the boundary, so we project on point on boundary
-	if(currentPointInside != previousPointInside && neighbourElement != -1) {
-		double P_inside[3], P_outside[3];
-		for(int i=0;i<3;i++) {
-			if(currentPointInside) {
-				P_inside[i]= P2[i];
-				P_outside[i]=P1[i]+P1P2[i]*(1-1./MAX_DIV);
-			} else {
-				P_inside[i]= P1[i]+P1P2[i]*(1-1./MAX_DIV);
-				P_outside[i]=P2[i];
-			}
-		}
-		isProjectedOnPatchBoundary=thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P_inside, P_outside);
-        if (isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
-			polygonUV.push_back(make_pair(u,v));
-			tmp.push_back(make_pair(u,v));
-		}
-	}
-	//Return output data
-	if(extraPolygonUV!=NULL && !tmp.empty())
-		(*extraPolygonUV)[neighbourElement].insert((*extraPolygonUV)[neighbourElement].end(),tmp.begin(),tmp.end());
-	return outFlag;
-}
-
-
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
     /*
      * Mapping of the
@@ -1342,7 +1224,6 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
     C_NN->solve(_masterField, tmpVec);
 
     delete[] tmpVec;
-
 }
 
 void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_slaveField) {
@@ -1360,7 +1241,6 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
     C_NR->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
 
     delete[] tmpVec;
-
 }
 
 void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
@@ -1437,7 +1317,7 @@ void IGAMortarMapper::writeParametricProjectedPolygon(const int _patchIndex, con
 
     projectedPolygonsFile<<_patchIndex;
     for(int i=0; i<_polygonUV->size(); i++) {
-    	projectedPolygonsFile<<" "<<*_polygonUV[i].first<<" "<<*_polygonUV[i].second;
+    	projectedPolygonsFile<<" "<<(*_polygonUV)[i].first<<" "<<(*_polygonUV)[i].second;
     }
     projectedPolygonsFile<<endl;
     projectedPolygonsFile.close();
