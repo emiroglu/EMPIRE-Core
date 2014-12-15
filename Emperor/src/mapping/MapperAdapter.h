@@ -60,17 +60,24 @@ public:
     void initMortarMapper(bool oppositeSurfaceNormal, bool dual, bool enforceConsistency);
     /***********************************************************************************************
      * \brief Initialize IGA Mortar Mapper
-     * \param[in] _tolProjectionDistance tolerance of distance for projection
-     * \param[in] _numGPsTriangle number of Gauss points when performs integration on triangle
-     * \param[in] _numGPsQuad number of Gauss points when performs integration on quadrilateral
-     * \param[in] _numDivision number of division made on parametric polygon lines projected back to canonical space
-     * \author Chenshen Wu, Fabien Pean
+     * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
+     * \param[in] _numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
+     * \param[in] _maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
+     * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
+     * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     * \author Fabien Pean, Chenshen Wu
      ***********/
-    void initIGAMortarMapper(double maxProjectionDistance, int numRefinementForIntialGuess, double maxDistanceForProjectedPointsOnDifferentPatches,
-                             int newtonRaphsonMaxIt, double newtonRaphsonTol,
-                             int newtonRaphsonBoundaryMaxIt, double newtonRaphsonBoundaryTol,
-                             int bisectionMaxIt, double bisectionTol,
-                             int numGPTriangle, int numGPQuad);
+    void initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
+                             int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
+                             int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
+                             int _bisectionMaxIt, double _bisectionTol,
+                             int _numGPTriangle, int _numGPQuad);
     /***********************************************************************************************
      * \brief Initialize NearestNeighborMapper
      * \author Tianyang Wang

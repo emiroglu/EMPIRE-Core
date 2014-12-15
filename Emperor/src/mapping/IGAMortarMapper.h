@@ -119,21 +119,58 @@ public:
      * \param[in] _disTol Tolerance up to which projection is trusted
      * \param[in] _numGPsTri The number of Gauss points used for computing triangle element
      * \param[in] _numGPsQuad The number of Gauss points used for computing quad element
-     * \author Chenshen Wu
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isMappingIGA2FEM);
 
     /***********************************************************************************************
-     * \brief Destructor Chenshen Wu
+     * \brief Destructor
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     virtual ~IGAMortarMapper();
 
-    void setParametersIntegration(int _numGPTriangle=16, int _numGPQuad=25);
-    void setParametersNewtonRaphson(int _maxNumOfIterations=20, double _tolerance=1e-6);
-    void setParametersNewtonRaphsonBoundary(int _maxNumOfIterations=20, double _tolerance=1e-6);
-    void setParametersBisection(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    /***********************************************************************************************
+     * \brief Set parameter for the projection of mesh onto the NURBS surface
+     * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
+     * \param[in] _numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
+     * \param[in] _maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
+     * \author Fabien Pean
+     ***********/
     void setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess,
                                  int _maxDistanceForProjectedPointsOnDifferentPatches);
+    /***********************************************************************************************
+     * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
+     * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \author Fabien Pean
+     ***********/
+    void setParametersNewtonRaphson(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    /***********************************************************************************************
+     * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
+     * \param[in] _newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \author Fabien Pean
+     ***********/
+    void setParametersNewtonRaphsonBoundary(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    /***********************************************************************************************
+     * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
+     * \param[in] _bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
+     * \author Fabien Pean
+     ***********/
+    void setParametersBisection(int _maxNumOfIterations=20, double _tolerance=1e-6);
+    /***********************************************************************************************
+     * \brief Set parameter for integration
+     * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
+     * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     ***********/
+    void setParametersIntegration(int _numGPTriangle=16, int _numGPQuad=25);
+
+    /***********************************************************************************************
+     * \brief Build the coupling matrcies C_NN and C_NR
+     * \author Fabien Pean
+     ***********/
+    void buildCouplingMatrices();
 
     /***********************************************************************************************
      * \brief Perform consistent mapping from IGA to FE (map displacements)
@@ -151,9 +188,9 @@ public:
      ***********/
     void conservativeMapping(const double *fieldFE, double *fieldIGA);
 
+
     /// intern function used for mapping
 private:
-    void buildCouplingMatrices();
     /***********************************************************************************************
      * \brief Initialization of the element freedom tables
      * \author Chenshen Wu
@@ -278,16 +315,15 @@ public:
     /***********************************************************************************************
      * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
      * \param[in] _patchIndex	The id of the patch the parametric coordinates must be used with
-     * \param[in] __polygonUV	The parametric coordinates of the polygon to write in the file
+     * \param[in] _polygonUV	The parametric coordinates of the polygon to write in the file
      * \author Fabien Pean
      ***********/
-    void writeParametricProjectedPolygon(void);
-    void writeParametricProjectedPolygon(int _patchIndex, const Polygon2D& _polygonUV);
+    void writeParametricProjectedPolygon(const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
      ***********/
-    void printCouplingMatricesToFile();
+    void writeCouplingMatricesToFile();
 
     /// Debugging functions
 public:

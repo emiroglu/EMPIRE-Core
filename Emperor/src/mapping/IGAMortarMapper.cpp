@@ -134,7 +134,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     computeCouplingMatrices();
 
-    printCouplingMatricesToFile();
+    writeCouplingMatricesToFile();
 
     C_NN->factorize();
 
@@ -706,7 +706,7 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 	/// 1.3 For each subelement output of the trimmed polygon, clip by knot span
 	for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
 		/// Debug data
-		writeParametricProjectedPolygon(_patchIndex,listTrimmedPolygonUV[trimmedPolygonIndex]);
+		writeParametricProjectedPolygon(_patchIndex,&listTrimmedPolygonUV[trimmedPolygonIndex]);
 		//////
 		Polygon2D listSpan;
 		ListPolygon2D listPolygonUV;
@@ -1422,22 +1422,22 @@ void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
     // Close file
     projectedNodesFile.close();
 }
-void IGAMortarMapper::writeParametricProjectedPolygon(void) {
-    ofstream projectedPolygonsFile;
+
+void IGAMortarMapper::writeParametricProjectedPolygon(const int _patchIndex, const Polygon2D* const _polygonUV) {
+	ofstream projectedPolygonsFile;
     string projectedPolygonsFileName = "projectedPolygonsOntoNURBSSurface_" + name + ".csv";
-    projectedPolygonsFile.open(projectedPolygonsFileName.c_str(), ios::out | ios::trunc);
-    projectedPolygonsFile.close();
-}
-void IGAMortarMapper::writeParametricProjectedPolygon(int _patchIndex, const Polygon2D& _polygonUV) {
-    ofstream projectedPolygonsFile;
-    string projectedPolygonsFileName = "projectedPolygonsOntoNURBSSurface_" + name + ".csv";
+	if(_patchIndex == -1) {
+        projectedPolygonsFile.open(projectedPolygonsFileName.c_str(), ios::out | ios::trunc);
+        projectedPolygonsFile.close();
+        return;
+    }
     projectedPolygonsFile.open(projectedPolygonsFileName.c_str(), ios::app);
     projectedPolygonsFile.precision(12);
     projectedPolygonsFile << std::dec;
 
     projectedPolygonsFile<<_patchIndex;
-    for(int i=0; i<_polygonUV.size(); i++) {
-    	projectedPolygonsFile<<" "<<_polygonUV[i].first<<" "<<_polygonUV[i].second;
+    for(int i=0; i<_polygonUV->size(); i++) {
+    	projectedPolygonsFile<<" "<<*_polygonUV[i].first<<" "<<*_polygonUV[i].second;
     }
     projectedPolygonsFile<<endl;
     projectedPolygonsFile.close();
@@ -1470,10 +1470,10 @@ void IGAMortarMapper::printCouplingMatrices() {
     C_NR->printCSR();
 }
 
-void IGAMortarMapper::printCouplingMatricesToFile() {
+void IGAMortarMapper::writeCouplingMatricesToFile() {
 	DEBUG_OUT()<<"### Printing matrices into file ###"<<endl;
 	DEBUG_OUT()<<"Size of C_NR is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
-    if(Message::userSetOutputLevel==Message::DEBUG) {
+    if(Message::isDebugMode()) {
 		C_NR->printToFile("C_NR.dat");
 		C_NN->printToFile("C_NN.dat");
 	}
