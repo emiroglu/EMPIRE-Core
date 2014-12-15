@@ -253,7 +253,9 @@ public:
         theFEMeshM->nodes[3 * 3 + 2] = 1.0e-06;
 
         theMapperM = new IGAMortarMapper("Test IGA Mortar Mapper Multi Patch", theIGAMeshM,
-                theFEMeshM, 1e-2, 16, 25, isMappingIGA2FEM);
+                theFEMeshM, isMappingIGA2FEM);
+
+        theMapperM->buildCouplingMatrices();
 
         // The polynomial degrees
         int pS = 1;
@@ -373,9 +375,8 @@ public:
         theFEMeshS->nodes[3 * 3 + 1] = 0.3;
         theFEMeshS->nodes[3 * 3 + 2] = 1.0e-06;
 
-        theMapperS = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS, theFEMeshS, 1e-2,
-                16, 25, isMappingIGA2FEM);
-
+        theMapperS = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS, theFEMeshS, isMappingIGA2FEM);
+        theMapperS->buildCouplingMatrices();
     }
 
     void tearDown() {
@@ -404,7 +405,8 @@ public:
     void testLeakage() {
         for (int i = 0; i < 100000000; i++) {
             IGAMortarMapper* theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS,
-                    theFEMeshS, 1e-2, 16, 25, isMappingIGA2FEM);
+                    theFEMeshS, isMappingIGA2FEM);
+            theMapper->buildCouplingMatrices();
             delete theMapper;
         }
     }
