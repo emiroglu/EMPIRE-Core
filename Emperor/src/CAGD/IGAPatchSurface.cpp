@@ -27,8 +27,6 @@
 
 // Inclusion of user defined libraries
 #include "IGAPatchSurface.h"
-//#include "IGAMath.h"
-// Edit Aditya
 #include "MathLibrary.h"
 #include "DataField.h"
 #include "Message.h"
@@ -37,15 +35,9 @@ using namespace std;
 
 namespace EMPIRE {
 
-const int IGAPatchSurface::MAX_NUM_ITERATIONS = 20;
+int IGAPatchSurface::MAX_NUM_ITERATIONS = 20;
 
-const double IGAPatchSurface::EPS_ORTHOGONALITY_CONDITION = 1e-9;
-
-const double IGAPatchSurface::EPS_ORTHOGONALITY_CONDITION_RELAXED = 1e-7;
-
-const double IGAPatchSurface::EPS_DISTANCE = 1e-9;
-
-const double IGAPatchSurface::EPS_DISTANCE_RELAXED = 1e-6;
+double IGAPatchSurface::TOL_ORTHOGONALITY = 1e-9;
 
 const char IGAPatchSurface::EDGE_U0=1<<0;
 const char IGAPatchSurface::EDGE_UN=1<<1;
@@ -609,7 +601,7 @@ void IGAPatchSurface::computeBaseVectorsAndDerivatives(double* _baseVectorsAndDe
 }
 
 bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, double* _P,
-        bool& _flagConverge) {
+        bool& _flagConverge, int _maxIt, double _tol) {
 
     /*
      * Returns the projection of a point _P on the NURBS patch given an initial guess for the surface parameters _u, _v via references:
@@ -741,7 +733,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             * noSpatialDimensions * noBaseVcts / 2];
 
     // 2. Loop over all the Newton-Raphson iterations
-    while (counter <= MAX_NUM_ITERATIONS) {
+    while (counter <= _maxIt) {
         // 2i. Update the iteration counter
         counter++;
 
@@ -806,7 +798,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         cosv = fabs(GvXdistanceVector) / Gv2norm / distanceVector2norm;
 
         // 2xi. Check the orthogonality condition and if it is fulfilled break the loop
-        if (cosu <= EPS_ORTHOGONALITY_CONDITION && cosv <= EPS_ORTHOGONALITY_CONDITION)
+        if (cosu <= _tol && cosv <= _tol)
             break;
 
         // 2xii. Compute the entries of the Jacobian matrix
@@ -861,7 +853,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     	IGABasis->getVBSplineBasis1D()->clampKnot(_v);
     }
 ////     3. Check whether maximum number of iterations has been reached and if yes return 0 to the flag (non-converged iterations)
-    if (counter > MAX_NUM_ITERATIONS) {
+    if (counter > _maxIt) {
         flagNewtonRaphson = false;
         if (R[0] * R[0] + R[1] * R[1] < epsDuv)
             _flagConverge = true;
@@ -879,7 +871,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     return flagNewtonRaphson;
 }
 
-bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, double* _P) {
+bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, double* _P, int _maxIt, double _tol) {
     /*
      *  Returns the projection of a point _P on the NURBS patch given an initial guess for the surface parameters _u, _v via references:
      * _P = double[3]. Its return value is a bool flag on the convergence of the Newton-Raphson iterations. Makes use of the previosuly
@@ -890,12 +882,12 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     bool tmp = false;
 
     // Compute the closest point projection using the Newton-Rapshon algorithm
-    return computePointProjectionOnPatch(_u, _v, _P, tmp);
+    return computePointProjectionOnPatch(_u, _v, _P, tmp, _maxIt, _tol);
 }
 
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 		double& _u, double& _v, double& _ratio, double& _distance, double* _P1,
-		double* _P2) {
+		double* _P2, int _maxIt, double _tol) {
 	/// 1. Read input and initialize the data
 	// Read input
 	assert(_P1 != NULL);
@@ -945,11 +937,11 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 			UV[0] = UV1[0];
 			UV[1] = UV1[1];
 		}
-	} while(MathLibrary::vector2norm(P1P,noSpatialDimensions) > EPS_DISTANCE
-			&& iteration <= 2*MAX_NUM_ITERATIONS);
+	} while(MathLibrary::vector2norm(P1P,noSpatialDimensions) > _tol
+			&& iteration <= _maxIt);
 	/// 3. Postprocessing
 	//Reached maximum of iteration = algorithm not converged
-	if (iteration > 2*MAX_NUM_ITERATIONS)
+	if (iteration > _maxIt)
 		return false;
 	//Else compute output data
 	double P1P2[noSpatialDimensions],QP[3];
@@ -967,7 +959,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 
 }
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
-        double& _distance, double* _P1, double* _P2) {
+        double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Bisection for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
@@ -980,7 +972,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u,
     double u=_u;
 	double v=_v;
 	// Compute point projection from the line to the NURBS patch boundary
-    isConverged = solvePointProjectionOnPatchBoundaryBisection(u,v, div,distance, _P1, _P2);
+    isConverged = solvePointProjectionOnPatchBoundaryBisection(u,v, div,distance, _P1, _P2, _maxIt, _tol);
 	if(isConverged){
 		char edge = getEdge(u, v);
 		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
@@ -1002,8 +994,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u,
 }
 
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
-		double& _t, double& _ratio,
-		double& _distance, double* _P1, double* _P2, int _edge) {
+		double& _t, double& _ratio, double& _distance, double* _P1,
+		double* _P2, int _edge, int _maxIt, double _tol) {
 
 	assert(_P1 != NULL);
 	assert(_P2 != NULL);
@@ -1102,7 +1094,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 
 	double Q[3];
 	// 2. Loop over all the Newton-Raphson iterations
-	while (counter <= MAX_NUM_ITERATIONS) {
+	while (counter <= _maxIt) {
 		// 2i. Update the iteration counter
 		counter++;
 		// 2ii. Find the span of the given surface parameters
@@ -1139,7 +1131,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 		R = MathLibrary::computeDenseDotProduct(dim, P1Q, n);
 		// 2vii. Compute the stopping criteria
 		// If not converging quick enough
-		if(fabs(fabs(R) - fabs(R_previous1)) < EPS_ORTHOGONALITY_CONDITION)
+		if(fabs(fabs(R) - fabs(R_previous1)) < _tol)
 			break;
 		// If oscillating stop
 		if(R==R_previous2)
@@ -1178,8 +1170,8 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 	}
 
 	// 3. Check convergence criteria
-	if (counter > MAX_NUM_ITERATIONS || fabs(R) > EPS_ORTHOGONALITY_CONDITION_RELAXED) {
-			flagNewtonRaphson = false;
+	if (counter > _maxIt) {
+		flagNewtonRaphson = false;
 	} else {
 		flagNewtonRaphson = true;
 	}
@@ -1221,7 +1213,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 }
 
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _ratio,
-        double& _distance, double* _P1, double* _P2) {
+        double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Newton-Rhapson for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
@@ -1264,7 +1256,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 					t = v1;
 			}
 			// Compute point projection from the line to the NURBS patch boundary
-            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge);
+            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge, _maxIt, _tol);
 
 			// Fix possible numerical error
 			if(div-1.0 > 0 && div-1.0 < 1e-3)
@@ -1412,28 +1404,33 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     MathLibrary::computeVectorCrossProduct(&baseVec[0], &baseVec[3],_normal);
 }
 
-char IGAPatchSurface::getEdge(const double _u, const double _v) {
+char IGAPatchSurface::getEdge(const double _u, const double _v, const double _tolerance) {
 	char edge = 0;
-	if(fabs(_u - getIGABasis(0)->getFirstKnot()) < EPS_DISTANCE_RELAXED) {
+	if(fabs(_u - getIGABasis(0)->getFirstKnot()) < _tolerance) {
 		edge = edge | EDGE_U0;
 	}
-	else if(fabs(_u - getIGABasis(0)->getLastKnot()) < EPS_DISTANCE_RELAXED) {
+	else if(fabs(_u - getIGABasis(0)->getLastKnot()) < _tolerance) {
 		edge = edge | EDGE_UN;
 	}
-	if(fabs(_v - getIGABasis(1)->getFirstKnot()) < EPS_DISTANCE_RELAXED) {
+	if(fabs(_v - getIGABasis(1)->getFirstKnot()) < _tolerance) {
 		edge = edge | EDGE_V0;
 	}
-	else if(fabs(_v - getIGABasis(1)->getLastKnot()) < EPS_DISTANCE_RELAXED) {
+	else if(fabs(_v - getIGABasis(1)->getLastKnot()) < _tolerance) {
 		edge = edge | EDGE_VN;
 	}
 	return edge;
 }
-std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _edgeIn, const char _edgeOut, bool _isCounterclockwise) {
+std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _edgeIn, const char _edgeOut, const bool _isCounterclockwise) {
 	std::vector<std::pair<double,double> > corners;
+	// If share one common edge means point does not exist
+	// Or that the corner is already present
 	if(_edgeIn & _edgeOut)
 		return corners;
-//	if(_edgeIn == 0 || _edgeOut == 0)
-//		return corners;
+	// If the input is correct
+	if(_edgeIn == 0 || _edgeOut == 0) {
+		WARNING_BLOCK_OUT("IGAPatchSurface","getCorner","One of the input edge is not defined!");
+		return corners;
+	}
 	double u0 = getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
 	double uN = getIGABasis()->getUBSplineBasis1D()->getLastKnot();
 	double v0 = getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
