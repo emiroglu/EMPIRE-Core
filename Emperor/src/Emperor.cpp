@@ -313,10 +313,17 @@ void Emperor::initMappers() {
             mapper->initNearestElementMapper();
             nameToMapperMap.insert(pair<string, MapperAdapter*>(name, mapper));
 		} else if (settingMapper.type == EMPIRE_IGAMortarMapper) {
-			mapper->initIGAMortarMapper(settingMapper.igaMortarMapper.tolProjectionDistance,
-					settingMapper.igaMortarMapper.numGPsTriangle,
-					settingMapper.igaMortarMapper.numGPsQuad,
-					settingMapper.igaMortarMapper.numDivision);
+            mapper->initIGAMortarMapper(settingMapper.igaMortarMapper.projectionProperties.maxProjectionDistance,
+                                        settingMapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess,
+                                        settingMapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches,
+                                        settingMapper.igaMortarMapper.newtonRaphson.maxNumOfIterations,
+                                        settingMapper.igaMortarMapper.newtonRaphson.tolerance,
+                                        settingMapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations,
+                                        settingMapper.igaMortarMapper.newtonRaphsonBoundary.tolerance,
+                                        settingMapper.igaMortarMapper.bisection.maxNumOfIterations,
+                                        settingMapper.igaMortarMapper.bisection.tolerance,
+                                        settingMapper.igaMortarMapper.integration.numGPTriangle,
+                                        settingMapper.igaMortarMapper.integration.numGPQuad);
 			nameToMapperMap.insert(pair<string, MapperAdapter*>(name, mapper));
 		} else {
 			assert(false);

@@ -82,25 +82,31 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
             b->nodeIDs, b->elems, oppositeSurfaceNormal, dual, enforceConsistency);
 }
 
-void MapperAdapter::initIGAMortarMapper(double _tolProjectionDistance, int _numGPsTriangle,
-        int _numGPsQuad, int _numDivision) {
+void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
+                                        int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
+                                        int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
+                                        int _bisectionMaxIt, double _bisectionTol,
+                                        int _numGPTriangle, int _numGPQuad) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
         assert(meshB->type == EMPIRE_Mesh_FEMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshA),
-                dynamic_cast<FEMesh *>(meshB), _tolProjectionDistance, _numGPsTriangle, _numGPsQuad,
-                true, _numDivision);
+                dynamic_cast<FEMesh *>(meshB), true);
     } else if (!meshAIGA && meshBIGA) {
         assert(meshA->type == EMPIRE_Mesh_FEMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshB),
-                dynamic_cast<FEMesh *>(meshA), _tolProjectionDistance, _numGPsTriangle, _numGPsQuad,
-                false, _numDivision);
+                dynamic_cast<FEMesh *>(meshA), false);
     } else{
         ERROR_OUT()<<"Error in MapperAdapter::initIGAMortarMapper" << endl;
-        ERROR_OUT()<<"Wrong type of mesh!" << endl;
+        ERROR_OUT()<<"Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
         exit(-1);
     }
+    IGAMortarMapper* mapper = static_cast<IGAMortarMapper*>(mapperImpl);
+    mapper->setParametersProjection(_maxProjectionDistance,_numRefinementForIntialGuess,_maxDistanceForProjectedPointsOnDifferentPatches);
+    mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt,_newtonRaphsonTol);
+    mapper->setParametersNewtonRaphsonBoundary(_newtonRaphsonBoundaryMaxIt,_newtonRaphsonBoundaryTol);
+    mapper->setParametersBisection(_bisectionMaxIt,_bisectionTol);
 }
 
 void MapperAdapter::initNearestNeighborMapper() {

@@ -898,7 +898,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     return computePointProjectionOnPatch(_u, _v, _P, tmp);
 }
 
-bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(
+bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 		double& _u, double& _v, double& _ratio, double& _distance, double* _P1,
 		double* _P2) {
 	/// 1. Read input and initialize the data
@@ -971,7 +971,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection
 	return true;
 
 }
-char IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u, double& _v, double& _ratio,
+char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Bisection for line"<<endl
@@ -985,12 +985,12 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u
     double u=_u;
 	double v=_v;
 	// Compute point projection from the line to the NURBS patch boundary
-	isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge_Bisection(u,v, div,distance, _P1, _P2);
+    isConverged = solvePointProjectionOnPatchBoundaryBisection(u,v, div,distance, _P1, _P2);
 	if(isConverged){
 		char edge = getEdge(u, v);
 		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
-		DEBUG_OUT()<<"\tAlgorithm has CONVERGED on edge "<<int(edge)<<" and distance to patch is "<<distance<<endl
-				<<"\t\t and ratio P1P/P1P2 is "<<div<<endl
+        DEBUG_OUT()<<"\tAlgorithm has CONVERGED on edge "<<int(edge)<<" and distance to patch is "<<distance<<endl
+                <<"\t\t and ratio P1P/P1P2 is "<<div<<endl
 				<<"\t\t and parametric value are (u,v)("<<u<<" , "<<v<<")"<<endl;
 		DEBUG_OUT()<<"\t======================================================"<<endl;
 		// Fix possible numerical error
@@ -1006,7 +1006,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u
 	return false;
 }
 
-bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
+bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 		double& _t, double& _ratio,
 		double& _distance, double* _P1, double* _P2, int _edge) {
 
@@ -1225,7 +1225,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 	return flagNewtonRaphson;
 }
 
-char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double& _u, double& _v, double& _ratio,
+char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Newton-Rhapson for line"<<endl
@@ -1269,7 +1269,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 					t = v1;
 			}
 			// Compute point projection from the line to the NURBS patch boundary
-			isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge(t, div, distance, _P1, _P2, edge);
+            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge);
 
 			// Fix possible numerical error
 			if(fabs(div-1.0)<EPS_DISTANCE && div-1.0>0) div=1.0;
