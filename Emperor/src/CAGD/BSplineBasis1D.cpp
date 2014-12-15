@@ -32,7 +32,7 @@ using namespace std;
 
 namespace EMPIRE {
 
-const double BSplineBasis1D::EPS_ACCPETEDINTOKNOTSPAN = 1e-14;
+const double BSplineBasis1D::EPS_ACCPETEDINTOKNOTSPAN = 1e-6;
 
 BSplineBasis1D::BSplineBasis1D(int _ID = 0, int _pDegree = 0, int _noKnots = 0,
         double* _KnotVector = 0) :
@@ -131,10 +131,11 @@ bool BSplineBasis1D::clampKnot(double& _uPrm) const {
 
 int BSplineBasis1D::findKnotSpan(double _uPrm) const {
     // Check input
+	double uPrm = _uPrm;
 	if(!clampKnot(_uPrm)) {
-        ERROR_OUT("in BSplineBasis1D::findKnotSpan");
-        ERROR_OUT("Given parameter is outside of the knot span");
-		exit(EXIT_FAILURE);
+		stringstream sstream;
+		sstream << "Given parameter "<<uPrm<<" out of knot bounds ["<<getFirstKnot()<<", "<<getLastKnot()<<"]"<<endl;
+		WARNING_BLOCK_OUT("BSplineBasis1D","findKnotSpan",sstream.str());
 	}
 
     // Compute the number of basis functions
