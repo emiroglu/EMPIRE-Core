@@ -763,8 +763,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         // 2vi. Compute the 2-norm of the distance vector
         distanceVector2norm = EMPIRE::MathLibrary::vector2norm(distanceVector, noSpatialDimensions);
 
-        if (distanceVector2norm < EPS_DISTANCE)
-            break;
+//        if (distanceVector2norm < EPS_DISTANCE)
+//            break;
 
         // 2vii. Compute the base vectors and their derivatives
         computeBaseVectorsAndDerivatives(baseVecAndDerivs, basisFctsAndDerivs, derivDegreeBaseVcts,
@@ -862,18 +862,13 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     }
 ////     3. Check whether maximum number of iterations has been reached and if yes return 0 to the flag (non-converged iterations)
     if (counter > MAX_NUM_ITERATIONS) {
-        if (cosu <= EPS_ORTHOGONALITY_CONDITION_RELAXED
-                && cosv <= EPS_ORTHOGONALITY_CONDITION_RELAXED)
-            flagNewtonRaphson = true;
-        else
-            flagNewtonRaphson = false;
-        if (!flagNewtonRaphson && distanceVector2norm < EPS_DISTANCE_RELAXED)
-            flagNewtonRaphson = true;
+        flagNewtonRaphson = false;
         if (R[0] * R[0] + R[1] * R[1] < epsDuv)
             _flagConverge = true;
         else
             _flagConverge = false;
     } else {
+        flagNewtonRaphson = true;
     }
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
@@ -1272,9 +1267,9 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
             isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge);
 
 			// Fix possible numerical error
-			if(div-1.0 > 0)
+			if(div-1.0 > 0 && div-1.0 < 1e-3)
 				div=1.0;
-			if(div < 0)
+			if(div < 0 && div > -1e-3)
 				div=0.0;
 
 			if (isConverged) {
@@ -1310,13 +1305,13 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 				// If it is not a point to take into account, continue
 				if(!(validPoint1 || validPoint2) && point<2) continue;
 				// Otherwise store it under following conditions
-				if (distance <= _distance) {
-					hasConverged=true;
-					_u=u[point];
-					_v=v[point];
+				if (distance <= _distance && div>=0 && div <=1) {
+					hasConverged = true;
+					_u = u[point];
+					_v = v[point];
 					_distance = distance;
 					_ratio = div;
-					_edge=_edge | edgeOut;
+					_edge = _edge | edgeOut;
 					DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
 					DEBUG_OUT()<<"\tAlgorithm has CONVERGED for initial guess point "<<point<<" on edge "<<int(edgeOut)<<endl
 							<<"\t\t and new distance found to patch is "<<_distance<<endl
