@@ -994,15 +994,15 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_Bisection(double& _u
 				<<"\t\t and parametric value are (u,v)("<<u<<" , "<<v<<")"<<endl;
 		DEBUG_OUT()<<"\t======================================================"<<endl;
 		// Fix possible numerical error
-		if(fabs(div-1.0) < EPS_DISTANCE_RELAXED && div-1.0 > 0) div = 1.0;
-		if(fabs(div)	 < EPS_DISTANCE_RELAXED && div < 0) div = 0.0;
+		if(div - 1.0 > 0) 	div = 1.0;
+		if(div < 0) 		div = 0.0;
 		_ratio=div;
 		_distance=distance;
 		_u=u;
 		_v=v;
 		return edge;
 	}
-	WARNING_OUT()<<"\tAlgorithm has NOT CONVERGED"<<endl;
+	ERROR_OUT()<<"\tAlgorithm has NOT CONVERGED"<<endl;
 	return false;
 }
 
@@ -1144,7 +1144,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 		R = MathLibrary::computeDenseDotProduct(dim, P1Q, n);
 		// 2vii. Compute the stopping criteria
 		// If not converging quick enough
-		if(fabs(fabs(R)-fabs(R_previous1))<EPS_ORTHOGONALITY_CONDITION)
+		if(fabs(fabs(R) - fabs(R_previous1)) < EPS_ORTHOGONALITY_CONDITION)
 			break;
 		// If oscillating stop
 		if(R==R_previous2)
@@ -1183,7 +1183,7 @@ bool IGAPatchSurface::computePointProjectionOnPatchBoundaryOnGivenEdge(
 	}
 
 	// 3. Check convergence criteria
-	if (counter > MAX_NUM_ITERATIONS || fabs(R)>EPS_ORTHOGONALITY_CONDITION_RELAXED) {
+	if (counter > MAX_NUM_ITERATIONS || fabs(R) > EPS_ORTHOGONALITY_CONDITION_RELAXED) {
 			flagNewtonRaphson = false;
 	} else {
 		flagNewtonRaphson = true;
@@ -1272,8 +1272,10 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 			isConverged = computePointProjectionOnPatchBoundaryOnGivenEdge(t, div, distance, _P1, _P2, edge);
 
 			// Fix possible numerical error
-			if(fabs(div-1.0)<EPS_DISTANCE && div-1.0>0) div=1.0;
-			if(fabs(div)	<EPS_DISTANCE && div<0) div=0.0;
+			if(div-1.0 > 0)
+				div=1.0;
+			if(div < 0)
+				div=0.0;
 
 			if (isConverged) {
 				switch (edge) {
@@ -1302,13 +1304,13 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
 					v[point] = t;
 					break;
 				}
-				// If the point is the same as the entry point
-				bool validPoint1=(u[point]!=u1 || v[point]!=v1);//Different from entry point then true else false
-				bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false;//Both are the same then true else false
+				// If the point is the same as the initial guess from input function
+				bool validPoint1=(u[point]!=u1 || v[point]!=v1); //Different from entry point then true else false
+				bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false; //Both are the same then true else false
 				// If it is not a point to take into account, continue
 				if(!(validPoint1 || validPoint2) && point<2) continue;
-				//Otherwise store it under following conditions
-				if (distance <= _distance && div >= 0.0 && div <= 1.0) {
+				// Otherwise store it under following conditions
+				if (distance <= _distance) {
 					hasConverged=true;
 					_u=u[point];
 					_v=v[point];
@@ -1325,9 +1327,9 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundary_NewtonRhapson(double
     	}
     }
 	DEBUG_OUT()<<"\t======================================================"<<endl;
-    if (_distance == numeric_limits<double>::max())
+    if(_distance == numeric_limits<double>::max())
         return false;
-    else if (_ratio >= 0.0 && _ratio <= 1.0) {
+    else if(_ratio >= 0.0 && _ratio <= 1.0) {
         return _edge;
     } else {
         return false;
