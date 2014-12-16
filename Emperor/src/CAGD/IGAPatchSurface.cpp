@@ -755,8 +755,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         // 2vi. Compute the 2-norm of the distance vector
         distanceVector2norm = EMPIRE::MathLibrary::vector2norm(distanceVector, noSpatialDimensions);
 
-//        if (distanceVector2norm < EPS_DISTANCE)
-//            break;
+        if (distanceVector2norm < _tol)
+            break;
 
         // 2vii. Compute the base vectors and their derivatives
         computeBaseVectorsAndDerivatives(baseVecAndDerivs, basisFctsAndDerivs, derivDegreeBaseVcts,
@@ -961,6 +961,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
+	DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Bisection for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
 			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
@@ -989,7 +990,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u,
 		_v=v;
 		return edge;
 	}
-	ERROR_OUT()<<"\tAlgorithm has NOT CONVERGED"<<endl;
+	WARNING_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection"<<endl;
+	WARNING_OUT()<<"\tAlgorithm has NOT CONVERGED. Relax bisection parameters in XML input file!"<<endl;
 	return false;
 }
 
@@ -1215,6 +1217,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _ratio,
         double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
 	DEBUG_OUT()<<"\t======================================================"<<endl;
+	DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Newton-Rhapson for line"<<endl
 			<<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
 			<<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
@@ -1259,10 +1262,18 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
             isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge, _maxIt, _tol);
 
 			// Fix possible numerical error
-			if(div-1.0 > 0 && div-1.0 < 1e-3)
+			if(div > 1. || div < 0.) {
+				WARNING_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
+				WARNING_OUT() << "\tPoint found outside of line parameter space [0,1] with value "<<div<<". "<<endl;
+			}
+			if(div-1.0 > 0 && div-1.0 < 1e-3) {
 				div=1.0;
-			if(div < 0 && div > -1e-3)
+				WARNING_OUT("Clamped to 1 !");
+			}
+			if(div < 0 && div > -1e-3) {
 				div=0.0;
+				WARNING_OUT("Clamped to 0 !");
+			}
 
 			if (isConverged) {
 				switch (edge) {
@@ -1313,14 +1324,14 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 			}
     	}
     }
+	if(!_edge) {
+		_u = u1;
+		_v = v1;
+		WARNING_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
+		WARNING_OUT()<<"\tAlgorithm has NOT CONVERGED. Relax newtonRaphsonBoundary parameters in XML input file!"<<endl;
+	}
 	DEBUG_OUT()<<"\t======================================================"<<endl;
-    if(_distance == numeric_limits<double>::max())
-        return false;
-    else if(_ratio >= 0.0 && _ratio <= 1.0) {
-        return _edge;
-    } else {
-        return false;
-    }
+	return _edge;
 }
 
 void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, double* _P,
@@ -1505,7 +1516,7 @@ std::vector<std::pair<double,double> > IGAPatchSurface::getCorner(const char _ed
 	ERROR_OUT()<<"No corner found to add in polygon"<<endl;
 	ERROR_OUT()<<"Edge going IN the patch is ["<<int(_edgeIn)<<"] and Edge going OUT is [" << int(_edgeOut) << "] with direction "
 			<<(_isCounterclockwise?"counterclockwise":"clockwise")<<endl;
-	assert(0);
+	exit(EXIT_FAILURE);
 	return corners;
 }
 
