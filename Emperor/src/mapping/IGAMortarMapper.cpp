@@ -320,7 +320,7 @@ void IGAMortarMapper::projectPointsToSurface() {
                     		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
                     /// 1iii.4ii.4. Check if the Newton-Rapshon iterations have converged
                     double distance = MathLibrary::computePointDistance(P, projectedP);
-                    if (hasResidualConverged &&  distance < projectionProperties.maxProjectionDistance) {
+                    if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
                         /// 1iii.4ii.4i. Discard point if too far away from previous projection
                     	if( 	!projectionPoint[nodeIndex].empty() &&
                     			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
@@ -442,10 +442,11 @@ void IGAMortarMapper::projectPointsToSurface() {
             }
             /// 2iv. If the node can still not be projected assert an error in the projection phase
             if (!isNodeProjected) {
-                ERROR_OUT() << " in IGAMortarMapper::projectPointsToSurface" << endl;
-                ERROR_OUT() << "Cannot project node: " << nodeIndex
+                ERROR_OUT() << "Projection failed in mapper " << name << endl;
+                ERROR_OUT() << "In IGAMortarMapper::projectPointsToSurface" << endl;
+                ERROR_OUT() << "Cannot find projection for node: " << nodeIndex
                 		<< "  (" << P[0] << ", " << P[1] << ", " << P[2] << ")" << endl;
-                ERROR_OUT() << "Projection failed in IGA mapper " << name << endl;
+                ERROR_OUT() << "In XML input file, in projectionProperties, relax maxProjectionDistance and/or numRefinementForIntialGuess" << endl;
                 exit (EXIT_FAILURE);
             }
         }
@@ -579,13 +580,23 @@ void IGAMortarMapper::computeCouplingMatrices() {
 							newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
                     if(!edge1 || dis > projectionProperties.maxProjectionDistance) {
 						WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm.");
+						// Reset initial guess
+						u = projectedCoords[nodeIndexNext][patchIndex][0];
+						v = projectedCoords[nodeIndexNext][patchIndex][1];
 						edge1 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P2, P1,
 								bisection.maxNumOfIterations, bisection.tolerance);
 					}
 					isProjectedOnPatchBoundary = edge1;
-                    if(isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
-						polygonUV.push_back(make_pair(u,v));
+					// Check projected point validity
+                	if(!isProjectedOnPatchBoundary)
+						ERROR_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!");
+                    if(dis > projectionProperties.maxProjectionDistance) {
+						stringstream sstream;
+						sstream << "Point projection on boundary too far : distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!";
+						ERROR_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices",sstream.str());
 					}
+                    // Add point in polygon
+					polygonUV.push_back(make_pair(u,v));
 					// 2. Second point
 					u = projectedCoords[nodeIndexNext][patchIndex][0];
 					v = projectedCoords[nodeIndexNext][patchIndex][1];
@@ -620,13 +631,23 @@ void IGAMortarMapper::computeCouplingMatrices() {
 							newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
                     if(!edge2 || dis > projectionProperties.maxProjectionDistance) {
 						WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm.");
+						// Reset initial guess
+						u = projectedCoords[nodeIndex][patchIndex][0];
+						v = projectedCoords[nodeIndex][patchIndex][1];
 						edge2 = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, P1, P2,
 								bisection.maxNumOfIterations, bisection.tolerance);
 					}
 					isProjectedOnPatchBoundary = edge2;
-                    if (isProjectedOnPatchBoundary && dis <= projectionProperties.maxProjectionDistance) {
-    					polygonUV.push_back(make_pair(u,v));
+					// Check projected point validity
+                	if(!isProjectedOnPatchBoundary)
+						ERROR_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!");
+                    if(dis > projectionProperties.maxProjectionDistance) {
+						stringstream sstream;
+						sstream << "Point projection on boundary too far : distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!";
+						ERROR_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices",sstream.str());
 					}
+                    // Add point in polygon
+    				polygonUV.push_back(make_pair(u,v));
 					// 3. Update processed edge
 					numEdgesProcessed++;
 				}
@@ -656,7 +677,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 								<< meshFE->nodes[nodeIndexNext * 3 + 2] << ") on patch ["
 								<< patchIndex << "] boundary" << endl;
 						ERROR_OUT() << "Projection failed in IGA mapper " << name << endl;
-						exit (EXIT_FAILURE);
+						exit(EXIT_FAILURE);
 					}
 				}
 				nodeCounter++;
@@ -666,7 +687,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					ERROR_OUT() << "Projection of a split element on patch "<< patchIndex << " for mapper " << name << " failed!" << endl;
 					ERROR_OUT() << "Not all the edges of  element " << elemCount << "could be processed in adequate number of iteration." << endl;
 					ERROR_OUT() << "Projected nodes of the element are invalid!" << endl;
-					exit (EXIT_FAILURE);
+					exit(EXIT_FAILURE);
 				}
 			}
 			ClipperAdapter::cleanPolygon(polygonUV);
@@ -772,8 +793,8 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan) {
 	/// 1.find the knot span which the current element located in.
 	//      from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction
-    double *knotVectorU = _thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
-    double *knotVectorV = _thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
+    const double *knotVectorU = _thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
+    const double *knotVectorV = _thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
 
 	int span[4];
 	int isOnSameKnotSpan = computeKnotSpanOfProjElement(_thePatch, _polygonUV,span);
@@ -807,20 +828,6 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 }
 
 IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _polygonUV, int _elementIndex) {
-	// Subdivide the edges of the polygon in parametric space of Nurbs patch
-//	Polygon2D tmp;
-//	tmp.reserve(_polygonUV.size()*(numDivision));
-//	for(int node=0;node<_polygonUV.size();node++) {
-//		int nodeNext=(node+1)%_polygonUV.size();
-//		tmp.push_back(_polygonUV[node]);
-//		for(int sub=1;sub<numDivision;sub++){
-//			double t=(double)sub/(double)numDivision;
-//			double u=_polygonUV[node].first*(1.0-t)+_polygonUV[nodeNext].first*(t);
-//			double v=_polygonUV[node].second*(1.0-t)+_polygonUV[nodeNext].second*(t);
-//			tmp.push_back(make_pair(u,v));
-//		}
-//	}
-//	_polygonUV=tmp;
 	int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
 	// Cartesian coordinates of the low order element
 	double elementFEXYZ[12];
