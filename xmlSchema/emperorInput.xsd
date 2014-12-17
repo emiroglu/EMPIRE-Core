@@ -257,10 +257,54 @@
 					</complexType>
 				</element>
 				<element name="IGAMortarMapper" maxOccurs="1" minOccurs="0">
-					<complexType>					  
-						<attribute name="tolProjectionDistance" type="double"  use="required"></attribute>
-						<attribute name="numGPsTriangle" type="integer" use="required"></attribute>
-						<attribute name="numGPsQuad" type="integer" use="required"></attribute>
+					<complexType>
+                                                <element name="projectionProperties" maxOccurs="1" minOccurs="0">
+                                                    <complexType>
+                                                        <attribute name="maxProjectionDistance" type="double"
+                                                        use="required">
+                                                        </attribute>
+                                                        <attribute name="numRefinementForIntialGuess" type="integer" use="required">
+                                                        </attribute>
+                                                        <attribute name="maxDistanceForProjectedPointsOnDifferentPatches" type="double" use="required">
+                                                        </attribute>
+                                                    </complexType>
+                                                </element>
+                                                <element name="newtonRaphson" maxOccurs="1" minOccurs="0">
+                                                    <complexType>
+                                                        <attribute name="maxNumOfIterations" type="integer"
+                                                            use="required">
+                                                        </attribute>
+                                                        <attribute name="tolerance" type="double" use="required">
+                                                        </attribute>
+                                                    </complexType>
+                                                </element>
+                                                <element name="newtonRaphsonBoundary" maxOccurs="1" minOccurs="0">
+                                                    <complexType>
+                                                        <attribute name="maxNumOfIterations" type="integer"
+                                                            use="required">
+                                                        </attribute>
+                                                        <attribute name="tolerance" type="double" use="required">
+                                                        </attribute>
+                                                    </complexType>
+                                                </element>
+                                                <element name="bisection" maxOccurs="1" minOccurs="0">
+                                                    <complexType>
+                                                        <attribute name="maxNumOfIterations" type="integer"
+                                                            use="required">
+                                                        </attribute>
+                                                        <attribute name="tolerance" type="double" use="required">
+                                                        </attribute>
+                                                    </complexType>
+                                                </element>
+                                                <element name="integration" maxOccurs="1" minOccurs="0">
+                                                    <complexType>
+                                                        <attribute name="numGPTriangle" type="integer"
+                                                            use="required">
+                                                        </attribute>
+                                                        <attribute name="numGPQuad" type="integer" use="required">
+                                                        </attribute>
+                                                    </complexType>
+                                                </element>
 					</complexType>
 				</element>
 			</choice>
