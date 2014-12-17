@@ -1269,7 +1269,7 @@ void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
     // Open file for writing the projected nodes
     ofstream projectedNodesFile;
     const string UNDERSCORE = "_";
-    string projectedNodesFileName = "projectedNodesOntoNURBSSurface" + UNDERSCORE + name + ".m";
+    string projectedNodesFileName = name + "_projectedNodesOntoNURBSSurface.m";
     projectedNodesFile.open(projectedNodesFileName.c_str());
     projectedNodesFile.precision(14);
     projectedNodesFile << std::dec;
@@ -1322,7 +1322,7 @@ void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
 
 void IGAMortarMapper::writeParametricProjectedPolygon(const int _patchIndex, const Polygon2D* const _polygonUV) {
 	ofstream projectedPolygonsFile;
-    string projectedPolygonsFileName = "projectedPolygonsOntoNURBSSurface_" + name + ".csv";
+    string projectedPolygonsFileName = name + "_projectedPolygonsOntoNURBSSurface.csv";
 	if(_patchIndex == -1) {
         projectedPolygonsFile.open(projectedPolygonsFileName.c_str(), ios::out | ios::trunc);
         projectedPolygonsFile.close();
@@ -1371,8 +1371,8 @@ void IGAMortarMapper::writeCouplingMatricesToFile() {
 	DEBUG_OUT()<<"### Printing matrices into file ###"<<endl;
 	DEBUG_OUT()<<"Size of C_NR is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
     if(Message::isDebugMode()) {
-		C_NR->printToFile("Cnr_" + name + ".dat" );
-		C_NN->printToFile("Cnn_" + name + ".dat");
+		C_NR->printToFile(name + "_Cnr.dat");
+		C_NN->printToFile(name + "_Cnn.dat");
 	}
 }
 

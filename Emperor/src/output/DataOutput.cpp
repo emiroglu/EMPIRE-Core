@@ -177,7 +177,7 @@ void DataOutput::writeDataFields(int step) {
                 }
             } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
                 DataField *dataField = mesh->getDataFieldByName(dataFieldName);
-                MatlabIGAFileIO::writeVectorFieldOnCPs(dataFieldName, step, dataField);
+                MatlabIGAFileIO::writeVectorFieldOnCPs(meshName, dataFieldName, step, dataField);
             } else {
                 assert(0);
             }

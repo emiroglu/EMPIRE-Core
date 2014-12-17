@@ -48,8 +48,8 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     // Matlab visualization
 
     ofstream myfile;
-
-    myfile.open("SurfacePatches.m");
+    string fileName = igaMesh->name + "_surfacePatches.m";
+    myfile.open(fileName.c_str());
     myfile.precision(14);
     myfile << std::dec;
 
@@ -94,10 +94,10 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     myfile.close();
 }
 
-void writeVectorFieldOnCPs(string _dataFieldName, int _step, DataField* _dataField) {
+void writeVectorFieldOnCPs(string _meshName, string _dataFieldName, int _step, DataField* _dataField) {
     ofstream myfile;
 
-    string fileName = _dataFieldName+"IGA.m";
+    string fileName = _meshName + _dataFieldName+".m";
     myfile.open(fileName.c_str() , ios::app);
     myfile.precision(14);
     myfile << std::dec;
