@@ -1371,8 +1371,8 @@ void IGAMortarMapper::writeCouplingMatricesToFile() {
 	DEBUG_OUT()<<"### Printing matrices into file ###"<<endl;
 	DEBUG_OUT()<<"Size of C_NR is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
     if(Message::isDebugMode()) {
-		C_NR->printToFile("C_NR.dat");
-		C_NN->printToFile("C_NN.dat");
+		C_NR->printToFile("Cnr_" + name + ".dat" );
+		C_NN->printToFile("Cnn_" + name + ".dat");
 	}
 }
 
