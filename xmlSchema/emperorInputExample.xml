@@ -98,8 +98,15 @@
 		</meshB>
 	</mapper>
 	<mapper name="IGAMortar1" type="IGAMortarMapper">
-		<IGAMortarMapper tolProjectionDistance="1e-6"
-			numGPsTriangle="16" numGPsQuad="25" />
+                <IGAMortarMapper>                     
+                        <projectionProperties maxProjectionDistance="15e-2" numRefinementForIntialGuess="15" maxDistanceForProjectedPointsOnDifferentPatches="1e-2"/>
+                        <newtonRaphson maxNumOfIterations="20" tolerance="1e-6"/>
+                        <newtonRaphsonBoundary maxNumOfIterations="20" tolerance="1e-6"/>
+                        <bisection maxNumOfIterations="40" tolerance="1e-6"/>
+                        <integration numGPTriangle="15" numGPQuad="25"/>
+                </IGAMortarMapper>
+                <!-- mapping displacements from meshA to meshB, mapping forces from meshB 
+                    to meshA. -->
 		<meshA>
 			<meshRef clientCodeName="carat" meshName="myMesh1" />
 		</meshA>
