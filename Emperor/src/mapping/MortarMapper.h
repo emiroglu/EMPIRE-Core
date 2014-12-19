@@ -209,10 +209,9 @@ private:
     void computeC_BA();
     /***********************************************************************************************
      * \brief force C_BB * 1 == C_BA * 1 by modifying C_BA
-     * \param[in] sparsity map of C_BA
      * \author Tianyang Wang
      ***********/
-    void enforceConsistency(MathLibrary::SparseMatrix<double> *CB);
+    void enforceConsistency();
     /***********************************************************************************************
      * \brief Initialize all tables that help referring from an element to its nodes or vice versa
      * \author Tianyang Wang

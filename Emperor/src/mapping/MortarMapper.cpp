@@ -406,11 +406,7 @@ void MortarMapper::computeC_BA() {
 
     // 3. modify C_BA to enforce consistency
     if (toEnforceConsistency) {
-        if (!dual){
-            enforceConsistency(C_BA);
-        }else{
-            enforceConsistency( C_BA_DUAL);
-        }
+            enforceConsistency();
     }
 
 //    	if(C_BA_A == NULL){
@@ -427,7 +423,7 @@ void MortarMapper::computeC_BA() {
 
 }
 
-void MortarMapper::enforceConsistency( MathLibrary::SparseMatrix<double> *BA) {
+void MortarMapper::enforceConsistency() {
     // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
     if (!dual) {
         double *factor = new double[masterNumNodes];
@@ -443,13 +439,13 @@ void MortarMapper::enforceConsistency( MathLibrary::SparseMatrix<double> *BA) {
         for (int i = 0; i < masterNumNodes; i++) {
             double sum = 0.0;
             // Row sum of the sparse Matrix
-            sum = (*BA).getRowSum(i);
+            sum = (*C_BA).getRowSum(i);
 
             if (sum < factor[i] * 0.5) { // if the master element is not fully covered by slave elements, use nearest neighbor
                 cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
                 EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
                 //sparsityMapC_BA[i]->clear();
-                (*BA).deleteRow(i);
+                (*C_BA).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -463,25 +459,25 @@ void MortarMapper::enforceConsistency( MathLibrary::SparseMatrix<double> *BA) {
                 nb = indexes_tmp[0][0];
 #endif
                 //sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
-                (*BA)(i,nb) = factor[i];
+                (*C_BA)(i,nb) = factor[i];
                 sum = factor[i];
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             assert(sum<factor[i]*(1+1E-2));
             factor[i] /= sum;
 
-            (*BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
+            (*C_BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
         }
         delete[] factor;
     } else { // If dual
         for (int i = 0; i < masterNumNodes; i++) {
             double factor = C_BB_A_DUAL[i];
             // Row sum of the sparse Matrix
-            double sum = (*BA).getRowSum(i);
+            double sum = (*C_BA_DUAL).getRowSum(i);
 
             if ((sum < factor * 0.5) || (sum > factor * 1.5)) { // if the master element is not fully covered by slave elements, use nearest neighbor
                 //sparsityMapC_BA[i]->clear();
-                (*BA).deleteRow(i);
+                (*C_BA_DUAL).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -495,13 +491,13 @@ void MortarMapper::enforceConsistency( MathLibrary::SparseMatrix<double> *BA) {
                 nb = indexes_tmp[0][0];
 #endif
                 // Inserting the new element of the sparse matrix.
-                (*BA)(i,nb) = factor;
+                (*C_BA_DUAL)(i,nb) = factor;
                 sum = factor;
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             //assert(sum<factor*(1+1E-2)); // This is not the case for dual
             factor /= sum;
-            (*BA).multiplyRowWith(i,factor);
+            (*C_BA_DUAL).multiplyRowWith(i,factor);
 
         }
     }
