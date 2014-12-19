@@ -406,7 +406,7 @@ void MortarMapper::computeC_BA() {
 
     // 3. modify C_BA to enforce consistency
     if (toEnforceConsistency) {
-            enforceConsistency();
+        enforceConsistency();
     }
 
 //    	if(C_BA_A == NULL){
