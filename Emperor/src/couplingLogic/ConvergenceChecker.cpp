@@ -79,7 +79,7 @@ void ConvergenceChecker::CheckResidual::writeResidualToShell() {
 }
 
 ConvergenceChecker::ConvergenceChecker(double maxNumOfIters) :
-        MAX_NUM_ITERATIONS(maxNumOfIters) {
+        MAX_NUM_ITERATIONS(maxNumOfIters), unitTest(false) {
     currentNumOfIterations = 0;
     debugResidual = true;
     timeStepNumber = 1;
@@ -137,8 +137,10 @@ bool ConvergenceChecker::isConvergent() {
 
     if (isConvergent || reachMaxNumOfIters) {
         if (reachMaxNumOfIters) {
-            WARNING_BLOCK_OUT("ConvergenceChecker", "isConvergent()",
+            if (!unitTest) {
+                WARNING_BLOCK_OUT("ConvergenceChecker", "isConvergent()",
                     "reach maximum number of iterations!");
+            }
         }
         currentNumOfIterations = 0;
         timeStepNumber++;

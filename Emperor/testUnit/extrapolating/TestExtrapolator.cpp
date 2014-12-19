@@ -61,6 +61,7 @@ public:
                     EMPIRE_DataField_vector, EMPIRE_DataField_field);
 
             LinearExtrapolator *extrapolator = new LinearExtrapolator("");
+            extrapolator->unitTest = true;
             extrapolator->addConnectionIO(ConnectionIOSetup::constructDummyConnectionIO(df));
             extrapolator->init();
 
@@ -94,6 +95,7 @@ public:
                     EMPIRE_DataField_vector, EMPIRE_DataField_field);
 
             LinearExtrapolator *extrapolator = new LinearExtrapolator("");
+            extrapolator->unitTest = true;
             extrapolator->addConnectionIO(ConnectionIOSetup::constructDummyConnectionIO(df));
             extrapolator->init();
 

@@ -61,6 +61,10 @@ private:
     std::vector<double*> data00;
     // data of the previous time step
     std::vector<double*> data0;
+    /// if unit test, do not show debug message
+    bool unitTest;
+    /// for unit test
+    friend class TestExtrapolator;
 };
 
 } /* namespace EMPIRE */

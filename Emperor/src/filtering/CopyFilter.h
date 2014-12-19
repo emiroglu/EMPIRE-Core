@@ -58,10 +58,13 @@ public:
      ***********/
     void init();
 private:
-/// Signal offset value 0--> no offset
-int signalOffset;
+    /// Signal offset value 0--> no offset
+    int signalOffset;
+    /// if unit test, do not output debug message
+    bool unitTest;
+    /// unit test class
+    friend class TestCopyFilter;
 };
-
 
 } /* namespace EMPIRE */
 #endif /* COPYFILTER_H_ */

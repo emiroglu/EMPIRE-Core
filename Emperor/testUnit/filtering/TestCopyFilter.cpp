@@ -53,6 +53,7 @@ public:
     void testFilter1() {
         {
             CopyFilter *filter = new CopyFilter(0);
+            filter->unitTest = true;
             DataField *in;
             DataField *out;
             in = new DataField("", EMPIRE_DataField_atNode, 2, EMPIRE_DataField_vector,
@@ -76,6 +77,7 @@ public:
         }
         {
             CopyFilter *filter = new CopyFilter(0);
+            filter->unitTest = true;
             Signal *in;
             Signal *out;
             in = new Signal("", 1, 1, 10);
@@ -103,6 +105,7 @@ public:
     void testFilter2() {
         {
             CopyFilter *filter = new CopyFilter(0);
+            filter->unitTest = true;
             DataField *in;
             DataField *out;
             in = new DataField("", EMPIRE_DataField_atNode, 1, EMPIRE_DataField_scalar,
@@ -129,6 +132,7 @@ public:
         }
         {
             CopyFilter *filter = new CopyFilter(0);
+            filter->unitTest = true;
             Signal *in;
             Signal *out;
             in = new Signal("", 1, 1, 5);
