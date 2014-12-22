@@ -134,6 +134,8 @@ public:
         CPPUNIT_ASSERT(fabs(point[1] - 0.0) < TOL);
         CPPUNIT_ASSERT(fabs(point[2] - 0.0) < TOL);
 
+        delete km1, km2;
+
     }
     /***********************************************************************************************
      * \brief Test adding rotation with different axises (non-commutative)
@@ -156,6 +158,8 @@ public:
         CPPUNIT_ASSERT(fabs(point[0] - 0.0) < TOL);
         CPPUNIT_ASSERT(fabs(point[1] - 0.0) < TOL);
         CPPUNIT_ASSERT(fabs(point[2] - 1.0) < TOL);
+
+        delete km;
     }
 
     CPPUNIT_TEST_SUITE (TestKinematicMotion);
