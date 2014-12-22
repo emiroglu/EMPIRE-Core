@@ -36,7 +36,6 @@ namespace EMPIRE {
 class TestKinematicMotion: public CppUnit::TestFixture {
 private:
 
-
 public:
     void setUp() {
     }
@@ -166,7 +165,8 @@ public:
     CPPUNIT_TEST (testConstructor);
     CPPUNIT_TEST (testMotionAndCoorTransformation);
     CPPUNIT_TEST (testAddMotion);
-    CPPUNIT_TEST (testAddRotation);CPPUNIT_TEST_SUITE_END();
+    CPPUNIT_TEST (testAddRotation);
+    CPPUNIT_TEST_SUITE_END();
 };
 
 } /* namespace EMPIRE */
