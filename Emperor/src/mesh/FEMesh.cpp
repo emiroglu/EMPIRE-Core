@@ -226,6 +226,7 @@ void FEMesh::validateMesh() {
     	}
     	count1 += numNodesPerElem[elem1];
     } */ // commented by Tianyang, since it is an O(N^2) operation.
+    //TODO: move this function to the place where logically it requires element identity check, no place else should call this function.
 }
 
 void revertSurfaceNormalOfFEMesh(FEMesh *mesh) {
