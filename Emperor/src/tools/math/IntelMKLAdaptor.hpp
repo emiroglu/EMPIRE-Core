@@ -49,7 +49,7 @@ private:
 	// Variables for PARDISO (INTEL)
 	// ##########################
 	/// pardiso variable
-	void *pardiso_pt[64]; // this is related to internal memory management, see PARDISO manual
+	int pardiso_pt[64]; // this is related to internal memory management, see PARDISO manual
 	/// pardiso variable
 	int pardiso_iparm[64];
 	/// pardiso variable
@@ -94,6 +94,14 @@ public:
 	 * \author Aditya Ghantasala
 	 ***********/
 	PardisoAdapter(bool isSymmetric=false){
+
+		// Initializing the pardiso_pt with zeros
+		// Reference for doing this
+		// http://scc.ustc.edu.cn/zlsc/tc4600/intel/mkl/mklman/GUID-C16BFBCA-EF1C-4CDB-BC73-41655B6DD8F5.htm
+		// https://software.intel.com/en-us/forums/topic/392531
+		for(int i=0; i<64; i++)
+			pardiso_pt[i] = 0;
+
 		pardiso_descra = "G00F"; // general matrix, indexing from 1
 		pardiso_alpha = 1.0;
 		pardiso_beta = 0.0;
@@ -134,8 +142,6 @@ public:
 				&pardiso_neq, mat_values, rowIndex, columns, &pardiso_idum,
 				&pardiso_nrhs, pardiso_iparm, &pardiso_msglvl, &pardiso_ddum, &pardiso_ddum,
 				&pardiso_error);
-		pardiso_phase = -1; //Release all internal memory for all matrices
-
 	}
 
 	/***********************************************************************************************
@@ -218,7 +224,7 @@ public:
 			pardiso_maxfct = 1; // max number of factorizations
 			pardiso_mnum = 1; // which factorization to use
 			pardiso_msglvl = 0; // do NOT print statistical information
-			pardiso_neq = m; // number of rows of C_BB
+			pardiso_neq = m; // number of rows
 			pardiso_nrhs = 1; // number of right hand side
 			pardiso_phase = 12; // analysis and factorization
 			pardiso_error = 0;
@@ -254,8 +260,8 @@ public:
 	  ***********/
 	 void solve(bool isSymmetric, int m, double *mat_values, int *rowIndex, int* columns, double* x, double * b) { //Computes x=A^-1 *b
 
-		 // Factorizing in P and Q
-		 factorize(isSymmetric, m, mat_values, rowIndex, columns);
+		 // Factorizing in L and U
+		 //factorize(isSymmetric, m, mat_values, rowIndex, columns);
 		 // pardiso forward and backward substitution
 		 pardiso_phase = 33; // forward and backward substitution
 		 pardiso_error = 0;

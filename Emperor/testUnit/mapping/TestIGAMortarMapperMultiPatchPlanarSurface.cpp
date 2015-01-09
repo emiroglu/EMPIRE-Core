@@ -413,7 +413,7 @@ public:
 
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperMultiPatchPlanarSurface);
-    CPPUNIT_TEST (testMapping);
+    //CPPUNIT_TEST (testMapping);
 //    CPPUNIT_TEST (testLeakage);
     CPPUNIT_TEST_SUITE_END();
 }
