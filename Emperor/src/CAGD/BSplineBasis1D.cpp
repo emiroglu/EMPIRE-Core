@@ -97,8 +97,10 @@ double BSplineBasis1D::computeGrevilleAbscissae(const int _controlPointIndex) co
 		GrevilleAbscissae+=KnotVector[ub+_controlPointIndex+i];
 	}
 	GrevilleAbscissae/=ub;
-	if(GrevilleAbscissae < KnotVector[ub+_controlPointIndex] - EPS_ACCPETEDINTOKNOTSPAN
-			|| GrevilleAbscissae > KnotVector[ub+_controlPointIndex+(ub-1)] + EPS_ACCPETEDINTOKNOTSPAN) {
+	double minKnot = fmin(KnotVector[ub+_controlPointIndex], KnotVector[ub+_controlPointIndex+(ub-1)]);
+	double maxKnot = fmax(KnotVector[ub+_controlPointIndex], KnotVector[ub+_controlPointIndex+(ub-1)]);
+	if(GrevilleAbscissae < minKnot - EPS_ACCPETEDINTOKNOTSPAN
+			|| GrevilleAbscissae > maxKnot + EPS_ACCPETEDINTOKNOTSPAN) {
 		ERROR_OUT()<<"Greville abscissae "<<GrevilleAbscissae<<" is out of Knot vector bound ["
 				<<KnotVector[ub+_controlPointIndex]<<", "<<KnotVector[ub+_controlPointIndex+(ub-1)]<<"]"<<endl;
 		exit(-1);
