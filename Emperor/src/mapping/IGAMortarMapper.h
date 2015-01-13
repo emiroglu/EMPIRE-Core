@@ -225,6 +225,14 @@ private:
     void getPatchesIndexElementIsOn(int _elemIndex, std::set<int>& _patchWithFullElt, std::set<int>& _patchWithSplitElt);
 
     /***********************************************************************************************
+     * \brief Clip the input polygon by the patch parametric quad
+     * \param[in] _thePatch 	The patch for which boundaries are used for clipping
+     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \author Fabien Pean
+     ***********/
+    void clipByPatch(const IGAPatchSurface* _thePatch, Polygon2D& _polygonUV);
+
+    /***********************************************************************************************
      * \brief Clip the input polygon by the trimming window of the patch
      * \param[in] _thePatch 	The patch for which trimming curves are used
      * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
@@ -251,7 +259,7 @@ private:
      * \return					The polygon in canonical space of the polygonUV which is defined in nurbs parametric space
      * \author Fabien Pean
      ***********/
-    Polygon2D computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _polygonUV, int _elementIndex);
+    Polygon2D computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _theElement, Polygon2D& _polygonUV, int _elementIndex);
 
     /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
@@ -279,6 +287,19 @@ private:
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
     /***********************************************************************************************
+     * \brief Compute the projection of a line on patch boundary, display warnings and backup solution
+     * \param[in] _thePatch 	The patch to compute the coupling matrices for
+     * \param[in/out] _u 		The parameter value of the inside patch node
+     * \param[in/out] _v 		The parameter value of the inside patch node
+     * \param[in/out] _div		The ratio on the line
+     * \param[in/out] _dis		The distance of the line to the patch
+     * \param[in] _Pin			The point of the line that could have been projected in the patch
+     * ]param[in] _Pout			The point of the line that could not have been projected in the patch
+     * \return 					Flag if it has converged
+     * \author Fabien Pean
+     ***********/
+    bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
+    /***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
      * \param[in] _element		The element for which we want the neighbor
      * \param[in] _node1	 	The first node index of the edge
@@ -302,6 +323,7 @@ public:
      * \author Fabien Pean
      ***********/
     void writeParametricProjectedPolygon(const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
+    void writeCartesianProjectedPolygon();
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean

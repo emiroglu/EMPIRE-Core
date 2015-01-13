@@ -123,6 +123,29 @@ bool computeLocalCoorInQuad(const double *quad, int planeToProject, const double
         double *localCoor);
 
 /***********************************************************************************************
+ * \brief Compute local coordinates of a point in a triangle in a 2D space
+ * \param[in] _coordsTriangle, coordinates of the triangle. double[6].
+ * \param[in] _coordsNode, coordinates of the point. double[2].
+ * \param[out] _localCoords, local coordinates of the point. double[3]
+ * \return a boolean saying whether the point is inside the triangle or not (true of false)
+ * \author Chenshen Wu
+ ***********/
+bool computeLocalCoordsInTriangle(const double *_coordsTri, const double *_coordsNode,
+        double* _localCoords);
+
+/***********************************************************************************************
+ * \brief Compute local coordinates of a point in a quadriliteral in a 2D space by solving a nonlinear
+ *        system using the Newton-Raphson scheme
+ * \param[in] _coordsQuad Coordinates of the quadriliteral. double[8].
+ * \param[in] _coordsNode Coordinates of the point. double[2].
+ * \param[out] _localCoords local coordinates of the point. double[2]
+ * \return a boolean saying whether the point is inside the quadriliteral or not (true of false)
+ * \author Chenshen Wu
+ ***********/
+bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNode,
+        double* _localCoords);
+
+/***********************************************************************************************
  * \brief Computes the values of the low order shape functions (linear for triangle and bilinear
  *        for the quadrilateral)
  * \param[in] _nNodes The number of nodes in the element level
