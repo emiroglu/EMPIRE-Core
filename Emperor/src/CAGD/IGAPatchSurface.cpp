@@ -1262,17 +1262,13 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
             isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge, _maxIt, _tol);
 
 			// Fix possible numerical error
-			if(div > 1. || div < 0.) {
-				WARNING_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
-				WARNING_OUT() << "\tPoint found outside of line parameter space [0,1] with value "<<div<<". "<<endl;
-			}
 			if(div-1.0 > 0 && div-1.0 < 1e-3) {
 				div=1.0;
-				WARNING_OUT("Clamped to 1 !");
+				WARNING_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 1 !");
 			}
 			if(div < 0 && div > -1e-3) {
 				div=0.0;
-				WARNING_OUT("Clamped to 0 !");
+				WARNING_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 0 !");
 			}
 
 			if (isConverged) {
