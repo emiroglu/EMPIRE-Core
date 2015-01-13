@@ -96,8 +96,7 @@ void writeIGAMesh(IGAMesh* igaMesh) {
 
 void writeVectorFieldOnCPs(string _meshName, string _dataFieldName, int _step, DataField* _dataField) {
     ofstream myfile;
-
-    string fileName = _meshName + _dataFieldName+".m";
+    string fileName = _meshName + "_" + _dataFieldName + ".m";
     myfile.open(fileName.c_str() , ios::app);
     myfile.precision(14);
     myfile << std::dec;
