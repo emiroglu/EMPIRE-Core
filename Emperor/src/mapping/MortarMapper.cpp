@@ -125,12 +125,11 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
 
 MortarMapper::~MortarMapper() {
     delete C_BB;
-    delete C_BB_A_DUAL;
-    if(C_BA != NULL){
-    	delete C_BA;
-    }
+    delete[] C_BB_A_DUAL;
 
-    if(C_BA_DUAL != NULL){
+    if(!dual){
+    	delete C_BA;
+    }else{
     	delete C_BA_DUAL;
     }
 
@@ -148,12 +147,6 @@ void MortarMapper::consistentMapping(const double *slaveField, double *masterFie
         slaveFieldCopy[i] = slaveField[i];
 
     // 1. matrix vector product (W_tmp = C_BA * W_A)
-    int m = masterNumNodes; // number of rows of C_BA
-    int n = slaveNumNodes; // number of columns of C_BA
-    char noTrans = 'N';
-    char descra[] = "G00F"; // general matrix, indexing from 1
-    double alpha = 1.0;
-    double beta = 0.0;
     if (!dual) {
     	(*C_BA).mulitplyVec(false,slaveFieldCopy,masterField,masterNumNodes);
     }
@@ -162,7 +155,6 @@ void MortarMapper::consistentMapping(const double *slaveField, double *masterFie
     }
 
     delete[] slaveFieldCopy;
-
     // 2. solve C_BB * W_B = W_tmp
     if (!dual) {
         double *ddum = new double[masterNumNodes]; // Temporary variable to store the solution of the system.
@@ -197,7 +189,7 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     	for(int i=0; i<masterNumNodes; i++){
     		masterFieldCopy[i] = ddum[i];
     	}
-    	delete ddum;
+    	delete[] ddum;
     } else {
         for (int i = 0; i < masterNumNodes; i++)
             masterFieldCopy[i] /= C_BB_A_DUAL[i];
@@ -206,10 +198,6 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     // 2. matrix vector product (F_A = C_BA^T * F_tmp)
     int m = masterNumNodes; // number of rows of C_BA
     int n = slaveNumNodes; // number of columns of C_BA
-    char trans = 'T';
-    char descra[] = "G00F"; // general matrix, indexing from 1
-    double alpha = 1.0;
-    double beta = 0.0;
     if (!dual) {
     	(*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
     	//assert(0);
@@ -427,7 +415,6 @@ void MortarMapper::enforceConsistency() {
     // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
     if (!dual) {
         double *factor = new double[masterNumNodes];
-        double *factor1 = new double[masterNumNodes];
         for (int i = 0; i < masterNumNodes; i++) {
             factor[i] = 0.0;
         }
@@ -768,7 +755,7 @@ void MortarMapper::findCandidates(const double* masterElem, int masterElemNumNod
                 neighborElems->insert(vecTmp->at(k));
             }
         }
-        delete nbs;
+        delete[] nbs;
     }
     vector<set<int>::iterator> toDelete;
     // 2. kick out the elements that have wrong normal direction
