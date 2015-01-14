@@ -45,16 +45,4 @@ DataField *AbstractMesh::getDataFieldByName(std::string dataFieldName) {
     return nameToDataFieldMap.at(dataFieldName);
 }
 
-Message &operator<<(Message &message, AbstractMesh::structBoundingBox &boundingBox) {
-    message << "\t+" << "Bounding box: " << endl;
-    message << "\t\t+" << '\t' << "xmin: " << boundingBox.xmin << endl;
-    message << "\t\t+" << '\t' << "xmax: " << boundingBox.xmax << endl;
-    message << "\t\t+" << '\t' << "ymin: " << boundingBox.ymin << endl;
-    message << "\t\t+" << '\t' << "ymax: " << boundingBox.ymax << endl;
-    message << "\t\t+" << '\t' << "zmin: " << boundingBox.zmin << endl;
-    message << "\t\t+" << '\t' << "zmax: " << boundingBox.zmax << endl;
-    message() << "\t+" << "---------------------------------" << endl;
-    return message;
-}
-
 } /* namespace EMPIRE */

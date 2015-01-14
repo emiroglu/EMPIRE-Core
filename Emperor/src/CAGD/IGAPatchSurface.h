@@ -29,6 +29,7 @@
 
 // Inclusion of user defined libraries
 #include "AbstractMesh.h"
+#include "BoundingBox.h"
 #include "NurbsBasis2D.h"
 #include "IGAControlPoint.h"
 #include "IGAPatchSurfaceTrimming.h"
@@ -61,6 +62,9 @@ protected:
     /// The class holding the trimming information
     IGAPatchSurfaceTrimming Trimming;
 
+    /// The bounding box of the patch
+    AABB boundingBox;
+
     /// The constructor and the destructor and the copy constructor
 public:
     /***********************************************************************************************
@@ -85,7 +89,7 @@ public:
      ***********/
     ~IGAPatchSurface();
 
-    
+    void computeBoundingBox();
     /// Trimming related functions
 public:
     /***********************************************************************************************
@@ -432,6 +436,14 @@ public:
      ***********/
     inline bool isTrimmed() const {
     	return Trimming.isTrimmed();
+    }
+
+    inline double getBoundingBox(int id) {
+    	return boundingBox[id];
+    }
+
+    inline const BoundingBox& getBoundingBox() {
+    	return boundingBox;
     }
 
     /// The maximum number of Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch

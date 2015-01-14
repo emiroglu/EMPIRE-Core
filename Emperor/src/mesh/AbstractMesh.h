@@ -25,6 +25,7 @@
 #include <map>
 #include <vector>
 #include "EMPEROR_Enum.h"
+#include "BoundingBox.h"
 
 namespace EMPIRE {
 
@@ -78,22 +79,8 @@ public:
     const EMPIRE_Mesh_type type;
 
     /// the boundingBox of the mesh
-    struct structBoundingBox {
-        double xmax;
-        double xmin;
-        double ymax;
-        double ymin;
-        double zmax;
-        double zmin;
-        bool isComputed;
-    } boundingBox;
+    AABB boundingBox;
 };
-
-/***********************************************************************************************
- * \brief Output bounding box
- * \author Tianyang Wang
- ***********/
-Message &operator<<(Message &message, AbstractMesh::structBoundingBox &boundingBox);
 
 } /* namespace EMPIRE */
 

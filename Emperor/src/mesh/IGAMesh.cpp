@@ -71,37 +71,42 @@ IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVe
 }
 
 void IGAMesh::computeBoundingBox() {
-    if (boundingBox.isComputed)
+    if (boundingBox.isComputed())
         return;
-    boundingBox.xmin = surfacePatches[0]->getControlPointNet()[0]->getX();
-    boundingBox.xmax = surfacePatches[0]->getControlPointNet()[0]->getX();
-    boundingBox.ymin = surfacePatches[0]->getControlPointNet()[0]->getY();
-    boundingBox.ymax = surfacePatches[0]->getControlPointNet()[0]->getY();
-    boundingBox.zmin = surfacePatches[0]->getControlPointNet()[0]->getZ();
-    boundingBox.zmax = surfacePatches[0]->getControlPointNet()[0]->getZ();
+
+    boundingBox[0] = surfacePatches[0]->getControlPointNet()[0]->getX();
+    boundingBox[1] = surfacePatches[0]->getControlPointNet()[0]->getX();
+    boundingBox[2] = surfacePatches[0]->getControlPointNet()[0]->getY();
+    boundingBox[3] = surfacePatches[0]->getControlPointNet()[0]->getY();
+    boundingBox[4] = surfacePatches[0]->getControlPointNet()[0]->getZ();
+    boundingBox[5] = surfacePatches[0]->getControlPointNet()[0]->getZ();
 
     for (int patchCount = 0; patchCount < surfacePatches.size(); patchCount++) {
         IGAPatchSurface* patch = surfacePatches[patchCount];
-        for (int cpCount = 0; cpCount < patch->getNoControlPoints(); cpCount++) {
-            double x = patch->getControlPointNet()[cpCount]->getX();
-            double y = patch->getControlPointNet()[cpCount]->getY();
-            double z = patch->getControlPointNet()[cpCount]->getZ();
-            if (x < boundingBox.xmin)
-                boundingBox.xmin = x;
-            else if (x > boundingBox.xmax)
-                boundingBox.xmax = x;
-            if (y < boundingBox.ymin)
-                boundingBox.ymin = y;
-            else if (y > boundingBox.ymax)
-                boundingBox.ymax = y;
-            if (z < boundingBox.zmin)
-                boundingBox.zmin = z;
-            else if (z > boundingBox.zmax)
-                boundingBox.zmax = z;
-        }
+        patch->computeBoundingBox();
     }
-
-    boundingBox.isComputed = true;
+    for (int patchCount = 0; patchCount < surfacePatches.size(); patchCount++) {
+        IGAPatchSurface* patch = surfacePatches[patchCount];
+		double xmin = patch->getBoundingBox(0);
+		double xmax = patch->getBoundingBox(1);
+		double ymin = patch->getBoundingBox(2);
+		double ymax = patch->getBoundingBox(3);
+		double zmin = patch->getBoundingBox(4);
+		double zmax = patch->getBoundingBox(5);
+		if (xmin < boundingBox[0])
+			boundingBox[0] = xmin;
+		else if ( xmax > boundingBox[1])
+			boundingBox[1] = xmax;
+		if (ymin < boundingBox[2])
+			boundingBox[2] = ymin;
+		else if (ymax > boundingBox[3])
+			boundingBox[3] = ymax;
+		if (zmin < boundingBox[4])
+			boundingBox[4] = zmin;
+		else if (zmax > boundingBox[5])
+			boundingBox[5] = zmax;
+    }
+    boundingBox.isComputed(true);
 }
 
 void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _location,

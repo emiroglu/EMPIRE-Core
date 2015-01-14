@@ -314,6 +314,10 @@ void IGAMortarMapper::projectPointsToSurface() {
                     projectedP[0] = P[0] = meshFE->nodes[nodeIndex * 3];
                     projectedP[1] = P[1] = meshFE->nodes[nodeIndex * 3 + 1];
                     projectedP[2] = P[2] = meshFE->nodes[nodeIndex * 3 + 2];
+
+                    if(!thePatch->getBoundingBox().isPointInside(P, projectionProperties.maxProjectionDistance))
+                    	continue;
+
                     /// 1iii.4ii.2. Get an initial guess for the parametric location of the projected node of the FE side on the NURBS patch
                     U = initialU;
                     V = initialV;
@@ -360,6 +364,8 @@ void IGAMortarMapper::projectPointsToSurface() {
                         coordTmp[1] = V;
                         projectedCoords[nodeIndex].insert(
                                 make_pair(patchCount, coordTmp));
+                		//projectionDistance[nodeIndex] = distance;
+                		//projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
                     }
                 }
             }
@@ -439,6 +445,8 @@ void IGAMortarMapper::projectPointsToSurface() {
                     coordTmp[0] = U;
                     coordTmp[1] = V;
                     projectedCoords[nodeIndex].insert(make_pair(patchCount, coordTmp));
+            		projectionDistance[nodeIndex] = distance;
+            		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
                 } else {
 //                    WARNING_OUT() << "Projection failed in mapper " << name << endl;
 //                    WARNING_OUT() << "In IGAMortarMapper::projectPointsToSurface" << endl;

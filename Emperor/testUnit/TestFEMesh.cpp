@@ -432,12 +432,12 @@ public:
         mesh->nodes[7 * 3 + 2] = 1;
 
         mesh->computeBoundingBox();
-        CPPUNIT_ASSERT(mesh->boundingBox.xmin == 0.0);
-        CPPUNIT_ASSERT(mesh->boundingBox.xmax == 1.0);
-        CPPUNIT_ASSERT(mesh->boundingBox.ymin == 0.0);
-        CPPUNIT_ASSERT(mesh->boundingBox.ymax == 1.0);
-        CPPUNIT_ASSERT(mesh->boundingBox.zmin == 0.0);
-        CPPUNIT_ASSERT(mesh->boundingBox.zmax == 1.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getXmin() == 0.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getXmax() == 1.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getYmin() == 0.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getYmax() == 1.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getZmin() == 0.0);
+        CPPUNIT_ASSERT(mesh->boundingBox.getZmax() == 1.0);
 
         //infoOut << *mesh;
         delete mesh;

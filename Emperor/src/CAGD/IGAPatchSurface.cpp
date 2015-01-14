@@ -101,6 +101,35 @@ IGAPatchSurface::~IGAPatchSurface() {
 
 }
 
+void IGAPatchSurface::computeBoundingBox() {
+    if (boundingBox.isComputed())
+        return;
+    boundingBox[0] = getControlPointNet()[0]->getX();
+    boundingBox[1] = getControlPointNet()[0]->getX();
+    boundingBox[2] = getControlPointNet()[0]->getY();
+    boundingBox[3] = getControlPointNet()[0]->getY();
+    boundingBox[4] = getControlPointNet()[0]->getZ();
+    boundingBox[5] = getControlPointNet()[0]->getZ();
+    for (int cpCount = 0; cpCount < getNoControlPoints(); cpCount++) {
+        double x = getControlPointNet()[cpCount]->getX();
+        double y = getControlPointNet()[cpCount]->getY();
+        double z = getControlPointNet()[cpCount]->getZ();
+        if (x < boundingBox[0])
+            boundingBox[0] = x;
+        else if (x > boundingBox[1])
+            boundingBox[1] = x;
+        if (y < boundingBox[2])
+            boundingBox[2] = y;
+        else if (y > boundingBox[3])
+            boundingBox[3] = y;
+        if (z < boundingBox[4])
+            boundingBox[4] = z;
+        else if (z > boundingBox[5])
+            boundingBox[5] = z;
+    }
+    boundingBox.isComputed(true);
+}
+
 double IGAPatchSurface::computePostprocessingScalarValue(double _u, double _v,
         double* _valuesOnCP) {
     /*

@@ -32,7 +32,7 @@ using namespace std;
 
 FEMesh::FEMesh(std::string _name, int _numNodes, int _numElems, bool _triangulateAll) :
         AbstractMesh(_name, EMPIRE_Mesh_FEMesh), numNodes(_numNodes), numElems(_numElems) {
-    boundingBox.isComputed = false;
+    boundingBox.isComputed(false);
     nodes = new double[numNodes * 3];
     nodeIDs = new int[numNodes];
     numNodesPerElem = new int[numElems];
@@ -163,32 +163,32 @@ FEMesh *FEMesh::triangulate() {
 }
 
 void FEMesh::computeBoundingBox() {
-    if (boundingBox.isComputed)
+    if (boundingBox.isComputed())
         return;
-    boundingBox.xmin = nodes[0 * 3 + 0];
-    boundingBox.xmax = nodes[0 * 3 + 0];
-    boundingBox.ymin = nodes[0 * 3 + 1];
-    boundingBox.ymax = nodes[0 * 3 + 1];
-    boundingBox.zmin = nodes[0 * 3 + 2];
-    boundingBox.zmax = nodes[0 * 3 + 2];
+    boundingBox[0] = nodes[0 * 3 + 0];
+    boundingBox[1] = nodes[0 * 3 + 0];
+    boundingBox[2] = nodes[0 * 3 + 1];
+    boundingBox[3] = nodes[0 * 3 + 1];
+    boundingBox[4] = nodes[0 * 3 + 2];
+    boundingBox[5] = nodes[0 * 3 + 2];
     for (int i = 1; i < numNodes; i++) {
         double x = nodes[i * 3 + 0];
         double y = nodes[i * 3 + 1];
         double z = nodes[i * 3 + 2];
-        if (x < boundingBox.xmin)
-            boundingBox.xmin = x;
-        else if (x > boundingBox.xmax)
-            boundingBox.xmax = x;
-        if (y < boundingBox.ymin)
-            boundingBox.ymin = y;
-        else if (y > boundingBox.ymax)
-            boundingBox.ymax = y;
-        if (z < boundingBox.zmin)
-            boundingBox.zmin = z;
-        else if (z > boundingBox.zmax)
-            boundingBox.zmax = z;
+        if (x < boundingBox[0])
+            boundingBox[0] = x;
+        else if (x > boundingBox[1])
+            boundingBox[1] = x;
+        if (y < boundingBox[2])
+            boundingBox[2] = y;
+        else if (y > boundingBox[3])
+            boundingBox[3] = y;
+        if (z < boundingBox[4])
+            boundingBox[4] = z;
+        else if (z > boundingBox[5])
+            boundingBox[5] = z;
     }
-    boundingBox.isComputed = true;
+    boundingBox.isComputed(true);
 }
 
 void FEMesh::validateMesh() {
