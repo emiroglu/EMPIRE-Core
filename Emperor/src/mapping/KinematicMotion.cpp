@@ -171,6 +171,26 @@ void KinematicMotion::move(double *coordinates) const {
     vectorAddition(coordinates, translationVector);
 }
 
+void KinematicMotion::checkRotationCorrectness() const {
+    double M[9];
+    double M_inv[9];
+    copyMatrix(rotationMatrix, M);
+    copyMatrix(rotationMatrix, M_inv);
+    matrixTanspose(M_inv);
+    matrixProduct(M_inv, M); // M = M_inv * M
+    const double TOL = 1E-10;
+    //printMatrix(M);
+    assert(fabs(M[0*3+0] - 1.0) < TOL);
+    assert(fabs(M[0*3+1] - 0.0) < TOL);
+    assert(fabs(M[0*3+2] - 0.0) < TOL);
+    assert(fabs(M[1*3+0] - 0.0) < TOL);
+    assert(fabs(M[1*3+1] - 1.0) < TOL);
+    assert(fabs(M[1*3+2] - 0.0) < TOL);
+    assert(fabs(M[2*3+0] - 0.0) < TOL);
+    assert(fabs(M[2*3+1] - 0.0) < TOL);
+    assert(fabs(M[2*3+2] - 1.0) < TOL);
+}
+
 void KinematicMotion::print() const {
     cout << "***Transfromation***: " << endl;
     printMatrix(rotationMatrix);

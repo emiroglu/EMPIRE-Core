@@ -77,12 +77,14 @@ public:
     KinematicMotion *newInverse();
     /***********************************************************************************************
      * \brief Add to the current translation vector: t = t + t'
+     *        Remark: rotate first and then translate
      * \param[in] _translationVector number of nodes of A
      * \author Tianyang Wang
      ***********/
     void addTranslation(const double *_translationVector);
     /***********************************************************************************************
      * \brief Add rotation to the current motion with given axis and angle: R'*(R*x + t) = R'*R*x +  R'*t
+     *        Remark: rotate first and then translate
      * \param[in] axis axis of rotation
      * \param[in] normalized whether the axis vector is normalized or not
      * \param[in] angle angle of rotation
@@ -91,6 +93,7 @@ public:
     void addRotation(const double *axis, bool normalized, double angle);
     /***********************************************************************************************
      * \brief Add rotation to the current motion with given two vectors. Rotate from vec1 to vec2, the solution is not unique,
+     *        Remark: rotate first and then translate
      * so choose the axis orthogonal to the plane of vec1 and vec2: R'*(R*x + t) = R'*R*x +  R'*t
      * \param[in] vec1 vec1
      * \param[in] vec2 vec2
@@ -100,6 +103,7 @@ public:
     void addRotation(const double *vec1, const double *vec2, bool normalized);
     /***********************************************************************************************
      * \brief Add rotation to the current motion by rotating to the new coordinate system: R'*(R*x + t) = R'*R*x +  R'*t
+     *        Remark: rotate first and then translate
      * \param[in] xAxisNew new x axis
      * \param[in] yAxisNew new y axis
      * \param[in] zAxisNew new z axis
@@ -110,6 +114,7 @@ public:
             bool normalized);
     /***********************************************************************************************
      * \brief Add rotation to the current motion with given rotation matrix: R'*(R*x + t) = R'*R*x +  R'*t
+     *        Remark: rotate first and then translate
      * \param[in] _rotationMatrix the rotation matrix to be added
      * \author Tianyang Wang
      ***********/
@@ -123,10 +128,16 @@ public:
      ***********/
     void move(double *coordinates) const;
     /***********************************************************************************************
+     * \brief Check the correctness of the rotation by checking whether the transpose is equal to the inverse
+     * \author Tianyang Wang
+     ***********/
+    void checkRotationCorrectness() const;
+    /***********************************************************************************************
      * \brief Print the rotation matrix and the translation vector
      * \author Tianyang Wang
      ***********/
     void print() const;
+
 protected:
     /// the rotation matrix
     double *rotationMatrix;
