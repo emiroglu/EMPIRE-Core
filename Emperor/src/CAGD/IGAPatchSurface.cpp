@@ -1254,6 +1254,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
     double u1 = _u;
     double v1 = _v;
     double t;
+    double maxDistance = _distance;
     double distance = numeric_limits<double>::max();
     double div = 0.0;
     bool isConverged = false;
@@ -1333,8 +1334,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 				// If it is not a point to take into account, continue
 				if(!(validPoint1 || validPoint2) && point<2) continue;
 				// Otherwise store it under following conditions
-				if (distance <= _distance && div>=0 && div <=1) {
-					hasConverged = true;
+				if (distance <= _distance && distance <=maxDistance && div>=0 && div <=1) {
+					hasConverged = false;
 					_u = u[point];
 					_v = v[point];
 					_distance = distance;
