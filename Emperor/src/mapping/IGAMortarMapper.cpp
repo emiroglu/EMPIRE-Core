@@ -121,7 +121,7 @@ void IGAMortarMapper::setParametersBisection(int _maxNumOfIterations, double _to
 }
 
 void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess,
-                             int _maxDistanceForProjectedPointsOnDifferentPatches) {
+                             double _maxDistanceForProjectedPointsOnDifferentPatches) {
     projectionProperties.maxProjectionDistance=_maxProjectionDistance;
     projectionProperties.numRefinementForIntialGuess=_numRefinementForIntialGuess;
     projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches=_maxDistanceForProjectedPointsOnDifferentPatches;
@@ -231,9 +231,10 @@ void IGAMortarMapper::projectPointsToSurface() {
     // Initialization of variables
     // Array of booleans containing flags on the projection of the FE nodes onto the NURBS patch
 	vector<bool> isProjected(meshFE->numNodes);
-    vector<double> projectionDistance(meshFE->numNodes, 1e9);
-    vector<vector<double> > projectionPoint(meshFE->numNodes);
-
+    vector<double> minProjectionDistance(meshFE->numNodes, 1e9);
+    vector<vector<double> > minProjectionPoint(meshFE->numNodes);
+    vector<set<int> > patchToProcessPerNode(meshFE->numNodes);
+    vector<set<int> > patchToProcessPerElement(meshFE->numElems);
     // Flag on whether a node is projected on the IGA mesh
     bool isNodeProjected = false;
 
@@ -260,213 +261,190 @@ void IGAMortarMapper::projectPointsToSurface() {
 
     // Get the number of patches in the IGA mesh
     int numPatches = meshIGA->getNumPatches();
-
-    /// 1. Loop over all the patches in the IGA mesh
-    for (int patchCount = 0; patchCount < numPatches; patchCount++) {
-        /// 1i. Get the IGA patch
-        IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
-        /// 1ii. Initialize all projection flags to false
-        isProjected.assign(isProjected.size(),false);
-
-        /// 1iii. Loop over all the elements on the fluid side
-        for (int i = 0; i < meshFE->numElems; i++) {
-            /// 1iii.1. Initialize the flag to false and the node id to zero
-            isNodeInsideElementProjected = false;
-            projectedNode = 0;
-
-            /// 1iii.2. Loop over all nodes of the current element to check if there exist one node has been projected already
-            for (int j = 0; j < meshFE->numNodesPerElem[i]; j++) {
-                if (isProjected[meshFEDirectElemTable[i][j]]) {
-                    /// 1iii.2i. If the node has already been projected set projection flag to true
-                    isNodeInsideElementProjected = true;
-                    /// 1iii.2ii. Get the global ID of the projected node
-                    projectedNode = meshFEDirectElemTable[i][j];
-                    /// 1iii.2iii. Break the loop
-                    break;
-                }
-            }
-            /// 1iii.3. Check if there exist one node in the current element has been successfully projected
-            if (isNodeInsideElementProjected) {
-                /// 1iii.3i. If so, use result of the projected node as the initial guess for the projection step
-                initialU = projectedCoords[projectedNode][patchCount][0];
-                initialV = projectedCoords[projectedNode][patchCount][1];
-
-            } else {
-                /// 1iii.3ii. Otherwise, find the nearest knot intersection as initial guess for the projection step
-                // Get the node ID from the EFT
-                nodeIndex = meshFEDirectElemTable[i][0];
-                // Get the Cartesian coordinates of that node
-                P[0] = meshFE->nodes[nodeIndex * 3];
-                P[1] = meshFE->nodes[nodeIndex * 3 + 1];
-                P[2] = meshFE->nodes[nodeIndex * 3 + 2];
-                // Get accordingly an initial guess for the projection onto the NURBS patch
-                thePatch->findInitialGuess4PointProjection(initialU, initialV, P, projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
-            }
-
-            /// 1iii.4. Loop over each node at the current element in the FE side
-            for (int j = 0; j < meshFE->numNodesPerElem[i]; j++) {
-                // 1iii.4i. Get the node ID from the EFT
-                nodeIndex = meshFEDirectElemTable[i][j];
-                /// 1iii.4ii. Check if the node has been already projected. If not, compute the point projection on the IGA patch using the initial guess get from the last step the results are stored in the class member "projectedCoords"
-                if (!isProjected[nodeIndex]) {
-                    /// 1iii.4ii.1. get the Cartesian coordinates of the node in the FE side
-                	double projectedP[3];
-                    projectedP[0] = P[0] = meshFE->nodes[nodeIndex * 3];
-                    projectedP[1] = P[1] = meshFE->nodes[nodeIndex * 3 + 1];
-                    projectedP[2] = P[2] = meshFE->nodes[nodeIndex * 3 + 2];
-
-                    if(!thePatch->getBoundingBox().isPointInside(P, projectionProperties.maxProjectionDistance))
-                    	continue;
-
-                    /// 1iii.4ii.2. Get an initial guess for the parametric location of the projected node of the FE side on the NURBS patch
-                    U = initialU;
-                    V = initialV;
-                    /// 1iii.4ii.3. Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
-                    hasConverged = thePatch->computePointProjectionOnPatch(U, V, projectedP,
-                    		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
-                    /// 1iii.4ii.4. Check if the Newton-Rapshon iterations have converged
-                    double distance = MathLibrary::computePointDistance(P, projectedP);
-                    if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
-                        /// 1iii.4ii.4i. Discard point if too far away from previous projection
-                    	if( 	!projectionPoint[nodeIndex].empty() &&
-                    			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
-                    			> projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches
-                    			&& distance > projectionDistance[nodeIndex] ) {
-                        	stringstream sstream;
-                            sstream << "Node " << nodeIndex << " is projected at least on two patches.\n" <<
-                            		"\t\t\tThis projection on patch "<<patchCount<<" is physically farther >" << projectionProperties.maxProjectionDistance << " than previous.\n" <<
-                            		"\t\t\tCurrent point discarded!";
-                        	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                        	continue;
-                    	} else if(!projectionPoint[nodeIndex].empty() &&
-                    			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
-                				<= projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
-                        	stringstream sstream;
-                        	sstream << "Node " << nodeIndex << " is projected on at least two patches.";
-                        	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                    	} else if(projectionDistance[nodeIndex] < projectionProperties.maxProjectionDistance
-                    			&& distance < projectionDistance[nodeIndex]) {
-                        	stringstream sstream;
-                            sstream << "Node " << nodeIndex << " is projected on at least two patches.\n" <<
-                            		"\t\t\tThis one is closer of " << projectionDistance[nodeIndex] - distance<< " than previous projection.\n" <<
-                            		"\t\t\tPrevious point discarded!";
-                        	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                        	// Erase previous projection
-                    		projectedCoords[nodeIndex].clear();
-                    		projectionDistance[nodeIndex] = distance;
-                    		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
-                    	}
-                        /// 1iii.4ii.4ii. Set projection flag to true
-                        isProjected[nodeIndex] = true;
-                        /// 1iii.4ii.4iii. Insert the parametric locations of the projected FE nodes into the map projectedCoords
-                        vector<double> coordTmp(2);
-                        coordTmp[0] = U;
-                        coordTmp[1] = V;
-                        projectedCoords[nodeIndex].insert(
-                                make_pair(patchCount, coordTmp));
-                		//projectionDistance[nodeIndex] = distance;
-                		//projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
-                    }
-                }
+    // Bounding box preprocessing, assign to each node the patches to be visited
+    for (int i = 0; i < meshFE->numNodes; i++) {
+    	double P[3];
+    	P[0] = meshFE->nodes[3 * i + 0];
+    	P[1] = meshFE->nodes[3 * i + 1];
+    	P[2] = meshFE->nodes[3 * i + 2];
+        for(int patchCount = 0; patchCount < numPatches; patchCount++) {
+            IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
+            bool isInside = thePatch->getBoundingBox().isPointInside(P, projectionProperties.maxProjectionDistance);
+            if(isInside)
+            	patchToProcessPerNode[i].insert(patchCount);
+        }
+    }
+    INFO_OUT()<<"Bounding box preprocessing done!"<<endl;
+    // Project the node for every patch's bounding box the node lies into
+    // or on every patch if not found in a single bounding box
+    for(int i = 0; i < meshFE->numElems; i++) {
+    	int numNodesInElem = meshFE->numNodesPerElem[i];
+        for(int patchCount = 0; patchCount < numPatches; patchCount++) {
+            IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
+            bool initialGuessComputed = false;
+            for(int j = 0; j < numNodesInElem; j++) {
+                int nodeIndex = meshFEDirectElemTable[i][j];
+            	if(patchToProcessPerNode[nodeIndex].find(patchCount) != patchToProcessPerNode[nodeIndex].end()
+            			&& projectedCoords[nodeIndex].find(patchCount) == projectedCoords[nodeIndex].end()) {
+            		if(!initialGuessComputed) {
+            			computeInitialGuessForProjection(patchCount, i, j, initialU, initialV);
+            			initialGuessComputed = true;
+            		}
+            		bool flagProjected = projectPointOnPatch(patchCount, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
+            		isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
+            	}
+            	if(patchToProcessPerNode[nodeIndex].empty()
+            			&& projectedCoords[nodeIndex].find(patchCount) == projectedCoords[nodeIndex].end()) {
+            		if(!initialGuessComputed) {
+            			computeInitialGuessForProjection(patchCount, i, j, initialU, initialV);
+            			initialGuessComputed = true;
+            		}
+            		bool flagProjected = projectPointOnPatch(patchCount, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
+            		isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
+            	}
             }
         }
     }
-    INFO_OUT() << "Number of nodes projected on first pass " << projectedCoords.size() << " over "<< meshFE->numNodes << endl;
-    /// 2. Loop over all the nodes in the FE side
-    for (int nodeIndex = 0; nodeIndex < meshFE->numNodes; nodeIndex++) {
-        /// 2i.1 Initialize projection flag to false
-        isNodeProjected = false;
-        /// 2ii. Loop over all the patches in the IGA mesh and check if the node is has been projected to any patch
-        for (int patchCount = 0; patchCount < numPatches; patchCount++) {
-            if (projectedCoords[nodeIndex].find(patchCount)
-                    != projectedCoords[nodeIndex].end()) {
-                /// 2ii.1. If the node has been projected to a patch in the IGA mesh, set the flag to true
-                isNodeProjected = true;
-                /// 2ii.2. Break the loop
-                break;
+    INFO_OUT()<<"First pass projection done!"<<endl;
+    int missing = 0;
+    for (int i = 0; i < meshFE->numNodes; i++) {
+    	if(!isProjected[i])
+    		missing++;
+    }
+    INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass." << endl;
+    missing = 0;
+    for (int i = 0; i < meshFE->numNodes; i++) {
+    	if(!isProjected[i]) {
+            for(int patchCount = 0; patchCount < numPatches; patchCount++) {
+				bool flagProjected = forceProjectPointOnPatch(patchCount, i, minProjectionDistance[i], minProjectionPoint[i]);
+				isProjected[i] = isProjected[i] || flagProjected;
             }
-        }
-        /// 2iii. If the node has not been projected to any patch of the IGA mesh, loop over all the patches in the mesh again and try to project it with better initial guess
-        if (!isNodeProjected) {
-            /// 2iii.0 Get the Cartesian coordinates of the node in the FE side
-            P[0] = meshFE->nodes[nodeIndex * 3];
-            P[1] = meshFE->nodes[nodeIndex * 3 + 1];
-            P[2] = meshFE->nodes[nodeIndex * 3 + 2];
-            for (int patchCount = 0; patchCount < numPatches; patchCount++) {
-                /// 2iii.1. Get the NURBS patch
-                IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
-                /// 2iii.2. Get the Cartesian coordinates of the node in the FE side
-            	double projectedP[3];
-                projectedP[0] = P[0];
-                projectedP[1] = P[1];
-				projectedP[2] = P[2];
-                /// 2iii.3. Get a better initial guess for the Newton-Rapshon iterations using the variable REFINED_NUM_PARAMETRIC_LOCATIONS
-                thePatch->findInitialGuess4PointProjection(U, V, P,
-                        projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
-                /// 2iii.4. Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
-                hasConverged = thePatch->computePointProjectionOnPatch(U, V, projectedP,
-                		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
-                /// 2iii.5. Check if the Newton-Rapshon iterations have converged and if the points are coinciding
-                double distance = MathLibrary::computePointDistance(P, projectedP);
-                if (hasConverged && distance < projectionProperties.maxProjectionDistance) {
-                    /// 2iii.5i. Discard point if too far away from previous projection
-                	if( 	!projectionPoint[nodeIndex].empty() &&
-                			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
-                			> projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches
-                			&& distance > projectionDistance[nodeIndex] ) {
-                    	stringstream sstream;
-                        sstream << "Node " << nodeIndex << " is projected at least on two patches.\n" <<
-                        		"\t\t\tThis projection on patch "<<patchCount<<" is physically farther >" << projectionProperties.maxProjectionDistance << " than previous.\n" <<
-                        		"\t\t\tCurrent point discarded!";
-                    	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                    	continue;
-                	} else if(!projectionPoint[nodeIndex].empty() &&
-                			MathLibrary::computePointDistance(projectedP, &projectionPoint[nodeIndex][0])
-            				<= projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
-                    	stringstream sstream;
-                    	sstream << "Node " << nodeIndex << " is projected on at least two patches.";
-                    	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                	} else if(projectionDistance[nodeIndex] < projectionProperties.maxProjectionDistance
-                			&& distance < projectionDistance[nodeIndex]) {
-                    	stringstream sstream;
-                        sstream << "Node " << nodeIndex << " is projected on at least two patches.\n" <<
-                        		"\t\t\tThis one is closer of" << projectionDistance[nodeIndex] - distance<< " than previous projection.\n" <<
-                        		"\t\t\tPrevious point discarded!";
-                    	WARNING_BLOCK_OUT("IGAMortarMapper","projectPointsToSurface", sstream.str());
-                    	// Erase previous projection
-                		projectedCoords[nodeIndex].clear();
-                		projectionDistance[nodeIndex] = distance;
-                		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
-                	}
-                    /// 2iii.5ii. Set projection flag to true
-                    isNodeProjected = true;
-                    /// 2iii.5iii. Insert the parametric locations of the projected FE nodes into the map projectedCoords
-                    vector<double> coordTmp(2);
-                    coordTmp[0] = U;
-                    coordTmp[1] = V;
-                    projectedCoords[nodeIndex].insert(make_pair(patchCount, coordTmp));
-            		projectionDistance[nodeIndex] = distance;
-            		projectionPoint[nodeIndex] = vector<double>(projectedP, projectedP + 3);
-                } else {
-//                    WARNING_OUT() << "Projection failed in mapper " << name << endl;
-//                    WARNING_OUT() << "In IGAMortarMapper::projectPointsToSurface" << endl;
-//                	if(!hasConverged)
-//                		WARNING_OUT("Algorithm has not converged!");
-//                	else
-//                		WARNING_OUT()<<"Too big distance for projection! "<<distance<<endl;
-                }
-            }
-            /// 2iv. If the node can still not be projected assert an error in the projection phase
-            if(!isNodeProjected) {
-                ERROR_OUT() << "Projection failed in mapper " << name << endl;
-                ERROR_OUT() << "In IGAMortarMapper::projectPointsToSurface" << endl;
-                ERROR_OUT() << "Cannot find projection for node: " << nodeIndex
-                		<< "  (" << P[0] << ", " << P[1] << ", " << P[2] << ")" << endl;
-                ERROR_OUT() << "In XML input file, in projectionProperties, relax maxProjectionDistance and/or numRefinementForIntialGuess" << endl;
-                //exit (EXIT_FAILURE);
-            }
+    	}
+    	if(!isProjected[i]) {
+			ERROR_OUT()<<"Node not projected ["<<i<<"]"<<endl;
+			missing++;
+    	}
+    }
+    INFO_OUT()<<"Second pass projection done!"<<endl;
+    if(missing)
+        ERROR_OUT()<<missing << " nodes over " << meshFE->numNodes <<" could NOT be projected during second pass." << endl;
+}
+
+void IGAMortarMapper::computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v) {
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchCount);
+	/// 1iii.1. Initialize the flag to false and the node id to zero
+    bool isNodeInsideElementProjected = false;
+    int projectedNode = -1;
+	/// 1iii.2. Loop over all nodes of the current element to check if there exist one node has been projected already
+    for (int j = 0; j < meshFE->numNodesPerElem[_elem]; j++) {
+    	int nodeIndex = meshFEDirectElemTable[_elem][j];
+        if (projectedCoords[nodeIndex].find(_patchCount) != projectedCoords[nodeIndex].end()) {
+            /// 1iii.2i. If the node has already been projected set projection flag to true
+            isNodeInsideElementProjected = true;
+            /// 1iii.2ii. Get the global ID of the projected node
+            projectedNode = nodeIndex;
+            /// 1iii.2iii. Break the loop
+            break;
         }
     }
+    /// 1iii.3. Check if there exist one node in the current element has been successfully projected
+    if (isNodeInsideElementProjected) {
+        /// 1iii.3i. If so, use result of the projected node as the initial guess for the projection step
+        _u = projectedCoords[projectedNode][_patchCount][0];
+        _v = projectedCoords[projectedNode][_patchCount][1];
+    } else {
+        /// 1iii.3ii. Otherwise, find the nearest knot intersection as initial guess for the projection step
+        // Get the node ID from the EFT
+        int nodeIndex = meshFEDirectElemTable[_elem][_localNode];
+        // Get the Cartesian coordinates of that node
+        double P[3];
+        P[0] = meshFE->nodes[nodeIndex * 3 + 0];
+        P[1] = meshFE->nodes[nodeIndex * 3 + 1];
+        P[2] = meshFE->nodes[nodeIndex * 3 + 2];
+        // Get accordingly an initial guess for the projection onto the NURBS patch
+        thePatch->findInitialGuess4PointProjection(_u, _v, P, projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
+    }
+}
+
+bool IGAMortarMapper::projectPointOnPatch(const int patchCount, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
+    /// Get the Cartesian coordinates of the node in the FE side
+	double P[3], projectedP[3];
+    projectedP[0] = P[0] = meshFE->nodes[nodeIndex * 3 + 0];
+    projectedP[1] = P[1] = meshFE->nodes[nodeIndex * 3 + 1];
+    projectedP[2] = P[2] = meshFE->nodes[nodeIndex * 3 + 2];
+    /// Get an initial guess for the parametric location of the projected node of the FE side on the NURBS patch
+    double u = u0;
+    double v = v0;
+    /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
+    bool hasResidualConverged;
+    bool hasConverged = thePatch->computePointProjectionOnPatch(u, v, projectedP,
+    		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
+    double distance = MathLibrary::computePointDistance(P, projectedP);
+    if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
+    	/// Perform some validity checks
+    	if(distance > minProjectionDistance + projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+    		DEBUG_OUT() << "new projection too far away from previous one" << endl;
+    		DEBUG_OUT() << "This distance "<< distance <<" compared to previous "<< minProjectionDistance << endl;
+    		return false;
+    	}
+    	if(!minProjectionPoint.empty() &&
+    			MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches &&
+    			distance > minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+    		DEBUG_OUT() << "new projected point too far away from previous projected point" << endl;
+    		DEBUG_OUT() << "This distance "<< MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) << endl;
+    		return false;
+    	}
+    	if(distance < minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+            projectedCoords[nodeIndex].clear();
+    	}
+        /// Store result
+        vector<double> coordTmp(2);
+        coordTmp[0] = u;
+        coordTmp[1] = v;
+        projectedCoords[nodeIndex].insert(make_pair(patchCount, coordTmp));
+		minProjectionDistance = distance;
+		minProjectionPoint = vector<double>(projectedP, projectedP + 3);
+        return true;
+    }
+    return false;
+}
+
+bool IGAMortarMapper::forceProjectPointOnPatch(const int patchCount, const int nodeIndex, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
+    /// 1iii.4ii.1. get the Cartesian coordinates of the node in the FE side
+	double P[3], projectedP[3];
+    projectedP[0] = P[0] = meshFE->nodes[nodeIndex * 3 + 0];
+    projectedP[1] = P[1] = meshFE->nodes[nodeIndex * 3 + 1];
+    projectedP[2] = P[2] = meshFE->nodes[nodeIndex * 3 + 2];
+    /// 1iii.4ii.2. Get an initial guess for the parametric location of the projected node of the FE side on the NURBS patch
+    double u = 0;
+    double v = 0;
+    /// Compute approximate of parametric position
+    thePatch->findInitialGuess4PointProjection(u,v,P,100,100);
+    double uv[2] = {u, v};
+    thePatch->computeCartesianCoordinates(projectedP, uv);
+    double distance = MathLibrary::computePointDistance(P, projectedP);
+    /// Perform some validity checks
+	if(distance > minProjectionDistance + projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+		return false;
+	}
+	if(!minProjectionPoint.empty() &&
+			MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches &&
+			distance > minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+		return false;
+	}
+	if(distance < minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+        projectedCoords[nodeIndex].clear();
+	}
+	/// Store result
+    vector<double> coordTmp(2);
+    coordTmp[0] = u;
+    coordTmp[1] = v;
+    projectedCoords[nodeIndex].insert(make_pair(patchCount, coordTmp));
+	minProjectionDistance = distance;
+	minProjectionPoint = vector<double>(projectedP, projectedP + 3);
+    return true;
 }
 
 void IGAMortarMapper::computeCouplingMatrices() {
@@ -529,13 +507,9 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			bool isProjectedOnPatchBoundary=true;
 			/// 1.1 Get initial polygon from projection
 			// For every point of polygon
-			for (int nodeCounter = 0; nodeCounter < numNodesElementFE; nodeCounter++) {
-				int nodeCount = (nodeCounter + 0) % numNodesElementFE;
-				int nodeCountNext = (nodeCounter + 1) % numNodesElementFE;
+			for (int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
 				int nodeIndex = meshFEDirectElemTable[elemCount][nodeCount];
-				int nodeIndexNext = meshFEDirectElemTable[elemCount][nodeCountNext];
 				double* P1 = &(meshFE->nodes[nodeIndex * 3]);
-				double* P2 = &(meshFE->nodes[nodeIndexNext * 3]);
 				/// 1.1.1 First point, just add it to polygon
 				double u = projectedCoords[nodeIndex][patchIndex][0];
 				double v = projectedCoords[nodeIndex][patchIndex][1];
@@ -553,17 +527,9 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
 			// Stores points of the polygon clipped by the nurbs patch
 			Polygon2D polygonUV;
-			int nodeCounter=0;
-			int numEdgesProcessed=0;
-			int numEdges=numNodesElementFE;
-			bool isProjectedOnPatchBoundary=true;
-			double uIn, vIn;
-			double u, v;
-			double w, z;
-			double div, dis;
-			char edge1,edge2;
+
 			vector<int> insideNode, outsideNode;
-			for(int nodeCount = 0; nodeCount<numNodesElementFE; nodeCount++) {
+			for(int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
 				int nodeIndex = meshFEDirectElemTable[elemCount][nodeCount];
 				// Flag on whether the node is inside the current NURBS patch
 				bool isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex)
@@ -574,8 +540,10 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					outsideNode.push_back(nodeIndex);
 			}
 			for(int i = 0; i < numNodesElementFE; i++) {
-				div = 0;
-				// Get the node indexes
+				bool isProjectedOnPatchBoundary=true;
+				double uIn, vIn;
+				double u, v;
+				double div = 0, dis = projectionProperties.maxProjectionDistance;				// Get the node indexes
 				int nodeCount = (i + 0) % numNodesElementFE;
 				int nodeCountPrev = (i + numNodesElementFE - 1) % numNodesElementFE;
 				int nodeCountNext = (i + 1) % numNodesElementFE;
@@ -607,15 +575,17 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
 					u = u0In;
 					v = v0In;
+					dis = projectionProperties.maxProjectionDistance;
 					isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 					double u0=u,v0=v,div0=div;
 					double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
 					double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
 					u = u2In;
 					v = v2In;
+					dis = projectionProperties.maxProjectionDistance;
 					isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 					double u2=u,v2=v,div2=div;
-					if(div0 >= 1e-3 && div2 >= 1e-3) {
+					if(div0 >= 1e-6 && div2 >= 1e-6) {
 						u = ((u0In*v0-v0In*u0)*(u2In-u2)-(u0In-u0)*(u2In*v2-v2In*u2))/((u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2));
 						v = ((u0In*v0-v0In*u0)*(v2In-v2)-(v0In-v0)*(u2In*v2-v2In*u2))/((u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2));
 						polygonUV.push_back(make_pair(u,v));
@@ -639,6 +609,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					vIn = projectedCoords[nodeIndexNext][patchIndex][1];
 					u = uIn;
 					v = vIn;
+					dis = projectionProperties.maxProjectionDistance;
 					isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 				}
 				if(!isNodeInsidePatch && isPrevNodeInsidePatch && !isNextNodeInsidePatch) {
@@ -646,6 +617,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 					vIn = projectedCoords[nodeIndexPrev][patchIndex][1];
 					u = uIn;
 					v = vIn;
+					dis = projectionProperties.maxProjectionDistance;
 					isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 				}
 				if(div < 1e-6 ) {
@@ -655,11 +627,12 @@ void IGAMortarMapper::computeCouplingMatrices() {
 						vIn = projectedCoords[*it][patchIndex][1];
 						u = uIn;
 						v = vIn;
+						dis = projectionProperties.maxProjectionDistance;
 						isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 					}
 				}
 				// Add point in polygon
-                if(div != 0) {
+                if(div >= 1e-6) {
                 	u = uIn + (u-uIn)/div;
                 	v = vIn + (v-vIn)/div;
     				polygonUV.push_back(make_pair(u,v));
@@ -707,13 +680,15 @@ void IGAMortarMapper::computeCouplingMatrices() {
 
 bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int _patchIndex, Polygon2D& _projectedElement) {
 	bool isIntegrated=false;
+	// Proceed further if the polygon is valid, i.e. at least a triangle
 	if (_projectedElement.size() < 3)
 		return isIntegrated;
 	IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchIndex);
 	Polygon2D projectedElementOnPatch = _projectedElement;
+	/// 1.0 Apply patch boundary on polygon
 	clipByPatch(thePatch, projectedElementOnPatch);
 	ClipperAdapter::cleanPolygon(projectedElementOnPatch);
-	// Proceed toward integration if the polygon is valid, i.e. at least a triangle
+	// Proceed further if the polygon is valid, i.e. at least a triangle
 	if (projectedElementOnPatch.size() < 3)
 		return isIntegrated;
 	/// 1.1 Init list of trimmed polyggons in case patch is not trimmed
@@ -793,7 +768,6 @@ void IGAMortarMapper::clipByPatch(const IGAPatchSurface* _thePatch, Polygon2D& _
 	knotSpanWindow[2]=make_pair(u1,v1);
 	knotSpanWindow[3]=make_pair(u0,v1);
 	ClipperAdapter c;
-	//c.setFilling(ClipperAdapter::POSITIVE, 0);
 	_polygonUV = c.clip(_polygonUV,knotSpanWindow);
 }
 
@@ -803,6 +777,7 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 		const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
 		c.addPathClipper(clippingWindow);
 	}
+	// Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
 	c.setFilling(ClipperAdapter::POSITIVE, 0);
 	c.addPathSubject(_polygonUV);
 	c.clip();
@@ -838,6 +813,7 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 					knotSpanWindow[2]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
 					knotSpanWindow[3]=make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
 					Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
+					/// Store polygon and its knot span for integration
 					_listPolygon.push_back(solution);
 					_listSpan.push_back(make_pair(spanU,spanV));
 				}
@@ -1199,7 +1175,7 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
 		isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, Pin, Pout,
 				bisection.maxNumOfIterations, bisection.tolerance);
 	}
-	// Check projected point validity
+	// Perform some validity check
 	if(!isProjectedOnPatchBoundary)
 		WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!");
     if(dis > projectionProperties.maxProjectionDistance) {
@@ -1397,7 +1373,7 @@ void IGAMortarMapper::writeCartesianProjectedPolygon() {
     polygonsHeader = header.str();
     header.str("");
     header.clear();
-    header << "CELL_DATA " << polygonsNumber << "\nSCALARS cells_scalars int 1\nLOOKUP_TABLE default\n";
+    header << "CELL_DATA " << polygonsNumber << "\nSCALARS patch_belonging int 1\nLOOKUP_TABLE default\n";
     patchColorHeader = header.str();
     out << pointsHeader << points;
     out << polygonsHeader << polygons;

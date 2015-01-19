@@ -107,7 +107,7 @@ private:
     struct projectionProperties {
         double maxProjectionDistance;
         int numRefinementForIntialGuess;
-        int maxDistanceForProjectedPointsOnDifferentPatches;
+        double maxDistanceForProjectedPointsOnDifferentPatches;
     } projectionProperties;
 
 public:
@@ -137,7 +137,7 @@ public:
      * \author Fabien Pean
      ***********/
     void setParametersProjection(double _maxProjectionDistance = 1e-2, int _numRefinementForIntialGuess = 10,
-                                 int _maxDistanceForProjectedPointsOnDifferentPatches = 1e-3);
+                                 double _maxDistanceForProjectedPointsOnDifferentPatches = 1e-3);
     /***********************************************************************************************
      * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
      * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
@@ -202,6 +202,37 @@ private:
      * \author Chenshen Wu
      ***********/
     void projectPointsToSurface();
+
+    /***********************************************************************************************
+     * \brief Compute the initial guess for a node of an element
+     * \param[in] _patchCount The index of the patch we are working on
+     * \param[in] _elem The index of the element we are working with
+     * \param[in] _localNode The index of the node in the element we are working with
+     * \param[out] _u The output guess in u direction
+     * \param[out] _v The output guess in v direction
+     * \author Fabien Pean
+     ***********/
+    void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
+    /***********************************************************************************************
+     * \brief Compute the projection of a point on a patch using Newton-Raphson
+     * \param[in] _patchCount The index of the patch we are working on
+     * \param[in] _nodeIndex The global index of the node in the element we are working with
+     * \param[in] _u The initial guess in u direction
+     * \param[in] _v The initial guess in v direction
+     * \param[out] _minProjectionDistance The previous distance computed
+     * \param[out] _minProjectionPoint The previous point computed
+     * \author Fabien Pean
+     ***********/
+    bool projectPointOnPatch(const int patchCount, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+    /***********************************************************************************************
+     * \brief Compute the projection of a point on a patch using a brute force method
+     * \param[in] _patchCount The index of the patch we are working on
+     * \param[in] _nodeIndex The global index of the node in the element we are working with
+     * \param[in] _u The initial guess in u direction
+     * \param[in] _v The initial guess in v direction
+     * \author Fabien Pean
+     ***********/
+    bool forceProjectPointOnPatch(const int patchCount, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
 
     /***********************************************************************************************
      * \brief Compute matrices C_NN and C_NR
@@ -323,6 +354,11 @@ public:
      * \author Fabien Pean
      ***********/
     void writeParametricProjectedPolygon(const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
+
+    /***********************************************************************************************
+     * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
+     * \author Fabien Pean
+     ***********/
     void writeCartesianProjectedPolygon();
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
