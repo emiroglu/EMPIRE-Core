@@ -192,7 +192,6 @@ bool solve3x3LinearSystem(const double* _A, double* _b, double _EPS);
  ***********/
 double det3x3(const double* _A);
 
-
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 /********//**
  * \brief This is a template class does compressed sparse row matrix computations: CSR Format (3-Array Variation)
@@ -208,6 +207,7 @@ public:
     typedef std::map<size_t, T> col_t;
     typedef typename col_t::iterator col_iter;
 
+    static int clearCount;
     /***********************************************************************************************
      * \brief Constructor for symmetric matrices
      * \param[in] _m is the number of rows & columns
@@ -219,6 +219,7 @@ public:
         n = _m;
         isSquare = true;
         isSymmetric = _isSymmetric;
+        isFactorized = false;
         isDetermined = false;
         if (!((typeid(T) == typeid(double)) || (typeid(T) == typeid(float)))) {
             assert(0);
@@ -241,8 +242,12 @@ public:
         isSquare = false;
         isSymmetric = false;
         isDetermined = false;
+        isFactorized = false;
         mat = new mat_t(m);
         rowIndex = new std::vector<int>(m + 1);
+#ifdef USE_INTEL_MKL
+        intelMKL = new PardisoAdapter(isSymmetric);
+#endif
     }
     /***********************************************************************************************
      * \brief Destructor
@@ -251,9 +256,20 @@ public:
     virtual ~SparseMatrix() {
 #ifdef USE_INTEL_MKL
     	//std::cout<<"Cleaning Pardiso"<<std::endl;
-    	//intelMKL->cleanPardiso(&values[0], &((*rowIndex)[0]), &columns[0]);
+    	if(clearCount > 0){
+    	 intelMKL->cleanPardiso(&values[0], &((*rowIndex)[0]), &columns[0]);
+    	 clearCount++;
+    	}
+
+        if(intelMKL != NULL){
+        	//std::cout<<"Deleting intelMKL :: "<<intelMKL<<std::endl;
+        	//std::cout<<""<<std::endl;
+           delete intelMKL;
+        }
+
 #endif
         delete mat;
+        delete rowIndex;
     }
 
 
@@ -471,6 +487,10 @@ public:
      ***********/
     void solve(T* x, T* b) { //Computes x=A^-1 *b
 
+    	if(!isFactorized){
+    		factorize();
+    		isFactorized = true;
+    	}
     	// Constructing the sparse matrix entities
     	determineCSR();
 #ifdef USE_INTEL_MKL
@@ -491,7 +511,7 @@ public:
     	determineCSR();
 
 #ifdef USE_INTEL_MKL
-    	intelMKL->factorize(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0]);
+  	intelMKL->factorize(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0]);
 #else
 
 #endif
@@ -550,7 +570,8 @@ public:
             }
             std::cout << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << std::endl;int EMPIRE::MathLibrary::SparseMatrix::clearCount = 0;
+
 
     }
     /***********************************************************************************************
@@ -590,6 +611,9 @@ private:
     bool isSymmetric;
     /// true if the determineCSR function is used once
     bool isDetermined;
+    /// true if the matrix is factorized by intel
+    bool isFactorized;
+
     /// number of rows
     size_t m;
     /// number of columns
@@ -607,6 +631,10 @@ private:
 #endif
 
 };
+
+template<class T>
+int EMPIRE::MathLibrary::SparseMatrix<T>::clearCount = 0;
+
 
 }
 }

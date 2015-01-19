@@ -208,7 +208,7 @@ void FEMesh::validateMesh() {
     }
     // Check that two elements are not identical
     // !WARNING! Check only element together in the same order
-	count1=0;
+	/* count1=0;
     for(int elem1=0;elem1<numElems-1;elem1++) {
     	count2=count1+numNodesPerElem[elem1];
     	for(int elem2=elem1+1;elem2<numElems;elem2++) {
@@ -225,7 +225,8 @@ void FEMesh::validateMesh() {
     		count2 += numNodesPerElem[elem2];
     	}
     	count1 += numNodesPerElem[elem1];
-    }
+    } */ // commented by Tianyang, since it is an O(N^2) operation.
+    //TODO: move this function to the place where logically it requires element identity check, no place else should call this function.
 }
 
 void revertSurfaceNormalOfFEMesh(FEMesh *mesh) {

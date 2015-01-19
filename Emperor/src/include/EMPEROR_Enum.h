@@ -34,7 +34,7 @@
  * have value "scalar" or "vector", the enum below is named according to this rule.
  ***********/
 enum EMPIRE_DataField_dimension {
-    EMPIRE_DataField_scalar = 1, EMPIRE_DataField_vector = 3
+    EMPIRE_DataField_scalar = 1, EMPIRE_DataField_vector = 3, EMPIRE_DataField_doubleVector = 6
 };
 enum EMPIRE_DataField_location {
     EMPIRE_DataField_atNode, EMPIRE_DataField_atElemCentroid
@@ -68,8 +68,10 @@ enum EMPIRE_Mapper_type {
 };
 
 enum EMPIRE_Mesh_type {
-    EMPIRE_Mesh_FEMesh, EMPIRE_Mesh_IGAMesh
-    ,EMPIRE_Mesh_copyFEMesh
+    EMPIRE_Mesh_FEMesh,
+    EMPIRE_Mesh_IGAMesh,
+    EMPIRE_Mesh_copyFEMesh,
+    EMPIRE_Mesh_BeamSurfaceMesh
 };
 
 enum EMPIRE_DataFieldFilter_type {

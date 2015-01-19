@@ -151,6 +151,9 @@ private:
     /// time step number, only used when writing the residual in a file
     int timeStepNumber;
 
+    /// if unitTest, do not output debug message
+    bool unitTest;
+
     /// the unit test class
     friend class TestConvergenceChecker;
     /// the unit test class

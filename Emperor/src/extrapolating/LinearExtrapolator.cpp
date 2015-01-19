@@ -10,7 +10,7 @@ using namespace std;
 namespace EMPIRE {
 
 LinearExtrapolator::LinearExtrapolator(std::string _name) :
-        AbstractExtrapolator(_name) {
+        AbstractExtrapolator(_name), unitTest(false) {
 }
 
 LinearExtrapolator::~LinearExtrapolator() {
@@ -47,7 +47,9 @@ void LinearExtrapolator::init() {
 }
 
 void LinearExtrapolator::extrapolate() {
-    HEADING_OUT(4, "LinearExtrapolator", "doing linear extrapolation ...", infoOut);
+    if (!unitTest) {
+        HEADING_OUT(4, "LinearExtrapolator", "doing linear extrapolation ...", infoOut);
+    }
 
     assert(connectionIOs.size() == data0.size());
     assert(data00.size() == data0.size());
@@ -116,7 +118,8 @@ void LinearExtrapolator::extrapolate() {
             } else if (connectionIOs[i]->type == EMPIRE_ConnectionIO_Signal) {
                 Signal *signal = connectionIOs[i]->signal;
                 for (int j = 0; j < signal->size; j++) {
-                    signal->array[j] = 2.0 * data0[i][j] - data00[i][j];;
+                    signal->array[j] = 2.0 * data0[i][j] - data00[i][j];
+                    ;
                 }
             } else {
                 assert(false);
