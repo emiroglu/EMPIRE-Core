@@ -18,7 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
-
+/***********************************************************************************************//**
+ * \file DataField.h
+ * This file holds the class BoundingBox AABB
+ * \date 14/01/2015
+ **************************************************************************************************/
 #ifndef BOUNDINGBOX_H_
 #define BOUNDINGBOX_H_
 
@@ -26,6 +30,9 @@
 
 namespace EMPIRE {
 
+/********//**
+ * \brief Class BoundingBox parent class of all bounding boxes
+ ***********/
 class BoundingBox {
 public:
 	BoundingBox();
@@ -34,6 +41,9 @@ public:
 	virtual bool isPointInside(const double* P, double offset=0) const = 0;
 };
 
+/********//**
+ * \brief Class AABB standing for Axis Aligned Bounding Box
+ ***********/
 class AABB : public BoundingBox {
 public:
 	AABB();
@@ -65,7 +75,7 @@ private:
 
 /***********************************************************************************************
  * \brief Output bounding box
- * \author Tianyang Wang
+ * \author Fabien Pean, Tianyang Wang
  ***********/
 Message &operator<<(Message &message, AABB &aabb);
 
