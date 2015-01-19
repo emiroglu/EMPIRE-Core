@@ -114,7 +114,7 @@ struct structMapper {
         struct projectionProperties {
             double maxProjectionDistance;
             int numRefinementForIntialGuess;
-            int maxDistanceForProjectedPointsOnDifferentPatches;
+            double maxDistanceForProjectedPointsOnDifferentPatches;
         } projectionProperties;
         struct nonlinearSchemeProperties {
             int maxNumOfIterations;
