@@ -307,7 +307,7 @@ void MetaDatabase::fillSettingMapperVec() {
             if(xmlProjection != NULL) {
                 mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = xmlProjection->GetAttribute<double>(
                         "maxProjectionDistance");
-                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = xmlProjection->GetAttribute<double>(
+                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = xmlProjection->GetAttribute<int>(
                         "numRefinementForIntialGuess");
                 mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = xmlProjection->GetAttribute<double>(
                         "maxDistanceForProjectedPointsOnDifferentPatches");
