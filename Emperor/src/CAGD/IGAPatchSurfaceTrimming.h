@@ -50,7 +50,7 @@
      protected:
     	 std::vector<IGAPatchSurfaceTrimmingLoop*> loops;
 
-    	 int outter;
+    	 std::vector<int> outter;
          
          /// The constructor and the destructor and the copy constructor
      public:
@@ -108,20 +108,29 @@
           * \brief Get the outter loop
           * \author Fabien Pean
           ***********/
-         inline const IGAPatchSurfaceTrimmingLoop& getOutterLoop() const {
-            return *loops[outter];
+         inline const std::vector<const IGAPatchSurfaceTrimmingLoop*> getOutterLoop() {
+        	 std::vector<const IGAPatchSurfaceTrimmingLoop*> out;
+        	 for(std::vector<int>::const_iterator it = outter.begin(); it != outter.end(); it++)
+        		 out.push_back(loops[*it]);
+             return out;
          }
          /***********************************************************************************************
           * \brief Get the outter loop index
           * \author Fabien Pean
           ***********/
-         inline int getOutterLoopIndex() const {
+         inline const std::vector<int>& getOutterLoopIndex() const {
             return outter;
+         }
+         inline int getOutterLoopIndex(int i) const {
+            return outter.at(i);
          }
          /***********************************************************************************************
           * \brief Get a specific loop
           * \author Fabien Pean
           ***********/
+         inline const IGAPatchSurfaceTrimmingLoop& getFirstLoop() const {
+             return *(loops.front());
+         }
          inline const IGAPatchSurfaceTrimmingLoop& getLoop(int i) const {
              return *(loops.at(i));
          }
@@ -178,7 +187,18 @@
           * \author Fabien Pean
           ***********/
          void linearize();
-
+         /***********************************************************************************************
+          * \brief Create a linear approximation for this loop using 1 node per control point at Greville position
+          * 	This is a coarse linearization whose deviation is limited by using the Greville abscissae
+          * \author Fabien Pean
+          ***********/
+         void linearizeUsingGreville();
+         /***********************************************************************************************
+          * \brief Create a linear approximation for this loop using (#CPs times degree of the curve) nodes
+          * 	This allows a scalable linearization, quite refined.
+          * \author Fabien Pean
+          ***********/
+         void linearizeUsingNCPxP();
          /// get functions
 	 public:
          /***********************************************************************************************

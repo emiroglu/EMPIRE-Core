@@ -21,6 +21,7 @@
 
 // Inclusion of standard libraries
 #include <iostream>
+#include <algorithm>
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
@@ -36,7 +37,7 @@ using namespace std;
 
 namespace EMPIRE {
 
-IGAPatchSurfaceTrimming::IGAPatchSurfaceTrimming():outter(-1) {
+IGAPatchSurfaceTrimming::IGAPatchSurfaceTrimming():outter() {
 }
 
 IGAPatchSurfaceTrimming::~IGAPatchSurfaceTrimming() {
@@ -49,11 +50,7 @@ void IGAPatchSurfaceTrimming::addTrimLoop(int _inner, int _numCurves) {
         loops.push_back(new IGAPatchSurfaceTrimmingLoop(_numCurves));
     	return;
     } else {
-		if(outter>=0) {
-			ERROR_OUT() << "Outter loop boundary for trimming has already been defined" << endl;
-			exit(-1);
-		}
-		outter=loops.size();
+		outter.push_back(loops.size());
         loops.push_back(new IGAPatchSurfaceTrimmingLoop(_numCurves));
 	    return;
     }
@@ -73,7 +70,7 @@ void IGAPatchSurfaceTrimming::addTrimCurve(int _direction,int _IDBasis, int _pDe
     }
     // Get the loop currently worked on
     IGAPatchSurfaceTrimmingLoop& loop=*loops.back();
-    // Check that size is not going over allocated during instantiation
+    // Check that size is not going over allocated space made during instantiation
     assert(loop.IGACurve.size()<loop.IGACurve.capacity());
     assert(loop.direction.size()<loop.direction.capacity());
     // Add direction of the curve
@@ -89,6 +86,7 @@ void IGAPatchSurfaceTrimming::linearizeLoops() {
 }
 
 IGAPatchSurfaceTrimmingLoop::IGAPatchSurfaceTrimmingLoop(int _numCurves) {
+	 // Reserve the place for the vectors
 	 IGACurve.reserve(_numCurves);
 	 direction.reserve(_numCurves);
 	 assert(IGACurve.size()==0);
@@ -101,18 +99,21 @@ IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
+	linearizeUsingNCPxP();
+}
+
+void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
     /*
-     * Linearize approximation of the nurbs curves
-     * Return value is a bool flag on the convergence of the Newton-Raphson iterations.
+     * Linear approximation of the nurbs curves
      *
      * Function layout :
      *
      * 1. For every NURBS curve
      * 1.1. For every control points of the curve
-     * 1.1.1. Compute Greville abscissae defined Knot space
-     * 1.1.2. Compute basis function at the Greville abscissae
-     * 1.1.3. Compute position in parametric space
-     * 1.1.4. Store point in data structure of polylines
+     * 1.1.1. Compute Greville abscissae
+     * 1.1.2. Compute position in parametric space at Greville abscissae
+     * 1.1.3. Store point in data structure of polylines
+     * 2. Clean output polygon
      */
 	for(int j=0;j<IGACurve.size();j++) {
 		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner)
@@ -137,15 +138,60 @@ void IGAPatchSurfaceTrimmingLoop::linearize() {
 	ClipperAdapter::cleanPolygon(polylines);
 }
 
+void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
+    /*
+     * Linear approximation of the nurbs curves
+     *
+     * Function layout :
+     *
+     * 1. For every NURBS curve
+     * 1.1. Prepare data
+     * 1.2. Compute knot delta
+     * 1.1. For (nCP * p) nodes
+     * 1.1.1. Compute knot
+     * 1.1.2. Compute position in parametric space at knot
+     * 1.1.3. Store point in data structure of polylines
+     * 2. Clean the output polygon
+     */
+	for(int j=0;j<IGACurve.size();j++) {
+		int nCP = getIGACurve(j).getNoControlPoints();
+		int p = getIGACurve(j).getIGABasis()->getPolynomialDegree();
+		double u0 = getIGACurve(j).getIGABasis()->getFirstKnot();
+		double u1 = getIGACurve(j).getIGABasis()->getLastKnot();
+		double du = (u1-u0)/(nCP*p-1);
+		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
+		if(direction[j]) {
+			for(int i=0;i<nCP*p;i++) {
+				double knot = u0 + i*du;
+				double parametricCoordinates[2] = {0};
+				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knot);
+				polylines.push_back(parametricCoordinates[0]);
+				polylines.push_back(parametricCoordinates[1]);
+			}
+		} else {
+			for(int i=nCP*p-1;i>=0;i--) {
+				double knot = u0 + i*du;
+				double parametricCoordinates[2] = {0};
+				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knot);
+				polylines.push_back(parametricCoordinates[0]);
+				polylines.push_back(parametricCoordinates[1]);
+			}
+		}
+	}
+	ClipperAdapter::cleanPolygon(polylines);
+}
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
     message << "\t" << "---------------------------------Start Trimming" << endl;
     message << "\t" << "Trimming Info"<< endl;
     message << "\t\t" << "Number of loops: "<<trim.getNumOfLoops()<< endl;
-    message << "\t\t" << "Outer loop index: "<<trim.getOutterLoopIndex()<< endl;
-    message << "\t" << "Outter Loop["<<trim.getOutterLoopIndex()<<"]"<< endl;
-    message << trim.getOutterLoop();
+    message << "\t\t" << "Outer loop size: "<<trim.getOutterLoopIndex().size()<< endl;
+	for(int i=0; i<trim.getOutterLoopIndex().size();i++) {
+	    message << "\t" << "Outter Loop["<<trim.getOutterLoopIndex(i)<<"]"<< endl;
+		message << trim.getLoop(i);
+	}
 	for(int i=0; i<trim.getNumOfLoops();i++) {
-		if(i==trim.getOutterLoopIndex()) continue;
+		if(find(trim.getOutterLoopIndex().begin(),trim.getOutterLoopIndex().end(),i) != trim.getOutterLoopIndex().end())
+				continue;
     	message << "\t" << "InnerLoop["<<i<<"]"<< endl;
 		message << trim.getLoop(i);
 	}
