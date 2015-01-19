@@ -235,16 +235,10 @@ private:
     bool forceProjectPointOnPatch(const int patchCount, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
 
     /***********************************************************************************************
-     * \brief Compute matrices C_NN and C_NR
+     * \brief Compute matrices C_NN and C_NR by looping over the FE elements and processing them
      * \author Fabien Pean, Chenshen Wu
      ***********/
     void computeCouplingMatrices();
-
-    /***********************************************************************************************
-     * \brief Compute local matrices C_NN and C_NR for element i  on patch j
-     * \author Fabien Pean
-     ***********/
-    bool computeLocalCouplingMatrix(const int _elemIndex, const int _patchIndex, Polygon2D& _projectedElement);
 
     /***********************************************************************************************
      * \brief Get the patches index on which the FE-side element is projected
@@ -254,6 +248,49 @@ private:
      * \author Fabien Pean
      ***********/
     void getPatchesIndexElementIsOn(int _elemIndex, std::set<int>& _patchWithFullElt, std::set<int>& _patchWithSplitElt);
+
+    /***********************************************************************************************
+     * \brief Build the polygon that further steps will work on in case where all nodes of element lies in patch.
+     * \param[in] elemCount The id of current element
+     * \param[in] numNodesElementFE The nuöber of node in the current element
+     * \param[in] patchIndex The index of the patch we are working on
+     * \param[out] polygonUV The output polygon containing parametric coordinates on the patch from the element
+     * \author Fabien Pean
+     ***********/
+    void buildFullParametricElement(int elemCount, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
+
+    /***********************************************************************************************
+     * \brief Build the polygon that further steps will work on in case where some nodes of element are out of patch.
+     * \param[in] elemCount The element index
+     * \param[in] numNodesElementFE The nuöber of node in the current element
+     * \param[in] patchIndex The index of the patch we are working on
+     * \param[out] polygonUV The output polygon containing parametric coordinates on the patch from the element
+     * \author Fabien Pean
+     ***********/
+    void buildBoundaryParametricElement(int elemCount, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
+
+    /***********************************************************************************************
+     * \brief Compute the projection of a line on patch boundary, display warnings and backup solution
+     * \param[in] _thePatch 	The patch to compute the coupling matrices for
+     * \param[in/out] _u 		The parameter value of the inside patch node
+     * \param[in/out] _v 		The parameter value of the inside patch node
+     * \param[in/out] _div		The ratio on the line
+     * \param[in/out] _dis		The distance of the line to the patch
+     * \param[in] _Pin			The point of the line that could have been projected in the patch
+     * ]param[in] _Pout			The point of the line that could not have been projected in the patch
+     * \return 					Flag if it has converged
+     * \author Fabien Pean
+     ***********/
+    bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
+
+    /***********************************************************************************************
+     * \brief Compute local matrices C_NN and C_NR for element _elemIndex  on patch _patchIndex
+     * \param[in] _elemIndex The element index
+     * \param[in] _patchIndex The patch index
+     * \param[in/out] _projectedElement The polygon containing parametric coordinates of projected element on patch
+     * \author Fabien Pean
+     ***********/
+    bool computeLocalCouplingMatrix(const int _elemIndex, const int _patchIndex, Polygon2D& _projectedElement);
 
     /***********************************************************************************************
      * \brief Clip the input polygon by the patch parametric quad
@@ -317,20 +354,7 @@ private:
      ***********/
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
-    /***********************************************************************************************
-     * \brief Compute the projection of a line on patch boundary, display warnings and backup solution
-     * \param[in] _thePatch 	The patch to compute the coupling matrices for
-     * \param[in/out] _u 		The parameter value of the inside patch node
-     * \param[in/out] _v 		The parameter value of the inside patch node
-     * \param[in/out] _div		The ratio on the line
-     * \param[in/out] _dis		The distance of the line to the patch
-     * \param[in] _Pin			The point of the line that could have been projected in the patch
-     * ]param[in] _Pout			The point of the line that could not have been projected in the patch
-     * \return 					Flag if it has converged
-     * \author Fabien Pean
-     ***********/
-    bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
-    /***********************************************************************************************
+/***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
      * \param[in] _element		The element for which we want the neighbor
      * \param[in] _node1	 	The first node index of the edge
