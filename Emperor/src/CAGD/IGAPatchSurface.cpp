@@ -1294,11 +1294,11 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 			// Fix possible numerical error
 			if(div-1.0 > 0 && div-1.0 < 1e-3) {
 				div=1.0;
-				WARNING_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 1 !");
+				DEBUG_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 1 !");
 			}
 			if(div < 0 && div > -1e-3) {
 				div=0.0;
-				WARNING_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 0 !");
+				DEBUG_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 0 !");
 			}
 
 			if (isConverged) {
