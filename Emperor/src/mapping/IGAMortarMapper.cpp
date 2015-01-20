@@ -50,11 +50,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     assert(_meshFE != NULL);
     assert(_meshIGA->type == EMPIRE_Mesh_IGAMesh);
     assert(_meshFE->type == EMPIRE_Mesh_FEMesh);
-    DEBUG_OUT()<<"++++++++++++++++++++++++++++++++++++++++++"<<endl;
-    DEBUG_OUT()<<"------------------------------------------"<<endl;
-    DEBUG_OUT()<<"+++--- DEBUG for mapper "<<_name<<" ---+++"<<endl;
-    DEBUG_OUT()<<"------------------------------------------"<<endl;
-    DEBUG_OUT()<<"++++++++++++++++++++++++++++++++++++++++++"<<endl;
 
     if (_meshFE->triangulate() == NULL)
         meshFE = _meshFE;
@@ -70,11 +65,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesSlave = meshFE->numNodes;
         numNodesMaster = meshIGA->getNumNodes();
     }
-    DEBUG_OUT()<<"NumNodesIGA is "<<meshIGA->getNumNodes()<<endl;
-    DEBUG_OUT()<<"NumNodesFE is "<<meshFE->numNodes<<endl;
-    DEBUG_OUT()<<"NumNodesMaster is "<<numNodesMaster<<endl;
-    DEBUG_OUT()<<"NumNodesSlave is "<<numNodesSlave<<endl;
-
 
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
     C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
@@ -128,6 +118,16 @@ void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int
 }
 
 void IGAMortarMapper::buildCouplingMatrices() {
+    HEADING_OUT(3, "IGAMortarMapper", "Building coupling matrices for ("+ name +")...", infoOut);
+    {
+    	int nIG = meshIGA->getNumNodes();
+    	int nFE = meshFE->numNodes;
+        INFO_OUT() << "Number of nodes in NURBS mesh is " << nIG << endl;
+        INFO_OUT() << "Number of nodes in FE mesh is    " << nFE << endl;
+        INFO_OUT() << "Size of matrices will be " << (isMappingIGA2FEM?nFE:nIG) << "x" << (isMappingIGA2FEM?nFE:nIG) << " and "
+        		<< (isMappingIGA2FEM?nFE:nIG) << "x" << (isMappingIGA2FEM?nIG:nFE) << endl;
+    }
+
 	//Instantiate quadrature rules
     gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(integration.numGPTriangle);
     gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(integration.numGPQuad);
@@ -230,39 +230,32 @@ void IGAMortarMapper::projectPointsToSurface() {
 
     /// 0. Read input
     // Initialization of variables
+
+	// Time stamps
+	time_t timeStart, timeEnd;
+
     // Array of booleans containing flags on the projection of the FE nodes onto the NURBS patch
+	// A node needs to be projected at least once
 	vector<bool> isProjected(meshFE->numNodes);
+	// Keep track of the minimum distance found between a node and a patch
     vector<double> minProjectionDistance(meshFE->numNodes, 1e9);
+    // Keep track of the point on patch related to minimum distance
     vector<vector<double> > minProjectionPoint(meshFE->numNodes);
+    // List of patch to try a projection for every node
     vector<set<int> > patchToProcessPerNode(meshFE->numNodes);
     vector<set<int> > patchToProcessPerElement(meshFE->numElems);
-    // Flag on whether a node is projected on the IGA mesh
-    bool isNodeProjected = false;
-
-    // Flag (??)
-    bool isNodeInsideElementProjected;
-
-    // id of the projected node
-    int projectedNode;
 
     // Coordinates of the projected nodes on the NURBS patch
     double initialU, initialV;
 
-    // Initialize flag on the convergence of the Newton-Rapshon iterations for the projection of a node on the NURBS patch
-    bool hasConverged, hasResidualConverged;
-
     // Initialize the array of the Cartesian coordinates of a node in the FE side
     double P[3];
-
-    // Initialize the node ID
-    int nodeIndex;
-
-    /// Initialize parametric coordinates of the projected node onto the NURBS patch
-    double U, V;
 
     // Get the number of patches in the IGA mesh
     int numPatches = meshIGA->getNumPatches();
     // Bounding box preprocessing, assign to each node the patches to be visited
+    INFO_OUT()<<"Bounding box preprocessing starting..."<<endl;
+    time(&timeStart);
     for (int i = 0; i < meshFE->numNodes; i++) {
     	double P[3];
     	P[0] = meshFE->nodes[3 * i + 0];
@@ -275,10 +268,12 @@ void IGAMortarMapper::projectPointsToSurface() {
             	patchToProcessPerNode[i].insert(patchCount);
         }
     }
-    INFO_OUT()<<"Bounding box preprocessing done!"<<endl;
+    time(&timeEnd);
+    INFO_OUT()<<"Bounding box preprocessing done! It took "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
     // Project the node for every patch's bounding box the node lies into
     // or on every patch if not found in a single bounding box
     INFO_OUT()<<"First pass projection starting..."<<endl;
+    time(&timeStart);
     for(int i = 0; i < meshFE->numElems; i++) {
     	int numNodesInElem = meshFE->numNodesPerElem[i];
         for(int patchCount = 0; patchCount < numPatches; patchCount++) {
@@ -307,17 +302,17 @@ void IGAMortarMapper::projectPointsToSurface() {
             }
         }
     }
-    INFO_OUT()<<"... first pass projection done !"<<endl;
+    time(&timeEnd);
+    INFO_OUT()<<"First pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
     int missing = 0;
     for (int i = 0; i < meshFE->numNodes; i++) {
     	if(!isProjected[i])
     		missing++;
     }
     INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass." << endl;
-    if(!missing)
-    	return;
-    else {
+    if(missing) {
         INFO_OUT()<<"Second pass projection starting..."<<endl;
+        time(&timeStart);
         missing = 0;
         for (int i = 0; i < meshFE->numNodes; i++) {
         	if(!isProjected[i]) {
@@ -331,9 +326,13 @@ void IGAMortarMapper::projectPointsToSurface() {
     			missing++;
         	}
         }
-        INFO_OUT()<<"... second pass projection done!"<<endl;
-        if(missing)
-            ERROR_OUT()<<missing << " nodes over " << meshFE->numNodes <<" could NOT be projected during second pass." << endl;
+        time(&timeEnd);
+        INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
+        if(missing) {
+        	stringstream msg;
+        	msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass !";
+        	ERROR_BLOCK_OUT("IGAMortarMapper", "ProjectPointsToSurface", msg.str());
+        }
     }
 }
 
@@ -391,14 +390,14 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchCount, const int nodeIn
     if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
     	/// Perform some validity checks
     	if(distance > minProjectionDistance + projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
-    		DEBUG_OUT() << "new projection too far away from previous one" << endl;
+    		DEBUG_OUT() << "New projection too far away from previous one" << endl;
     		DEBUG_OUT() << "This distance "<< distance <<" compared to previous "<< minProjectionDistance << endl;
     		return false;
     	}
     	if(!minProjectionPoint.empty() &&
     			MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches &&
     			distance > minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
-    		DEBUG_OUT() << "new projected point too far away from previous projected point" << endl;
+    		DEBUG_OUT() << "New projected point too far away from previous projected point" << endl;
     		DEBUG_OUT() << "This distance "<< MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) << endl;
     		return false;
     	}
@@ -768,7 +767,7 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
 		WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!");
     if(dis > projectionProperties.maxProjectionDistance) {
 		stringstream sstream;
-		sstream << "Point projection on boundary too far : distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!";
+		sstream << "Projection on boundary too far : distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!";
 		WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices",sstream.str());
 	}
     return isProjectedOnPatchBoundary;
