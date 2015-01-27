@@ -1,5 +1,5 @@
-#ifndef CURVESURFACEMAPPER_H_
-#define CURVESURFACEMAPPER_H_
+#ifndef CURVESURFACELINEARMAPPER_H_
+#define CURVESURFACELINEARMAPPER_H_
 
 #include "AbstractMapper.h"
 #include <map>
@@ -8,15 +8,15 @@ namespace EMPIRE {
 
 class KinematicMotion;
 
-class CurveSurfaceMapper : public AbstractMapper {
+class CurveSurfaceLinearMapper : public AbstractMapper {
 public:
-    CurveSurfaceMapper(int _curveNumNodes, int _curveNumElements, const double *_curveNodeCoors,
+    CurveSurfaceLinearMapper(int _curveNumNodes, int _curveNumElements, const double *_curveNodeCoors,
             const int *_curveNodeIDs, const int *_curveElems, int _surfaceNumNodes,
             const double *_surfaceNodeCoors, int _surfaceNumSections, int _surfaceNumRootSectionNodes,
             int _surfaceNumNormalSectionNodes, int _surfaceNumTipSectionNodes,
             const double *rotation_O_Q, const double *translation_O_Q);
 
-    virtual ~CurveSurfaceMapper();
+    virtual ~CurveSurfaceLinearMapper();
     /***********************************************************************************************
      * \brief Map deformation from curve to surface
      * \param[in] curveDispRot displacements and rotations on curve nodes
@@ -65,9 +65,9 @@ private:
     /// Rotation from the global system the curve/beam element local system
     KinematicMotion **ROT_O_ELEM;
     /// unit test class
-    friend class TestCurveSurfaceMapper;
+    friend class TestCurveSurfaceLinearMapper;
 };
 
 } /* namespace EMPIRE */
 
-#endif /* CURVESURFACEMAPPER_H_ */
+#endif /* CURVESURFACELINEARMAPPER_H_ */
