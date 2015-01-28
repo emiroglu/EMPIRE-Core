@@ -43,20 +43,20 @@ public:
     void tearDown() {
     }
 
+
     /***********************************************************************************************
      * \brief Test consistent and conservative mapping
      ***********/
-    void testConsistentConservativeMapping() {
+    void testBending() {
         // define curve and surface in Q
         int curveNumNodes = 3;
         int curveNumElements = 2;
-        double curveNodeCoors[] = { 0.0, 0.0, 0.0, 1.5707963, 0.0, 0.0, 3.1415926, 0.0, 0.0 };
+        double curveNodeCoors[] = { 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0 };
         int curveNodeIDs[] = { 1, 2, 3 };
         int curveElems[] = { 1, 2, 2, 3 };
         int surfaceNumNodes = 5;
-        //double surfaceNodeCoors[] = { 0.0, 0.0, 0.0, 0.78539815, 0.0, 0.0, 1.5707963, 0.0, 0.0, 2.35619445, 0.0, 0.0, 3.1415926, 0.0, 0.0 };
-        double surfaceNodeCoors[] = { 0.0, -1.0, 0.0, 0.78539815, -1.0, 0.0, 1.5707963, -1.0, 0.0,
-                2.35619445, -1.0, 0.0, 3.1415926, -1.0, 0.0 };
+        double surfaceNodeCoors[] = { 0.0, -1.0, 0.0, 0.25, -1.0, 0.0, 0.5, -1.0, 0.0,
+                0.75, -1.0, 0.0, 1.0, -1.0, 0.0 };
 
         int surfaceNumSections = 5;
         int surfaceNumRootSectionNodes = 1;
@@ -94,15 +94,15 @@ public:
             curveDispRot[4] = 0.0;
             curveDispRot[5] = 0.0;
             // curve node 2
-            curveDispRot[6] = 1.0 - 1.5707963;
-            curveDispRot[7] = 1.0;
+            curveDispRot[6] = 1.0 - 0.5;
+            curveDispRot[7] = 1.0 - 0.0;
             curveDispRot[8] = 0.0;
             curveDispRot[9] = 0.0;
             curveDispRot[10] = 0.0;
             curveDispRot[11] = 1.5707963;
             // curve node 2
-            curveDispRot[12] = 0.0 - 3.1415926;
-            curveDispRot[13] = 2.0;
+            curveDispRot[12] = 0.0 - 1.0;
+            curveDispRot[13] = 2.0 - 0.0;
             curveDispRot[14] = 0.0;
             curveDispRot[15] = 0.0;
             curveDispRot[16] = 0.0;
@@ -157,7 +157,8 @@ public:
     }
 
     CPPUNIT_TEST_SUITE (TestCurveSurfaceCorotate2DMapper);
-    CPPUNIT_TEST (testConsistentConservativeMapping);CPPUNIT_TEST_SUITE_END();
+    CPPUNIT_TEST (testBending);
+    CPPUNIT_TEST_SUITE_END();
 };
 
 } /* namespace EMPIRE */

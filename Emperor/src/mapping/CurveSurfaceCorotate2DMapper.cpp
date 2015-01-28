@@ -23,11 +23,21 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
     /*
      * Coordinate systems:
      *   O --- global
-     *   Q --- beam root (x is the direction orthogonal to root section, y-z is the root plane)
+     *   Q --- beam root (x is the direction orthogonal to root section, y is flapwise direction, z is edgewise direction)
      *         origin is an arbitrary point in the root section
+     *         Qx,Qy,Qz = +-Ox or Oy or Oz!!!
      *   P --- origin is the cross point of the section with the beam element, orientation is the same as the global system
      */
-    KM_O_Q = new KinematicMotion(); //TODO assert local parallel to global, assert all elements in x-y plane of Q
+    // construct KM_O_Q
+    const double EPS = 1E-10;
+    for (int i=0; i<9; i++) {
+        double tmp = fabs(rotation_O_Q[i]);
+        if (tmp > 0.5)
+            assert(fabs(tmp - 1.0) < EPS); // should be 1
+        else
+            assert(fabs(tmp - 0.0) < EPS); // should be 0
+    }
+    KM_O_Q = new KinematicMotion();
     KM_O_Q->addRotation(rotation_O_Q);
     KM_O_Q->addTranslation(translation_O_Q);
 
@@ -40,6 +50,7 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
         KM_Q_O->move(&surfaceNodeCoorsInQ[i * 3]);
     }
 
+    // check number of surface nodes
     assert(
             surfaceNumNodes
                     == surfaceNumRootSectionNodes + surfaceNumTipSectionNodes
@@ -63,27 +74,22 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
     delete mapCoorX2Pos;
 
     // curve node coordinates in Q
-    curveNodeCoorsInQ = new double[_curveNumNodes * 3];
-    for (int i = 0; i < _curveNumNodes * 3; i++)
+    curveNodeCoorsInQ = new double[curveNumNodes * 3];
+    for (int i = 0; i < curveNumNodes * 3; i++)
         curveNodeCoorsInQ[i] = _curveNodeCoors[i];
-    for (int i = 0; i < _curveNumNodes; i++) {
+    for (int i = 0; i < curveNumNodes; i++) {
         KM_Q_O->move(&curveNodeCoorsInQ[i * 3]);
     }
+    // z coordinates should be 0 in Q
+    for (int i = 0; i < curveNumNodes; i++) {
+        assert(fabs(curveNodeCoorsInQ[i * 3 + 2] - 0.0) < EPS);
+    }
+
 
     // map curve node ID to curve node position
     curveNodeIDToPos = new map<int, int>;
-    for (int i = 0; i < _curveNumNodes; i++) {
+    for (int i = 0; i < curveNumNodes; i++) {
         curveNodeIDToPos->insert(pair<int, int>(_curveNodeIDs[i], i));
-    }
-
-    double *curveElementLength = new double[curveNumElements];
-    for (int i = 0; i < curveNumElements; i++) {
-        const double *node1 = &_curveNodeCoors[curveNodeIDToPos->at(curveElems[i * 2 + 0]) * 3];
-        const double *node2 = &_curveNodeCoors[curveNodeIDToPos->at(curveElems[i * 2 + 1]) * 3];
-        double tmp[3];
-        for (int j = 0; j < 3; j++)
-            tmp[j] = node2[j] - node1[j];
-        curveElementLength[i] = sqrt(tmp[0] * tmp[0] + tmp[1] * tmp[1] + tmp[2] * tmp[2]);
     }
 
     // map the x coordinate of the right node to an element
@@ -145,8 +151,6 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
         double node1X = curveNodeCoorsInQ[curveNodeIDToPos->at(node1ID) * 3 + 0];
         double node2X = curveNodeCoorsInQ[curveNodeIDToPos->at(node2ID) * 3 + 0];
 
-        double length = curveElementLength[sectionToCurveElem[i]];
-
         double diff = node2X - node1X; // can be negative
         double xi = 2.0 * (sectionX - node1X) / diff - 1.0;
 
@@ -161,16 +165,18 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
         double linearShapeFunc2 = 0.5 * (1.0 + xi);
 
         double cubicShapeFuncDisp1 = 1.0 / 4.0 * (1.0 - xi) * (1.0 - xi) * (2.0 + xi);
-        double cubicShapeFuncRot1 = 1.0 / 8.0 * length * (1.0 - xi) * (1.0 - xi) * (1.0 + xi);
+        //double cubicShapeFuncRot1 = 1.0 / 8.0 * length * (1.0 - xi) * (1.0 - xi) * (1.0 + xi);
+        double cubicShapeFuncRot1 = 1.0 / 8.0 * (1.0 - xi) * (1.0 - xi) * (1.0 + xi); // *=length
         double cubicShapeFuncDisp2 = 1.0 / 4.0 * (1.0 + xi) * (1.0 + xi) * (2.0 - xi);
-        double cubicShapeFuncRot2 = -1.0 / 8.0 * length * (1.0 + xi) * (1.0 + xi) * (1.0 - xi);
-        double Dxi_Dx = 2.0 / length;
-        double cubicShapeFuncDispDeriv1 = Dxi_Dx * (-3.0) / 4.0 * (1.0 - xi) * (1.0 + xi);
-        double cubicShapeFuncRotDeriv1 = Dxi_Dx * (-1.0) / 8.0 * length * (1.0 - xi)
-                * (1.0 + 3 * xi);
-        double cubicShapeFuncDispDeriv2 = Dxi_Dx * 3.0 / 4.0 * (1.0 - xi) * (1.0 + xi);
-        double cubicShapeFuncRotDeriv2 = Dxi_Dx * (-1.0) / 8.0 * length * (1.0 + xi)
-                * (1.0 - 3 * xi);
+        //double cubicShapeFuncRot2 = -1.0 / 8.0 * length * (1.0 + xi) * (1.0 + xi) * (1.0 - xi);
+        double cubicShapeFuncRot2 = -1.0 / 8.0 * (1.0 + xi) * (1.0 + xi) * (1.0 - xi); // *=length
+        //double Dxi_Dx = 2.0 / length;
+        //double cubicShapeFuncDispDeriv1 = Dxi_Dx * (-3.0) / 4.0 * (1.0 - xi) * (1.0 + xi);
+        double cubicShapeFuncDispDeriv1 = 2.0 * (-3.0) / 4.0 * (1.0 - xi) * (1.0 + xi); // /=length
+        double cubicShapeFuncRotDeriv1 = 2.0 * (-1.0) / 8.0 * (1.0 - xi) * (1.0 + 3 * xi);
+        //double cubicShapeFuncDispDeriv2 = Dxi_Dx * 3.0 / 4.0 * (1.0 - xi) * (1.0 + xi);
+        double cubicShapeFuncDispDeriv2 = 2.0 * 3.0 / 4.0 * (1.0 - xi) * (1.0 + xi); // /=length
+        double cubicShapeFuncRotDeriv2 = 2.0 * (-1.0) / 8.0 * (1.0 + xi) * (1.0 - 3 * xi);
 
         if (diff > 0) {
             shapeFuncOfSection[i * 10 + 0] = linearShapeFunc1;
@@ -208,12 +214,15 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
         }
     }
 
-    // transformation from local beam to global system
+    // transformation from local beam to Q
     ROT_Q_ELEM = new KinematicMotion*[curveNumElements];
+    // rotation angle from local beam to Q
     angle_Q_ELEM = new double[curveNumElements];
+    // compute ROT_Q_ELEM and angle_Q_ELEM
     for (int i = 0; i < curveNumElements; i++) {
         // For the definition of local axes, see carat ElementBeam1::calc_transformation_matrix, or
         // carat.st.bv.tum.de/caratuserswiki/index.php/Users:General_FEM_Analysis/Elements_Reference/Beam1
+        // x and y are defined on Q instead of O, which is different than the classic carat definition
         ROT_Q_ELEM[i] = new KinematicMotion;
         int node1ID = curveElems[i * 2 + 0];
         int node2ID = curveElems[i * 2 + 1];
@@ -254,7 +263,6 @@ CurveSurfaceCorotate2DMapper::CurveSurfaceCorotate2DMapper(int _curveNumNodes,
     delete KM_Q_O;
     delete[] surfaceNodeCoorsInQ;
     delete rightXToElemPos;
-    delete[] curveElementLength;
 }
 
 CurveSurfaceCorotate2DMapper::~CurveSurfaceCorotate2DMapper() {
@@ -275,19 +283,22 @@ CurveSurfaceCorotate2DMapper::~CurveSurfaceCorotate2DMapper() {
 
 void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
         double *surfaceDisp) {
-    //TODO include the length change
-
+    // Rotation ROT_O_Q
+    KinematicMotion ROT_O_Q;
+    ROT_O_Q.addRotation(KM_O_Q->getRotationMatrix());
+    KinematicMotion *ROT_Q_O = ROT_O_Q.newInverse();
+    // DOFs on curve/beam element local system
     double *node1DispLocal = new double[curveNumElements * 3];
     double *node1RotLocal = new double[curveNumElements * 3];
     double *node2DispLocal = new double[curveNumElements * 3];
     double *node2RotLocal = new double[curveNumElements * 3];
-    // get displacements and rotations in the curve element local system
-    KinematicMotion ROT_O_Q;
-    ROT_O_Q.addRotation(KM_O_Q->getRotationMatrix());
-    KinematicMotion *ROT_Q_O = ROT_O_Q.newInverse();
-
+    // Corotate angles
     double *angle_elem_corotate = new double[curveNumElements];
+    // Corotate transformations
     KinematicMotion **ROT_elem_corotate = new KinematicMotion*[curveNumElements];
+    // length of the element after deformation
+    double *curveElementLength = new double[curveNumElements];
+    // compute DOFs in the curve element local system, compute corotate transformations, current length of the element
     for (int i = 0; i < curveNumElements; i++) {
         int node1ID = curveElems[i * 2 + 0];
         int node2ID = curveElems[i * 2 + 1];
@@ -297,10 +308,6 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
             node2DispLocal[i * 3 + j] = curveDispRot[curveNodeIDToPos->at(node2ID) * 6 + 0 + j];
             node2RotLocal[i * 3 + j] = curveDispRot[curveNodeIDToPos->at(node2ID) * 6 + 3 + j];
         }
-        KinematicMotion *ROT_ELEM_Q = ROT_Q_ELEM[i]->newInverse();
-        KinematicMotion ROT_ELEM_O;
-        ROT_ELEM_O.addKinematicMotion(ROT_Q_O);
-        ROT_ELEM_O.addKinematicMotion(ROT_ELEM_Q);
 
         // transform the DOFs to Q system
         ROT_Q_O->move(&node1DispLocal[i * 3]);
@@ -328,9 +335,12 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
             double z_loc[] = { 0.0, 0.0, 1.0 };
             ROT_elem_corotate[i] = new KinematicMotion;
             ROT_elem_corotate[i]->addRotation(z_loc, true, angle_elem_corotate[i]);
+
+            curveElementLength[i] = lengthXY;
         }
 
         // transform the DOFs to element local system
+        KinematicMotion *ROT_ELEM_Q = ROT_Q_ELEM[i]->newInverse();
         ROT_ELEM_Q->move(&node1DispLocal[i * 3]);
         ROT_ELEM_Q->move(&node1RotLocal[i * 3]);
         ROT_ELEM_Q->move(&node2DispLocal[i * 3]);
@@ -350,18 +360,19 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
         double sectionDisp[3];
         double sectionRot[3];
 
+        double length = curveElementLength[elem];
         double linearShapeFunc1 = shapeFuncOfSection[i * 10 + 0];
         double cubicShapeFuncDisp1 = shapeFuncOfSection[i * 10 + 1];
-        double cubicShapeFuncRot1 = shapeFuncOfSection[i * 10 + 2];
-        double cubicShapeFuncDispDeriv1 = shapeFuncOfSection[i * 10 + 3];
+        double cubicShapeFuncRot1 = shapeFuncOfSection[i * 10 + 2] * length;
+        double cubicShapeFuncDispDeriv1 = shapeFuncOfSection[i * 10 + 3] / length;
         double cubicShapeFuncRotDeriv1 = shapeFuncOfSection[i * 10 + 4];
         double linearShapeFunc2 = shapeFuncOfSection[i * 10 + 5 + 0];
         double cubicShapeFuncDisp2 = shapeFuncOfSection[i * 10 + 5 + 1];
-        double cubicShapeFuncRot2 = shapeFuncOfSection[i * 10 + 5 + 2];
-        double cubicShapeFuncDispDeriv2 = shapeFuncOfSection[i * 10 + 5 + 3];
+        double cubicShapeFuncRot2 = shapeFuncOfSection[i * 10 + 5 + 2] * length;
+        double cubicShapeFuncDispDeriv2 = shapeFuncOfSection[i * 10 + 5 + 3] / length;
         double cubicShapeFuncRotDeriv2 = shapeFuncOfSection[i * 10 + 5 + 4];
 
-        // compute disp_y and rot_z in corotate system
+        // compute disp_y and rot_z in corotate system with origin P
         sectionDisp[0] = 0.0;
         sectionDisp[1] = cubicShapeFuncRot1 * (node1RotLocal[elem * 3 + 2] - angle_elem_corotate[elem])
                 + cubicShapeFuncRot2 * (node2RotLocal[elem * 3 + 2] - angle_elem_corotate[elem]);
@@ -374,6 +385,7 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
         // transform the section disp to the element local system (rot does not change)
         ROT_elem_corotate[elem]->move(sectionDisp);
 
+        // compute the DOFs on the element local system with origin P
         //disp_x += NL_1*disp_x1 + NL_2*disp_x2
         sectionDisp[0] += linearShapeFunc1 * node1DispLocal[elem * 3 + 0]
                 + linearShapeFunc2 * node2DispLocal[elem * 3 + 0];
@@ -401,7 +413,7 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
         double localX[] = { 1.0, 0.0, 0.0 };
         double localY[] = { 0.0, 1.0, 0.0 };
         double localZ[] = { 0.0, 0.0, 1.0 };
-        // bending first, then torsion, the corotate
+        // bending first, then torsion, the corotate (the order of first two does not matter, the corotate must be the last)
         KM_Eo_Ed.addRotation(localY, true, sectionRot[1]);
         KM_Eo_Ed.addRotation(localX, true, sectionRot[0]);
         KM_Eo_Ed.addRotation(localZ, true, sectionRot[2]);
@@ -469,6 +481,7 @@ void CurveSurfaceCorotate2DMapper::consistentMapping(const double *curveDispRot,
     }
     delete[] ROT_elem_corotate;
     delete ROT_Q_O;
+    delete[] curveElementLength;
 }
 
 void CurveSurfaceCorotate2DMapper::conservativeMapping(const double *surfaceForce,
