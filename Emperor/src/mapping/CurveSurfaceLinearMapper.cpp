@@ -1,4 +1,4 @@
-#include "CurveSurfaceMapper.h"
+#include "CurveSurfaceLinearMapper.h"
 #include "KinematicMotion.h"
 
 #include <assert.h>
@@ -10,7 +10,7 @@ using namespace std;
 
 namespace EMPIRE {
 
-CurveSurfaceMapper::CurveSurfaceMapper(int _curveNumNodes, int _curveNumElements,
+CurveSurfaceLinearMapper::CurveSurfaceLinearMapper(int _curveNumNodes, int _curveNumElements,
         const double *_curveNodeCoors, const int *_curveNodeIDs, const int *_curveElems,
         int _surfaceNumNodes, const double *_surfaceNodeCoors, int _surfaceNumSections,
         int _surfaceNumRootSectionNodes, int _surfaceNumNormalSectionNodes,
@@ -265,7 +265,7 @@ CurveSurfaceMapper::CurveSurfaceMapper(int _curveNumNodes, int _curveNumElements
     delete[] curveElementLength;
 }
 
-CurveSurfaceMapper::~CurveSurfaceMapper() {
+CurveSurfaceLinearMapper::~CurveSurfaceLinearMapper() {
     delete[] sortedPosToUnsortedPos;
     delete curveNodeIDToPos;
     delete[] sectionToCurveElem;
@@ -277,7 +277,7 @@ CurveSurfaceMapper::~CurveSurfaceMapper() {
     delete[] sectionP;
 }
 
-void CurveSurfaceMapper::consistentMapping(const double *curveDispRot, double *surfaceDisp) {
+void CurveSurfaceLinearMapper::consistentMapping(const double *curveDispRot, double *surfaceDisp) {
     double *node1DispLocal = new double[curveNumElements * 3];
     double *node1RotLocal = new double[curveNumElements * 3];
     double *node2DispLocal = new double[curveNumElements * 3];
@@ -412,7 +412,7 @@ void CurveSurfaceMapper::consistentMapping(const double *curveDispRot, double *s
     }
 }
 
-void CurveSurfaceMapper::conservativeMapping(const double *surfaceForce, double *curveForceMoment) {
+void CurveSurfaceLinearMapper::conservativeMapping(const double *surfaceForce, double *curveForceMoment) {
     // set forces and moments on the curve/beam to 0
     for (int i = 0; i < curveNumNodes * 6; i++) {
         curveForceMoment[i] = 0.0;
