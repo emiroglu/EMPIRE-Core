@@ -25,6 +25,7 @@
 #include "IGAMesh.h"
 #include "FEMesh.h"
 #include "ClipperAdapter.h"
+#include "TriangulatorAdaptor.h"
 #include "MathLibrary.h"
 #include "DataField.h"
 #include <iostream>
@@ -146,7 +147,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
     computeCouplingMatrices();
 
     // Write polygon net of projected elements to a vtk file
-    writeCartesianProjectedPolygon();
+    writeCartesianProjectedPolygon("projectedPolygonsOntoNURBSSurface");
+    writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface");
 
     writeCouplingMatricesToFile();
 
@@ -396,7 +398,7 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchCount, const int nodeIn
     	}
     	if(!minProjectionPoint.empty() &&
     			MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches &&
-    			distance > minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+    			distance > minProjectionDistance) {
     		DEBUG_OUT() << "New projected point too far away from previous projected point" << endl;
     		DEBUG_OUT() << "This distance "<< MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) << endl;
     		return false;
@@ -472,7 +474,9 @@ void IGAMortarMapper::computeCouplingMatrices() {
 	/// List of integrated element
 	set<int> elementIntegrated;
 	/// Reset parametric polygons file
-	writeParametricProjectedPolygon();
+	writeParametricProjectedPolygon("projectedPolygonsOntoNURBSSurface");
+	writeParametricProjectedPolygon("integratedPolygonsOntoNURBSSurface");
+
 	/// The vertices of the canonical polygons
     double parentTriangle[6] = { 0, 0, 1, 0, 0, 1 };
     double parentQuadriliteral[8] = { -1, -1, 1, -1, 1, 1, -1, 1 };
@@ -491,15 +495,8 @@ void IGAMortarMapper::computeCouplingMatrices() {
     	DEBUG_OUT()<< setfill ('#') << setw(18+elementStringLength) << "#" << endl;
     	DEBUG_OUT()<< setfill (' ') << "### ELEMENT ["<< setw(elementStringLength) << elemCount << "] ###"<<endl;
     	DEBUG_OUT()<< setfill ('#') << setw(18+elementStringLength) << "#" << setfill (' ')<< endl;
-        // Compute the number of shape functions. Depending on number of nodes in the current element
+        // Get the number of shape functions. Depending on number of nodes in the current element
         int numNodesElementFE = meshFE->numNodesPerElem[elemCount];
-		// Cartesian coordinates of the low order element
-		double elementFEXYZ[12];
-		for (int i = 0; i < numNodesElementFE; i++) {
-			int nodeIndex = meshFEDirectElemTable[elemCount][i];
-			for (int j = 0; j < 3; j++)
-				elementFEXYZ[i * 3 + j] = meshFE->nodes[nodeIndex * 3 + j];
-		}
         /// Find whether the projected FE element is located on one patch
         set<int> patchWithFullElt;
         set<int> patchWithSplitElt;
@@ -590,7 +587,6 @@ void IGAMortarMapper::buildFullParametricElement(int elemCount, int numNodesElem
 	// Just look into projectedCoords structure and build the polygon
 	for (int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
 		int nodeIndex = meshFEDirectElemTable[elemCount][nodeCount];
-		double* P1 = &(meshFE->nodes[nodeIndex * 3]);
 		double u = projectedCoords[nodeIndex][patchIndex][0];
 		double v = projectedCoords[nodeIndex][patchIndex][1];
 		polygonUV.push_back(make_pair(u,v));
@@ -801,7 +797,7 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 	/// 1.3 For each subelement output of the trimmed polygon, clip by knot span
 	for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
 		/// Debug data
-		writeParametricProjectedPolygon(_patchIndex,&listTrimmedPolygonUV[trimmedPolygonIndex]);
+		writeParametricProjectedPolygon("projectedPolygonsOntoNURBSSurface", _patchIndex, &listTrimmedPolygonUV[trimmedPolygonIndex]);
 		//////
 		Polygon2D listSpan;
 		ListPolygon2D listPolygonUV;
@@ -813,10 +809,15 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 			if(listPolygonUV[index].size()<3)
 				continue;
 			isIntegrated=true;
-			// Get canonical element
-			Polygon2D polygonWZ = computeCanonicalElement(thePatch,_projectedElement,listPolygonUV[index],_elemIndex);
-			// Integrate
-			integrate(thePatch,listPolygonUV[index],listSpan[index].first,listSpan[index].second,polygonWZ,_elemIndex);
+			ListPolygon2D triangulatedPolygons = triangulatePolygon(listPolygonUV[index]);
+			for(ListPolygon2D::const_iterator triangulatedPolygon=triangulatedPolygons.begin();
+					triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
+				writeParametricProjectedPolygon("integratedPolygonsOntoNURBSSurface", _patchIndex, &(*triangulatedPolygon));
+				// Get canonical element
+				Polygon2D polygonWZ = computeCanonicalElement(_elemIndex, _projectedElement, *triangulatedPolygon);
+				// Integrate
+				integrate(thePatch,*triangulatedPolygon,listSpan[index].first,listSpan[index].second,polygonWZ,_elemIndex);
+			}
 		}
 	}
 	return isIntegrated;
@@ -888,7 +889,28 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 	}
 }
 
-IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _theElement, Polygon2D& _polygonUV, int _elementIndex) {
+IGAMortarMapper::ListPolygon2D IGAMortarMapper::triangulatePolygon(const Polygon2D& _polygonUV) {
+	// If already easily integrable by quadrature rule, do nothing
+	if(_polygonUV.size()<=4)
+		return ListPolygon2D(1,_polygonUV);
+	// Otherwise triangulate polygon
+	TriangulatorAdaptor triangulator;
+	// Fill adapter
+	for(Polygon2D::const_iterator it=_polygonUV.begin();it!=_polygonUV.end();it++)
+		triangulator.addPoint(it->first,it->second,0);
+	// Triangulate
+	int numTriangles = _polygonUV.size() - 2;
+	int triangleIndexes[3 * numTriangles];
+	triangulator.triangulate(triangleIndexes);
+	// Fill output structure
+	ListPolygon2D out(numTriangles, Polygon2D(3));
+	for(int i = 0; i < numTriangles; i++)
+		for(int j=0;j<3;j++)
+			out[i][j]=_polygonUV[triangleIndexes[3*i + j]];
+	return out;
+}
+
+IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(const int _elementIndex, const Polygon2D& _theElement, const Polygon2D& _polygonUV) {
 	int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
 	double elementFEUV[8], coordsNodeFEUV[2], coordsNodeFEWZ[2];
 	for(int i = 0; i < numNodesElementFE; i++) {
@@ -934,19 +956,13 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
     int numNodesUV=_polygonUV.size();
     int numNodesWZ=_polygonWZ.size();
     assert(numNodesUV>2);
+    assert(numNodesUV<5);
     assert(numNodesWZ>2);
+    assert(numNodesWZ<5);
 
-    int _numNodesElementFE=meshFE->numNodesPerElem[_elementIndex];
-
-    vector<double*> quadratureVecUV;
-    vector<double*> quadratureVecWZ;
-    vector<int> numNodesQuadrature;
 
     // Definitions
-    double IGABasisFctsI = 0;
-    double IGABasisFctsJ = 0;
-    double basisFctsMaster = 0;
-    double basisFctsSlave = 0;
+    int numNodesElementFE=meshFE->numNodesPerElem[_elementIndex];
     int numNodesElMaster = 0;
     int numNodesElSlave = 0;
 
@@ -955,13 +971,13 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
     int nShapeFuncsIGA = (pDegree + 1) * (qDegree + 1);
 
     if (isMappingIGA2FEM) {
-        numNodesElMaster = _numNodesElementFE;
+        numNodesElMaster = numNodesElementFE;
         numNodesElSlave = nShapeFuncsIGA;
     } else {
         numNodesElMaster = nShapeFuncsIGA;
-        numNodesElSlave = _numNodesElementFE;
+        numNodesElSlave = numNodesElementFE;
     }
-
+    // Initialize element matrix
     double elementCouplingMatrixNN[numNodesElMaster * (numNodesElMaster + 1) / 2];
     double elementCouplingMatrixNR[numNodesElSlave * numNodesElMaster];
 
@@ -972,184 +988,132 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
     for (int arrayIndex = 0; arrayIndex < numNodesElSlave * numNodesElMaster; arrayIndex++)
         elementCouplingMatrixNR[arrayIndex] = 0;
 
-/// 1. Divide the polygon into several quadratures(triangle or quadriliteral) for integration
-    if (numNodesUV <= 4) {
-        double* nodesUV= new double[8];
-        double* nodesWZ= new double[8];
-
-        for (int i = 0; i < numNodesUV; i++) {
-        	nodesUV[i*2]=_polygonUV[i].first;
-        	nodesUV[i*2+1]=_polygonUV[i].second;
-        	nodesWZ[i*2]=_polygonWZ[i].first;
-        	nodesWZ[i*2+1]=_polygonWZ[i].second;
-        }
-        quadratureVecUV.push_back(nodesUV);
-        quadratureVecWZ.push_back(nodesWZ);
-        numNodesQuadrature.push_back(numNodesUV);
-    } else {
-        double centerIGA[2] = { 0, 0 };
-        double centerFE[2] = { 0, 0 };
-        for (int i = 0; i < numNodesUV; i++) {
-            centerIGA[0] += _polygonUV[i].first  / numNodesUV;
-            centerIGA[1] += _polygonUV[i].second / numNodesUV;
-            centerFE[0]  += _polygonWZ[i].first  / numNodesUV;
-            centerFE[1]  += _polygonWZ[i].second / numNodesUV;
-        }
-
-        double *triangleIGA;
-        double *triangleFE;
-        for (int i = 0; i < numNodesUV; i++) {
-            int iNext = (i + 1) % numNodesUV;
-            triangleIGA = new double[6]; // deleted
-            triangleFE = new double[6]; // deleted
-            triangleIGA[0] = _polygonUV[i].first;
-            triangleIGA[1] = _polygonUV[i].second;
-            triangleFE[0]  = _polygonWZ[i].first;
-            triangleFE[1]  = _polygonWZ[i].second;
-
-            triangleIGA[2] = _polygonUV[iNext].first;
-            triangleIGA[3] = _polygonUV[iNext].second;
-            triangleFE[2]  = _polygonWZ[iNext].first;
-            triangleFE[3]  = _polygonWZ[iNext].second;
-
-
-            triangleIGA[4] = centerIGA[0];
-            triangleIGA[5] = centerIGA[1];
-            triangleFE[4]  = centerFE[0];
-            triangleFE[5]  = centerFE[1];
-
-            quadratureVecUV.push_back(triangleIGA);
-            quadratureVecWZ.push_back(triangleFE);
-            numNodesQuadrature.push_back(3);
-        }
-    }
+/// 1. Copy input polygon into contiguous C format
+	double nodesUV[8];
+	double nodesWZ[8];
+	for (int i = 0; i < numNodesUV; i++) {
+		nodesUV[i*2]=_polygonUV[i].first;
+		nodesUV[i*2+1]=_polygonUV[i].second;
+		nodesWZ[i*2]=_polygonWZ[i].first;
+		nodesWZ[i*2+1]=_polygonWZ[i].second;
+	}
 
 /// 2. Loop through each quadrature
-    for (int quadratureCount = 0; quadratureCount < quadratureVecUV.size(); quadratureCount++) {
-
 /// 2.1 Choose gauss triangle or gauss quadriliteral
+	MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
+	int nNodesQuadrature=numNodesUV;
+	if (nNodesQuadrature == 3)
+		theGaussQuadrature = gaussTriangle;
+	else
+		theGaussQuadrature = gaussQuad;
 
-        MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
-
-        int nNodesQuadrature;
-        if (numNodesQuadrature[quadratureCount] == 3) {
-            theGaussQuadrature = gaussTriangle;
-            nNodesQuadrature = 3;
-        } else {
-            theGaussQuadrature = gaussQuad;
-            nNodesQuadrature = 4;
-        }
-
-        double *quadratureUV = quadratureVecUV[quadratureCount];
-        double *quadratureWZ = quadratureVecWZ[quadratureCount];
+	double *quadratureUV = nodesUV;
+	double *quadratureWZ = nodesWZ;
 
 /// 2.2 Loop throught each Gauss point
-        for (int GPCount = 0; GPCount < theGaussQuadrature->numGaussPoints; GPCount++) {
+	for (int GPCount = 0; GPCount < theGaussQuadrature->numGaussPoints; GPCount++) {
 
-            /// 2.2.1 compute shape functions from Gauss points(in the quadrature).
-            const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
+		/// 2.2.1 compute shape functions from Gauss points(in the quadrature).
+		const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
 
-            double shapeFuncs[nNodesQuadrature];
-            MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
+		double shapeFuncs[nNodesQuadrature];
+		MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
 
-            /// 2.2.2 evaluate the coordinates in IGA patch from shape functions
-            double GPIGA[2];
-            MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
-                    GPIGA);
+		/// 2.2.2 evaluate the coordinates in IGA patch from shape functions
+		double GPIGA[2];
+		MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
+				GPIGA);
 
-            /// 2.2.3 evaluate the coordinates in the linear element from shape functions
-            double GPFE[2];
-            MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
-                    GPFE);
+		/// 2.2.3 evaluate the coordinates in the linear element from shape functions
+		double GPFE[2];
+		MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
+				GPFE);
 
-            /// 2.2.4 compute the shape function(in the linear element) of the current integration point
-            double shapeFuncsFE[_numNodesElementFE];
-            MathLibrary::computeLowOrderShapeFunc(_numNodesElementFE, GPFE, shapeFuncsFE);
-            int derivDegree = 1;
+		/// 2.2.4 compute the shape function(in the linear element) of the current integration point
+		double shapeFuncsFE[numNodesElementFE];
+		MathLibrary::computeLowOrderShapeFunc(numNodesElementFE, GPFE, shapeFuncsFE);
+		int derivDegree = 1;
 
-            /// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
-            double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2)
-                    * nShapeFuncsIGA / 2];
+		/// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
+		double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2)
+				* nShapeFuncsIGA / 2];
 
-            _thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
-                    localBasisFunctionsAndDerivatives, derivDegree, GPIGA[0], _spanU, GPIGA[1],
-                    _spanV);
+		_thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
+				localBasisFunctionsAndDerivatives, derivDegree, GPIGA[0], _spanU, GPIGA[1],
+				_spanV);
 
-            /// 2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
-            double baseVectors[6];
-            _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
-                    _spanV);
+		/// 2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
+		double baseVectors[6];
+		_thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
+				_spanV);
 
-            double JacobianUVToPhysical = MathLibrary::computeAreaTriangle(baseVectors[0],
-                    baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
-                    * 2;
+		double JacobianUVToPhysical = MathLibrary::computeAreaTriangle(baseVectors[0],
+				baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
+				* 2;
 
-            /// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
-            double JacobianCanonicalToUV;
-            if (nNodesQuadrature == 3) {
-                JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(
-                        quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
-                        quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
-            } else {
-                double dudx = .25
-                        * (-(1 - GP[2]) * quadratureUV[0] + (1 - GP[2]) * quadratureUV[2]
-                                + (1 + GP[2]) * quadratureUV[4] - (1 + GP[2]) * quadratureUV[6]);
-                double dudy = .25
-                        * (-(1 - GP[1]) * quadratureUV[0] - (1 + GP[1]) * quadratureUV[2]
-                                + (1 + GP[1]) * quadratureUV[4] + (1 - GP[1]) * quadratureUV[6]);
-                double dvdx = .25
-                        * (-(1 - GP[2]) * quadratureUV[1] + (1 - GP[2]) * quadratureUV[3]
-                                + (1 + GP[2]) * quadratureUV[5] - (1 + GP[2]) * quadratureUV[7]);
-                double dvdy = .25
-                        * (-(1 - GP[1]) * quadratureUV[1] - (1 + GP[1]) * quadratureUV[3]
-                                + (1 + GP[1]) * quadratureUV[5] + (1 - GP[1]) * quadratureUV[7]);
-                JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
-            }
-            double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
-            /// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
-            int count = 0;
-
-            for (int i = 0; i < numNodesElMaster; i++)
-                for (int j = i; j < numNodesElMaster; j++) {
-                    if (isMappingIGA2FEM)
-                        elementCouplingMatrixNN[count++] += shapeFuncsFE[i] * shapeFuncsFE[j]
-                                * Jacobian * theGaussQuadrature->weights[GPCount];
-                    else {
-                        IGABasisFctsI =
-                                localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                        1, 0, 0, i)];
-                        IGABasisFctsJ =
-                                localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                        1, 0, 0, j)];
-                        elementCouplingMatrixNN[count++] += IGABasisFctsI * IGABasisFctsJ * Jacobian
-                                * theGaussQuadrature->weights[GPCount];
-                    }
-
-                }
-
-            /// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
-            count = 0;
-
-            for (int i = 0; i < numNodesElMaster; i++)
-                for (int j = 0; j < numNodesElSlave; j++) {
-                    if (isMappingIGA2FEM) {
-                        basisFctsMaster = shapeFuncsFE[i];
-                        basisFctsSlave =
-                                localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                        1, 0, 0, j)];
-                    } else {
-                        basisFctsMaster =
-                                localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                        1, 0, 0, i)];
-                        basisFctsSlave = shapeFuncsFE[j];
-                    }
-                    elementCouplingMatrixNR[count++] += basisFctsMaster * basisFctsSlave * Jacobian
-                            * theGaussQuadrature->weights[GPCount];
-                }
-
-        }
-    }
-
+		/// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
+		double JacobianCanonicalToUV;
+		if (nNodesQuadrature == 3) {
+			JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(
+					quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
+					quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
+		} else {
+			double dudx = .25
+					* (-(1 - GP[2]) * quadratureUV[0] + (1 - GP[2]) * quadratureUV[2]
+							+ (1 + GP[2]) * quadratureUV[4] - (1 + GP[2]) * quadratureUV[6]);
+			double dudy = .25
+					* (-(1 - GP[1]) * quadratureUV[0] - (1 + GP[1]) * quadratureUV[2]
+							+ (1 + GP[1]) * quadratureUV[4] + (1 - GP[1]) * quadratureUV[6]);
+			double dvdx = .25
+					* (-(1 - GP[2]) * quadratureUV[1] + (1 - GP[2]) * quadratureUV[3]
+							+ (1 + GP[2]) * quadratureUV[5] - (1 + GP[2]) * quadratureUV[7]);
+			double dvdy = .25
+					* (-(1 - GP[1]) * quadratureUV[1] - (1 + GP[1]) * quadratureUV[3]
+							+ (1 + GP[1]) * quadratureUV[5] + (1 - GP[1]) * quadratureUV[7]);
+			JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
+		}
+		double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
+		/// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
+		int count = 0;
+		for (int i = 0; i < numNodesElMaster; i++) {
+			for (int j = i; j < numNodesElMaster; j++) {
+				if (isMappingIGA2FEM)
+					elementCouplingMatrixNN[count++] += shapeFuncsFE[i] * shapeFuncsFE[j]
+							* Jacobian * theGaussQuadrature->weights[GPCount];
+				else {
+					double IGABasisFctsI =
+							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+									1, 0, 0, i)];
+					double IGABasisFctsJ =
+							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+									1, 0, 0, j)];
+					elementCouplingMatrixNN[count++] += IGABasisFctsI * IGABasisFctsJ * Jacobian
+							* theGaussQuadrature->weights[GPCount];
+				}
+			}
+		}
+		/// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
+		count = 0;
+		for (int i = 0; i < numNodesElMaster; i++) {
+			for (int j = 0; j < numNodesElSlave; j++) {
+				double basisFctsMaster;
+				double basisFctsSlave;
+				if (isMappingIGA2FEM) {
+					basisFctsMaster = shapeFuncsFE[i];
+					basisFctsSlave =
+							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+									1, 0, 0, j)];
+				} else {
+					basisFctsMaster =
+							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+									1, 0, 0, i)];
+					basisFctsSlave = shapeFuncsFE[j];
+				}
+				elementCouplingMatrixNR[count++] += basisFctsMaster * basisFctsSlave * Jacobian
+						* theGaussQuadrature->weights[GPCount];
+			}
+		}
+	}
 /// 3.Assemble the element coupling matrix to the global coupling matrix.
     int dofIGA[nShapeFuncsIGA];
     _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
@@ -1187,12 +1151,6 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             }
             (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count];
             count ++;
-        }
-
-    if (numNodesUV > 4)
-        for (int i = 0; i < quadratureVecUV.size(); i++) {
-            delete quadratureVecUV[i];
-            delete quadratureVecWZ[i];
         }
 }
 
@@ -1339,9 +1297,9 @@ void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
     projectedNodesFile.close();
 }
 
-void IGAMortarMapper::writeParametricProjectedPolygon(const int _patchIndex, const Polygon2D* const _polygonUV) {
+void IGAMortarMapper::writeParametricProjectedPolygon(const string _filename ,const int _patchIndex, const Polygon2D* const _polygonUV) {
 	ofstream projectedPolygonsFile;
-    string projectedPolygonsFileName = name + "_projectedPolygonsOntoNURBSSurface.csv";
+    string projectedPolygonsFileName = name + "_" + _filename + ".csv";
 	if(_patchIndex == -1) {
         projectedPolygonsFile.open(projectedPolygonsFileName.c_str(), ios::out | ios::trunc);
         projectedPolygonsFile.close();
@@ -1359,12 +1317,12 @@ void IGAMortarMapper::writeParametricProjectedPolygon(const int _patchIndex, con
     projectedPolygonsFile.close();
 }
 
-void IGAMortarMapper::writeCartesianProjectedPolygon() {
+void IGAMortarMapper::writeCartesianProjectedPolygon(const string _filename) {
 	ifstream projectedPolygonsFile;
-    string projectedPolygonsFileName = name + "_projectedPolygonsOntoNURBSSurface.csv";
+    string projectedPolygonsFileName = name + "_" + _filename + ".csv";
     projectedPolygonsFile.open(projectedPolygonsFileName.c_str());
 	ofstream out;
-    string outName = name + "_projectedPolygonsOntoNURBSSurface.vtk";
+    string outName = name + "_" +_filename + ".vtk";
     out.open(outName.c_str(), ofstream::out);
 	out << "# vtk DataFile Version 2.0\n";
 	out << "Back projection of projected FE elements on NURBS mesh\n";
