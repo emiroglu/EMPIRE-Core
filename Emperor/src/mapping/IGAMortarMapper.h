@@ -320,14 +320,21 @@ private:
     void clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan);
 
     /***********************************************************************************************
-     * \brief Subdivides the input polygon according to member numDivision and compute the canonical element
-     * \param[in] _thePatch 	The patch for which trimming curves are used
+     * \brief triangulate optimally a 2D input polygon
      * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
-     * \param[in] _elementIndex	The element for which the canonical space is related to
+     * \author Fabien Pean
+     ***********/
+    ListPolygon2D triangulatePolygon(const Polygon2D& _polygonUV);
+
+    /***********************************************************************************************
+     * \brief Subdivides the input polygon according to member numDivision and compute the canonical element
+     * \param[in] _elementIndex	The element index for which the canonical space is related to
+     * \param[in] _theElement 	The polygon of the projected element
+     * \param[in] _polygonUV 	The polygon of a subelement
      * \return					The polygon in canonical space of the polygonUV which is defined in nurbs parametric space
      * \author Fabien Pean
      ***********/
-    Polygon2D computeCanonicalElement(IGAPatchSurface* _thePatch, Polygon2D& _theElement, Polygon2D& _polygonUV, int _elementIndex);
+    Polygon2D computeCanonicalElement(const int _elementIndex, const Polygon2D& _theElement, const Polygon2D& _polygonUV);
 
     /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
@@ -373,17 +380,18 @@ public:
     void writeProjectedNodesOntoIGAMesh();
     /***********************************************************************************************
      * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
+     * \param[in] _filename		The substring to append to open and write csv file
      * \param[in] _patchIndex	The id of the patch the parametric coordinates must be used with
      * \param[in] _polygonUV	The parametric coordinates of the polygon to write in the file
      * \author Fabien Pean
      ***********/
-    void writeParametricProjectedPolygon(const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
-
+    void writeParametricProjectedPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
     /***********************************************************************************************
      * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
+     * \param[in] _filename		The substring to append to open csv file and write vtk file
      * \author Fabien Pean
      ***********/
-    void writeCartesianProjectedPolygon();
+    void writeCartesianProjectedPolygon(const std::string _filename);
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
