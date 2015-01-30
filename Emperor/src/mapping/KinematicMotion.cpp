@@ -41,6 +41,26 @@ const double *KinematicMotion::getRotationMatrix() const {
     return rotationMatrix;
 }
 
+void KinematicMotion::getRotationVector(double *rot) const {
+    // see Non-linear Modeling and Analysis of Solids and Structures (Steen Krenk 2009) P52
+    double angle = rotationMatrix[0] + rotationMatrix[4] + rotationMatrix[8] - 1.0;
+    angle /= 2.0;
+    angle = acos(angle);
+
+    const double EPS = 1E-20;
+    if (fabs(angle) < EPS) {
+        rot[0] = 0.0;
+        rot[1] = 0.0;
+        rot[2] = 0.0;
+        return;
+    }
+
+    double tmp = 2.0 * sin(angle);
+    rot[0] = -(rotationMatrix[1 * 3 + 2] - rotationMatrix[2 * 3 + 1]) / tmp * angle;
+    rot[1] = (rotationMatrix[0 * 3 + 2] - rotationMatrix[2 * 3 + 0]) / tmp * angle;
+    rot[2] = -(rotationMatrix[0 * 3 + 1] - rotationMatrix[1 * 3 + 0]) / tmp * angle;
+}
+
 void KinematicMotion::addKinematicMotion(const KinematicMotion *kinematicMotion) {
     addRotation(kinematicMotion->getRotationMatrix()); // step 1
     addTranslation(kinematicMotion->getTranslationVector()); // step 2, order must not be changed
@@ -180,15 +200,15 @@ void KinematicMotion::checkRotationCorrectness() const {
     matrixProduct(M_inv, M); // M = M_inv * M
     const double TOL = 1E-10;
     //printMatrix(M);
-    assert(fabs(M[0*3+0] - 1.0) < TOL);
-    assert(fabs(M[0*3+1] - 0.0) < TOL);
-    assert(fabs(M[0*3+2] - 0.0) < TOL);
-    assert(fabs(M[1*3+0] - 0.0) < TOL);
-    assert(fabs(M[1*3+1] - 1.0) < TOL);
-    assert(fabs(M[1*3+2] - 0.0) < TOL);
-    assert(fabs(M[2*3+0] - 0.0) < TOL);
-    assert(fabs(M[2*3+1] - 0.0) < TOL);
-    assert(fabs(M[2*3+2] - 1.0) < TOL);
+    assert(fabs(M[0 * 3 + 0] - 1.0) < TOL);
+    assert(fabs(M[0 * 3 + 1] - 0.0) < TOL);
+    assert(fabs(M[0 * 3 + 2] - 0.0) < TOL);
+    assert(fabs(M[1 * 3 + 0] - 0.0) < TOL);
+    assert(fabs(M[1 * 3 + 1] - 1.0) < TOL);
+    assert(fabs(M[1 * 3 + 2] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 0] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 1] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 2] - 1.0) < TOL);
 }
 
 void KinematicMotion::print() const {
@@ -200,7 +220,7 @@ void KinematicMotion::print() const {
 
 void KinematicMotion::normalizeVector(double *vector) {
     double length = sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
-    assert(length > 1E-20); // 1E-20 is a casual "small" number
+    assert(length > 1E-20); // 1E-20 is a physical "small" length
     vector[0] /= length;
     vector[1] /= length;
     vector[2] /= length;

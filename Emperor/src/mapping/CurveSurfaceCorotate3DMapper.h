@@ -1,5 +1,5 @@
-#ifndef CURVESURFACECOROTATE2DMAPPER_H_
-#define CURVESURFACECOROTATE2DMAPPER_H_
+#ifndef CURVESURFACECOROTATE3DMAPPER_H_
+#define CURVESURFACECOROTATE3DMAPPER_H_
 
 #include "AbstractMapper.h"
 #include <map>
@@ -8,15 +8,15 @@ namespace EMPIRE {
 
 class KinematicMotion;
 
-class CurveSurfaceCorotate2DMapper : public AbstractMapper {
+class CurveSurfaceCorotate3DMapper : public AbstractMapper {
 public:
-    CurveSurfaceCorotate2DMapper(int _curveNumNodes, int _curveNumElements, const double *_curveNodeCoors,
+    CurveSurfaceCorotate3DMapper(int _curveNumNodes, int _curveNumElements, const double *_curveNodeCoors,
             const int *_curveNodeIDs, const int *_curveElems, int _surfaceNumNodes,
             const double *_surfaceNodeCoors, int _surfaceNumSections, int _surfaceNumRootSectionNodes,
             int _surfaceNumNormalSectionNodes, int _surfaceNumTipSectionNodes,
             const double *rotation_O_Q, const double *translation_O_Q);
 
-    virtual ~CurveSurfaceCorotate2DMapper();
+    virtual ~CurveSurfaceCorotate3DMapper();
     /***********************************************************************************************
      * \brief Map deformation from curve to surface
      * \param[in] curveDispRot displacements and rotations on curve nodes
@@ -36,7 +36,8 @@ private:
     int curveNumNodes;
     /// number of elements of a curve/beam
     int curveNumElements;
-    //const double *curveNodeCoors;
+    /// coordinates of the curve points
+    const double *curveNodeCoors;
     //const int *curveNodeIDs;
     /// connectivity table of curve/beam elements
     const int *curveElems;
@@ -62,21 +63,23 @@ private:
     double *sectionP;
     /// Shape functions and their derivatives of a section in the corresponding curve/beam element
     double *shapeFuncOfSection;
-    /// Rotation from the root section system the curve/beam element local system
-    KinematicMotion **ROT_Q_ELEM;
+    /// Rotation from the global system the curve/beam element local system
+    KinematicMotion **ROT_O_ELEM;
     /// unit test class
-    friend class TestCurveSurfaceCorotate2DMapper;
+    friend class TestCurveSurfaceCorotate3DMapper;
+
+    double normalizeVector(double *vector);
 
 
 
 
 
-    KinematicMotion *KM_O_Q;
-    double *angle_Q_ELEM;
-    double *curveNodeCoorsInQ;
+    //KinematicMotion *KM_O_Q;
+    //double *angle_Q_ELEM;
+    //double *curveNodeCoorsInQ;
 };
 
 
 } /* namespace EMPIRE */
 
-#endif /* CURVESURFACECOROTATE2DMAPPER_H_ */
+#endif /* CURVESURFACECOROTATE3DMAPPER_H_ */
