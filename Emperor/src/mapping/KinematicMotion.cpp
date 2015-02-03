@@ -45,13 +45,19 @@ void KinematicMotion::getRotationVector(double *rot) const {
     // see Non-linear Modeling and Analysis of Solids and Structures (Steen Krenk 2009) P52
     double angle = rotationMatrix[0] + rotationMatrix[4] + rotationMatrix[8] - 1.0;
     angle /= 2.0;
+    if (angle > 1.0)
+        angle = 1.0;
+    else if (angle < -1.0)
+        angle = -1.0;
+
     angle = acos(angle); // between 0 and pi
 
-    const double EPS = 1E-10;
+    const double EPS = 1E-6;
     if (angle < EPS) {
         rot[0] = 0.0;
         rot[1] = 0.0;
         rot[2] = 0.0;
+
         return;
     } else if ((M_PI - angle) < EPS) {
         const double product11 = (rotationMatrix[0 * 3 + 0] + 1.0) / 2.0;
