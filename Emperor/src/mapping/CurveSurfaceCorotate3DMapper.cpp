@@ -564,6 +564,11 @@ void CurveSurfaceCorotate3DMapper::consistentMapping(const double *curveDispRot,
 		}
 	}
 
+    delete[] node1Disp;
+    delete[] node1Rot;
+    delete[] node2Disp;
+    delete[] node2Rot;
+
 	for (int i = 0; i < curveNumElements; i++) {
 		delete ROT_Eo_Er[i];
 		delete ROT_torsion[i];

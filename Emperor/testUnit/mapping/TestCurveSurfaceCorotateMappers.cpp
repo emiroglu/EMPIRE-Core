@@ -84,8 +84,8 @@ public:
                         - curveNodeCoors[i * 3 + 1];
                 curveDispRot[i * 6 + 2] = 0.0;
 
-                curveDispRot[i * 6 + 3] = angle / 2.0;
-                //curveDispRot[i * 6 + 3] = 0.0;
+                curveDispRot[i * 6 + 3] = angle / 2.0; // with torsion
+                //curveDispRot[i * 6 + 3] = 0.0; // without torsion
                 curveDispRot[i * 6 + 4] = 0.0;
                 curveDispRot[i * 6 + 5] = angle;
 
@@ -176,7 +176,7 @@ public:
 
             /*cout << "tipNode: " << "  " << tipNode[0] << "  " << tipNode[1] << "  " << tipNode[2]
                     << endl;*/
-
+            // with torsion
             const double EPS = 1E-3; // corotate3D has bigger error due to big torsion
             CPPUNIT_ASSERT(fabs(tipNode[0] - 0.0) < EPS);
             CPPUNIT_ASSERT(fabs(tipNode[1] - (2.0 * RADIUS - 1.0)) < EPS);
@@ -201,8 +201,16 @@ public:
         }
     }
 
+    void testMemoryLeak() {
+        for (int i=0; i<1000000000; i++) {
+            testBending();
+        }
+    }
+
     CPPUNIT_TEST_SUITE (TestCurveSurfaceCorotateMappers);
-    CPPUNIT_TEST (testBending);CPPUNIT_TEST_SUITE_END();
+    CPPUNIT_TEST (testBending);
+    //CPPUNIT_TEST (testMemoryLeak);
+    CPPUNIT_TEST_SUITE_END();
 };
 
 } /* namespace EMPIRE */
