@@ -69,14 +69,6 @@ private:
     friend class TestCurveSurfaceCorotate3DMapper;
 
     double normalizeVector(double *vector);
-
-
-
-
-
-    //KinematicMotion *KM_O_Q;
-    //double *angle_Q_ELEM;
-    //double *curveNodeCoorsInQ;
 };
 
 
