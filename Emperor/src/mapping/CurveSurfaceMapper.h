@@ -19,14 +19,15 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 /***********************************************************************************************//**
- * \file AbstractCurveSurfaceMapper.h
- * This file holds the class AbstractCurveSurfaceMapper
+ * \file CurveSurfaceMapper.h
+ * This file holds the class CurveSurfaceMapper
  * \date 2/6/2015
  **************************************************************************************************/
 #ifndef ABSTRACTCURVESURFACEMAPPER_H_
 #define ABSTRACTCURVESURFACEMAPPER_H_
 
 #include "AbstractMapper.h"
+#include "EMPEROR_Enum.h"
 #include <map>
 
 namespace EMPIRE {
@@ -34,11 +35,10 @@ namespace EMPIRE {
 class KinematicMotion;
 
 /********//**
- * \brief Class AbstractCurveSurfaceMapper is the mother class of all curve surface mappers. It builds the
- *        relation between curve elements and surface sections. It also performs force/moment mapping
+ * \brief Class CurveSurfaceMapper maps DOFs between beam elements and surface mesh with sections
  * \author Tianyang Wang
  ***********/
-class AbstractCurveSurfaceMapper: public AbstractMapper {
+class CurveSurfaceMapper: public AbstractMapper {
 public:
     /***********************************************************************************************
      * \brief Constructor. Builds the relation between curve elements and surface sections
@@ -57,33 +57,60 @@ public:
      * \param[in] translation_O_Q translation from global system O to beam root system Q
      * \author Tianyang Wang
      ***********/
-    AbstractCurveSurfaceMapper(int _curveNumNodes, int _curveNumElements,
-            const double *_curveNodeCoors, const int *_curveNodeIDs, const int *_curveElems,
-            int _surfaceNumNodes, const double *_surfaceNodeCoors, int _surfaceNumSections,
-            int _surfaceNumRootSectionNodes, int _surfaceNumNormalSectionNodes,
-            int _surfaceNumTipSectionNodes, const double *rotation_O_Q,
-            const double *translation_O_Q);
+    CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int _curveNumNodes,
+            int _curveNumElements, const double *_curveNodeCoors, const int *_curveNodeIDs,
+            const int *_curveElems, int _surfaceNumNodes, const double *_surfaceNodeCoors,
+            int _surfaceNumSections, int _surfaceNumRootSectionNodes,
+            int _surfaceNumNormalSectionNodes, int _surfaceNumTipSectionNodes,
+            const double *rotation_O_Q, const double *translation_O_Q);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang
      ***********/
-    virtual ~AbstractCurveSurfaceMapper();
+    virtual ~CurveSurfaceMapper();
     /***********************************************************************************************
-     * \brief Map deformation from curve to surface
+     * \brief Map deformation from curve to surface / reconstruct the deformed surface according to beam DOFs.
      * \param[in] curveDispRot displacements and rotations on curve nodes
      * \param[out] surfaceDisp displacements on surface nodes
      * \author Tianyang Wang
      ***********/
-    virtual void consistentMapping(const double *curveDispRot, double *surfaceDisp) = 0;
+    void consistentMapping(const double *curveDispRot, double *surfaceDisp);
+    /***********************************************************************************************
+     * \brief Map deformation from curve to surface with the linear Bernoulli beam theory
+     *        It allows only small displacements.
+     * \param[in] curveDispRot displacements and rotations on curve nodes
+     * \param[out] surfaceDisp displacements on surface nodes
+     * \author Tianyang Wang
+     ***********/
+    void consistentMappingLinear(const double *curveDispRot, double *surfaceDisp);
+    /***********************************************************************************************
+     * \brief Map deformation from curve to surface with 2D corotating algorithm.
+     *        Corotate2D allows large translation/rotation in 2D and small value for the rest DOFs.
+     *        See Non-linear Modeling and Analysis of Solids and Structures (Krenk2009).
+     * \param[in] curveDispRot displacements and rotations on curve nodes
+     * \param[out] surfaceDisp displacements on surface nodes
+     * \author Tianyang Wang
+     ***********/
+    void consistentMappingCorotate2D(const double *curveDispRot, double *surfaceDisp);
+    /***********************************************************************************************
+     * \brief Map deformation from curve to surface with 3D corotating algorithm
+     *        See Non-linear Modeling and Analysis of Solids and Structures (Krenk2009).
+     * \param[in] curveDispRot displacements and rotations on curve nodes
+     * \param[out] surfaceDisp displacements on surface nodes
+     * \author Tianyang Wang
+     ***********/
+    void consistentMappingCorotate3D(const double *curveDispRot, double *surfaceDisp);
     /***********************************************************************************************
      * \brief Map loads form surface to curve
      * \param[in] surfaceForce forces on surface nodes
      * \param[out] curveForceMoment forces and moments on curve nodes
      * \author Tianyang Wang
      * ***********/
-    virtual void conservativeMapping(const double *surfaceForce, double *curveForceMoment);
+    void conservativeMapping(const double *surfaceForce, double *curveForceMoment);
 
 protected:
+    /// type of the CurveSurfaceMapper
+    EMPIRE_CurveSurfaceMapper_type type;
     /// number of nodes of a curve/beam
     int curveNumNodes;
     /// number of elements of a curve/beam
@@ -117,7 +144,7 @@ protected:
     double *shapeFuncOfSection;
     /// Rotation from the global system the curve/beam element local system
     KinematicMotion **ROT_O_ELEM;
-     /// rotation of a section needed by conservative mapping
+    /// rotation of a section needed by conservative mapping
     double *sectionRot;
     /***********************************************************************************************
      * \brief Normalize a rotation (or length) vector and return the rotation angle (or length)
@@ -128,7 +155,19 @@ protected:
     double normalizeVector(double *vector);
 
     /// unit test class
-    friend class TestCurveSurfaceMappers;
+    friend class TestCurveSurfaceMapper;
+
+    /// length of curve elements
+    double *curveElemLength; // linear
+
+    /// Kinematic motion from the global system O to the root section system Q
+    KinematicMotion *KM_O_Q; // corotate2D
+    /// Nodal coordinates of curve in root section system Q
+    double *curveNodeCoorsInQ; // corotate2D
+    /// Rotation from the root section system Q to the curve/beam element local system
+    KinematicMotion **ROT_Q_ELEM; // corotate2D
+    /// Rotation angle the root section system Q to the curve/beam element local system
+    double *angle_Q_ELEM; // corotate2D
 };
 
 } /* namespace EMPIRE */

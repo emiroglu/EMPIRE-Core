@@ -22,9 +22,7 @@
 #include "cppunit/TestAssert.h"
 #include "cppunit/extensions/HelperMacros.h"
 
-#include "CurveSurfaceCorotate2DMapper.h"
-#include "CurveSurfaceCorotate3DMapper.h"
-#include "CurveSurfaceLinearMapper.h"
+#include "CurveSurfaceMapper.h"
 #include "KinematicMotion.h"
 #include <iostream>
 #include <string>
@@ -36,7 +34,7 @@ namespace EMPIRE {
 /********//**
  * \brief Test the class CurveSurfaceCorotate2DMapper.
  ***********/
-class TestCurveSurfaceMappers: public CppUnit::TestFixture {
+class TestCurveSurfaceMapper: public CppUnit::TestFixture {
 private:
 
 public:
@@ -118,9 +116,9 @@ public:
         }
 
         // construct the mapper
-        CurveSurfaceLinearMapper *mapper = new CurveSurfaceLinearMapper(curveNumNodes,
-                curveNumElements, curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes,
-                surfaceNodeCoors, surfaceNumSections, surfaceNumRootSectionNodes,
+        CurveSurfaceMapper *mapper = new CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_linear,
+                curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,
+                surfaceNumNodes, surfaceNodeCoors, surfaceNumSections, surfaceNumRootSectionNodes,
                 surfaceNumNormalSectionNodes, surfaceNumTipSectionNodes, KM_O_Q.getRotationMatrix(),
                 KM_O_Q.getTranslationVector());
 
@@ -382,18 +380,18 @@ public:
             }
 
             // construct the mapper
-            AbstractCurveSurfaceMapper *mapper;
+            CurveSurfaceMapper *mapper;
             if (counter == 0) {
-                mapper = new CurveSurfaceLinearMapper(curveNumNodes, curveNumElements,
-                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
-                        surfaceNumSections, surfaceNumRootSectionNodes,
+                mapper = new CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_linear, curveNumNodes,
+                        curveNumElements, curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes,
+                        surfaceNodeCoors, surfaceNumSections, surfaceNumRootSectionNodes,
                         surfaceNumNormalSectionNodes, surfaceNumTipSectionNodes,
                         KM_O_Q.getRotationMatrix(), KM_O_Q.getTranslationVector());
             }
             if (counter == 1) {
-                mapper = new CurveSurfaceCorotate3DMapper(curveNumNodes, curveNumElements,
-                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
-                        surfaceNumSections, surfaceNumRootSectionNodes,
+                mapper = new CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_corotate3D, curveNumNodes,
+                        curveNumElements, curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes,
+                        surfaceNodeCoors, surfaceNumSections, surfaceNumRootSectionNodes,
                         surfaceNumNormalSectionNodes, surfaceNumTipSectionNodes,
                         KM_O_Q.getRotationMatrix(), KM_O_Q.getTranslationVector());
             }
@@ -554,21 +552,21 @@ public:
             double *displacement = new double[surfaceNumNodes * 3];
 
             if (counter == 0) {
-                CurveSurfaceCorotate2DMapper *mapper = new CurveSurfaceCorotate2DMapper(
-                        curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,
-                        surfaceNumNodes, surfaceNodeCoors, numSections, numRootSectionNodes,
-                        numNormalSectionNodes, numTipSectionNodes, km_O_Q->getRotationMatrix(),
-                        km_O_Q->getTranslationVector());
+                CurveSurfaceMapper *mapper = new CurveSurfaceMapper(
+                        EMPIRE_CurveSurfaceMapper_corotate2D, curveNumNodes, curveNumElements,
+                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
+                        numSections, numRootSectionNodes, numNormalSectionNodes, numTipSectionNodes,
+                        km_O_Q->getRotationMatrix(), km_O_Q->getTranslationVector());
 
                 mapper->consistentMapping(curveDispRot, displacement);
                 delete mapper;
             }
             if (counter == 1) {
-                CurveSurfaceCorotate3DMapper *mapper = new CurveSurfaceCorotate3DMapper(
-                        curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,
-                        surfaceNumNodes, surfaceNodeCoors, numSections, numRootSectionNodes,
-                        numNormalSectionNodes, numTipSectionNodes, km_O_Q->getRotationMatrix(),
-                        km_O_Q->getTranslationVector());
+                CurveSurfaceMapper *mapper = new CurveSurfaceMapper(
+                        EMPIRE_CurveSurfaceMapper_corotate3D, curveNumNodes, curveNumElements,
+                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
+                        numSections, numRootSectionNodes, numNormalSectionNodes, numTipSectionNodes,
+                        km_O_Q->getRotationMatrix(), km_O_Q->getTranslationVector());
 
                 mapper->consistentMapping(curveDispRot, displacement);
                 delete mapper;
@@ -721,22 +719,22 @@ public:
             surfaceForces[5 * 3 + 0] = 1.0;
 
             if (counter == 0) {
-                CurveSurfaceCorotate2DMapper *mapper = new CurveSurfaceCorotate2DMapper(
-                        curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,
-                        surfaceNumNodes, surfaceNodeCoors, numSections, numRootSectionNodes,
-                        numNormalSectionNodes, numTipSectionNodes, km_O_Q->getRotationMatrix(),
-                        km_O_Q->getTranslationVector());
+                CurveSurfaceMapper *mapper = new CurveSurfaceMapper(
+                        EMPIRE_CurveSurfaceMapper_corotate2D, curveNumNodes, curveNumElements,
+                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
+                        numSections, numRootSectionNodes, numNormalSectionNodes, numTipSectionNodes,
+                        km_O_Q->getRotationMatrix(), km_O_Q->getTranslationVector());
 
                 mapper->consistentMapping(curveDispRot, displacement);
                 mapper->conservativeMapping(surfaceForces, curveForcesMoments);
                 delete mapper;
             }
             if (counter == 1) {
-                CurveSurfaceCorotate3DMapper *mapper = new CurveSurfaceCorotate3DMapper(
-                        curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,
-                        surfaceNumNodes, surfaceNodeCoors, numSections, numRootSectionNodes,
-                        numNormalSectionNodes, numTipSectionNodes, km_O_Q->getRotationMatrix(),
-                        km_O_Q->getTranslationVector());
+                CurveSurfaceMapper *mapper = new CurveSurfaceMapper(
+                        EMPIRE_CurveSurfaceMapper_corotate3D, curveNumNodes, curveNumElements,
+                        curveNodeCoors, curveNodeIDs, curveElems, surfaceNumNodes, surfaceNodeCoors,
+                        numSections, numRootSectionNodes, numNormalSectionNodes, numTipSectionNodes,
+                        km_O_Q->getRotationMatrix(), km_O_Q->getTranslationVector());
 
                 mapper->consistentMapping(curveDispRot, displacement);
                 mapper->conservativeMapping(surfaceForces, curveForcesMoments);
@@ -809,7 +807,7 @@ public:
         }
     }
 
-    CPPUNIT_TEST_SUITE (TestCurveSurfaceMappers);
+    CPPUNIT_TEST_SUITE (TestCurveSurfaceMapper);
     CPPUNIT_TEST (testConstructor);
     CPPUNIT_TEST (testParabolicMapping);
     CPPUNIT_TEST (testCircleConsistent);
@@ -820,4 +818,4 @@ public:
 
 } /* namespace EMPIRE */
 
-CPPUNIT_TEST_SUITE_REGISTRATION (EMPIRE::TestCurveSurfaceMappers);
+CPPUNIT_TEST_SUITE_REGISTRATION (EMPIRE::TestCurveSurfaceMapper);

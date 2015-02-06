@@ -11,10 +11,15 @@ public:
     SectionMesh(std::string _name, int _numNodes, int _numElems);
     virtual ~SectionMesh();
 
+    int getNumSections();
     int getNumRootSectionNodes();
     int getNumNormalSectionNodes();
     int getNumTipSectionNodes();
+    const double *getTranslationGlobal2Root();
+    const double *getRotationGlobal2Root();
 
+
+    void setNumSections(int _numSections);
     void setNumRootSectionNodes(int _numRootSectionNodes);
     void setNumNormalSectionNodes(int _numNormalSectionNodes);
     void setNumTipSectionNodes(int _numTipSectionNodes);
@@ -22,6 +27,7 @@ public:
     void setRotationGlobal2Root(double *_rotationGlobal2Root);
 
 private:
+    int numSections;
     int numRootSectionNodes;
     int numNormalSectionNodes;
     int numTipSectionNodes;

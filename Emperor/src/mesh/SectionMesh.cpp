@@ -15,6 +15,10 @@ SectionMesh::~SectionMesh() {
     delete[] rotationGlobal2Root;
 }
 
+int SectionMesh::getNumSections() {
+    return numSections;
+}
+
 int SectionMesh::getNumRootSectionNodes() {
     return numRootSectionNodes;
 }
@@ -25,6 +29,18 @@ int SectionMesh::getNumNormalSectionNodes() {
 
 int SectionMesh::getNumTipSectionNodes() {
     return numTipSectionNodes;
+}
+
+const double *SectionMesh::getTranslationGlobal2Root() {
+    return translationGlobal2Root;
+}
+
+const double *SectionMesh::getRotationGlobal2Root() {
+    return rotationGlobal2Root;
+}
+
+void SectionMesh::setNumSections(int _numSections) {
+    numSections = _numSections;
 }
 
 void SectionMesh::setNumRootSectionNodes(int _numRootSectionNodes) {

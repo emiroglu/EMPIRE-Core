@@ -65,13 +65,21 @@ enum EMPIRE_Mapper_type {
     EMPIRE_BarycentricInterpolationMapper,
     EMPIRE_NearestElementMapper,
     EMPIRE_IGAMortarMapper,
+    EMPIRE_CurveSurfaceMapper
 };
+
+enum EMPIRE_CurveSurfaceMapper_type {
+    EMPIRE_CurveSurfaceMapper_linear,
+    EMPIRE_CurveSurfaceMapper_corotate2D,
+    EMPIRE_CurveSurfaceMapper_corotate3D
+};
+
 
 enum EMPIRE_Mesh_type {
     EMPIRE_Mesh_FEMesh,
     EMPIRE_Mesh_IGAMesh,
     EMPIRE_Mesh_copyFEMesh,
-    EMPIRE_Mesh_BeamSurfaceMesh
+    EMPIRE_Mesh_SectionMesh
 };
 
 enum EMPIRE_DataFieldFilter_type {

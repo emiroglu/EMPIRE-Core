@@ -94,6 +94,12 @@ public:
      ***********/
     void initNearestElementMapper();
     /***********************************************************************************************
+     * \brief Initialize CurveSurfaceMapper
+     * \param[in] type type of the CurveSurfaceMapper
+     * \author Tianyang Wang
+     ***********/
+    void initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type);
+    /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang
      ***********/
