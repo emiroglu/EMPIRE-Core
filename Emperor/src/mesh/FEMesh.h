@@ -118,7 +118,7 @@ private:
 
 /***********************************************************************************************
  * \brief Revert the surface normal of the mesh
- * \param[in/out] mesh the mesh
+ * \param[in,out] mesh the mesh
  * \author Tianyang Wang
  ***********/
 void revertSurfaceNormalOfFEMesh(FEMesh *mesh);
