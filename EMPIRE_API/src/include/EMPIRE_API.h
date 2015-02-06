@@ -104,8 +104,8 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
  ***********/
 void EMPIRE_API_sendSectionMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
         int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
-        int numNormalSectionNodes, int numTipSectionNodes, const double *rotationGlobal2Root,
-        const double *translationGlobal2Root);
+        int numNormalSectionNodes, int numTipSectionNodes, double *rotationGlobal2Root,
+        double *translationGlobal2Root);
 
 /***********************************************************************************************
  * \brief Recieve mesh from the server

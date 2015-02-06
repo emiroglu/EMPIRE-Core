@@ -102,10 +102,10 @@ public:
      * \param[in] rotationGlobal2Root rotation matrix from the global coordinate system to the root section system
      * \param[in] translationGlobal2Root translation vector from the global coordinate system to the root section system
      ***********/
-    void sendSectionMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
+    void sendSectionMesh(int numNodes, int numElems, double *nodes, int *nodeIDs,
             int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
-            int numNormalSectionNodes, int numTipSectionNodes, const double *rotationGlobal2Root,
-            const double *translationGlobal2Root);
+            int numNormalSectionNodes, int numTipSectionNodes, double *rotationGlobal2Root,
+            double *translationGlobal2Root);
     /***********************************************************************************************
      * \brief Receive mesh from the server
      * \param[in] numNodes number of nodes

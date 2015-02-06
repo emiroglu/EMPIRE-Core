@@ -151,8 +151,8 @@ void MapperAdapter::initNearestElementMapper() {
 }
 
 void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) {
-    assert(meshA->type == EMPIRE_Mesh_SectionMesh);
-    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh);
+    assert(meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *a = dynamic_cast<FEMesh *>(meshA);
     SectionMesh *b = dynamic_cast<SectionMesh *>(meshB);

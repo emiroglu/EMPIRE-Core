@@ -83,7 +83,7 @@ void DataOutput::writeMeshes() {
     for (map<string, AbstractMesh*>::iterator it = meshFileNameToMeshMap.begin();
             it != meshFileNameToMeshMap.end(); it++) {
         string meshFileName = it->first;
-        if (it->second->type == EMPIRE_Mesh_FEMesh) {
+        if (it->second->type == EMPIRE_Mesh_FEMesh || it->second->type == EMPIRE_Mesh_SectionMesh) {
             FEMesh *mesh = dynamic_cast<FEMesh*>(it->second);
             if (mesh->triangulate() != NULL)
                 mesh = mesh->triangulate();
@@ -114,7 +114,7 @@ void DataOutput::initDataFieldFiles() {
 
         assert(nameToClientCodeMap.find(clientCodeName) != nameToClientCodeMap.end());
         AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
-        if (mesh->type == EMPIRE_Mesh_FEMesh) {
+        if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
             FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
             dataFieldFileNameToMeshMap.insert(pair<string, FEMesh*>(dataFieldFileName, feMesh));
         } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
@@ -146,7 +146,7 @@ void DataOutput::writeDataFields(int step) {
             string meshName = dataFieldRef.meshName;
             string dataFieldName = dataFieldRef.dataFieldName;
             AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
-            if (mesh->type == EMPIRE_Mesh_FEMesh) {
+            if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
                 FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
                 const string UNDERSCORE = "_";
                 string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE

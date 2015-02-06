@@ -65,7 +65,7 @@ MetaDatabase::MetaDatabase(char *inputFileName) {
         fillSettingCouplingLogic();
     } catch (ticpp::Exception& ex) {
         ERROR_OUT() << "ERROR Parser: " << ex.what() << endl;
-        exit(EXIT_FAILURE);
+        exit (EXIT_FAILURE);
     }
 }
 
@@ -112,7 +112,7 @@ void MetaDatabase::fillSettingClientCodesVec() {
     ticpp::Element *xmlEMPEROR = inputFile->FirstChildElement("EMPEROR");
     ticpp::Iterator<Element> xmlClientCode("clientCode");
     for (xmlClientCode = xmlClientCode.begin(xmlEMPEROR); xmlClientCode != xmlClientCode.end();
-         xmlClientCode++) {
+            xmlClientCode++) {
         structClientCode clientCode;
         clientCode.name = xmlClientCode->GetAttribute<string>("name");
 
@@ -127,15 +127,17 @@ void MetaDatabase::fillSettingClientCodesVec() {
                     mesh.type = EMPIRE_Mesh_FEMesh;
                 } else if (meshType == "IGAMesh") {
                     mesh.type = EMPIRE_Mesh_IGAMesh;
-                } else if (meshType == "copyFEMesh"){
+                } else if (meshType == "sectionMesh") {
+                    mesh.type = EMPIRE_Mesh_SectionMesh;
+                } else if (meshType == "copyFEMesh") {
                     mesh.type = EMPIRE_Mesh_copyFEMesh;
-                    if(xmlMesh->HasAttribute("fromClient") && xmlMesh->HasAttribute("fromMesh")){
+                    if (xmlMesh->HasAttribute("fromClient") && xmlMesh->HasAttribute("fromMesh")) {
                         mesh.clientNameToCopyFrom = xmlMesh->GetAttribute<string>("fromClient");
                         mesh.meshNameToCopyFrom = xmlMesh->GetAttribute<string>("fromMesh");
                     } else {
                         assert(false);
                     }
-                    if(xmlMesh->HasAttribute("sendMeshToClient")){
+                    if (xmlMesh->HasAttribute("sendMeshToClient")) {
                         bool sendMeshToClient;
                         string tmp = xmlMesh->GetAttribute<string>("sendMeshToClient");
                         if (tmp == "true") {
@@ -182,6 +184,8 @@ void MetaDatabase::fillSettingClientCodesVec() {
                     dataField.dimension = EMPIRE_DataField_vector;
                 else if (xmlDataField->GetAttribute<string>("dimension") == "scalar")
                     dataField.dimension = EMPIRE_DataField_scalar;
+                else if (xmlDataField->GetAttribute<string>("dimension") == "doubleVector")
+                    dataField.dimension = EMPIRE_DataField_doubleVector;
                 else
                     assert(false);
                 if (xmlDataField->GetAttribute<string>("location") == "atNode")
@@ -243,7 +247,7 @@ void MetaDatabase::fillSettingClientCodesVec() {
 }
 
 void MetaDatabase::fillSettingDataOutputVec() {
-    assert(settingDataOutputVec.size()==0);
+    assert(settingDataOutputVec.size() == 0);
     ticpp::Element *xmlEMPEROR = inputFile->FirstChildElement("EMPEROR");
     ticpp::Iterator<Element> xmlDataOutput("dataOutput");
     for (xmlDataOutput = xmlDataOutput.begin(xmlEMPEROR); xmlDataOutput != xmlDataOutput.end();
@@ -303,55 +307,68 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.type = EMPIRE_IGAMortarMapper;
             ticpp::Element *xmlIGAMortar = xmlMapper->FirstChildElement("IGAMortarMapper");
             assert(xmlIGAMortar != NULL);
-            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties", false);
-            if(xmlProjection != NULL) {
-                mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = xmlProjection->GetAttribute<double>(
-                        "maxProjectionDistance");
-                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = xmlProjection->GetAttribute<int>(
-                        "numRefinementForIntialGuess");
-                mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = xmlProjection->GetAttribute<double>(
-                        "maxDistanceForProjectedPointsOnDifferentPatches");
+            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties",
+                    false);
+            if (xmlProjection != NULL) {
+                mapper.igaMortarMapper.projectionProperties.maxProjectionDistance =
+                        xmlProjection->GetAttribute<double>("maxProjectionDistance");
+                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess =
+                        xmlProjection->GetAttribute<int>("numRefinementForIntialGuess");
+                mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                        xmlProjection->GetAttribute<double>(
+                                "maxDistanceForProjectedPointsOnDifferentPatches");
             } else {
-            	mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = 1e-2;
-            	mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = 10;
-            	mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = 1e-3;
+                mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = 1e-2;
+                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = 10;
+                mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                        1e-3;
             }
-            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphson", false);
-            if(xmlNewtonRaphson != NULL) {
-                mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<double>("tolerance");
+            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphson",
+                    false);
+            if (xmlNewtonRaphson != NULL) {
+                mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations =
+                        xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
+                mapper.igaMortarMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<
+                        double>("tolerance");
             } else {
-            	mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = 20;
-            	mapper.igaMortarMapper.newtonRaphson.tolerance = 1e-9;
+                mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = 20;
+                mapper.igaMortarMapper.newtonRaphson.tolerance = 1e-9;
             }
-            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement("newtonRaphsonBoundary", false);
-            if(xmlNewtonRaphsonBoundary != NULL) {
-                mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = xmlNewtonRaphsonBoundary->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = xmlNewtonRaphsonBoundary->GetAttribute<double>("tolerance");
+            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement(
+                    "newtonRaphsonBoundary", false);
+            if (xmlNewtonRaphsonBoundary != NULL) {
+                mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations =
+                        xmlNewtonRaphsonBoundary->GetAttribute<int>("maxNumOfIterations");
+                mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance =
+                        xmlNewtonRaphsonBoundary->GetAttribute<double>("tolerance");
             } else {
-            	mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = 20;
-            	mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = 1e-9;
+                mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = 20;
+                mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = 1e-9;
             }
             ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("bisection", false);
-            if(xmlBisection != NULL) {
-                mapper.igaMortarMapper.bisection.maxNumOfIterations = xmlBisection->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.bisection.tolerance = xmlBisection->GetAttribute<double>("tolerance");
+            if (xmlBisection != NULL) {
+                mapper.igaMortarMapper.bisection.maxNumOfIterations =
+                        xmlBisection->GetAttribute<int>("maxNumOfIterations");
+                mapper.igaMortarMapper.bisection.tolerance = xmlBisection->GetAttribute<double>(
+                        "tolerance");
             } else {
-            	mapper.igaMortarMapper.bisection.maxNumOfIterations = 40;
-            	mapper.igaMortarMapper.bisection.tolerance = 1e-6;
+                mapper.igaMortarMapper.bisection.maxNumOfIterations = 40;
+                mapper.igaMortarMapper.bisection.tolerance = 1e-6;
             }
             ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration", false);
-            if(xmlIntegration != NULL) {
-                mapper.igaMortarMapper.integration.numGPTriangle = xmlIntegration->GetAttribute<int>(
-                        "numGPTriangle");
-                mapper.igaMortarMapper.integration.numGPQuad = xmlIntegration->GetAttribute<int>("numGPQuad");
+            if (xmlIntegration != NULL) {
+                mapper.igaMortarMapper.integration.numGPTriangle =
+                        xmlIntegration->GetAttribute<int>("numGPTriangle");
+                mapper.igaMortarMapper.integration.numGPQuad = xmlIntegration->GetAttribute<int>(
+                        "numGPQuad");
             } else {
-            	mapper.igaMortarMapper.integration.numGPTriangle = 16;
-            	mapper.igaMortarMapper.integration.numGPQuad = 25;
+                mapper.igaMortarMapper.integration.numGPTriangle = 16;
+                mapper.igaMortarMapper.integration.numGPQuad = 25;
             }
         } else if (xmlMapper->GetAttribute<string>("type") == "curveSurfaceMapper") {
             mapper.type = EMPIRE_CurveSurfaceMapper;
-            ticpp::Element *xmlCurveSurfaceMapper = xmlMapper->FirstChildElement("curveSurfaceMapper");
+            ticpp::Element *xmlCurveSurfaceMapper = xmlMapper->FirstChildElement(
+                    "curveSurfaceMapper");
             if (xmlCurveSurfaceMapper->GetAttribute<string>("type") == "linear")
                 mapper.curveSurfaceMapper.type = EMPIRE_CurveSurfaceMapper_linear;
             if (xmlCurveSurfaceMapper->GetAttribute<string>("type") == "corotate2D")
@@ -427,27 +444,32 @@ void MetaDatabase::fillSettingCouplingAlgorithmVec() {
                         xmlOutput++) {
 
                     structCouplingAlgorithm::structInterfaceJacobian interfaceJacobian;
-                    interfaceJacobian.indexRow    = xmlOutput->GetAttribute<unsigned int>("indexRow");
-                    interfaceJacobian.indexColumn = xmlOutput->GetAttribute<unsigned int>("indexColumn");
+                    interfaceJacobian.indexRow = xmlOutput->GetAttribute<unsigned int>("indexRow");
+                    interfaceJacobian.indexColumn = xmlOutput->GetAttribute<unsigned int>(
+                            "indexColumn");
 
-                    if(xmlOutput->FirstChildElement("constantValue", false) != NULL){
-                        ticpp::Element *constantValue = xmlOutput->FirstChildElement("constantValue");
-                        interfaceJacobian.value       = constantValue->GetAttribute<double>("value");
-                        interfaceJacobian.isAutoDiff  = false;
-                        interfaceJacobian.isSignal    = false;
-                        interfaceJacobian.isConstant  = true;
+                    if (xmlOutput->FirstChildElement("constantValue", false) != NULL) {
+                        ticpp::Element *constantValue = xmlOutput->FirstChildElement(
+                                "constantValue");
+                        interfaceJacobian.value = constantValue->GetAttribute<double>("value");
+                        interfaceJacobian.isAutoDiff = false;
+                        interfaceJacobian.isSignal = false;
+                        interfaceJacobian.isConstant = true;
                     }
 
-                    if(xmlOutput->FirstChildElement("automaticDetermination", false) != NULL){
+                    if (xmlOutput->FirstChildElement("automaticDetermination", false) != NULL) {
 
-                    	interfaceJacobian.coefficient   =xmlOutput->FirstChildElement("automaticDetermination")->GetAttribute<double>("coefficient");
-                        ticpp::Element *functionInput   =xmlOutput->FirstChildElement("automaticDetermination")->FirstChildElement("functionInput");
-                        ticpp::Element *functionOutput  =xmlOutput->FirstChildElement("automaticDetermination")->FirstChildElement("functionOutput");
-                        interfaceJacobian.functionInput =parseConnectionIORef(functionInput);
-                        interfaceJacobian.functionOutput=parseConnectionIORef(functionOutput);
-                        interfaceJacobian.isConstant  = false;
-                        interfaceJacobian.isSignal    = false;
-                        interfaceJacobian.isAutoDiff  = true;
+                        interfaceJacobian.coefficient = xmlOutput->FirstChildElement(
+                                "automaticDetermination")->GetAttribute<double>("coefficient");
+                        ticpp::Element *functionInput = xmlOutput->FirstChildElement(
+                                "automaticDetermination")->FirstChildElement("functionInput");
+                        ticpp::Element *functionOutput = xmlOutput->FirstChildElement(
+                                "automaticDetermination")->FirstChildElement("functionOutput");
+                        interfaceJacobian.functionInput = parseConnectionIORef(functionInput);
+                        interfaceJacobian.functionOutput = parseConnectionIORef(functionOutput);
+                        interfaceJacobian.isConstant = false;
+                        interfaceJacobian.isSignal = false;
+                        interfaceJacobian.isAutoDiff = true;
                     }
                     coupAlg.interfaceJacobians.push_back(interfaceJacobian);
                 }
@@ -549,9 +571,8 @@ void MetaDatabase::fillSettingConnectionVec() {
                                     "factor");
                 } else if (xmlFilter->GetAttribute<string>("type") == "weakCouplingFilter") {
                     filter.type = EMPIRE_WeakCouplingFilter;
-                    filter.weakCouplingFilter.beta =
-                            xmlFilter->FirstChildElement("weakCouplingFilter")->GetAttribute<double>(
-                                    "beta");
+                    filter.weakCouplingFilter.beta = xmlFilter->FirstChildElement(
+                            "weakCouplingFilter")->GetAttribute<double>("beta");
                 } else if (xmlFilter->GetAttribute<string>("type") == "setFilter") {
                     filter.type = EMPIRE_SetFilter;
                     string valueString = xmlFilter->FirstChildElement("setFilter")->GetAttribute<
@@ -667,12 +688,11 @@ void parseCouplingLogicBlock(ticpp::Iterator<Element> &xmlCouplingLogicIn,
             }
         }
 
-        {   // add coupling algorithm refs
+        { // add coupling algorithm refs
             ticpp::Iterator<Element> xmlCouplingAlgorithmRef("couplingAlgorithmRef");
             for (xmlCouplingAlgorithmRef = xmlCouplingAlgorithmRef.begin(xmlIterativeCouplingLoop);
-            		xmlCouplingAlgorithmRef != xmlCouplingAlgorithmRef.end();
-            		xmlCouplingAlgorithmRef++) {
-
+                    xmlCouplingAlgorithmRef != xmlCouplingAlgorithmRef.end();
+                    xmlCouplingAlgorithmRef++) {
 
                 couplingLogicIn.iterativeCouplingLoop.couplingAlgorithmRefs.push_back(
                         xmlCouplingAlgorithmRef->GetAttribute<string>("couplingAlgorithmName"));
@@ -688,7 +708,7 @@ void parseCouplingLogicBlock(ticpp::Iterator<Element> &xmlCouplingLogicIn,
         }
         // check whether there is coupling algorithm ref when check residuals in the convergence checker
         if (couplingLogicIn.iterativeCouplingLoop.convergenceChecker.checkResiduals.size() > 0) {
-            assert(couplingLogicIn.iterativeCouplingLoop.couplingAlgorithmRefs.size()>0);
+            assert(couplingLogicIn.iterativeCouplingLoop.couplingAlgorithmRefs.size() > 0);
         }
     } else if (xmlCouplingLogicIn->GetAttribute<string>("type") == "connection") {
         couplingLogicIn.type = EMPIRE_connection;
