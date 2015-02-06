@@ -349,6 +349,17 @@ void MetaDatabase::fillSettingMapperVec() {
             	mapper.igaMortarMapper.integration.numGPTriangle = 16;
             	mapper.igaMortarMapper.integration.numGPQuad = 25;
             }
+        } else if (xmlMapper->GetAttribute<string>("type") == "curveSurfaceMapper") {
+            mapper.type = EMPIRE_CurveSurfaceMapper;
+            ticpp::Element *xmlCurveSurfaceMapper = xmlMapper->FirstChildElement("curveSurfaceMapper");
+            if (xmlCurveSurfaceMapper->GetAttribute<string>("type") == "linear")
+                mapper.curveSurfaceMapper.type = EMPIRE_CurveSurfaceMapper_linear;
+            if (xmlCurveSurfaceMapper->GetAttribute<string>("type") == "corotate2D")
+                mapper.curveSurfaceMapper.type = EMPIRE_CurveSurfaceMapper_corotate2D;
+            if (xmlCurveSurfaceMapper->GetAttribute<string>("type") == "corotate3D")
+                mapper.curveSurfaceMapper.type = EMPIRE_CurveSurfaceMapper_corotate3D;
+            else
+                assert(false);
         } else {
             assert(false);
         }

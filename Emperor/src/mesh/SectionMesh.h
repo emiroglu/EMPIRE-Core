@@ -5,10 +5,10 @@
 #include <string>
 
 namespace EMPIRE {
-
+class Message;
 class SectionMesh : public FEMesh {
 public:
-    SectionMesh(std::string _name, int _numNodes, int _numElems);
+    SectionMesh(std::string _name, int _numNodes, int _numElems, bool _triangulateAll = false);
     virtual ~SectionMesh();
 
     int getNumSections();
@@ -31,10 +31,14 @@ private:
     int numRootSectionNodes;
     int numNormalSectionNodes;
     int numTipSectionNodes;
-    double *translationGlobal2Root;
     double *rotationGlobal2Root;
-
+    double *translationGlobal2Root;
 };
+/***********************************************************************************************
+ * \brief Allows for nice debug output later
+ * \author Stefan Sicklinger
+ ***********/
+Message &operator<<(Message &message, SectionMesh &mesh);
 
 } /* namespace EMPIRE */
 

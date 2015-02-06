@@ -77,6 +77,13 @@ public:
      ***********/
     void recvFEMesh(std::string meshName, bool triangulateAll);
     /***********************************************************************************************
+     * \brief Receive the section mesh from a real client
+     * \param[in] meshName name of the mesh to be received
+     * \param[in] _triangulateAll triangulate all elements
+     * \author Tianyang Wang
+     ***********/
+    void recvSectionMesh(std::string meshName, bool triangulateAll);
+    /***********************************************************************************************
      * \brief Send mesh to a real client
      * \param[in] meshName name of the mesh to be received
      * \author Altug Emiroglu

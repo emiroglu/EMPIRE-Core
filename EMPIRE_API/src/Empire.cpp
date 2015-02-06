@@ -69,6 +69,24 @@ void Empire::sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, i
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(count, elems);
 }
 
+void Empire::sendSectionMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
+        int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
+        int numNormalSectionNodes, int numTipSectionNodes, const double *rotationGlobal2Root,
+        const double *translationGlobal2Root) {
+    sendMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elems);
+
+    const int SECTION_INFO_SIZE = 4;
+    int sectionInfo[4]; // number of sections, number of root section nodes, number of normal section nodes, number of tip section nodes
+    sectionInfo[0] = numSections;
+    sectionInfo[1] = numRootSectionNodes;
+    sectionInfo[2] = numNormalSectionNodes;
+    sectionInfo[3] = numTipSectionNodes;
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(SECTION_INFO_SIZE, sectionInfo);
+
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(9, rotationGlobal2Root);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(3, translationGlobal2Root);
+}
+
 void Empire::recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems)
 {
     ClientCommunication::getSingleton()->receiveFromServerBlocking<int>(1, numNodes);

@@ -2,7 +2,7 @@
 /***********************************************************************************************//**
  * \mainpage
  *
-* \section LICENSE
+ * \section LICENSE
  *  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis, Stefan Sicklinger, Tianyang Wang, Munich \n
  *  All rights reserved. \n
  *
@@ -87,6 +87,27 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
         int *numNodesPerElem, int *elems);
 
 /***********************************************************************************************
+ * \brief Send the section mesh to the server (for mapping with beam elements)
+ * \param[in] name name of the mesh
+ * \param[in] numNodes number of nodes
+ * \param[in] numElems number of elements
+ * \param[in] nodes coordinates of all nodes
+ * \param[in] nodeIDs IDs of all nodes
+ * \param[in] numNodesPerElem number of nodes per element
+ * \param[in] elems connectivity table of all elements
+ * \param[in] numSections number of sections
+ * \param[in] numRootSectionNodes number of nodes of the root section
+ * \param[in] numNormalSectionNodes number of nodes of every normal section
+ * \param[in] numTipSectionNodes number of nodes of the tip section
+ * \param[in] rotationGlobal2Root rotation matrix from the global coordinate system to the root section system
+ * \param[in] translationGlobal2Root translation vector from the global coordinate system to the root section system
+ ***********/
+void EMPIRE_API_sendSectionMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
+        int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
+        int numNormalSectionNodes, int numTipSectionNodes, const double *rotationGlobal2Root,
+        const double *translationGlobal2Root);
+
+/***********************************************************************************************
  * \brief Recieve mesh from the server
  * \param[in] name name of the mesh
  * \param[in] numNodes number of nodes
@@ -97,7 +118,7 @@ void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, 
  * \param[in] elems connectivity table of all elements
  ***********/
 void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
-            int **numNodesPerElem, int **elem);
+        int **numNodesPerElem, int **elem);
 
 /***********************************************************************************************
  * \brief Send the IGA patch to the server
@@ -113,8 +134,9 @@ void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **node
  * \param[in] _cpNet The set of the Control Points related to the 2D NURBS patch
  * \param[in] _nodeNet The set of the dof index Control Points related to the 2D NURBS patch
  ***********/
-void EMPIRE_API_sendIGAPatch(int _pDegree,  int _uNumKnots, double* _uKnotVector, int _qDegree, int _vNumKnots,
-        double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints, double* _cpNet, int* _nodeNet);
+void EMPIRE_API_sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
+        int _vNumKnots, double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints,
+        double* _cpNet, int* _nodeNet);
 
 /***********************************************************************************************
  * \brief Send the IGA patch to the server
@@ -148,7 +170,8 @@ void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves);
  * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
  * \author Fabien Pean
  ***********/
-void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
+void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
+        double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
 
 /***********************************************************************************************
  * \brief Send data field to the server
