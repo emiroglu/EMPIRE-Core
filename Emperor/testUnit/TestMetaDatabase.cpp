@@ -75,13 +75,15 @@ public:
             CPPUNIT_ASSERT(settingClientCodesVec.size() == 3);
             structClientCode client0 = settingClientCodesVec[0];
             CPPUNIT_ASSERT(client0.name == "meshClientA");
-            CPPUNIT_ASSERT(client0.meshes.size() == 1);
+            CPPUNIT_ASSERT(client0.meshes.size() == 2);
             CPPUNIT_ASSERT(client0.meshes[0].name == "myMesh");
             CPPUNIT_ASSERT(client0.meshes[0].triangulateAll == true);
             CPPUNIT_ASSERT(client0.meshes[0].dataFields.size() == 2);
             CPPUNIT_ASSERT(client0.meshes[0].dataFields[0].name == "displacements");
             CPPUNIT_ASSERT(client0.meshes[0].dataFields[0].dimension == EMPIRE_DataField_vector);
             CPPUNIT_ASSERT(client0.meshes[0].dataFields[0].location == EMPIRE_DataField_atNode);
+            CPPUNIT_ASSERT(client0.meshes[1].name == "beamMesh");
+            CPPUNIT_ASSERT(client0.meshes[1].type == EMPIRE_Mesh_FEMesh);
             CPPUNIT_ASSERT(
                     client0.meshes[0].dataFields[0].typeOfQuantity == EMPIRE_DataField_field);
             CPPUNIT_ASSERT(client0.meshes[0].dataFields[1].name == "forces");
@@ -95,7 +97,7 @@ public:
 
             structClientCode client1 = settingClientCodesVec[1];
             CPPUNIT_ASSERT(client1.name == "meshClientB");
-            CPPUNIT_ASSERT(client1.meshes.size() == 1);
+            CPPUNIT_ASSERT(client1.meshes.size() == 2);
             CPPUNIT_ASSERT(client1.meshes[0].name == "myMesh");
             CPPUNIT_ASSERT(client1.meshes[0].triangulateAll == false);
             CPPUNIT_ASSERT(client1.meshes[0].dataFields.size() == 3);
@@ -105,6 +107,9 @@ public:
                     client1.meshes[0].dataFields[1].location == EMPIRE_DataField_atElemCentroid);
             CPPUNIT_ASSERT(
                     client1.meshes[0].dataFields[1].typeOfQuantity == EMPIRE_DataField_field);
+            CPPUNIT_ASSERT(client1.meshes[1].name == "surfaceMesh");
+            CPPUNIT_ASSERT(client1.meshes[1].type == EMPIRE_Mesh_SectionMesh);
+
             CPPUNIT_ASSERT(client1.signals.size() == 1);
             CPPUNIT_ASSERT(client1.signals[0].name == "signal");
             CPPUNIT_ASSERT(client1.signals[0].size3D[0] == 1);
@@ -166,7 +171,7 @@ public:
             }
         }
         { // check block mappers
-            CPPUNIT_ASSERT(settingMapperVec.size() == 3);
+            CPPUNIT_ASSERT(settingMapperVec.size() == 4);
             { // 1st mapper
                 structMapper settingMapper = settingMapperVec[0];
                 CPPUNIT_ASSERT(settingMapper.name == "mortar1");
@@ -196,6 +201,16 @@ public:
                 CPPUNIT_ASSERT(settingMapper.meshRefA.meshName == "myMesh");
                 CPPUNIT_ASSERT(settingMapper.meshRefB.meshName == "myMesh");
                 CPPUNIT_ASSERT(settingMapper.type == EMPIRE_BarycentricInterpolationMapper);
+            }
+            { // 4th mapper
+                structMapper settingMapper = settingMapperVec[3];
+                CPPUNIT_ASSERT(settingMapper.name == "cs");
+                CPPUNIT_ASSERT(settingMapper.meshRefA.clientCodeName == "meshClientA");
+                CPPUNIT_ASSERT(settingMapper.meshRefB.clientCodeName == "meshClientB");
+                CPPUNIT_ASSERT(settingMapper.meshRefA.meshName == "beamMesh");
+                CPPUNIT_ASSERT(settingMapper.meshRefB.meshName == "surfaceMesh");
+                CPPUNIT_ASSERT(settingMapper.type == EMPIRE_CurveSurfaceMapper);
+                CPPUNIT_ASSERT(settingMapper.curveSurfaceMapper.type == EMPIRE_CurveSurfaceMapper_linear);
             }
         }
         { // check block coupling algorithms

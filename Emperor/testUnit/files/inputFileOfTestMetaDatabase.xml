@@ -7,6 +7,12 @@
 			<dataField name="forces" location="atNode" dimension="vector"
 				typeOfQuantity="fieldIntegral" />
 		</mesh>
+		<mesh name="beamMesh">
+			<dataField name="displacementsRotations" dimension="doubleVector"
+				location="atNode" typeOfQuantity="field" />
+			<dataField name="forcesMoments" location="atNode"
+				dimension="doubleVector" typeOfQuantity="fieldIntegral" />
+		</mesh>
 		<signal name="signal" size="2 2 2" />
 	</clientCode>
 	<clientCode name="meshClientB">
@@ -18,15 +24,21 @@
 			<dataField name="tractionsNode" location="atNode"
 				dimension="vector" typeOfQuantity="field" />
 		</mesh>
+		<mesh name="surfaceMesh" type="sectionMesh">
+			<dataField name="displacements" dimension="vector"
+				location="atNode" typeOfQuantity="field" />
+			<dataField name="forces" location="atNode" dimension="vector"
+				typeOfQuantity="fieldIntegral" />
+		</mesh>
 		<signal name="signal" size="5" />
 	</clientCode>
 	<clientCode name="optimizer">
 		<signal name="design" size="1" />
 		<signal name="objective" size="1" />
 	</clientCode>
-	
-	
-	
+
+
+
 	<dataOutput name="dataOutput1" interval="5">
 		<dataFieldRef clientCodeName="meshClientA" meshName="myMesh"
 			dataFieldName="displacements" />
@@ -43,9 +55,9 @@
 		<signalRef clientCodeName="meshClientA" signalName="signal" />
 		<signalRef clientCodeName="meshClientB" signalName="signal" />
 	</dataOutput>
-	
-	
-	
+
+
+
 	<mapper name="mortar1" type="mortarMapper">
 		<meshA>
 			<meshRef clientCodeName="meshClientA" meshName="myMesh" />
@@ -76,9 +88,19 @@
 			<meshRef clientCodeName="meshClientB" meshName="myMesh" />
 		</meshB>
 	</mapper>
-	
-	
-	
+
+	<mapper name="cs" type="curveSurfaceMapper">
+		<!-- mapping displacements from meshA to meshB, mapping forces from meshB 
+			to meshA. -->
+		<meshA>
+			<meshRef clientCodeName="meshClientA" meshName="beamMesh" />
+		</meshA>
+		<meshB>
+			<meshRef clientCodeName="meshClientB" meshName="surfaceMesh" />
+		</meshB>
+		<curveSurfaceMapper type="linear" />
+	</mapper>
+
 	<couplingAlgorithm type="constantRelaxation" name="cr">
 		<residual index="1">
 			<component coefficient="1" timeToUpdate="iterationBeginning">
@@ -93,16 +115,16 @@
 		</output>
 		<constantRelaxation relaxationFactor="0.3" />
 	</couplingAlgorithm>
-	
-	
-	
+
+
+
 	<extrapolator type="linearExtrapolator" name="extrapolate displacement">
 		<dataFieldRef clientCodeName="meshClientA" meshName="myMesh"
 			dataFieldName="displacements" />
 	</extrapolator>
-	
-	
-	
+
+
+
 	<connection name="transfer displacements">
 		<input>
 			<dataFieldRef clientCodeName="meshClientA" meshName="myMesh"
@@ -181,9 +203,9 @@
 			</filter>
 		</sequence>
 	</connection>
-	
-	
-	
+
+
+
 	<coSimulation>
 		<sequence>
 			<couplingLogic type="optimizationLoop">

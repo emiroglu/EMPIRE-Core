@@ -83,6 +83,11 @@ void MappingFilter::filtering() {
 }
 
 void MappingFilter::init() {
+    assert(inputModifier == NULL);
+    assert(tmpInput == NULL);
+    assert(outputModifier == NULL);
+    assert(tmpOutput == NULL);
+
     assert(inputVec.size() == 1);
     assert(outputVec.size() == 1);
     assert(inputVec[0]->type == outputVec[0]->type);
