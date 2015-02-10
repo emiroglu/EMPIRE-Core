@@ -1,33 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 
-/*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Munich
- *
- *  All rights reserved.
- *
- *  This file is part of EMPIRE.
- *
- *  EMPIRE is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  EMPIRE is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
- */ -->
+<!-- /* Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis, 
+	* Stefan Sicklinger, Tianyang Wang, Munich * * All rights reserved. * * This 
+	file is part of EMPIRE. * * EMPIRE is free software: you can redistribute 
+	it and/or modify * it under the terms of the GNU General Public License as 
+	published by * the Free Software Foundation, either version 3 of the License, 
+	or * (at your option) any later version. * * EMPIRE is distributed in the 
+	hope that it will be useful, * but WITHOUT ANY WARRANTY; without even the 
+	implied warranty of * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+	See the * GNU General Public License for more details. * * You should have 
+	received a copy of the GNU General Public License * along with EMPIRE. If 
+	not, see http://www.gnu.org/licenses/. */ -->
 <schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="EmperorInput"
 	elementFormDefault="qualified" xmlns:tns="EmperorInput">
-	<!-- REMARK: 
-		* The schema is a kind of language. A tutorial can be found at http://www.w3.org/TR/xmlschema-0/.
-		* There are different ways to define a schema file which specifies the xml input file, but it is recommanded to follow the style defined here. 
-		* Please understand this file before editing it. 
-		* The xml input file can be valiated by eclipse xml editor, or online at e.g. http://www.freeformatter.com/xml-validator-xsd.html. 
-		* Author: Tianyang Wang, tianyang.wang@tum.de -->
+	<!-- REMARK: * The schema is a kind of language. A tutorial can be found 
+		at http://www.w3.org/TR/xmlschema-0/. * There are different ways to define 
+		a schema file which specifies the xml input file, but it is recommanded to 
+		follow the style defined here. * Please understand this file before editing 
+		it. * The xml input file can be valiated by eclipse xml editor, or online 
+		at e.g. http://www.freeformatter.com/xml-validator-xsd.html. * Author: Tianyang 
+		Wang, tianyang.wang@tum.de -->
 
 	<!-- ========================== Element Types ================================================ 
 		The simpleTypes are strings that restricted by a group of values, which should 
@@ -49,6 +40,15 @@
 			<enumeration value="nearestNeighborMapper"></enumeration>
 			<enumeration value="barycentricInterpolationMapper"></enumeration>
 			<enumeration value="nearestElementMapper"></enumeration>
+			<enumeration value="curveSurfaceMapper"></enumeration>
+		</restriction>
+	</simpleType>
+
+	<simpleType name="stringCurveSurfaceMapperType">
+		<restriction base="string">
+			<enumeration value="linear"></enumeration>
+			<enumeration value="corotate2D"></enumeration>
+			<enumeration value="corotate3D"></enumeration>
 		</restriction>
 	</simpleType>
 
@@ -88,6 +88,7 @@
 		<restriction base="string">
 			<enumeration value="vector"></enumeration>
 			<enumeration value="scalar"></enumeration>
+			<enumeration value="doubleVector"></enumeration>
 		</restriction>
 	</simpleType>
 
@@ -97,11 +98,12 @@
 			<enumeration value="fieldIntegral"></enumeration>
 		</restriction>
 	</simpleType>
-	
-	<simpleType name="meshType">
+
+	<simpleType name="stringMeshType">
 		<restriction base="string">
 			<enumeration value="FEMesh"></enumeration>
 			<enumeration value="IGAMesh"></enumeration>
+			<enumeration value="sectionMesh"></enumeration>
 		</restriction>
 	</simpleType>
 
@@ -246,7 +248,7 @@
 						<element ref="tns:meshRef"></element>
 					</sequence>
 				</complexType>
-			</element>			
+			</element>
 			<choice>
 				<element name="mortarMapper" maxOccurs="1" minOccurs="0">
 					<complexType>
@@ -256,55 +258,65 @@
 						<attribute name="enforceConsistency" type="boolean" use="required"></attribute>
 					</complexType>
 				</element>
+				<element name="curveSurfaceMapper" maxOccurs="1" minOccurs="0">
+					<complexType>
+						<attribute name="type" type="tns:stringCurveSurfaceMapperType" use="required"></attribute>
+					</complexType>
+				</element>
 				<element name="IGAMortarMapper" maxOccurs="1" minOccurs="0">
 					<complexType>
-                                                <element name="projectionProperties" maxOccurs="1" minOccurs="0">
-                                                    <complexType>
-                                                        <attribute name="maxProjectionDistance" type="double"
-                                                        use="required">
-                                                        </attribute>
-                                                        <attribute name="numRefinementForIntialGuess" type="integer" use="required">
-                                                        </attribute>
-                                                        <attribute name="maxDistanceForProjectedPointsOnDifferentPatches" type="double" use="required">
-                                                        </attribute>
-                                                    </complexType>
-                                                </element>
-                                                <element name="newtonRaphson" maxOccurs="1" minOccurs="0">
-                                                    <complexType>
-                                                        <attribute name="maxNumOfIterations" type="integer"
-                                                            use="required">
-                                                        </attribute>
-                                                        <attribute name="tolerance" type="double" use="required">
-                                                        </attribute>
-                                                    </complexType>
-                                                </element>
-                                                <element name="newtonRaphsonBoundary" maxOccurs="1" minOccurs="0">
-                                                    <complexType>
-                                                        <attribute name="maxNumOfIterations" type="integer"
-                                                            use="required">
-                                                        </attribute>
-                                                        <attribute name="tolerance" type="double" use="required">
-                                                        </attribute>
-                                                    </complexType>
-                                                </element>
-                                                <element name="bisection" maxOccurs="1" minOccurs="0">
-                                                    <complexType>
-                                                        <attribute name="maxNumOfIterations" type="integer"
-                                                            use="required">
-                                                        </attribute>
-                                                        <attribute name="tolerance" type="double" use="required">
-                                                        </attribute>
-                                                    </complexType>
-                                                </element>
-                                                <element name="integration" maxOccurs="1" minOccurs="0">
-                                                    <complexType>
-                                                        <attribute name="numGPTriangle" type="integer"
-                                                            use="required">
-                                                        </attribute>
-                                                        <attribute name="numGPQuad" type="integer" use="required">
-                                                        </attribute>
-                                                    </complexType>
-                                                </element>
+						<sequence>
+							<element name="projectionProperties" maxOccurs="1"
+								minOccurs="0">
+								<complexType>
+									<attribute name="maxProjectionDistance" type="double"
+										use="required">
+									</attribute>
+									<attribute name="numRefinementForIntialGuess" type="integer"
+										use="required">
+									</attribute>
+									<attribute name="maxDistanceForProjectedPointsOnDifferentPatches"
+										type="double" use="required">
+									</attribute>
+								</complexType>
+							</element>
+							<element name="newtonRaphson" maxOccurs="1" minOccurs="0">
+								<complexType>
+									<attribute name="maxNumOfIterations" type="integer"
+										use="required">
+									</attribute>
+									<attribute name="tolerance" type="double" use="required">
+									</attribute>
+								</complexType>
+							</element>
+							<element name="newtonRaphsonBoundary" maxOccurs="1"
+								minOccurs="0">
+								<complexType>
+									<attribute name="maxNumOfIterations" type="integer"
+										use="required">
+									</attribute>
+									<attribute name="tolerance" type="double" use="required">
+									</attribute>
+								</complexType>
+							</element>
+							<element name="bisection" maxOccurs="1" minOccurs="0">
+								<complexType>
+									<attribute name="maxNumOfIterations" type="integer"
+										use="required">
+									</attribute>
+									<attribute name="tolerance" type="double" use="required">
+									</attribute>
+								</complexType>
+							</element>
+							<element name="integration" maxOccurs="1" minOccurs="0">
+								<complexType>
+									<attribute name="numGPTriangle" type="integer" use="required">
+									</attribute>
+									<attribute name="numGPQuad" type="integer" use="required">
+									</attribute>
+								</complexType>
+							</element>
+						</sequence>
 					</complexType>
 				</element>
 			</choice>
@@ -507,17 +519,15 @@
 			<element name="mesh" maxOccurs="unbounded" minOccurs="0">
 				<complexType>
 					<sequence>
-						<element name="dataField" maxOccurs="unbounded"
-							minOccurs="1">
+						<element name="dataField" maxOccurs="unbounded" minOccurs="1">
 							<complexType>
-								<attribute name="name" type="string"
+								<attribute name="name" type="string" use="required">
+								</attribute>
+								<attribute name="location" type="tns:stringDataFieldLocationType"
 									use="required">
 								</attribute>
-								<attribute name="location"
-									type="tns:stringDataFieldLocationType" use="required">
-								</attribute>
-								<attribute name="dimension"
-									type="tns:stringDataFieldDimensionType" use="required">
+								<attribute name="dimension" type="tns:stringDataFieldDimensionType"
+									use="required">
 								</attribute>
 								<attribute name="typeOfQuantity"
 									type="tns:stringDataFieldTypeOfQuantityType" use="required">
@@ -525,14 +535,11 @@
 							</complexType>
 						</element>
 					</sequence>
-					<attribute name="name" type="string"
-						use="required">
+					<attribute name="name" type="string" use="required">
 					</attribute>
-					<attribute name="type" type="tns:meshType"
-						use="optional">
+					<attribute name="type" type="tns:stringMeshType" use="optional">
 					</attribute>
-					<attribute name="triangulateAll" type="boolean" 
-						use="optional">
+					<attribute name="triangulateAll" type="boolean" use="optional">
 					</attribute>
 				</complexType>
 			</element>
