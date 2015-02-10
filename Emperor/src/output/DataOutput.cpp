@@ -200,12 +200,12 @@ void DataOutput::writeDataFields(int step) {
                     }
                     type = "Vector";
                     if (atNode) {
-                        string tmpdataFieldName = "\"" + dataFieldName + "_disp\"";
-                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, tmpdataFieldName,
+                        string dataFieldNameDisp = "\"" + dataFieldName + "_disp\"";
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, dataFieldNameDisp,
                                 "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
                                 locationIDs, data1);
-                        tmpdataFieldName = "\"" + dataFieldName + "_rot\"";
-                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, tmpdataFieldName,
+                        string dataFieldNameRot = "\"" + dataFieldName + "_rot\"";
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, dataFieldNameRot,
                                 "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
                                 locationIDs, data2);
                     } else {
