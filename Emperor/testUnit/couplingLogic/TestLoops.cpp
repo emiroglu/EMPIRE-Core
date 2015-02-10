@@ -56,8 +56,11 @@ public:
         timeStepLoop = new TimeStepLoop(10);
     }
     void tearDown() {
-        delete connection1, connection2, connection3;
-        delete iterativeCouplingLoop, timeStepLoop;
+        delete connection1;
+        delete connection2;
+        delete connection3;
+        delete iterativeCouplingLoop;
+        delete timeStepLoop;
     }
     /***********************************************************************************************
      * \brief Test case: Test adding child coupling logics

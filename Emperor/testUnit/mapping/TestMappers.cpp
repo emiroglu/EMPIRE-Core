@@ -297,7 +297,10 @@ public:
             delete mappers[i];
         }
 
-        delete d_A, d_B, f_A, f_B;
+        delete d_A;
+        delete d_B;
+        delete f_A;
+        delete f_B;
     }
 
     /***********************************************************************************************
@@ -369,7 +372,8 @@ public:
             delete mappers[i];
         }
 
-        delete d_A, d_B;
+        delete d_A;
+        delete d_B;
     }
 
     /***********************************************************************************************
@@ -482,7 +486,10 @@ public:
             delete mappers[i];
         }
 
-        delete d_A, d_B, f_A, f_B;
+        delete d_A;
+        delete  d_B;
+        delete f_A;
+        delete f_B;
     }
 
 CPPUNIT_TEST_SUITE( TestMappers );

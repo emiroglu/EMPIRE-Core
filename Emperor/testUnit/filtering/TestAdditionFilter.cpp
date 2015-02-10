@@ -83,7 +83,8 @@ public:
                 CPPUNIT_ASSERT(y->data[i] == 3.0);
             }
             delete filter;
-            delete x, y;
+            delete x;
+            delete y;
         }
         { // on signal
             double a = 2.0;
@@ -116,7 +117,8 @@ public:
                 CPPUNIT_ASSERT(y->array[i] == 3.0);
             }
             delete filter;
-            delete x, y;
+            delete x;
+            delete y;
         }
     }
 

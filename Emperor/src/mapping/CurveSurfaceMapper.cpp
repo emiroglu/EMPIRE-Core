@@ -525,6 +525,10 @@ void CurveSurfaceMapper::consistentMappingLinear(const double *curveDispRot, dou
         // compute the final section displacement and rotation from KM_Oo_Ord
         KM_Oo_Od.getRotationVector(&sectionRot[i * 3]);
     }
+    delete[] node1DispLocal;
+    delete[] node1RotLocal;
+    delete[] node2DispLocal;
+    delete[] node2RotLocal;
 }
 void CurveSurfaceMapper::consistentMappingCorotate2D(const double *curveDispRot,
         double *surfaceDisp) {

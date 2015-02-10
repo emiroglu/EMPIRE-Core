@@ -24,6 +24,13 @@
 
 #include "CurveSurfaceMapper.h"
 #include "KinematicMotion.h"
+#include "FEMesh.h"
+#include "SectionMesh.h"
+#include "MapperAdapter.h"
+#include "MappingFilter.h"
+#include "DataField.h"
+#include "ConnectionIOSetup.h"
+
 #include <iostream>
 #include <string>
 #include <math.h>
@@ -800,10 +807,150 @@ public:
             delete km_O_Q;
         }
     }
+
+    void testMapperAdapter() { // no assertion, just test if calls between classes work or not.
+        /*
+         * 4-----5-----6
+         * |     |     | surface mesh B
+         * 1-----2-----3
+         */
+        int numNodesMeshB = 6;
+        int numElemsMeshB = 2;
+        SectionMesh *surfaceMeshB = new SectionMesh("", numNodesMeshB, numElemsMeshB);
+        for (int i = 0; i < numElemsMeshB; i++)
+            surfaceMeshB->numNodesPerElem[i] = 4;
+        surfaceMeshB->initElems();
+
+        for (int i = 0; i < numNodesMeshB; i++)
+            surfaceMeshB->nodeIDs[i] = i + 1;
+
+        surfaceMeshB->nodes[0 * 3 + 0] = 0;
+        surfaceMeshB->nodes[0 * 3 + 1] = 0;
+        surfaceMeshB->nodes[0 * 3 + 2] = 0;
+
+        surfaceMeshB->nodes[1 * 3 + 0] = 1.5;
+        surfaceMeshB->nodes[1 * 3 + 1] = 0;
+        surfaceMeshB->nodes[1 * 3 + 2] = 0;
+
+        surfaceMeshB->nodes[2 * 3 + 0] = 3;
+        surfaceMeshB->nodes[2 * 3 + 1] = 0;
+        surfaceMeshB->nodes[2 * 3 + 2] = 0;
+
+        surfaceMeshB->nodes[3 * 3 + 0] = 0;
+        surfaceMeshB->nodes[3 * 3 + 1] = 1;
+        surfaceMeshB->nodes[3 * 3 + 2] = 0;
+
+        surfaceMeshB->nodes[4 * 3 + 0] = 1.5;
+        surfaceMeshB->nodes[4 * 3 + 1] = 1;
+        surfaceMeshB->nodes[4 * 3 + 2] = 0;
+
+        surfaceMeshB->nodes[5 * 3 + 0] = 3;
+        surfaceMeshB->nodes[5 * 3 + 1] = 1;
+        surfaceMeshB->nodes[5 * 3 + 2] = 0;
+
+        surfaceMeshB->elems[0 * 4 + 0] = 1;
+        surfaceMeshB->elems[0 * 4 + 1] = 2;
+        surfaceMeshB->elems[0 * 4 + 2] = 5;
+        surfaceMeshB->elems[0 * 4 + 3] = 4;
+
+        surfaceMeshB->elems[1 * 4 + 0] = 2;
+        surfaceMeshB->elems[1 * 4 + 1] = 3;
+        surfaceMeshB->elems[1 * 4 + 2] = 6;
+        surfaceMeshB->elems[1 * 4 + 3] = 5;
+
+        surfaceMeshB->setNumSections(3);
+        surfaceMeshB->setNumRootSectionNodes(2);
+        surfaceMeshB->setNumNormalSectionNodes(2);
+        surfaceMeshB->setNumTipSectionNodes(2);
+        double rotation[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+        double translation[] = { 0.0, 0.5, 0.0 };
+        surfaceMeshB->setRotationGlobal2Root(rotation);
+        surfaceMeshB->setTranslationGlobal2Root(translation);
+        /*
+         * 1-----------2 beam mesh A
+         */
+        int numNodesMeshA = 2;
+        int numElemsMeshA = 1;
+        FEMesh *beamMeshA = new FEMesh("", numNodesMeshA, numElemsMeshA);
+        for (int i = 0; i < numElemsMeshA; i++)
+            beamMeshA->numNodesPerElem[i] = 2;
+        beamMeshA->initElems();
+
+        for (int i = 0; i < numNodesMeshA; i++)
+            beamMeshA->nodeIDs[i] = i + 1;
+
+        beamMeshA->nodes[0 * 3 + 0] = 0;
+        beamMeshA->nodes[0 * 3 + 1] = 0.5;
+        beamMeshA->nodes[0 * 3 + 2] = 0;
+
+        beamMeshA->nodes[1 * 3 + 0] = 3.0;
+        beamMeshA->nodes[1 * 3 + 1] = 0.5;
+        beamMeshA->nodes[1 * 3 + 2] = 0;
+
+        beamMeshA->elems[0] = 1;
+        beamMeshA->elems[1] = 2;
+
+        DataField *d_A, *d_B, *f_A, *f_B;
+        d_A = new DataField("d_A", EMPIRE_DataField_atNode, beamMeshA->numNodes,
+                EMPIRE_DataField_doubleVector, EMPIRE_DataField_field);
+        d_B = new DataField("d_B", EMPIRE_DataField_atNode, surfaceMeshB->numNodes,
+                EMPIRE_DataField_vector, EMPIRE_DataField_field);
+        f_A = new DataField("f_A", EMPIRE_DataField_atNode, beamMeshA->numNodes,
+                EMPIRE_DataField_doubleVector, EMPIRE_DataField_fieldIntegral);
+        f_B = new DataField("f_B", EMPIRE_DataField_atNode, surfaceMeshB->numNodes,
+                EMPIRE_DataField_vector, EMPIRE_DataField_fieldIntegral);
+        {
+            MapperAdapter *mapper = new MapperAdapter("", beamMeshA, surfaceMeshB);
+            mapper->initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_linear);
+            AbstractFilter *filterConsistent = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConsistent, beamMeshA, d_A, surfaceMeshB, d_B);
+            filterConsistent->filtering();
+            AbstractFilter *filterConservative = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConservative, surfaceMeshB, f_B, beamMeshA, f_A);
+            filterConservative->filtering();
+            delete mapper;
+            delete filterConsistent;
+            delete filterConservative;
+        }
+        {
+            MapperAdapter *mapper = new MapperAdapter("", beamMeshA, surfaceMeshB);
+            mapper->initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_corotate2D);
+            AbstractFilter *filterConsistent = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConsistent, beamMeshA, d_A, surfaceMeshB, d_B);
+            filterConsistent->filtering();
+            AbstractFilter *filterConservative = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConservative, surfaceMeshB, f_B, beamMeshA, f_A);
+            filterConservative->filtering();
+            delete mapper;
+            delete filterConsistent;
+            delete filterConservative;
+        }
+        {
+            MapperAdapter *mapper = new MapperAdapter("", beamMeshA, surfaceMeshB);
+            mapper->initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_corotate3D);
+            AbstractFilter *filterConsistent = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConsistent, beamMeshA, d_A, surfaceMeshB, d_B);
+            filterConsistent->filtering();
+            AbstractFilter *filterConservative = new MappingFilter(mapper);
+            ConnectionIOSetup::setupIOForFilter(filterConservative, surfaceMeshB, f_B, beamMeshA, f_A);
+            filterConservative->filtering();
+            delete mapper;
+            delete filterConsistent;
+            delete filterConservative;
+        }
+
+        delete surfaceMeshB;
+        delete beamMeshA;
+        delete d_A;
+        delete d_B;
+        delete f_A;
+        delete f_B;
+    }
     void testMemoryLeak() {
         for (int i = 0; i < 1000000000; i++) {
             testCircleConsistent();
             testCircleConservative();
+            testMapperAdapter();
         }
     }
 
@@ -812,6 +959,7 @@ public:
     CPPUNIT_TEST (testParabolicMapping);
     CPPUNIT_TEST (testCircleConsistent);
     CPPUNIT_TEST (testCircleConservative);
+    CPPUNIT_TEST (testMapperAdapter);
     //CPPUNIT_TEST (testMemoryLeak);
     CPPUNIT_TEST_SUITE_END();
 };

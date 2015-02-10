@@ -53,7 +53,9 @@ public:
     }
     void tearDown() {
         delete connection;
-        //delete filter1, filter2, filter3; // filters are already deleted by connection
+        //delete filter1;
+        //delete filter2;
+        //delete filter3; // filters are already deleted by connection
     }
     /***********************************************************************************************
      * \brief Test case: Test the constructor
