@@ -75,6 +75,7 @@ private:
     /// The element freedom table for the fluid mesh
     int **meshFEDirectElemTable;
 
+    std::map<int, std::vector<int> > meshFENodeToElementTable;
     /// The mass-like matrix
     MathLibrary::SparseMatrix<double> *C_NN;
 
@@ -89,6 +90,10 @@ private:
 
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, std::vector<double> > > projectedCoords;
+
+    std::vector<std::map<int,Polygon2D> > projectedPolygons;
+
+    std::vector<std::map<int,ListPolygon2D> > triangulatedProjectedPolygons;
 
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
@@ -386,6 +391,15 @@ public:
      * \author Fabien Pean
      ***********/
     void writeParametricProjectedPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
+
+    /***********************************************************************************************
+     * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
+     * \author Fabien Pean
+     ***********/
+    void writeFullParametricProjectedPolygon(std::string _filename);
+    void writeTriangulatedParametricPolygon(std::string _filename);
+
+
     /***********************************************************************************************
      * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
      * \param[in] _filename		The substring to append to open csv file and write vtk file
