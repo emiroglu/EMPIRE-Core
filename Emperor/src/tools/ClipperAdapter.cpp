@@ -350,4 +350,26 @@ void ClipperAdapter::reversePolygon(std::vector<std::pair<double,double> >& _pat
 	}
 }
 
+void ClipperAdapter::simplifyPolygon(std::vector<std::vector<std::pair<double,double> > >& _paths, double _accuracy) {
+	double factor = 1 / _accuracy;
+	Paths subjs;
+	for(int s=0; s< _paths.size(); s++) {
+		Path subj;
+		for(int p=0; p < _paths[s].size(); p++) {
+			subj<<IntPoint((cInt)(_paths[s][p].first*factor),(cInt)(_paths[s][p].second*factor));
+		}
+		subjs.push_back(subj);
+	}
+	SimplifyPolygons(subjs,pftNonZero);
+	_paths.clear();
+	_paths.resize(subjs.size());
+	for(int s=0; s < subjs.size(); s++) {
+		_paths[s].resize(subjs[s].size());
+		for(int p=0; p < subjs[s].size(); p++) {
+			_paths[s][p].first  = subjs[s][p].X / factor;
+			_paths[s][p].second = subjs[s][p].Y / factor;
+		}
+	}
+}
+
 } /* namespace EMPIRE */

@@ -76,6 +76,13 @@ public:
      ***********/
 	void setFilling(Filling _filling, int _subject=-1);
     /***********************************************************************************************
+     * \brief Set the property strictly simple in clipper
+     * 			See http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/Clipper/Properties/StrictlySimple.htm
+     * \param[in] _simple Force the parameter if set to 1
+     * \author Fabien Pean
+     ***********/
+	void setStrictlySimple(bool _simple){clipper.StrictlySimple(_simple);};
+    /***********************************************************************************************
      * \brief Retrieve the inner solution of the clipper interface
      * \param[in/out] _container	The container where solution is output
      * \author Fabien Pean
@@ -148,6 +155,11 @@ public:
      * \author Fabien Pean
      ***********/
 	static void reversePolygon(std::vector<std::pair<double,double> >& _path, double _accuracy=1e-9);
+    /***********************************************************************************************
+     * \brief Static call to the function SimplifyPath in clipper library
+     * \author Fabien Pean
+     ***********/
+	static void simplifyPolygon(std::vector<std::vector<std::pair<double,double> > >& _paths, double _accuracy=1e-9);
 
 	inline double getAccuracy() { return accuracy; }
 private:
