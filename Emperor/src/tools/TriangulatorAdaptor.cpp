@@ -75,8 +75,8 @@ bool TriangulatorAdaptor::triangulate(int *triangleIndexes) {
     list<TPPLPoly> triangles;
 
     TPPLPartition triangulator; // see http://code.google.com/p/polypartition/
-    int tmp = triangulator.Triangulate_OPT(&poly, &triangles);
-    assert (tmp == 1);
+    int success = triangulator.Triangulate_OPT(&poly, &triangles);
+    assert(success == 1);
     assert(triangles.size() +2 == polygon.size());
     int count = 0;
     for (list<TPPLPoly>::iterator it = triangles.begin(); it != triangles.end(); it++) {
