@@ -129,7 +129,12 @@ public:
         delete aitken;
         delete comaAitken;
         delete cr;
-        delete dfCurrent, dfIn1, dfIn2, dfOld, dfOut1, dfOut2;*/
+        delete dfCurrent;
+        delete dfIn1;
+        delete dfIn2;
+        delete dfOld;
+        delete dfOut1;
+        delete dfOut2;*/
     }
 
 CPPUNIT_TEST_SUITE( TestRelaxationMethods );

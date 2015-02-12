@@ -87,6 +87,26 @@ public:
     void sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem,
             int *elems);
     /***********************************************************************************************
+     * \brief Send the section mesh to the server (for mapping with beam elements)
+     * \param[in] name name of the mesh
+     * \param[in] numNodes number of nodes
+     * \param[in] numElems number of elements
+     * \param[in] nodes coordinates of all nodes
+     * \param[in] nodeIDs IDs of all nodes
+     * \param[in] numNodesPerElem number of nodes per element
+     * \param[in] elems connectivity table of all elements
+     * \param[in] numSections number of sections
+     * \param[in] numRootSectionNodes number of nodes of the root section
+     * \param[in] numNormalSectionNodes number of nodes of every normal section
+     * \param[in] numTipSectionNodes number of nodes of the tip section
+     * \param[in] rotationGlobal2Root rotation matrix from the global coordinate system to the root section system
+     * \param[in] translationGlobal2Root translation vector from the global coordinate system to the root section system
+     ***********/
+    void sendSectionMesh(int numNodes, int numElems, double *nodes, int *nodeIDs,
+            int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
+            int numNormalSectionNodes, int numTipSectionNodes, double *rotationGlobal2Root,
+            double *translationGlobal2Root);
+    /***********************************************************************************************
      * \brief Receive mesh from the server
      * \param[in] numNodes number of nodes
      * \param[in] numElems number of elements
@@ -96,7 +116,8 @@ public:
      * \param[in] elems connectivity table of all elements
      * \author Altug Emiroglu
      ***********/
-    void recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs, int **numNodesPerElem, int **elems);
+    void recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs,
+            int **numNodesPerElem, int **elems);
     /***********************************************************************************************
      * \brief Send the IGA patch to the server
      * \param[in] _pDegree The polynomial degree of the IGA 2D patch in the u-direction
@@ -111,8 +132,9 @@ public:
      * \param[in] _nodeNet The set of the dof index Control Points related to the 2D NURBS patch
      * \author Chenshen Wu 
      ***********/
-    void sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree, int _vNumKnots,
-            double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints, double* _cpNet, int* _nodeNet);
+    void sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
+            int _vNumKnots, double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints,
+            double* _cpNet, int* _nodeNet);
     /***********************************************************************************************
      * \brief Send the IGA mesh to the server
      * \param[in] _numPatches The number of the patches out of which the IGA mesh consists
@@ -144,7 +166,8 @@ public:
      * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
      * \author Fabien Pean
      ***********/
-    void sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
+    void sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector,
+            int _uNumControlPoints, double* _cpNet);
     /***********************************************************************************************
      * \brief Send data field to the server
      * \param[in] sizeOfArray size of the array (data field)

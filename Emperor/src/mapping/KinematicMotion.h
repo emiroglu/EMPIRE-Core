@@ -64,6 +64,11 @@ public:
      ***********/
     const double *getRotationMatrix() const;
     /***********************************************************************************************
+     * \brief Compute the rotation vector
+     * \author Tianyang Wang
+     ***********/
+    void getRotationVector(double *rot) const;
+    /***********************************************************************************************
      * \brief Add another motion to the current motion: R'*(R+t) + t' = R'*R + (R'*t+t')
      * \param[in] _numNodesA number of nodes of A
      * \author Tianyang Wang

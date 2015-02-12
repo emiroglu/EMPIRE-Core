@@ -41,6 +41,108 @@ const double *KinematicMotion::getRotationMatrix() const {
     return rotationMatrix;
 }
 
+void KinematicMotion::getRotationVector(double *rot) const {
+    // see Non-linear Modeling and Analysis of Solids and Structures (Steen Krenk 2009) P52
+    double angle = rotationMatrix[0] + rotationMatrix[4] + rotationMatrix[8] - 1.0;
+    angle /= 2.0;
+    if (angle > 1.0)
+        angle = 1.0;
+    else if (angle < -1.0)
+        angle = -1.0;
+
+    angle = acos(angle); // between 0 and pi
+
+    const double EPS = 1E-6;
+    if (angle < EPS) {
+        rot[0] = 0.0;
+        rot[1] = 0.0;
+        rot[2] = 0.0;
+
+        return;
+    } else if ((M_PI - angle) < EPS) {
+        const double product11 = (rotationMatrix[0 * 3 + 0] + 1.0) / 2.0;
+        const double product22 = (rotationMatrix[1 * 3 + 1] + 1.0) / 2.0;
+        const double product33 = (rotationMatrix[2 * 3 + 2] + 1.0) / 2.0;
+        const double product12 = (rotationMatrix[0 * 3 + 1] + 1.0) / 2.0;
+        const double product23 = (rotationMatrix[1 * 3 + 2] + 1.0) / 2.0;
+        const double product13 = (rotationMatrix[0 * 3 + 2] + 1.0) / 2.0;
+        const double tmp1 = sqrt(product11);
+        const double tmp2 = sqrt(product22);
+        const double tmp3 = sqrt(product33);
+
+        { // case 1 +++:
+            rot[0] = tmp1;
+            rot[1] = tmp2;
+            rot[2] = tmp3;
+            const double tmp12 = rot[0] * rot[1];
+            const double tmp13 = rot[0] * rot[2];
+            const double tmp23 = rot[1] * rot[2];
+            if (fabs(tmp12) < EPS || fabs(tmp12 - product12) < fabs(tmp12 + product12))
+                if (fabs(tmp13) < EPS || fabs(tmp13 - product13) < fabs(tmp13 + product13))
+                    if (fabs(tmp23) < EPS || fabs(tmp23 - product23) < fabs(tmp23 + product23)) {
+                        rot[0] *= M_PI;
+                        rot[1] *= M_PI;
+                        rot[2] *= M_PI;
+                        return;
+                    }
+        }
+        { // case 2 +--:
+            rot[0] = tmp1;
+            rot[1] = -tmp2;
+            rot[2] = -tmp3;
+            const double tmp12 = rot[0] * rot[1];
+            const double tmp13 = rot[0] * rot[2];
+            const double tmp23 = rot[1] * rot[2];
+            if (fabs(tmp12) < EPS || fabs(tmp12 - product12) < fabs(tmp12 + product12))
+                if (fabs(tmp13) < EPS || fabs(tmp13 - product13) < fabs(tmp13 + product13))
+                    if (fabs(tmp23) < EPS || fabs(tmp23 - product23) < fabs(tmp23 + product23)) {
+                        rot[0] *= M_PI;
+                        rot[1] *= M_PI;
+                        rot[2] *= M_PI;
+                        return;
+                    }
+        }
+        { // case 3 -+-:
+            rot[0] = -tmp1;
+            rot[1] = tmp2;
+            rot[2] = -tmp3;
+            const double tmp12 = rot[0] * rot[1];
+            const double tmp13 = rot[0] * rot[2];
+            const double tmp23 = rot[1] * rot[2];
+            if (fabs(tmp12) < EPS || fabs(tmp12 - product12) < fabs(tmp12 + product12))
+                if (fabs(tmp13) < EPS || fabs(tmp13 - product13) < fabs(tmp13 + product13))
+                    if (fabs(tmp23) < EPS || fabs(tmp23 - product23) < fabs(tmp23 + product23)) {
+                        rot[0] *= M_PI;
+                        rot[1] *= M_PI;
+                        rot[2] *= M_PI;
+                        return;
+                    }
+        }
+        { // case 4 --+:
+            rot[0] = -tmp1;
+            rot[1] = -tmp2;
+            rot[2] = tmp3;
+            const double tmp12 = rot[0] * rot[1];
+            const double tmp13 = rot[0] * rot[2];
+            const double tmp23 = rot[1] * rot[2];
+            if (fabs(tmp12) < EPS || fabs(tmp12 - product12) < fabs(tmp12 + product12))
+                if (fabs(tmp13) < EPS || fabs(tmp13 - product13) < fabs(tmp13 + product13))
+                    if (fabs(tmp23) < EPS || fabs(tmp23 - product23) < fabs(tmp23 + product23)) {
+                        rot[0] *= M_PI;
+                        rot[1] *= M_PI;
+                        rot[2] *= M_PI;
+                        return;
+                    }
+        }
+        assert(false);
+    }
+
+    double tmp = angle / 2.0 / sin(angle);
+    rot[0] = -(rotationMatrix[1 * 3 + 2] - rotationMatrix[2 * 3 + 1]) * tmp;
+    rot[1] = (rotationMatrix[0 * 3 + 2] - rotationMatrix[2 * 3 + 0]) * tmp;
+    rot[2] = -(rotationMatrix[0 * 3 + 1] - rotationMatrix[1 * 3 + 0]) * tmp;
+}
+
 void KinematicMotion::addKinematicMotion(const KinematicMotion *kinematicMotion) {
     addRotation(kinematicMotion->getRotationMatrix()); // step 1
     addTranslation(kinematicMotion->getTranslationVector()); // step 2, order must not be changed
@@ -180,15 +282,15 @@ void KinematicMotion::checkRotationCorrectness() const {
     matrixProduct(M_inv, M); // M = M_inv * M
     const double TOL = 1E-10;
     //printMatrix(M);
-    assert(fabs(M[0*3+0] - 1.0) < TOL);
-    assert(fabs(M[0*3+1] - 0.0) < TOL);
-    assert(fabs(M[0*3+2] - 0.0) < TOL);
-    assert(fabs(M[1*3+0] - 0.0) < TOL);
-    assert(fabs(M[1*3+1] - 1.0) < TOL);
-    assert(fabs(M[1*3+2] - 0.0) < TOL);
-    assert(fabs(M[2*3+0] - 0.0) < TOL);
-    assert(fabs(M[2*3+1] - 0.0) < TOL);
-    assert(fabs(M[2*3+2] - 1.0) < TOL);
+    assert(fabs(M[0 * 3 + 0] - 1.0) < TOL);
+    assert(fabs(M[0 * 3 + 1] - 0.0) < TOL);
+    assert(fabs(M[0 * 3 + 2] - 0.0) < TOL);
+    assert(fabs(M[1 * 3 + 0] - 0.0) < TOL);
+    assert(fabs(M[1 * 3 + 1] - 1.0) < TOL);
+    assert(fabs(M[1 * 3 + 2] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 0] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 1] - 0.0) < TOL);
+    assert(fabs(M[2 * 3 + 2] - 1.0) < TOL);
 }
 
 void KinematicMotion::print() const {
@@ -200,7 +302,7 @@ void KinematicMotion::print() const {
 
 void KinematicMotion::normalizeVector(double *vector) {
     double length = sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
-    assert(length > 1E-20); // 1E-20 is a casual "small" number
+    assert(length > 1E-20); // 1E-20 is a physical "small" length
     vector[0] /= length;
     vector[1] /= length;
     vector[2] /= length;

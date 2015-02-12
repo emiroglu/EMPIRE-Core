@@ -30,109 +30,113 @@ namespace EMPIRE {
 ClientMetaDatabase *ClientMetaDatabase::clientMetaDatabase = NULL;
 
 void ClientMetaDatabase::init(char *inputFileName) {
-	assert(clientMetaDatabase == NULL);
-	clientMetaDatabase = new ClientMetaDatabase(inputFileName);
+    assert(clientMetaDatabase == NULL);
+    clientMetaDatabase = new ClientMetaDatabase(inputFileName);
 }
 
 void ClientMetaDatabase::free() {
-	delete clientMetaDatabase;
-	clientMetaDatabase = NULL;
+    delete clientMetaDatabase;
+    clientMetaDatabase = NULL;
 }
 
 ClientMetaDatabase *ClientMetaDatabase::getSingleton() {
-	assert(clientMetaDatabase != NULL);
-	return clientMetaDatabase;
+    assert(clientMetaDatabase != NULL);
+    return clientMetaDatabase;
 }
 
 ClientMetaDatabase::ClientMetaDatabase(char *inputFileName) {
 
-	try {
-		inputFile = new Document(inputFileName);
-		inputFile->LoadFile();
-		/// Fill up data base
-		fillClientName();
-		fillServerPortFile();
-		fillVerbosity();
-		fillrunTimeModifiableUserDefinedText();
-	} catch (ticpp::Exception& ex) {
-		cerr << "ERROR Parser: " << ex.what() << endl;
-		exit(EXIT_FAILURE);
-	}
+    try {
+        inputFile = new Document(inputFileName);
+        inputFile->LoadFile();
+        /// Fill up data base
+        fillClientName();
+        fillServerPortFile();
+        fillVerbosity();
+        fillrunTimeModifiableUserDefinedText();
+    } catch (ticpp::Exception& ex) {
+        cerr << "ERROR Parser: " << ex.what() << endl;
+        exit (EXIT_FAILURE);
+    }
 
 }
 
 ClientMetaDatabase::~ClientMetaDatabase() {
-	delete inputFile;
+    delete inputFile;
 }
 
 std::string ClientMetaDatabase::getClientName() {
-	return (clientName);
+    return (clientName);
 }
 
 string ClientMetaDatabase::getUserDefinedText(string elementName) {
-	if(runTimeModifiableUserDefinedText==true){
-		inputFile->LoadFile();
-	}
-	Element *userDefinedBlock = inputFile->FirstChildElement()->FirstChildElement("userDefined");
-	Element *userDefined = userDefinedBlock->FirstChildElement(elementName, false);
-	if (userDefined == NULL) {
-	    cout << "!!!!!Warning in EMPIRE_API (ClientMetaDatabase::getUserDefinedText): user defined text cannot be found!" << endl;
-		return "";
-	}
-	return userDefined->GetText();
+    if (runTimeModifiableUserDefinedText == true) {
+        inputFile->LoadFile();
+    }
+    Element *userDefinedBlock = inputFile->FirstChildElement()->FirstChildElement("userDefined");
+    Element *userDefined = userDefinedBlock->FirstChildElement(elementName, false);
+    if (userDefined == NULL) {
+        cout
+                << "!!!!!Warning in EMPIRE_API (ClientMetaDatabase::getUserDefinedText): user defined text "
+                << "\"" << elementName << "\"" << " cannot be found!" << endl;
+        return "";
+    }
+    return userDefined->GetText();
 }
 
 void ClientMetaDatabase::fillClientName() {
-	Element *pXMLElement = inputFile->FirstChildElement()->FirstChildElement("code");
-	clientName = pXMLElement->GetAttribute("name");
+    Element *pXMLElement = inputFile->FirstChildElement()->FirstChildElement("code");
+    clientName = pXMLElement->GetAttribute("name");
 }
 
 void ClientMetaDatabase::fillServerPortFile() {
-	Element *pXMLElement =
-			inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
-					"portFile");
-	serverPortFile = pXMLElement->GetText();
+    Element *pXMLElement =
+            inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
+                    "portFile");
+    serverPortFile = pXMLElement->GetText();
 
 }
 
 string ClientMetaDatabase::getServerPortFile() {
-	return (serverPortFile);
+    return (serverPortFile);
 }
 
 void ClientMetaDatabase::fillVerbosity() {
-	Element *pXMLElement =
-			inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
-					"verbosity", false);
-	if (pXMLElement == NULL) {
-		verbosity= "DEBUG";
-		return;
-	}
-	verbosity = pXMLElement->GetText();
+    Element *pXMLElement =
+            inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
+                    "verbosity", false);
+    if (pXMLElement == NULL) {
+        verbosity = "DEBUG";
+        return;
+    }
+    verbosity = pXMLElement->GetText();
 }
 
 void ClientMetaDatabase::fillrunTimeModifiableUserDefinedText() {
-	Element *pXMLElement =
-			inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
-					"runTimeModifiableUserDefinedText", false);
-	if (pXMLElement == NULL) {
-		runTimeModifiableUserDefinedText= false;
-		return;
-	}
-	if (CompareStringInsensitive(pXMLElement->GetText(),"NO")){
-		runTimeModifiableUserDefinedText= false;
-		return;
-	}
+    Element *pXMLElement =
+            inputFile->FirstChildElement()->FirstChildElement("general")->FirstChildElement(
+                    "runTimeModifiableUserDefinedText", false);
+    if (pXMLElement == NULL) {
+        runTimeModifiableUserDefinedText = false;
+        return;
+    }
+    if (CompareStringInsensitive(pXMLElement->GetText(), "NO")) {
+        runTimeModifiableUserDefinedText = false;
+        return;
+    }
 
-	runTimeModifiableUserDefinedText = true;
-	cout << "EMPIRE_INFO: runTimeModifiableUserDefinedText is enabled." << endl;
+    runTimeModifiableUserDefinedText = true;
+    cout << "EMPIRE_INFO: runTimeModifiableUserDefinedText is enabled." << endl;
 }
 
-bool ClientMetaDatabase::CompareStringInsensitive(string strFirst, string strSecond)
-{
+bool ClientMetaDatabase::CompareStringInsensitive(string strFirst, string strSecond) {
     /// Convert both strings to upper case by transfrom() before compare.
-	std::transform(strFirst.begin(), strFirst.end(), strFirst.begin(), ::toupper);
-	std::transform(strSecond.begin(), strSecond.end(), strSecond.begin(), ::toupper);
-    if(strFirst == strSecond) return true; else return false;
+    std::transform(strFirst.begin(), strFirst.end(), strFirst.begin(), ::toupper);
+    std::transform(strSecond.begin(), strSecond.end(), strSecond.begin(), ::toupper);
+    if (strFirst == strSecond)
+        return true;
+    else
+        return false;
 }
 
 } /* namespace EMPIRE */

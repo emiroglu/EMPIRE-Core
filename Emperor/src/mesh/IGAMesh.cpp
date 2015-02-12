@@ -36,7 +36,8 @@ using namespace std;
 namespace EMPIRE {
 
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
-        AbstractMesh(_name, EMPIRE_Mesh_IGAMesh), numNodes(_numNodes) {
+        AbstractMesh(_name), numNodes(_numNodes) {
+    type = EMPIRE_Mesh_IGAMesh;
 }
 
 IGAMesh::~IGAMesh() {

@@ -28,8 +28,8 @@ using namespace std;
 
 namespace EMPIRE {
 
-AbstractMesh::AbstractMesh(std::string _name, EMPIRE_Mesh_type _type) :
-        name(_name), type(_type) {
+AbstractMesh::AbstractMesh(std::string _name) :
+        name(_name) {
 }
 
 AbstractMesh::~AbstractMesh() {
@@ -40,8 +40,8 @@ AbstractMesh::~AbstractMesh() {
 }
 
 DataField *AbstractMesh::getDataFieldByName(std::string dataFieldName) {
-    assert(nameToDataFieldMap.size()!=0);
-    assert(nameToDataFieldMap.find(dataFieldName)!=nameToDataFieldMap.end());
+    assert(nameToDataFieldMap.size() != 0);
+    assert(nameToDataFieldMap.find(dataFieldName) != nameToDataFieldMap.end());
     return nameToDataFieldMap.at(dataFieldName);
 }
 
