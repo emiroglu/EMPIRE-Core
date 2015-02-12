@@ -45,7 +45,7 @@ void TriangulatorAdaptor::addPoint(double x, double y, double z) {
     polygon.push_back(point);
 }
 
-void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
+bool TriangulatorAdaptor::triangulate(int *triangleIndexes) {
     int XX, YY;
     from3DTo2D(XX, YY);
 
@@ -66,8 +66,10 @@ void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
     if (poly.GetOrientation() == TPPL_CW) {
         isClockwise = true;
         poly.Invert(); // polygon has to be counter-clockwise
-    } else {
+    } else if(poly.GetOrientation() == TPPL_CCW) {
         isClockwise = false;
+    } else {
+    	return false;
     }
 
     list<TPPLPoly> triangles;
@@ -92,6 +94,7 @@ void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
         count++;
     }
     assert(count == triangles.size());
+    return true;
 }
 
 void TriangulatorAdaptor::from3DTo2D(int &XX, int &YY) {
