@@ -92,9 +92,9 @@ public:
     /***********************************************************************************************
      * \brief Compute Greville abscissae for the control point k.
      * The Greville abscissae is the knot where the control point k has the most influence.
-     * This should results as the physical shortest distance, or close to it, between curve and the control point
+     * Each related basis function is close to its maximum at the Greville abscissae
      * \param[in] cp The index of the control point in the local nurbs curve (starts from 0)
-     * \return k The knot vector value corresponding to Greville abscissae
+     * \return k The knot value corresponding to the Greville abscissae
      * \author Fabien Pean
      ***********/
     double computeGrevilleAbscissae(const int _controlPointIndex) const;
