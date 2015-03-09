@@ -624,6 +624,12 @@ public:
                 }
             }
         }
+        // Print last value if zero anyway to get right matrix size exported
+        if((*mat)[m-1][n-1] == 0) {
+            ofs << m-1 + offset << ' ';
+            ofs << n-1 + offset << ' ';
+            ofs << (*mat)[m-1][n-1] << std::endl;
+        }
         ofs << std::endl;
         ofs.close();
     }
