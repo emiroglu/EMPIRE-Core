@@ -220,7 +220,7 @@ private:
     void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using Newton-Raphson
-     * \param[in] _patchCount The index of the patch we are working on
+     * \param[in] _patchIndex The index of the patch we are working on
      * \param[in] _nodeIndex The global index of the node in the element we are working with
      * \param[in] _u The initial guess in u direction
      * \param[in] _v The initial guess in v direction
@@ -228,7 +228,7 @@ private:
      * \param[out] _minProjectionPoint The previous point computed
      * \author Fabien Pean
      ***********/
-    bool projectPointOnPatch(const int patchCount, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+    bool projectPointOnPatch(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using a brute force method
      * \param[in] _patchCount The index of the patch we are working on
@@ -237,7 +237,7 @@ private:
      * \param[in] _v The initial guess in v direction
      * \author Fabien Pean
      ***********/
-    bool forceProjectPointOnPatch(const int patchCount, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+    bool forceProjectPointOnPatch(const int patchIndex, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
 
     /***********************************************************************************************
      * \brief Compute matrices C_NN and C_NR by looping over the FE elements and processing them
@@ -256,23 +256,23 @@ private:
 
     /***********************************************************************************************
      * \brief Build the polygon that further steps will work on in case where all nodes of element lies in patch.
-     * \param[in] elemCount The id of current element
+     * \param[in] elemIndex The id of current element
      * \param[in] numNodesElementFE The nuöber of node in the current element
      * \param[in] patchIndex The index of the patch we are working on
      * \param[out] polygonUV The output polygon containing parametric coordinates on the patch from the element
      * \author Fabien Pean
      ***********/
-    void buildFullParametricElement(int elemCount, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
+    void buildFullParametricElement(int elemIndex, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
 
     /***********************************************************************************************
      * \brief Build the polygon that further steps will work on in case where some nodes of element are out of patch.
-     * \param[in] elemCount The element index
+     * \param[in] elemIndex The element index
      * \param[in] numNodesElementFE The nuöber of node in the current element
      * \param[in] patchIndex The index of the patch we are working on
      * \param[out] polygonUV The output polygon containing parametric coordinates on the patch from the element
      * \author Fabien Pean
      ***********/
-    void buildBoundaryParametricElement(int elemCount, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
+    void buildBoundaryParametricElement(int elemIndex, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV);
 
     /***********************************************************************************************
      * \brief Compute the projection of a line on patch boundary, display warnings and backup solution
@@ -390,7 +390,7 @@ public:
      * \param[in] _polygonUV	The parametric coordinates of the polygon to write in the file
      * \author Fabien Pean
      ***********/
-    void writeParametricProjectedPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
+    void writeParametricPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
 
     /***********************************************************************************************
      * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
