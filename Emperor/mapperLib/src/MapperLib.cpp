@@ -106,7 +106,7 @@ void init_FE_MortarMapper(char* mapperName,
 
 }
 
-void doConsistentMapping(char* mapperName, int dimension, int dataSize_A, const double* dataA, int dataSize_B, double* dataB){
+void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const double* dataA, int dataSizeB, double* dataB){
     assert(dimension == 1 || dimension == 3);
     
     std::string mapperNameToMap = std::string(mapperName);
@@ -117,8 +117,8 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSize_A, const 
     } else {
         // if a vector field is to be mapped x, y, z components are extracted
         if (dimension == 3){
-            int sizeDataToMap = dataSize_A/dimension;
-            int sizeDataToWrite = dataSize_B/dimension;
+            int sizeDataToMap = dataSizeA/dimension;
+            int sizeDataToWrite = dataSizeB/dimension;
 
             double** dataAtoMap = new double*[dimension];
             double** dataBtoWrite = new double*[dimension];
@@ -151,7 +151,7 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSize_A, const 
     }
 }
 
-void doConservativeMapping(char* mapperName, int dimension, int dataSize_B, const double* dataB, int dataSize_A, double* dataA){
+void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const double* dataB, int dataSizeA, double* dataA){
     assert(dimension == 1 || dimension == 3);
 
     std::string mapperNameToMap = std::string(mapperName);
@@ -161,8 +161,8 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSize_B, cons
     } else {
         // if a vector field is to be mapped x, y, z components are extracted
         if (dimension == 3){
-            int sizeDataToMap = dataSize_B/dimension;
-            int sizeDataToWrite = dataSize_A/dimension;
+            int sizeDataToMap = dataSizeB/dimension;
+            int sizeDataToWrite = dataSizeA/dimension;
 
             double** dataBtoMap = new double*[dimension];
             double** dataAtoWrite = new double*[dimension];
