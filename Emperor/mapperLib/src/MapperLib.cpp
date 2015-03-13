@@ -106,7 +106,7 @@ void init_FE_MortarMapper(char* mapperName,
 
 }
 
-void doConsistentMapping(char* mapperName, int dimension, int dataSize, const double* dataA, double* dataB){
+void doConsistentMapping(char* mapperName, int dimension, int dataSize_A, const double* dataA, int dataSize_B, double* dataB){
     assert(dimension == 1 || dimension == 3);
     
     std::string mapperNameToMap = std::string(mapperName);
@@ -117,25 +117,32 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSize, const do
     } else {
         // if a vector field is to be mapped x, y, z components are extracted
         if (dimension == 3){
-            int sizeDataToMap = dataSize/dimension;
+            int sizeDataToMap = dataSize_A/dimension;
+            int sizeDataToWrite = dataSize_B/dimension;
 
             double** dataAtoMap = new double*[dimension];
             double** dataBtoWrite = new double*[dimension];
 
             for (int i=0; i<dimension ; i++){
                 dataAtoMap[i]=new double[sizeDataToMap];
-                dataBtoWrite[i]=new double[sizeDataToMap];
+                dataBtoWrite[i]=new double[sizeDataToWrite];
             }
             for (int i=0 ; i<dimension ; i++){
-                for (int j=0 ; j<sizeDataToMap; j++){
+                for (int j=0 ; j<sizeDataToWrite; j++){
                     dataAtoMap[i][j] = dataA[j*dimension+i];
                 }
 
                 mapperList[mapperNameToMap]->consistentMapping(dataAtoMap[i], dataBtoWrite[i]);
-                for (int j=0 ; j<sizeDataToMap; j++){
+                for (int j=0 ; j<sizeDataToWrite; j++){
                     dataB[j*dimension+i] = dataBtoWrite[i][j];
                 }
             }
+            for (int i = 0; i<dimension; i++){
+                delete[] dataAtoMap[i];
+                delete[] dataBtoWrite[i];
+            }
+            delete[] dataAtoMap;
+            delete[] dataBtoWrite;
         }
         // else field is mapped as it is
         else {
@@ -144,7 +151,7 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSize, const do
     }
 }
 
-void doConservativeMapping(char* mapperName, int dimension, int dataSize, const double* dataB, double* dataA){
+void doConservativeMapping(char* mapperName, int dimension, int dataSize_B, const double* dataB, int dataSize_A, double* dataA){
     assert(dimension == 1 || dimension == 3);
 
     std::string mapperNameToMap = std::string(mapperName);
@@ -154,24 +161,31 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSize, const 
     } else {
         // if a vector field is to be mapped x, y, z components are extracted
         if (dimension == 3){
-            int sizeDataToMap = dataSize/dimension;
+            int sizeDataToMap = dataSize_B/dimension;
+            int sizeDataToWrite = dataSize_A/dimension;
 
             double** dataBtoMap = new double*[dimension];
             double** dataAtoWrite = new double*[dimension];
 
             for (int i=0; i<dimension ; i++){
                 dataBtoMap[i]=new double[sizeDataToMap];
-                dataAtoWrite[i]=new double[sizeDataToMap];
+                dataAtoWrite[i]=new double[sizeDataToWrite];
             }
             for (int i=0 ; i<dimension ; i++){
                 for (int j=0 ; j<sizeDataToMap; j++){
                     dataBtoMap[i][j] = dataB[j*dimension+i];
                 }
                 mapperList[mapperNameToMap]->conservativeMapping(dataBtoMap[i], dataAtoWrite[i]);
-                for (int j=0 ; j<sizeDataToMap; j++){
+                for (int j=0 ; j<sizeDataToWrite; j++){
                     dataA[j*dimension+i] = dataAtoWrite[i][j];
                 }
             }
+            for (int i = 0; i<dimension; i++){
+                delete[] dataBtoMap[i];
+                delete[] dataAtoWrite[i];
+            }
+            delete[] dataBtoMap;
+            delete[] dataAtoWrite;
         }
         // else field is mapped as it is
         else {
