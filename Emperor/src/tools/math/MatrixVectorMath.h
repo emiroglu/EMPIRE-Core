@@ -639,9 +639,8 @@ public:
      * \brief This prints the matrix in full style in a file ready to be imported in matlab via dlmread('filename',' ')
      * \author Fabien Pean
      ***********/
-    void printToFile(std::string filename) {
-
 #ifdef USE_INTEL_MKL
+    void printFullToFile(std::string filename) {
         size_t ii_counter;
         size_t jj_counter;
 
@@ -668,6 +667,38 @@ public:
         eigenMat->printToFile(filename);
 #endif
     }
+    /***********************************************************************************************
+     * \brief This prints the matrix in sparse format (i,j)->v in a file.
+     *  	The offset can be set to transfer from C-indexing[0] to Matlab[1]
+     *  	Can be read in Matlab by M=dlmread('filename'); followed by M=spconvert(M);
+     * \author Fabien Pean
+     ***********/
+    void printCSRToFile(std::string filename, int offset=0) {
+        std::ofstream ofs;
+        ofs.open(filename.c_str(), std::ofstream::out);
+        ofs << std::scientific;
+        for (row_iter ii = 0; ii < m; ii++) {
+            for (col_iter jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++) {
+                ofs << ii + offset << ' ';
+                ofs << (*jj).first + offset << ' ';
+                ofs << (*jj).second << std::endl;
+                if(isSymmetric && ii != (*jj).first) {
+                	ofs << (*jj).first + offset << ' ';
+                	ofs << ii + offset << ' ';
+                	ofs << (*jj).second << std::endl;
+                }
+            }
+        }
+        // Print last value if zero anyway to get right matrix size exported
+        if((*mat)[m-1][n-1] == 0) {
+            ofs << m-1 + offset << ' ';
+            ofs << n-1 + offset << ' ';
+            ofs << (*mat)[m-1][n-1] << std::endl;
+        }
+        ofs << std::endl;
+        ofs.close();
+    }
+
 private:
     /// true if a square matrix should be stored
     bool isSquare;

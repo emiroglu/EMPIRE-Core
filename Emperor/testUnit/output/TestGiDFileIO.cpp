@@ -86,7 +86,11 @@ public:
             string outputMeshFile("GiDFileIO_unittest_output.msh");
             GiDFileIO::writeDotMsh(outputMeshFile, numNodes, numElems, nodeCoors, nodeIDs,
                     numNodesPerElem, elemTable, elemIDs);
-            delete[] nodeCoors, nodeIDs, numNodesPerElem, elemTable, elemIDs;
+            delete[] nodeCoors;
+            delete[] nodeIDs;
+            delete[] numNodesPerElem;
+            delete[] elemTable;
+            delete[] elemIDs;
         }
         { // check write
             string inputMeshFile("GiDFileIO_unittest_output.msh");
@@ -119,7 +123,11 @@ public:
                 elemTableSize += numNodesPerElem[i];
             for (int i = 0; i < elemTableSize; i++)
                 CPPUNIT_ASSERT((elemTable[i] == elemTableRef[i]));
-            delete[] nodeCoors, nodeIDs, numNodesPerElem, elemTable, elemIDs;
+            delete[] nodeCoors;
+            delete[] nodeIDs;
+            delete[] numNodesPerElem;
+            delete[] elemTable;
+            delete[] elemIDs;
         }
     }
     /***********************************************************************************************
@@ -174,7 +182,8 @@ public:
             GiDFileIO::appendElementalDataToDotRes(outputResFile, resultName2, analysisName2,
                     stepNum2, type2, numElems, elemIDs, numNodesPerElem, elementalData);
 
-            delete[] nodalData, elementalData;
+            delete[] nodalData;
+            delete[] elementalData;
         }
         { // test write
             string inputResFile("GiDFileIO_unittest_output.res");
@@ -206,9 +215,14 @@ public:
                 CPPUNIT_ASSERT(elementalData[i*3+1] == 0.0);
                 CPPUNIT_ASSERT(elementalData[i*3+2] == 0.0);
             }
-            delete[] nodalData, elementalData;
+            delete[] nodalData;
+            delete[] elementalData;
         }
-        delete[] nodeCoors, nodeIDs, numNodesPerElem, elemTable, elemIDs;
+        delete[] nodeCoors;
+        delete[] nodeIDs;
+        delete[] numNodesPerElem;
+        delete[] elemTable;
+        delete[] elemIDs;
     }
 CPPUNIT_TEST_SUITE( TestGiDFileIO );
         CPPUNIT_TEST( readWriteGiDMsh);

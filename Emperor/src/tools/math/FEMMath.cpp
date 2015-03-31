@@ -286,6 +286,17 @@ bool computeLocalCoorInTriangle(const double *triangle, int planeToProject, cons
     EMPIRE::MathLibrary::solve3x3LinearSystem(A, planeToProject, localCoor);
 
     // make sure the sum is 1.0
+    if (fabs(localCoor[0] + localCoor[1] + localCoor[2] -1.0) > 1E-12) {
+        cout << "Error in computing local coordinates in triangle!" << endl;
+        cout << "Triangle: " << endl;
+        for (int i=0; i<3; i++) {
+            cout << "   " << triangle[i*3+0] << "   " << triangle[i*3+1] << "   " << triangle[i*3+2] << endl;
+        }
+        cout << "Point: " << endl;
+        cout << "   " << point[0] << "   " << point[1] << "   " << point[2] << endl;
+        cout << "Local coordinates: " << endl;
+        cout << "   " << localCoor[0] << "   " << localCoor[1] << "   " << localCoor[2] << endl;
+    }
     assert(fabs(localCoor[0] + localCoor[1] + localCoor[2] -1.0) < 1E-12);
     localCoor[0] = 1.0 - localCoor[1] - localCoor[2];
 

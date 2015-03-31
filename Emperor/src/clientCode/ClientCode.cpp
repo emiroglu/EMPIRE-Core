@@ -25,6 +25,7 @@
 #include "DataField.h"
 #include "AbstractMesh.h"
 #include "FEMesh.h"
+#include "SectionMesh.h"
 #include "IGAMesh.h"	 	
 #include "IGAPatchSurface.h"
 #include "Signal.h"
@@ -75,6 +76,50 @@ void ClientCode::recvFEMesh(std::string meshName, bool triangulateAll) {
     serverComm->receiveFromClientBlocking<int>(name, numElems, mesh->numNodesPerElem);
     mesh->initElems();
     serverComm->receiveFromClientBlocking<int>(name, mesh->elemsArraySize, mesh->elems);
+    nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, mesh));
+    { // output to shell
+        DEBUG_OUT() << (*mesh) << endl;
+        mesh->computeBoundingBox();
+        INFO_OUT() << mesh->boundingBox << endl;
+    }
+}
+
+void ClientCode::recvSectionMesh(std::string meshName, bool triangulateAll) {
+    assert(serverComm != NULL);
+    assert(nameToMeshMap.find(meshName) == nameToMeshMap.end());
+
+    const int BUFFER_SIZE = 2;
+    int meshInfo[BUFFER_SIZE]; // number of nodes, number of elements, number of nodes per element
+    { // output to shell
+        HEADING_OUT(3, "ClientCode", "receiving mesh (" + meshName + ") from [" + name + "]...",
+                infoOut);
+    }
+    serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE, meshInfo);
+    int numNodes = meshInfo[0];
+    int numElems = meshInfo[1];
+
+    SectionMesh *mesh = new SectionMesh(meshName, numNodes, numElems, triangulateAll);
+    serverComm->receiveFromClientBlocking<double>(name, numNodes * 3, mesh->nodes);
+    serverComm->receiveFromClientBlocking<int>(name, numNodes, mesh->nodeIDs);
+    serverComm->receiveFromClientBlocking<int>(name, numElems, mesh->numNodesPerElem);
+    mesh->initElems();
+    serverComm->receiveFromClientBlocking<int>(name, mesh->elemsArraySize, mesh->elems);
+
+    const int SECTION_INFO_SIZE = 4;
+    int sectionInfo[4]; // number of sections, number of root section nodes, number of normal section nodes, number of tip section nodes
+    serverComm->receiveFromClientBlocking<int>(name, SECTION_INFO_SIZE, sectionInfo);
+    mesh->setNumSections(sectionInfo[0]);
+    mesh->setNumRootSectionNodes(sectionInfo[1]);
+    mesh->setNumNormalSectionNodes(sectionInfo[2]);
+    mesh->setNumTipSectionNodes(sectionInfo[3]);
+
+    double rotationGlobal2Root[9];
+    double translationGlobal2Root[3];
+    serverComm->receiveFromClientBlocking<double>(name, 9, rotationGlobal2Root);
+    serverComm->receiveFromClientBlocking<double>(name, 3, translationGlobal2Root);
+    mesh->setRotationGlobal2Root(rotationGlobal2Root);
+    mesh->setTranslationGlobal2Root(translationGlobal2Root);
+
     nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, mesh));
     { // output to shell
         DEBUG_OUT() << (*mesh) << endl;

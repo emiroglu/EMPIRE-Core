@@ -87,6 +87,8 @@ void DataFieldIntegrationFilter::init() {
     assert(inDataField->dimension == outDataField->dimension);
     assert(inDataField->location == outDataField->location);
     assert(inDataField->location == EMPIRE_DataField_atNode);
+    assert(inDataField->dimension != EMPIRE_DataField_doubleVector);
+    assert(outDataField->dimension != EMPIRE_DataField_doubleVector);
     if (inDataField->typeOfQuantity == EMPIRE_DataField_field
             && outDataField->typeOfQuantity == EMPIRE_DataField_fieldIntegral) {
         doIntegration = true;

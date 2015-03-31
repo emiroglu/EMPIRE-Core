@@ -378,7 +378,8 @@ public:
         }
         delete mapper;
         delete filterConsistent;
-        delete df_A, df_B;
+        delete df_A;
+        delete df_B;
     }
     /***********************************************************************************************
      * \brief Test case: mapping from meshTri1 to meshQuad2
@@ -421,7 +422,8 @@ public:
         }
         delete mapper;
         delete filterConsistent;
-        delete df_A, df_B;
+        delete df_A;
+        delete df_B;
     }
     /***********************************************************************************************
      * \brief Test case: mapping from meshQuad1 to meshTri2
@@ -464,7 +466,8 @@ public:
 
         delete mapper;
         delete filterConsistent;
-        delete df_A, df_B;
+        delete df_A;
+        delete df_B;
     }
     /***********************************************************************************************
      * \brief Test case: mapping from meshTri1 to meshTri2
@@ -507,7 +510,8 @@ public:
 
         delete mapper;
         delete filterConsistent;
-        delete df_A, df_B;
+        delete df_A;
+        delete df_B;
     }
     /***********************************************************************************************
      * \brief Test case: mapping from meshQuad2 to meshTri2
@@ -552,7 +556,8 @@ public:
 
         delete mapper;
         delete filterConsistent;
-        delete df_A, df_B;
+        delete df_A;
+        delete df_B;
     }
 
 CPPUNIT_TEST_SUITE( TestMappingUnSymmetric );

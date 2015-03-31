@@ -129,7 +129,10 @@ public:
     }
     void tearDown() {
         delete mesh;
-        delete atElemCentroidScalar, atElemCentroidVector, atNodeScalar, atNodeVector;
+        delete atElemCentroidScalar;
+        delete atElemCentroidVector;
+        delete atNodeScalar;
+        delete atNodeVector;
     }
     /********//**
      ***********************************************************************************************

@@ -31,7 +31,8 @@ namespace EMPIRE {
 using namespace std;
 
 FEMesh::FEMesh(std::string _name, int _numNodes, int _numElems, bool _triangulateAll) :
-        AbstractMesh(_name, EMPIRE_Mesh_FEMesh), numNodes(_numNodes), numElems(_numElems) {
+        AbstractMesh(_name), numNodes(_numNodes), numElems(_numElems) {
+    type = EMPIRE_Mesh_FEMesh;
     boundingBox.isComputed(false);
     nodes = new double[numNodes * 3];
     nodeIDs = new int[numNodes];

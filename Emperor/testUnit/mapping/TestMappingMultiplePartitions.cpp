@@ -404,7 +404,10 @@ public:
                 infoOut << *df_A2;
             delete filterConservative;
         }
-        delete df_A1, df_B1, df_A2, df_B2;
+        delete df_A1;
+        delete df_B1;
+        delete df_A2;
+        delete df_B2;
         delete mapper;
     }
     /***********************************************************************************************
@@ -481,7 +484,10 @@ public:
                 infoOut << *df_A2;
             delete filterConservative;
         }
-        delete df_A1, df_B1, df_A2, df_B2;
+        delete df_A1;
+        delete df_B1;
+        delete df_A2;
+        delete df_B2;
         delete mapper;
     }
     /***********************************************************************************************
@@ -563,7 +569,10 @@ public:
                 infoOut << *df_A2;
             delete filterConservative;
         }
-        delete df_A1, df_B1, df_A2, df_B2;
+        delete df_A1;
+        delete df_B1;
+        delete df_A2;
+        delete df_B2;
         delete mapper;
     }
     /***********************************************************************************************
@@ -650,7 +659,10 @@ public:
                 infoOut << *df_A2;
             delete filterConservative;
         }
-        delete df_A1, df_B1, df_A2, df_B2;
+        delete df_A1;
+        delete df_B1;
+        delete df_A2;
+        delete df_B2;
         delete mapper;
     }
 CPPUNIT_TEST_SUITE( TestMappingMultiplePartitions );

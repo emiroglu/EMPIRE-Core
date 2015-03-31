@@ -121,24 +121,26 @@ void init_FE_BarycentricInterpolationMapper(char* mapperName,
  * \param[in] mapperName name of the mapper
  *
  * \param[in] dimension 1 or 3 dimensional data
- * \param[in] dataSize size of data for fieldA
+ * \param[in] dataSizeA size of data for fieldA
  * \param[in] dataA the field of mesh A
+ * \param[in] dataSizeB size of data for fieldB
  * \param[out] dataB the field of mesh B
  * \author Altug Emiroglu
 ***********/
-void doConsistentMapping(char* mapperName, int dimension, int dataSize, const double* dataA, double* dataB);
+void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const double* dataA, int dataSizeB, double* dataB);
 
 /***********************************************************************************************
  * \brief Performs conservative mapping on fields (e.g. displacements or tractions) with the previously initialized mapper with name mapperName
  * \param[in] mapperName name of the mapper
  *
  * \param[in] dimension 1 or 3 dimensional data
- * \param[in] dataSize size of data for fieldB
+ * \param[in] dataSizeB size of data for fieldB
  * \param[in] dataB the field of mesh B
+ * \param[in] dataSizeA size of data for fieldA
  * \param[out] dataA the field of mesh A
  * \author Altug Emiroglu
 ***********/
-void doConservativeMapping(char* mapperName, int dimension, int dataSize, const double* dataB, double* dataA);
+void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const double* dataB, int dataSizeA, double* dataA);
 
 /***********************************************************************************************
  * \brief Deletes a previously initialized mapper

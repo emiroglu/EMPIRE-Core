@@ -107,7 +107,7 @@ public:
     int elemsArraySize;
     /// IDs of all elements (now it is not received from clients, therefore it is fixed as 1,2,3...)
     int *elemIDs;
-private:
+protected:
     /// to be triangualted or not
     bool tobeTriangulated;
     /// the triangulated mesh
@@ -118,7 +118,7 @@ private:
 
 /***********************************************************************************************
  * \brief Revert the surface normal of the mesh
- * \param[in/out] mesh the mesh
+ * \param[in,out] mesh the mesh
  * \author Tianyang Wang
  ***********/
 void revertSurfaceNormalOfFEMesh(FEMesh *mesh);

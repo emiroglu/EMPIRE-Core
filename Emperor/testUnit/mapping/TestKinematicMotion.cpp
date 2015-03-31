@@ -161,12 +161,86 @@ public:
         delete km;
     }
 
+    /***********************************************************************************************
+     * \brief Test computation of rotation vector according to rotation matrix
+     ***********/
+    void testRotationVector() {
+        const double TOL = 1E-10;
+        { // a general angle
+            KinematicMotion rot1;
+            KinematicMotion rot2;
+
+            double xAxis[] = { 1.0, 0.0, 0.0 };
+            rot1.addRotation(xAxis, true, M_PI / 6.0);
+
+            double zAxis[] = { 0.0, 0.0, 1.0 };
+            rot1.addRotation(zAxis, true, M_PI / 3.0);
+
+            //rot1.print();
+
+            double rotationVector[3];
+            rot1.getRotationVector(rotationVector);
+
+            double angle = sqrt(
+                    rotationVector[0] * rotationVector[0] + rotationVector[1] * rotationVector[1]
+                            + rotationVector[2] * rotationVector[2]);
+            if (angle < 1E-20) // 1E-20 is a physical "small" length, or a physical small angle
+                angle = 0.0;
+            for (int j = 0; j < 3; j++)
+                rotationVector[j] /= angle;
+
+            rot2.addRotation(rotationVector, true, angle);
+
+            //rot2.print();
+
+            for (int i = 0; i < 9; i++) {
+                CPPUNIT_ASSERT(
+                        fabs(rot1.getRotationMatrix()[i] - rot2.getRotationMatrix()[i]) < TOL);
+            }
+        }
+        { // angle 0 and pi
+            KinematicMotion rot;
+            double rotVec[3];
+
+            double xAxis[] = { 1.0, 0.0, 0.0 };
+            rot.addRotation(xAxis, true, 1E-20);
+            rot.getRotationVector(rotVec);
+
+            for (int i = 0; i < 3; i++) {
+                CPPUNIT_ASSERT(rotVec[i] == 0.0);
+            }
+
+            rot.resetRotation();
+            rot.addRotation(xAxis, true, M_PI - 1E-20);
+            rot.getRotationVector(rotVec);
+            CPPUNIT_ASSERT(fabs(rotVec[0] - M_PI) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[1] - 0.0) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[2] - 0.0) < TOL);
+
+            double tmpAxis1[] = { 1.0, 1.0, 0.0 };
+            rot.resetRotation();
+            rot.addRotation(tmpAxis1, false, M_PI - 1E-20);
+            rot.getRotationVector(rotVec);
+            CPPUNIT_ASSERT(fabs(rotVec[0] - sqrt(2.0)/2.0*M_PI) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[1] - sqrt(2.0)/2.0*M_PI) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[2] - 0.0) < TOL);
+
+            double tmpAxis2[] = { 1.0, 1.0, 1.0 };
+            rot.resetRotation();
+            rot.addRotation(tmpAxis2, false, M_PI - 1E-20);
+            rot.getRotationVector(rotVec);
+            CPPUNIT_ASSERT(fabs(rotVec[0] - sqrt(3.0)/3.0*M_PI) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[1] - sqrt(3.0)/3.0*M_PI) < TOL);
+            CPPUNIT_ASSERT(fabs(rotVec[2] - sqrt(3.0)/3.0*M_PI) < TOL);
+        }
+    }
+
     CPPUNIT_TEST_SUITE (TestKinematicMotion);
     CPPUNIT_TEST (testConstructor);
     CPPUNIT_TEST (testMotionAndCoorTransformation);
     CPPUNIT_TEST (testAddMotion);
     CPPUNIT_TEST (testAddRotation);
-    CPPUNIT_TEST_SUITE_END();
+    CPPUNIT_TEST (testRotationVector);CPPUNIT_TEST_SUITE_END();
 };
 
 } /* namespace EMPIRE */

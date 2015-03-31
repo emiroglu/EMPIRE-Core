@@ -125,12 +125,16 @@ struct structMapper {
             int numGPQuad;
         } integration;
     };
+    struct structCurveSurfaceMapper {
+        EMPIRE_CurveSurfaceMapper_type type;
+    };
     std::string name;
     structMeshRef meshRefA;
     structMeshRef meshRefB;
     EMPIRE_Mapper_type type;
     structMortarMapper mortarMapper;
     structIGAMortarMapper igaMortarMapper;
+    structCurveSurfaceMapper curveSurfaceMapper;
 };
 
 struct structCouplingAlgorithm {

@@ -39,10 +39,9 @@ public:
     /***********************************************************************************************
      * \brief Constructor, allocating the storage of the mesh
      * \param[in] _name name of the mesh
-     * \param[in] _type type of the mesh
      * \author Tianyang Wang
      ***********/
-    AbstractMesh(std::string _name, EMPIRE_Mesh_type _type);
+    AbstractMesh(std::string _name);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang
@@ -76,7 +75,7 @@ public:
     /// the map of data fields
     std::map<std::string, DataField*> nameToDataFieldMap;
     /// type of the mesh
-    const EMPIRE_Mesh_type type;
+    EMPIRE_Mesh_type type;
 
     /// the boundingBox of the mesh
     AABB boundingBox;
