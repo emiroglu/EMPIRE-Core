@@ -360,6 +360,9 @@ public:
         filterConsistent->filtering();
         if (debugMe)
             infoOut << *df_B;
+	//infoOut << *df_B;
+	//infoOut << *df_A;
+	
         {
             // fractional numbers are computed by:
             // http://www.mindspring.com/~alanh/fracs.html
