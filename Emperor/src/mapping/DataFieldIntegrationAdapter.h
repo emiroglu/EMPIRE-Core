@@ -1,5 +1,5 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Munich
+ *  Fabien Pean, Munich
  *
  *  All rights reserved.
  *
@@ -19,64 +19,78 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 /***********************************************************************************************//**
- * \file DataFieldIntegrationFilter.h
- * This file holds the class DataFieldIntegrationFilter
- * \date 2/7/2013
+ * \file DataFieldIntegrationAdapter.h
+ * This file holds the class DataFieldIntegrationAdapter
+ * \date 1/4/2015
  **************************************************************************************************/
-#ifndef DATAFIELDINTEGRATIONFILTER_H_
-#define DATAFIELDINTEGRATIONFILTER_H_
 
-#include "AbstractFilter.h"
+#ifndef DATAFIELDINTEGRATIONADAPTER_H_
+#define DATAFIELDINTEGRATIONADAPTER_H_
 
 namespace EMPIRE {
 
 class AbstractMesh;
-class DataFieldIntegrationAdapter;
+class FEMesh;
+class IGAMesh;
+class AbstractDataFieldIntegration;
 
 /********//**
- * \brief Class DataFieldIntegrationFilter is an operator from traction to force or vice versa
- * \author Tianyang Wang
+ * \brief Class DataFieldIntegrationAdapter is an adapter for different kind of DataFieldIntegration depending of input mesh type
+ * \author Fabien Pean
  ***********/
-class DataFieldIntegrationFilter: public AbstractFilter {
+class DataFieldIntegrationAdapter {
 public:
     /***********************************************************************************************
      * \brief Constructor
-     * \author Tianyang Wang
+     * \param[in] _name name of the mapper
+     * \param[in] _mesh mesh
+     * \author Fabien Pean
      ***********/
-    DataFieldIntegrationFilter(AbstractMesh *mesh);
+	DataFieldIntegrationAdapter(AbstractMesh *_mesh);
     /***********************************************************************************************
      * \brief Destructor
-     * \author Tianyang Wang
+     * \author Fabien Pean
      ***********/
-    virtual ~DataFieldIntegrationFilter();
+	virtual ~DataFieldIntegrationAdapter();
     /***********************************************************************************************
-     * \brief Copy the input to the output, if not enough input data, fill by 0
-     * \author Tianyang Wang
+     * \brief Initialize initDataFieldIntegrationMesh
+     * \author Fabien Pean
      ***********/
-    void filtering();
+    void initDataFieldIntegrationMesh(FEMesh *_mesh);
     /***********************************************************************************************
-     * \brief Initialize data according to the inputs and outputs
+     * \brief Initialize initDataFieldIntegrationNURBS
+     * \author Fabien Pean
+     ***********/
+    void initDataFieldIntegrationNURBS(IGAMesh *_mesh);
+    /***********************************************************************************************
+     * \brief Do integration (massMatrix*tractions=forces).
+     * \param[in] tractions tractions (in one direction)
+     * \param[out] forces forces (in one direction)
      * \author Tianyang Wang
      ***********/
-    void init();
-
+    void integrate(const double *tractions, double *forces);
+    /***********************************************************************************************
+     * \brief Do deintegration (massMatrix^(-1)*forces=tractions).
+     * \param[in] forces forces (in one direction)
+     * \param[out] tractions tractions (in one direction)
+     * \author Tianyang Wang
+     ***********/
+    void deIntegrate(const double *forces, double *tractions);
+    /***********************************************************************************************
+     * \brief is it mesh or not
+     * \param[in] _mesh mesh
+     * \return true if it is mesh
+     * \author Tianyang Wang
+     ***********/
+    inline bool isMesh(AbstractMesh *_mesh) {
+        return mesh == _mesh;
+    };
 private:
-    /// whether to do integration or
-    bool doIntegration;
-    /// the mesh the filter is applied onto
-    AbstractMesh* mesh;
-    /// the actual one who performs integration
-    DataFieldIntegrationAdapter *dataFieldIntegrationAdapter;
-    /***********************************************************************************************
-     * \brief Do integration (massMatrix*input=output).
-     * \author Tianyang Wang
-     ***********/
-    void integrate();
-    /***********************************************************************************************
-     * \brief Do deintegration (massMatrix^(-1)*input=output).
-     * \author Tianyang Wang
-     ***********/
-    void deIntegrate();
+    /// the adapted mapper
+    AbstractDataFieldIntegration *dataFieldIntegrationImpl;
+    /// mesh
+    const AbstractMesh *mesh;
 };
+
 } /* namespace EMPIRE */
-#endif /* DATAFIELDINTEGRATIONFILTER_H_ */
+#endif /* DATAFIELDINTEGRATIONADAPTER_H_ */

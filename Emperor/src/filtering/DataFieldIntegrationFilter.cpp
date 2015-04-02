@@ -25,45 +25,21 @@
 #endif
 
 #include "DataFieldIntegrationFilter.h"
-#include "AbstractMesh.h"
-#include "FEMesh.h"
-//#include "MortarMath.h"
-// Edit Aditya
-//#include "MathLibrary.h"
+#include "DataFieldIntegrationAdapter.h"
 #include "ConnectionIO.h"
 #include "DataField.h"
-#include "DataFieldIntegration.h"
-#include "AuxiliaryParameters.h"
-#include <map>
 
 using namespace std;
 
 namespace EMPIRE {
 
-DataFieldIntegrationFilter::DataFieldIntegrationFilter(AbstractMesh *_mesh) :
-        mesh(_mesh) {
-    assert(mesh->type == EMPIRE_Mesh_FEMesh);
-    FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
-    FEMesh *actualMesh = NULL;
-    if (feMesh->triangulate() == NULL)
-        actualMesh = feMesh;
-    else
-        actualMesh = feMesh->triangulate();
-    int numNodes = actualMesh->numNodes;
-    int *nodeIDs = actualMesh->nodeIDs;
-    double *nodes = actualMesh->nodes;
-    int numElems = actualMesh->numElems;
-    int *numNodesPerElem = actualMesh->numNodesPerElem;
-    int *elems = actualMesh->elems;
-
-    dataFieldIntegration = new DataFieldIntegration(numNodes, numElems, numNodesPerElem, nodes,
-            nodeIDs, elems);
-
-    dataFieldIntegration->mklSetNumThreads = AuxiliaryParameters::mklSetNumThreads;
+DataFieldIntegrationFilter::DataFieldIntegrationFilter(AbstractMesh *_mesh):
+	mesh(_mesh) {
+	dataFieldIntegrationAdapter = new DataFieldIntegrationAdapter(_mesh);
 }
 
 DataFieldIntegrationFilter::~DataFieldIntegrationFilter() {
-    delete dataFieldIntegration;
+    delete dataFieldIntegrationAdapter;
 }
 
 void DataFieldIntegrationFilter::filtering() {
@@ -111,11 +87,10 @@ void DataFieldIntegrationFilter::integrate() {
     double *inDataFieldDOFi = new double[n];
     double *outDataFieldDOFi = new double[n];
     int numDOFs = inDataField->dimension;
-    char up = 'u';
     for (int i = 0; i < numDOFs; i++) {
         for (int j = 0; j < inDataField->numLocations; j++)
             inDataFieldDOFi[j] = inDataField->data[j * numDOFs + i];
-        dataFieldIntegration->integrate(inDataFieldDOFi, outDataFieldDOFi);
+        dataFieldIntegrationAdapter->integrate(inDataFieldDOFi, outDataFieldDOFi);
         for (int j = 0; j < n; j++)
             outDataField->data[j * numDOFs + i] = outDataFieldDOFi[j];
     }
@@ -130,11 +105,10 @@ void DataFieldIntegrationFilter::deIntegrate() {
     double *inDataFieldDOFi = new double[n];
     double *outDataFieldDOFi = new double[n];
     int numDOFs = inDataField->dimension;
-    char up = 'u';
     for (int i = 0; i < numDOFs; i++) {
         for (int j = 0; j < inDataField->numLocations; j++)
             inDataFieldDOFi[j] = inDataField->data[j * numDOFs + i];
-        dataFieldIntegration->deIntegrate(inDataFieldDOFi, outDataFieldDOFi);
+        dataFieldIntegrationAdapter->deIntegrate(inDataFieldDOFi, outDataFieldDOFi);
         for (int j = 0; j < n; j++)
             outDataField->data[j * numDOFs + i] = outDataFieldDOFi[j];
     }
