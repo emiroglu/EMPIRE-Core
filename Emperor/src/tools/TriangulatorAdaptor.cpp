@@ -76,6 +76,13 @@ bool TriangulatorAdaptor::triangulate(int *triangleIndexes) {
 
     TPPLPartition triangulator; // see http://code.google.com/p/polypartition/
     int success = triangulator.Triangulate_OPT(&poly, &triangles);
+    if (success != 1) {
+        cout << "Error: polygon cannot be triangulated!" << endl;
+        cout << "Polygon:" << endl;
+        for (int i=0; i<polygon.size(); i++) {
+            cout << polygon[i][0] << "   " << polygon[i][1] << "   " << polygon[i][2] << endl;
+        }
+    }
     assert(success == 1);
     assert(triangles.size() +2 == polygon.size());
     int count = 0;
