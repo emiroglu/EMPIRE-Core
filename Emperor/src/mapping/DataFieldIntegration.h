@@ -26,22 +26,25 @@
 #ifndef DATAFIELDINTEGRATION_H_
 #define DATAFIELDINTEGRATION_H_
 
-namespace EMPIRE{
-namespace MathLibrary{
-template<class T>
-class SparseMatrix;
-}
-}
+#include "AbstractDataFieldIntegration.h"
 
 namespace EMPIRE {
+
+namespace MathLibrary
+{
+	template<class T>
+	class SparseMatrix;
+}
+class FEMesh;
+
 /********//**
  * \brief Class DataFieldIntegration is an operator from traction to force or vice versa
  * \author Tianyang Wang
  ***********/
-class DataFieldIntegration {
+class DataFieldIntegration : public AbstractDataFieldIntegration {
 public:
     /***********************************************************************************************
-     * \brief Constructor
+     * \brief Legacy constructor for backward compatibility
      * \param[in] _numNodes number of nodes
      * \param[in] _numElems number of elements
      * \param[in] _numNodesPerElem number of nodes per element
@@ -53,43 +56,18 @@ public:
     DataFieldIntegration(int _numNodes, int _numElems, const int *_numNodesPerElem,
             const double *_nodes, const int *_nodeIDs, const int *_elems);
     /***********************************************************************************************
+     * \brief Constructor
+     * \param[in] _mesh FE mesh on which integration is proceeding
+     * \author Fabien Pean
+     ***********/
+    DataFieldIntegration(FEMesh* mesh);
+    /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang
      ***********/
     virtual ~DataFieldIntegration();
-    /***********************************************************************************************
-     * \brief Do integration (massMatrix*tractions=forces).
-     * \param[in] tractions tractions (in one direction)
-     * \param[out] forces forces (in one direction)
-     * \author Tianyang Wang
-     ***********/
-    void integrate(const double *tractions, double *forces);
-    /***********************************************************************************************
-     * \brief Do deintegration (massMatrix^(-1)*forces=tractions).
-     * \param[in] forces forces (in one direction)
-     * \param[out] tractions tractions (in one direction)
-     * \author Tianyang Wang
-     ***********/
-    void deIntegrate(const double *forces, double *tractions);
-    /// defines number of threads used for MKL routines
-    static int mklSetNumThreads;
+
 private:
-    /// number of nodes
-    int numNodes;
-    /// number of elements
-    int numElems;
-    /// number of nodes per element
-    const int *numNodesPerElem;
-    /// coordinates of nodes
-    const double *nodes;
-    /// IDs of nodes
-    const int *nodeIDs;
-    /// element table
-    const int *elems;
-
-    /// massMatrix csr format
-    EMPIRE::MathLibrary::SparseMatrix<double> *massMatrix;
-
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
     /// number of Gauss points used for computing quad element mass matrix
