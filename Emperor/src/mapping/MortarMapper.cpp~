@@ -900,7 +900,7 @@ void MortarMapper::computeDualCoeffMatrix(const double *elem, int numNodesElem,
     	coeffMatrix[7] = result(3,1);
 
     	coeffMatrix[8]  = result(0,2);
-    	coeffMatrix[9]  = result(1,2);
+    	coeffMatrix[9] = result(1,2);
     	coeffMatrix[10] = result(2,2);
     	coeffMatrix[11] = result(3,2);
 

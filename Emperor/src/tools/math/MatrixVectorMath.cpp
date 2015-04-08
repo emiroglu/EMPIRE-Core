@@ -22,10 +22,6 @@
 #include <mkl.h>
 #endif
 
-#ifndef USE_INTEL_MKL
-#include "cblas.h"
-#endif
-
 #include "MatrixVectorMath.h"
 #include "ConstantsAndVariables.h"
 #include "DebugMath.h"
@@ -70,7 +66,7 @@ void copyDenseVector(double *vec1, const double *vec2, const int elements){
  * \edit Aditya Ghantasala (mixture of square2normVector function written by Andreas)
  ***********/
 double vector2norm(const double *vec1, const int elements){
-#ifndef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
 	return cblas_dnrm2 (elements, vec1, 1);
 #else
 		assert(vec1 != NULL);
@@ -98,7 +94,7 @@ double vector2norm(const double *vec1, const int elements){
  * \eidt Aditya Ghantasala (Adding my implementation to remove dependency on intel)
  ***********/
 void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a, const int elements){
-#ifndef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
 	cblas_daxpy (elements, a, vec2, 1, vec1, 1);
 #else
 	assert(vec1 != NULL);
@@ -119,7 +115,7 @@ void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a
  * \edit Aditya Ghantasala
  ***********/
 void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements){
-#ifndef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
 	cblas_dscal (elements, a, vec1, 1);
 #else
 	for(int i=0; i<elements; i++){
@@ -139,7 +135,7 @@ void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const 
  ***********/
 double computeDenseEuclideanNorm(int _length, double* _Pi, double* _Pj) {
 
-#ifndef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
 	double vec1[_length];
 	for(int i= 0; i<_length; i++){
 		vec1[i] = _Pi[i] - _Pj[i];
@@ -178,7 +174,7 @@ double computeDenseDotProduct(int _length, double* _vecI, double* _vecJ) {
 	assert(_length >= 0);
 	assert(_vecI != NULL);
 	assert(_vecJ != NULL);
-#ifndef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
 	return cblas_ddot(_length, _vecI, 1, _vecJ, 1);
 #else
     // Initialize the dot product

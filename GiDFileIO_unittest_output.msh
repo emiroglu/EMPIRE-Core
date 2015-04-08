@@ -1,0 +1,17 @@
+MESH "mesh_triangles" dimension 3 Elemtype Triangle Nnode 3
+Coordinates
+3	1	1	0
+5	0	1	0
+6	0.5	1.5	0
+End Coordinates
+Elements
+2	5	3	6
+End Elements
+MESH "mesh_quads" dimension 3 Elemtype Quadrilateral Nnode 4
+Coordinates
+1	0	0	0
+2	1	0	0
+End Coordinates
+Elements
+1	1	2	3	5
+End Elements
