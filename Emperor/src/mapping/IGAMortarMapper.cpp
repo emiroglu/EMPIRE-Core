@@ -1222,6 +1222,7 @@ void IGAMortarMapper::reduceCnn() {
 	tableC_NN.reserve(numNodesMaster);
 	/// Build the index table
 	for(int i=0;i<numNodesMaster;i++) {
+		/// Remove empty rows
 		if(!C_NN->isRowEmpty(i))
 			tableC_NN.push_back(i);
 	}
@@ -1534,7 +1535,7 @@ void IGAMortarMapper::checkConsistency() {
     DEBUG_OUT()<<"### Check consistency ###"<<endl;
     DEBUG_OUT()<<"Norm of output field = "<<norm<<endl;
     /// WARNING hard coded tolerance. Used to decide if mapping is valid or not
-    if(fabs(norm-1.0)>1e-6) {
+    if(fabs(norm-1.0)>1e-1) {
     	ERROR_OUT()<<"Coupling not consistent !"<<endl;
     	ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
     	exit(-1);
