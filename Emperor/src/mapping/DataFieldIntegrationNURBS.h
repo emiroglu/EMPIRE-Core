@@ -61,7 +61,18 @@ public:
      ***********/
     virtual ~DataFieldIntegrationNURBS();
 
+    /***********************************************************************************************
+     * \brief Do deintegration (massMatrix^(-1)*forces=tractions).
+     * \param[in] forces forces (in one direction)
+     * \param[out] tractions tractions (in one direction)
+     * \author Fabien Pean
+     ***********/
+    virtual void deIntegrate(const double *forces, double *tractions);
+
 private:
+    /// Table to reduced mass matrix
+    std::vector<int> tableCnn;
+
     /***********************************************************************************************
      * \brief Clip the input polygon by the trimming window of the patch
      * \param[in] _thePatch 	The patch for which trimming curves are used
@@ -106,7 +117,13 @@ private:
      * \param[in] _spanV 			The knot span index in the v-direction where basis will be evaluated
      * \author Fabien Pean, Chenshen Wu
      ***********/
-    void integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV, int _spanU, int _spanV);
+    void assemble(IGAPatchSurface* _thePatch, Polygon2D _polygonUV, int _spanU, int _spanV);
+
+    /***********************************************************************************************
+	 * \brief Reduce Cnn matrix to only non-zeros rows
+	 * \author Fabien Pean
+	 ***********/
+    void reduceCnn();
 
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;

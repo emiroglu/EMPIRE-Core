@@ -38,6 +38,7 @@ DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh) {
 	numNodes=_mesh->getNumNodes();
     massMatrix = new EMPIRE::MathLibrary::SparseMatrix<double>(numNodes,false);
 
+    /// 1. Loop over every patch to compute the matrix
 	for(unsigned int i=0; i< _mesh->getNumPatches(); i++) {
 		IGAPatchSurface* patch = _mesh->getSurfacePatch(i);
 		Polygon2D polygonUV(4);
@@ -51,32 +52,37 @@ DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh) {
 			polygonUV[2]=make_pair(u1,v1);
 			polygonUV[3]=make_pair(u0,v1);
 		}
-		/// 1.1 Init list of trimmed polyggons in case patch is not trimmed
-		ListPolygon2D listTrimmedPolygonUV(1, polygonUV);
-		/// 1.2 Apply trimming
-		if(patch->isTrimmed())
-			clipByTrimming(patch,polygonUV,listTrimmedPolygonUV);
+		/**************************/
+		/// WARNING change order, clip by knot span first and then by trimming ///
+		/**************************/
+
+		/// 1.1 Clip by knot span
+		Polygon2D listSpan;
+		ListPolygon2D listKnotPolygonUV;
+		clipByKnotSpan(patch,polygonUV,listKnotPolygonUV,listSpan);
 		/// 1.3 For each subelement output of the trimmed polygon, clip by knot span
-		for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
-			ClipperAdapter::cleanPolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
-			if(listTrimmedPolygonUV[trimmedPolygonIndex].size()<3)
+		for(int index=0;index<listSpan.size();index++) {
+			ClipperAdapter::cleanPolygon(listKnotPolygonUV[index]);
+			if(listKnotPolygonUV[index].size()<3)
 				continue;
-			Polygon2D listSpan;
-			ListPolygon2D listKnotPolygonUV;
-			/// 1.3.1 Clip by knot span
-			clipByKnotSpan(patch,listTrimmedPolygonUV[trimmedPolygonIndex],listKnotPolygonUV,listSpan);
+			/// 1.3.1 Init list of trimmed polyggons in case patch is not trimmed
+			ListPolygon2D listTrimmedPolygonUV(1, listKnotPolygonUV[index]);
+			/// 1.3.2 Apply trimming
+			if(patch->isTrimmed())
+				clipByTrimming(patch,listKnotPolygonUV[index],listTrimmedPolygonUV);
 			/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
-			for(int index=0;index<listSpan.size();index++) {
-				ClipperAdapter::cleanPolygon(listKnotPolygonUV[index]);
-				if(listKnotPolygonUV[index].size()<3)
+			for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
+				ClipperAdapter::cleanPolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
+				if(listTrimmedPolygonUV[trimmedPolygonIndex].size()<3)
 					continue;
-				ListPolygon2D triangulatedPolygons = triangulatePolygon(listKnotPolygonUV[index]);
+				ListPolygon2D triangulatedPolygons = triangulatePolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
 				for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
 						triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
-					ClipperAdapter::cleanPolygon(*triangulatedPolygon);
+					/// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
+					ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-6);
 					if(triangulatedPolygon->size()<3)
 						continue;
-					integrate(patch,*triangulatedPolygon,listSpan[index].first,listSpan[index].second);
+					assemble(patch,*triangulatedPolygon,listSpan[index].first,listSpan[index].second);
 				}
 			}
 		}
@@ -84,6 +90,24 @@ DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh) {
 }
 
 DataFieldIntegrationNURBS::~DataFieldIntegrationNURBS() {
+}
+
+void DataFieldIntegrationNURBS::deIntegrate(const double *forces, double *tractions) {
+	int numNodesReduced=tableCnn.size();
+	if(numNodesReduced) {
+		double* tmpVecReduced = new double[numNodesReduced];
+		for(int i=0;i<numNodesReduced;i++)
+			tmpVecReduced[i]=forces[tableCnn[i]];
+		double* tmpVecSolReduced = new double[numNodesReduced];
+		// 2. solve C_NN * x_master = x_tmp
+		massMatrix->solve(tmpVecSolReduced, tmpVecReduced);
+		for(int i=0;i<numNodesReduced;i++)
+			tractions[tableCnn[i]]=tmpVecSolReduced[i];
+		delete[] tmpVecReduced;
+		delete[] tmpVecSolReduced;
+    } else {
+        massMatrix->solve(tractions,const_cast<double*>(forces));
+    }
 }
 
 void DataFieldIntegrationNURBS::clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
@@ -193,7 +217,7 @@ DataFieldIntegrationNURBS::ListPolygon2D DataFieldIntegrationNURBS::triangulateP
 	return out;
 }
 
-void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV,
+void DataFieldIntegrationNURBS::assemble(IGAPatchSurface* _thePatch, Polygon2D _polygonUV,
         int _spanU, int _spanV) {
     assert(!_polygonUV.empty());
     int numNodesUV=_polygonUV.size();
@@ -326,6 +350,29 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, Polygon2D 
             count++;
         }
     }
+}
+
+void DataFieldIntegrationNURBS::reduceCnn() {
+	tableCnn.reserve(numNodes);
+	/// Build the index table
+	for(int i=0;i<numNodes;i++) {
+		if(!massMatrix->isRowEmpty(i))
+			tableCnn.push_back(i);
+	}
+	int numNodesReduced=tableCnn.size();
+	/// If nothing missing then do not recreate a matrix and clear table
+	if(numNodesReduced == numNodes) {
+		tableCnn.clear();
+		return;
+	}
+	/// Create and fill the reduced matrix
+	MathLibrary::SparseMatrix<double>* tmp_Cnn = new MathLibrary::SparseMatrix<double>(numNodesReduced, true);
+	for(int i=0;i<numNodesReduced;i++)
+		for(int j=i;j<numNodesReduced;j++)
+			(*tmp_Cnn)(i,j)=(*massMatrix)(tableCnn[i],tableCnn[j]);
+	/// Replace the matrix
+	delete massMatrix;
+	massMatrix=tmp_Cnn;
 }
 
 } /* namespace EMPIRE */

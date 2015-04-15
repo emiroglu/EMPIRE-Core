@@ -54,7 +54,7 @@ class IGAGaussQuadratureOnQuad;
 }
 
 /***********************************************************************************************
- * \brief This class is related to IGA mortar mapping
+ * \brief This class is computing coupling matrices to perform the Mortar method between a NURBS geometry and a polygon mesh
  * ***********/
 class IGAMortarMapper: public AbstractMapper {
 private:
@@ -74,10 +74,12 @@ private:
 
     /// The element freedom table for the fluid mesh
     int **meshFEDirectElemTable;
-
+    /// The reverse element freedom table for the fluid mesh
     std::map<int, std::vector<int> > meshFENodeToElementTable;
+
     /// The mass-like matrix
     MathLibrary::SparseMatrix<double> *C_NN;
+    std::vector<int> tableC_NN;
 
     /// The right-hand side matrix
     MathLibrary::SparseMatrix<double> *C_NR;
@@ -241,7 +243,7 @@ private:
 
     /***********************************************************************************************
      * \brief Compute matrices C_NN and C_NR by looping over the FE elements and processing them
-     * \author Fabien Pean, Chenshen Wu
+     * \author Fabien Pean
      ***********/
     void computeCouplingMatrices();
 
@@ -349,7 +351,7 @@ private:
      * \param[in] _spanV 			The knot span index in the v-direction where basis will be evaluated
      * \param[in] _polygonFE 		The resulting from the clipping polygon at each knot span in the bilinear/linear space
      * \param[in] _elementIndex 	The global numbering of the element from the FE mesh the shape functions are evaluated for
-     * \author Chenshen Wu, Fabien Pean
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     void integrate(IGAPatchSurface* _igaPatchSurface, Polygon2D _polygonIGA,
             int _spanU, int _spanV, Polygon2D _polygonFE, int _elementIndex);
@@ -366,7 +368,7 @@ private:
      ***********/
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
-/***********************************************************************************************
+    /***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
      * \param[in] _element		The element for which we want the neighbor
      * \param[in] _node1	 	The first node index of the edge
@@ -375,6 +377,12 @@ private:
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
+
+    /***********************************************************************************************
+	 * \brief Reduce Cnn matrix to only non-zeros rows
+	 * \author Fabien Pean
+	 ***********/
+    void reduceCnn();
 
     /// Writing output functions
 public:
@@ -391,21 +399,23 @@ public:
      * \author Fabien Pean
      ***********/
     void writeParametricPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
-
-    /***********************************************************************************************
-     * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
-     * \author Fabien Pean
-     ***********/
-    void writeFullParametricProjectedPolygon(std::string _filename);
-    void writeTriangulatedParametricPolygon(std::string _filename);
-
-
     /***********************************************************************************************
      * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
+     * 		Opens a file filename.csv, process it and write filename.vtk
      * \param[in] _filename		The substring to append to open csv file and write vtk file
      * \author Fabien Pean
      ***********/
     void writeCartesianProjectedPolygon(const std::string _filename);
+    /***********************************************************************************************
+     * \brief Writes all FE mesh in parametric coordinates
+     * \author Fabien Pean
+     ***********/
+    void writeParametricProjectedPolygons(std::string _filename);
+    /***********************************************************************************************
+     * \brief Writes all triangulated polygons to be integrated
+     * \author Fabien Pean
+     ***********/
+    void writeTriangulatedParametricPolygon(std::string _filename);
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
@@ -424,13 +434,11 @@ public:
      * \author Fabien Pean
      ***********/
     void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
-
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR
      * \author Chenshen Wu
      ***********/
     void printCouplingMatrices();
-
     /***********************************************************************************************
      * \brief Check consistency of the coupling, constant field gives constant field
      * \author Fabien Pean
