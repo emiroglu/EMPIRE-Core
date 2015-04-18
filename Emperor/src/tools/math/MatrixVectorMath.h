@@ -441,6 +441,12 @@ public:
    		return sum;
     }
 
+    bool isRowEmpty(size_t row) {
+    	if((*mat)[row].begin() == (*mat)[row].end())
+    		return true;
+		return false;
+    }
+
 
     /***********************************************************************************************
      * \brief This function deletes or resets a whole row in sparse matrix.
