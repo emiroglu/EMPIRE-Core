@@ -477,9 +477,11 @@ public:
     }
 
     bool isRowEmpty(size_t row) {
+      #ifdef USE_INTEL_MKL
     	if((*mat)[row].begin() == (*mat)[row].end())
     		return true;
 		return false;
+	#endif
     }
 
 
@@ -585,7 +587,7 @@ public:
 #ifdef USE_INTEL_MKL
     	// Do Nothing
 #elif USE_EIGEN
-  	eigenMat->resize(startRow, strartCol, numRows, numColumns);
+  	eigenMat->resize(startRow, startCol, numRows, numColumns);
 #endif
     }
 
