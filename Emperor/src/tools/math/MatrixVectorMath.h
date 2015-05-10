@@ -566,6 +566,24 @@ public:
     }
 
 
+    /***********************************************************************************************
+     * \brief This function resizes the sparse matrix to given sizes
+     * \param[in] startRow 			- Start row of the sub matrix required.
+     * \param[in] startCol 			- Start Column of the sub matrix required.
+     * \param[in] numRows 			- Number of rows from the startRow.
+     * \param[in] numColumns 		- Number of columns from the startCol
+     * \author Aditya Ghantasala
+     ***********/
+    void resize(long int startRow, long int startCol, long int numRows, long int numColumns) {
+    	// Constructing the sparse matrix entities
+#ifdef USE_INTEL_MKL
+    	// Do Nothing
+#elif USE_EIGEN
+  	eigenMat->resize(startRow, strartCol, numRows, numColumns);
+#endif
+    }
+
+
 	/***********************************************************************************************
 	 * \brief This function clean Pardiso
 	 * \author Stefan Sicklinger
