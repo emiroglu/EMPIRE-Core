@@ -59,8 +59,8 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
     FEMesh *a = NULL;
     FEMesh *b = NULL;
 
-    assert(meshA->type == EMPIRE_Mesh_FEMesh);
-    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+    assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *feMeshA = dynamic_cast<FEMesh *>(meshA);
     FEMesh *feMeshB = dynamic_cast<FEMesh *>(meshB);
@@ -92,11 +92,11 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
-        assert(meshB->type == EMPIRE_Mesh_FEMesh);
+        assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshA),
                 dynamic_cast<FEMesh *>(meshB), true);
     } else if (!meshAIGA && meshBIGA) {
-        assert(meshA->type == EMPIRE_Mesh_FEMesh);
+        assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshB),
                 dynamic_cast<FEMesh *>(meshA), false);
     } else {
@@ -115,8 +115,8 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
 }
 
 void MapperAdapter::initNearestNeighborMapper() {
-    assert(meshA->type == EMPIRE_Mesh_FEMesh);
-    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+    assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *a = dynamic_cast<FEMesh *>(meshA);
     FEMesh *b = dynamic_cast<FEMesh *>(meshB);
@@ -126,8 +126,8 @@ void MapperAdapter::initNearestNeighborMapper() {
 }
 
 void MapperAdapter::initBarycentricInterpolationMapper() {
-    assert(meshA->type == EMPIRE_Mesh_FEMesh);
-    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+    assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *a = dynamic_cast<FEMesh *>(meshA);
     FEMesh *b = dynamic_cast<FEMesh *>(meshB);
@@ -137,8 +137,8 @@ void MapperAdapter::initBarycentricInterpolationMapper() {
 }
 
 void MapperAdapter::initNearestElementMapper() {
-    assert(meshA->type == EMPIRE_Mesh_FEMesh);
-    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+    assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *a = dynamic_cast<FEMesh *>(meshA);
     FEMesh *b = dynamic_cast<FEMesh *>(meshB);
@@ -151,7 +151,7 @@ void MapperAdapter::initNearestElementMapper() {
 }
 
 void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) {
-    assert(meshA->type == EMPIRE_Mesh_FEMesh);
+    assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
     assert(meshB->type == EMPIRE_Mesh_SectionMesh);
 
     FEMesh *a = dynamic_cast<FEMesh *>(meshA);
@@ -171,7 +171,7 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     } else { // CurveSurfaceMappers map DOFs seperately
         int numNodesA, numNodesB;
-        if (meshA->type == EMPIRE_Mesh_FEMesh)
+        if (meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh)
             numNodesA = dynamic_cast<FEMesh *>(meshA)->numNodes;
         else if (meshA->type == EMPIRE_Mesh_IGAMesh)
             numNodesA = dynamic_cast<IGAMesh *>(meshA)->getNumNodes();
@@ -180,7 +180,7 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
             ERROR_OUT() << "Wrong type of meshA!" << endl;
             exit(-1);
         }
-        if (meshB->type == EMPIRE_Mesh_FEMesh)
+        if (meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh)
             numNodesB = dynamic_cast<FEMesh *>(meshB)->numNodes;
         else if (meshB->type == EMPIRE_Mesh_IGAMesh)
             numNodesB = dynamic_cast<IGAMesh *>(meshB)->getNumNodes();
@@ -218,7 +218,7 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
     } else { // CurveSurfaceMappers map DOFs seperately
 
         int numNodesA, numNodesB;
-        if (meshA->type == EMPIRE_Mesh_FEMesh)
+        if (meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh)
             numNodesA = dynamic_cast<FEMesh *>(meshA)->numNodes;
         else if (meshA->type == EMPIRE_Mesh_IGAMesh)
             numNodesA = dynamic_cast<IGAMesh *>(meshA)->getNumNodes();
@@ -227,7 +227,7 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
             ERROR_OUT() << "Wrong type of meshA!" << endl;
             exit(-1);
         }
-        if (meshB->type == EMPIRE_Mesh_FEMesh)
+        if (meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh)
             numNodesB = dynamic_cast<FEMesh *>(meshB)->numNodes;
         else if (meshB->type == EMPIRE_Mesh_IGAMesh)
             numNodesB = dynamic_cast<IGAMesh *>(meshB)->getNumNodes();
