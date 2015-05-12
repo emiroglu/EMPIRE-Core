@@ -139,29 +139,37 @@ void IGAMortarMapper::buildCouplingMatrices() {
     IGAPatchSurface::MAX_NUM_ITERATIONS = newtonRaphson.maxNumOfIterations;
     IGAPatchSurface::TOL_ORTHOGONALITY = newtonRaphson.tolerance;
 
+    // Compute the EFT for the FE mesh
     initTables();
 
+    // Project the FE nodes onto the multipatch trimmed geometry
     projectPointsToSurface();
 
-    // Write the projected points on to a file
+    // Write the projected points on to a file to be used in MATLAB
     writeProjectedNodesOntoIGAMesh();
 
+    // Compute CNN and CNR
     computeCouplingMatrices();
+
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface");
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface");
 
+    // Write the csv file of the full projected polygons and subtriangles to be processed for the computations of norms etc.
     writeParametricProjectedPolygons("projectedPolygonsOntoNURBSSurface");
     writeTriangulatedParametricPolygon("triangulatedProjectedPolygonsOntoNURBSSurface");
     
-    // Remove empty rows and columns from system
+    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
     if(!isMappingIGA2FEM)
     	reduceCnn();
 
+    // Write out the matrices into file wrt a MATLAB indexing
     writeCouplingMatricesToFile();
 
+    // Process LU factorization
     C_NN->factorize();
     
+    // Maps a unit field and checks whether is mapped onto a unit field
     checkConsistency();
 }
 
@@ -290,6 +298,8 @@ void IGAMortarMapper::projectPointsToSurface() {
     }
     INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass." << endl;
     double initialTolerance = newtonRaphson.tolerance;
+
+    // Second pass projection --> relax Newton-Rapshon tolerance and if still fails refine the sampling points for the Newton-Raphson initial guesses
     if(missing) {
         INFO_OUT()<<"Second pass projection..."<<endl;
         time(&timeStart);
@@ -298,7 +308,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         	if(!isProjected[i]) {
         		newtonRaphson.tolerance = 10*newtonRaphson.tolerance;
         		for(set<int>::iterator patchIndex=patchToProcessPerNode[i].begin();patchIndex!=patchToProcessPerNode[i].end();patchIndex++) {
-					IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(*patchIndex);
+                    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(*patchIndex);
 					computeInitialGuessForProjection(*patchIndex, meshFENodeToElementTable[i][0], i, initialU, initialV);
 					bool flagProjected = projectPointOnPatch(*patchIndex, i, initialU, initialV, minProjectionDistance[i], minProjectionPoint[i]);
             		isProjected[i] = isProjected[i] || flagProjected;
@@ -321,7 +331,11 @@ void IGAMortarMapper::projectPointsToSurface() {
         INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
         if(missing) {
         	stringstream msg;
-        	msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass !";
+            msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass !" << endl;
+            msg << "Treatment possibility 1." << endl;
+            msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
+            msg << "Treatment possibility 2." << endl;
+            msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
         	ERROR_BLOCK_OUT("IGAMortarMapper", "ProjectPointsToSurface", msg.str());
         }
     }
@@ -511,7 +525,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 				projectedPolygons[elemIndex][patchIndex]=polygonUV;
 			}
 		}
-        /// 2. If the current element is split in some patches
+        /// 2. If the current element is split in more than one patches
         // Loop over all the patches in the IGA Mesh having a part of the FE element projected inside
 		for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
 			int patchIndex=*it;
@@ -530,10 +544,10 @@ void IGAMortarMapper::computeCouplingMatrices() {
     time(&timeEnd);
     INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds." << endl;
     if(elementIntegrated.size() != meshFE->numElems) {
-    	ERROR_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
+        WARNING_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
     	for(int i = 0; i < meshFE->numElems; i++) {
     		if(!elementIntegrated.count(i))
-    			ERROR_OUT()<<"Missing element number "<< i <<endl;
+                WARNING_OUT()<<"Missing element number "<< i <<endl;
     	}
     	WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Not all element in FE mesh integrated ! Coupling matrices invalid");
     }
@@ -1145,6 +1159,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof1 = dofIGA[i];
                 dof2 = dofIGA[j];
             }
+            // The matrix is here stored symmetrically, which might have to be changed to account for unsymmetric matrices (actually the adapter must take care of that)
             if (dof1 < dof2)
                 (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count];
             else
