@@ -25,7 +25,7 @@
 #endif
 
 #ifndef USE_INTEL_MKL
-#include "lapacke.h"
+#include <Dense>
 #endif
 
 #ifdef FLANN
@@ -873,13 +873,64 @@ void MortarMapper::computeDualCoeffMatrix(const double *elem, int numNodesElem,
     else if (numNodesElem == 3)
     	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
     else
-        assert(false);
+    	assert(false);
 
     int dummy[numNodesElem];
     int info = -1;
+#ifdef USE_INTEL_MKL
     info = LAPACKE_dsysv(LAPACK_COL_MAJOR, 'L', numNodesElem, numNodesElem, massMatrix,
-            numNodesElem, dummy, coeffMatrix, numNodesElem);
+    		numNodesElem, dummy, coeffMatrix, numNodesElem);
     assert(info == 0);
+#elif USE_EIGEN
+    if (numNodesElem == 4){
+
+    	Eigen::Matrix4d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8], massMatrix[9], massMatrix[10], massMatrix[11], massMatrix[12], massMatrix[13], massMatrix[14], massMatrix[15] ;
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8], coeffMatrix[9], coeffMatrix[10], coeffMatrix[11], coeffMatrix[12], coeffMatrix[13], coeffMatrix[14], coeffMatrix[15];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+    	coeffMatrix[3] = result(3,0);
+
+    	coeffMatrix[4] = result(0,1);
+    	coeffMatrix[5] = result(1,1);
+    	coeffMatrix[6] = result(2,1);
+    	coeffMatrix[7] = result(3,1);
+
+    	coeffMatrix[8]  = result(0,2);
+    	coeffMatrix[9]  = result(1,2);
+    	coeffMatrix[10] = result(2,2);
+    	coeffMatrix[11] = result(3,2);
+
+    	coeffMatrix[12] = result(0,3);
+    	coeffMatrix[13] = result(1,3);
+    	coeffMatrix[14] = result(2,3);
+    	coeffMatrix[15] = result(3,3);
+
+    }else if (numNodesElem == 3){
+
+    	Eigen::Matrix3d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8];
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+
+    	coeffMatrix[3] = result(0,1);
+    	coeffMatrix[4] = result(1,1);
+    	coeffMatrix[5] = result(2,1);
+
+    	coeffMatrix[6] = result(0,2);
+    	coeffMatrix[7] = result(1,2);
+    	coeffMatrix[8] = result(2,2);
+    }
+
+#endif
+
     // if it fails, then a singular mass matrix is indicated
 }
 
