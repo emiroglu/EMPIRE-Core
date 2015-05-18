@@ -93,9 +93,13 @@ private:
     /// The parametric coordinates of the projected nodes on the surface
     std::vector<std::map<int, std::vector<double> > > projectedCoords;
 
+    std::map<int,ListPolygon2D> trimmedProjectedPolygons;
+
     std::vector<std::map<int,Polygon2D> > projectedPolygons;
 
     std::vector<std::map<int,ListPolygon2D> > triangulatedProjectedPolygons;
+
+    std::vector<std::vector<double> > streamGP;
 
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
@@ -386,6 +390,7 @@ private:
 
     /// Writing output functions
 public:
+    void writeGaussPointData();
     /***********************************************************************************************
      * \brief Writes the projected nodes of the FE mesh onto the IGA surface into a file
      * \author Andreas Apostolatos

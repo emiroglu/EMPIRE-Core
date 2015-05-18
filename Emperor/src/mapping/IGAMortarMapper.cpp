@@ -147,6 +147,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeProjectedNodesOntoIGAMesh();
 
     computeCouplingMatrices();
+
+    writeGaussPointData();
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface");
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface");
@@ -154,11 +156,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeParametricProjectedPolygons("projectedPolygonsOntoNURBSSurface");
     writeTriangulatedParametricPolygon("triangulatedProjectedPolygonsOntoNURBSSurface");
     
+    writeCouplingMatricesToFile();
+
     // Remove empty rows and columns from system
     if(!isMappingIGA2FEM)
     	reduceCnn();
-
-    writeCouplingMatricesToFile();
 
     C_NN->factorize();
     
@@ -793,6 +795,8 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 	/// 1.2 Apply trimming
 	if(thePatch->isTrimmed())
 		clipByTrimming(thePatch,projectedElementOnPatch,listTrimmedPolygonUV);
+	/// Debug data
+	trimmedProjectedPolygons[_patchIndex] = listTrimmedPolygonUV;
 	/// 1.3 For each subelement output of the trimmed polygon, clip by knot span
 	for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
 		/// Debug data
@@ -809,6 +813,8 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 				continue;
 			isIntegrated=true;
 			ListPolygon2D triangulatedPolygons = triangulatePolygon(listPolygonUV[index]);
+			/// Reserve space for gauss point values
+			streamGP.reserve(streamGP.size()+gaussQuad->numGaussPoints*triangulatedPolygons.size());
 			/// 1.3.3 For each triangle, compute canonical element and integrate
 			for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
 					triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
@@ -999,6 +1005,12 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
     for (int arrayIndex = 0; arrayIndex < numNodesElSlave * numNodesElMaster; arrayIndex++)
         elementCouplingMatrixNR[arrayIndex] = 0;
 
+    int dofIGA[nShapeFuncsIGA];
+    _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
+
+    for (int i = 0; i < nShapeFuncsIGA; i++)
+        dofIGA[i] = _thePatch->getControlPointNet()[dofIGA[i]]->getDofIndex();
+
 /// 1. Copy input polygon into contiguous C format
 	double nodesUV[8];
 	double nodesWZ[8];
@@ -1104,6 +1116,26 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 				}
 			}
 		}
+		/// Save GP data
+		std::vector<double> streamGP;
+		// weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+		streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*nShapeFuncsIGA);
+		streamGP.push_back(theGaussQuadrature->weights[GPCount]);
+		streamGP.push_back(Jacobian);
+		streamGP.push_back(numNodesElementFE);
+		for (int i = 0; i < numNodesElementFE; i++) {
+			streamGP.push_back(meshFEDirectElemTable[_elementIndex][i]);
+			streamGP.push_back(shapeFuncsFE[i]);
+		}
+		streamGP.push_back(nShapeFuncsIGA);
+		for (int i = 0; i < nShapeFuncsIGA; i++) {
+			double IGABasisFctsI =
+					localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+							1, 0, 0, i)];
+			streamGP.push_back(dofIGA[i]);
+			streamGP.push_back(IGABasisFctsI);
+		}
+		this->streamGP.push_back(streamGP);
 		/// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
 		count = 0;
 		for (int i = 0; i < numNodesElMaster; i++) {
@@ -1127,6 +1159,8 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 		}
 	}
 /// 3.Assemble the element coupling matrix to the global coupling matrix.
+	///Create new scope
+	{
     int dofIGA[nShapeFuncsIGA];
     _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
 
@@ -1166,6 +1200,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count];
             count ++;
         }
+	}
 }
 
 bool IGAMortarMapper::computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span) {
@@ -1295,6 +1330,22 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
     C_NR->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
 
     delete[] tmpVec;
+}
+
+void IGAMortarMapper::writeGaussPointData() {
+	string filename = name + "_GaussPointData.csv";
+    ofstream filestream;
+    filestream.open(filename.c_str());
+    filestream.precision(12);
+    filestream << std::dec;
+    for(std::vector<std::vector<double> >::iterator it1 = streamGP.begin(); it1!=streamGP.end(); it1++) {
+    	for(std::vector<double>::iterator it2=it1->begin(); it2!=it1->end(); it2++) {
+        	filestream << *it2 << " ";
+    	}
+    	filestream << endl;
+    }
+    filestream.close();
+    streamGP.clear();
 }
 
 void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
@@ -1535,10 +1586,15 @@ void IGAMortarMapper::checkConsistency() {
     DEBUG_OUT()<<"### Check consistency ###"<<endl;
     DEBUG_OUT()<<"Norm of output field = "<<norm<<endl;
     /// WARNING hard coded tolerance. Used to decide if mapping is valid or not
-    if(fabs(norm-1.0)>1e-1) {
-    	ERROR_OUT()<<"Coupling not consistent !"<<endl;
-    	ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
-    	exit(-1);
+    if(fabs(norm-1.0)>1e-6) {
+    	if(isMappingIGA2FEM) {
+    		ERROR_OUT()<<"Coupling not consistent !"<<endl;
+    		ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
+    		exit(-1);
+    	} else {
+    		WARNING_OUT()<<"Coupling not consistent !"<<endl;
+    		WARNING_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
+    	}
     }
 }
 
