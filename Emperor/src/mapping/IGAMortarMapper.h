@@ -94,6 +94,8 @@ private:
     std::vector<std::map<int, std::vector<double> > > projectedCoords;
 
     std::map<int,ListPolygon2D> trimmedProjectedPolygons;
+    std::map<int,ListPolygon2D> triangulatedProjectedPolygons2;
+
 
     std::vector<std::map<int,Polygon2D> > projectedPolygons;
 
@@ -397,20 +399,12 @@ public:
      ***********/
     void writeProjectedNodesOntoIGAMesh();
     /***********************************************************************************************
-     * \brief Writes a projected element of the FE mesh onto the IGA surface into a file
-     * \param[in] _filename		The substring to append to open and write csv file
-     * \param[in] _patchIndex	The id of the patch the parametric coordinates must be used with
-     * \param[in] _polygonUV	The parametric coordinates of the polygon to write in the file
-     * \author Fabien Pean
-     ***********/
-    void writeParametricPolygon(const std::string _filename, const int _patchIndex = -1, const Polygon2D* const _polygonUV = NULL);
-    /***********************************************************************************************
      * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
      * 		Opens a file filename.csv, process it and write filename.vtk
      * \param[in] _filename		The substring to append to open csv file and write vtk file
      * \author Fabien Pean
      ***********/
-    void writeCartesianProjectedPolygon(const std::string _filename);
+    void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
     /***********************************************************************************************
      * \brief Writes all FE mesh in parametric coordinates
      * \author Fabien Pean
