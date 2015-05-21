@@ -463,6 +463,9 @@ void MortarMapper::enforceConsistency() {
             double sum = (*C_BA_DUAL).getRowSum(i);
 
             if ((sum < factor * 0.5) || (sum > factor * 1.5)) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+
                 //sparsityMapC_BA[i]->clear();
                 (*C_BA_DUAL).deleteRow(i);
                 double dummy;
