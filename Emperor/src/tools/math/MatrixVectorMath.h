@@ -31,10 +31,13 @@
 #include <cmath>
 #include "Message.h"
 #include "AuxiliaryParameters.h"
+// Including Eigen
+#ifdef USE_EIGEN
+#include "EigenAdapter.h"
+// Including intel MKL
+#elif USE_INTEL_MKL
 #include "IntelMKLAdaptor.hpp"
-
-
-
+#endif
 
 namespace EMPIRE {
 namespace MathLibrary {
@@ -202,10 +205,12 @@ double det3x3(const double* _A);
 template<class T>
 class SparseMatrix {
 public:
+#ifdef USE_INTEL_MKL
     typedef std::vector<std::map<size_t, T> > mat_t;
     typedef size_t row_iter;
     typedef std::map<size_t, T> col_t;
     typedef typename col_t::iterator col_iter;
+#endif
 
     static int clearCount;
     /***********************************************************************************************
@@ -224,10 +229,13 @@ public:
         if (!((typeid(T) == typeid(double)) || (typeid(T) == typeid(float)))) {
             assert(0);
         }
+
+#ifdef USE_INTEL_MKL
         mat = new mat_t(m);
         rowIndex = new std::vector<int>(m + 1);
-#ifdef USE_INTEL_MKL
         intelMKL = new PardisoAdapter(isSymmetric);
+#elif USE_EIGEN
+        eigenMat = new EigenAdapter<T>(m,n);
 #endif
     }
     /***********************************************************************************************
@@ -243,10 +251,12 @@ public:
         isSymmetric = false;
         isDetermined = false;
         isFactorized = false;
+#ifdef USE_INTEL_MKL
         mat = new mat_t(m);
         rowIndex = new std::vector<int>(m + 1);
-#ifdef USE_INTEL_MKL
         intelMKL = new PardisoAdapter(isSymmetric);
+#elif USE_EIGEN
+        eigenMat = new EigenAdapter<T>(m,n);
 #endif
     }
     /***********************************************************************************************
@@ -266,10 +276,11 @@ public:
         	//std::cout<<""<<std::endl;
            delete intelMKL;
         }
-
-#endif
         delete mat;
         delete rowIndex;
+#elif USE_EIGEN
+       delete eigenMat;
+#endif
     }
 
 
@@ -290,10 +301,15 @@ public:
     inline T& operator()(size_t i, size_t j) {
         if (i >= m || j >= n)
             assert(0);
+
+#ifdef USE_INTEL_MKL
         if (i > j && isSymmetric == true)
             assert(0);
         //not allowed
         return (*mat)[i][j];
+#elif USE_EIGEN
+        return (*eigenMat)(i,j);
+#endif
     }
     /***********************************************************************************************
      * \brief Operator overloaded () for assignment of value e.g. A(i,j)=10
@@ -304,10 +320,14 @@ public:
     inline T operator()(size_t i, size_t j) const {
         if (i >= m || j >= n)
             assert(0);
+#ifdef USE_INTEL_MKL
         if (i > j && isSymmetric == true)
             assert(0);
         //not allowed
         return (*mat)[i][j];
+#elif USE_EIGEN
+        return (*eigenMat)(i,j);
+#endif
     }
 
 
@@ -320,6 +340,7 @@ public:
     	if(isDetermined)
     		return;
 
+#ifdef USE_INTEL_MKL
     	row_iter ii;
     	col_iter jj;
     	size_t ele_row = 0; //elements in current row
@@ -338,8 +359,12 @@ public:
 
     	// Tell the matrix that it is determined once.
     	isDetermined = true;
+#elif USE_EIGEN
+    	eigenMat->determineCSR();
+    	// Tell the matrix that it is determined once.
+    	isDetermined = true;
+#endif
     }
-
 
 
     /***********************************************************************************************
@@ -352,20 +377,16 @@ public:
      * \edit   Aditya Ghantasala
      ***********/
     void mulitplyVec(bool transpose, T* vec, T* resultVec, size_t elements) { //Computes y=A*x
-    		// Checking the possibility of multiplication.
-    		assert(elements == m);
-    		assert(vec != NULL);
-    		assert(resultVec != NULL);
 
-    		// Formulating the vectors of the sparse matrix
-    		determineCSR();
-//#ifdef USE_INTEL_MKL
-    		// TODO :: get this running.
-//    	intelMKL->multiply(transpose, m, n, &values[0], &((*rowIndex)[0]), &columns[0], vec, resultVec, isSymmetric);
-//#else
-    	//not allowed
-    	// TODO :: Implement a transpose multiplication if a transpose should be multiplied.
+    	// Checking the possibility of multiplication.
+    	assert(elements == m);
+    	assert(vec != NULL);
+    	assert(resultVec != NULL);
 
+    	// Formulating the vectors of the sparse matrix
+    	determineCSR();
+
+#ifdef USE_INTEL_MKL
     	T sum;
     	size_t iter;
     	for (iter = 0; iter < elements; iter++) {
@@ -386,17 +407,25 @@ public:
     		}
     		resultVec[ii] = sum;
     	}
-//#endif
+#elif USE_EIGEN
+    	eigenMat->mulitplyVec(false, vec, resultVec, elements);
+#endif
     }
 
     /***********************************************************************************************
      * \brief This function is a fast alternative to the operator overloading alternative
      * \param[in] 	-- x 			Vector to be multiplied
      * \param[out] 	-- y 			Result vector
-     * \param[in] 	-- elements 	The number of entries in the vector
+     * \param[in] 	-- elements 	are the number of entries in the resultant vector (number of rows of the matrix m)
      * \author Chenshen Wu
      ***********/
     void transposeMulitplyVec(T* x, T* y, const size_t elements) { //Computes y=A*x
+
+    	assert(x != NULL);
+    	assert(y != NULL);
+    	assert(elements >= 0);
+
+#ifdef USE_INTEL_MKL
     	if (this->m != elements)
     		assert(0);
     	if (isSymmetric) {
@@ -415,6 +444,10 @@ public:
     	for (ii = 0; ii < m; ii++)
     		for (jj = (*mat)[ii].begin(); jj != (*mat)[ii].end(); jj++)
     			y[(*jj).first] += (*jj).second * x[ii];
+#elif USE_EIGEN
+    	eigenMat->mulitplyVec(true, x, y, elements);
+#endif
+
     }
 
 
@@ -427,24 +460,28 @@ public:
     T getRowSum(size_t row) { //Computes y=A*x
     	// Checking if the row requested is with in the limits
     	assert(row <= this->m);
+    	T sum = 0.0;
 
+#ifdef USE_INTEL_MKL
     	if (isSymmetric) {
     		// TODO Check how to return the right value for a symmetric matrix.
     	}
-
-    	T sum = 0.0;
     	col_iter jj;
 
    		for (jj = (*mat)[row].begin(); jj != (*mat)[row].end(); jj++)
     		sum += (*jj).second;
-
+#elif USE_EIGEN
+   		eigenMat->getRowSum(row);
+#endif
    		return sum;
     }
 
     bool isRowEmpty(size_t row) {
+      #ifdef USE_INTEL_MKL
     	if((*mat)[row].begin() == (*mat)[row].end())
     		return true;
 		return false;
+	#endif
     }
 
 
@@ -454,7 +491,11 @@ public:
      * \author Aditya Ghantasala
      ***********/
     void deleteRow(size_t row){
+#ifdef USE_INTEL_MKL
     	(*mat)[row].clear();
+#elif USE_EIGEN
+    	eigenMat->deleteRow(row);
+#endif
     }
 
 
@@ -468,6 +509,7 @@ public:
     	// Checking if the row requested is with in the limits
     	assert(row <= this->m);
 
+#ifdef USE_INTEL_MKL
     	if (isSymmetric) {
     		// TODO Check how to return the right value for a symmetric matrix.
     	}
@@ -477,11 +519,11 @@ public:
     		dum = (*jj).second;
     		(*jj).second = dum * fact;
    		}
+#elif USE_EIGEN
+   		eigenMat->multiplyRowWith(row, fact);
+#endif
 
     }
-
-
-
 
     /***********************************************************************************************
      * \brief This function performs the prepare of a solution
@@ -492,17 +534,25 @@ public:
      * \ȩdit Aditya Ghantasala
      ***********/
     void solve(T* x, T* b) { //Computes x=A^-1 *b
+	
+	assert(x != NULL);
+	assert(b != NULL);
 
     	if(!isFactorized){
+#ifdef USE_INTEL_MKL
     		factorize();
+#elif USE_EIGEN
+    		eigenMat->factorize();
+#endif
     		isFactorized = true;
     	}
+
     	// Constructing the sparse matrix entities
     	determineCSR();
 #ifdef USE_INTEL_MKL
     	intelMKL->solve(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0], x, b);
-#else
-    	// TODO :: any other solver library can be called here.
+#elif USE_EIGEN
+    	eigenMat->solve(x, b);
 #endif
     }
 
@@ -512,37 +562,59 @@ public:
      * \ȩdit Aditya Ghantasala
      ***********/
     void factorize() {
-
     	// Constructing the sparse matrix entities
-    	determineCSR();
-
 #ifdef USE_INTEL_MKL
+   	determineCSR();
   	intelMKL->factorize(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0]);
-#else
-
+#elif USE_EIGEN
+  	eigenMat->determineCSR();
+  	eigenMat->factorize();
 #endif
 
+    }
+
+
+    /***********************************************************************************************
+     * \brief This function resizes the sparse matrix to given sizes
+     * \param[in] startRow 			- Start row of the sub matrix required.
+     * \param[in] startCol 			- Start Column of the sub matrix required.
+     * \param[in] numRows 			- Number of rows from the startRow.
+     * \param[in] numColumns 		- Number of columns from the startCol
+     * \author Aditya Ghantasala
+     ***********/
+    void resize(long int startRow, long int startCol, long int numRows, long int numColumns) {
+    	// Constructing the sparse matrix entities
+#ifdef USE_INTEL_MKL
+    	// Do Nothing
+#elif USE_EIGEN
+  	eigenMat->resize(startRow, startCol, numRows, numColumns);
+#endif
     }
 
 
 	/***********************************************************************************************
 	 * \brief This function clean Pardiso
 	 * \author Stefan Sicklinger
+	 * \edit Aditya Ghantasala
 	 ***********/
     void reset(){
 #ifdef USE_INTEL_MKL
     	intelMKL->resetPardiso(&values[0], &((*rowIndex)[0]), &columns[0] );
-#endif
 		values.clear();
 		columns.clear();
 		(*rowIndex).clear();
+#elif USE_EIGEN
+		// TODO Checkk what to do in case of Eigen
+#endif
     }
 
     /***********************************************************************************************
      * \brief This prints the matrix in CSR style i j value
      * \author Stefan Sicklinger
+     * \edit Aditya Ghantasala
      ***********/
     void printCSR() {
+#ifdef USE_INTEL_MKL
         row_iter ii;
         col_iter jj;
         size_t ele_row; //elements in current row
@@ -556,12 +628,18 @@ public:
             }
         }
         std::cout << std::endl;
+#elif USE_EIGEN
+       print();
+#endif
+
     }
     /***********************************************************************************************
      * \brief This prints the matrix in full style
      * \author Stefan Sicklinger
      ***********/
     void print() {
+
+#ifdef USE_INTEL_MKL
         size_t ii_counter;
         size_t jj_counter;
 
@@ -576,7 +654,10 @@ public:
             }
             std::cout << std::endl;
         }
-        std::cout << std::endl;int EMPIRE::MathLibrary::SparseMatrix::clearCount = 0;
+        std::cout << std::endl;
+#elif USE_EIGEN
+        eigenMat->print();
+#endif
 
 
     }
@@ -584,7 +665,9 @@ public:
      * \brief This prints the matrix in full style in a file ready to be imported in matlab via dlmread('filename',' ')
      * \author Fabien Pean
      ***********/
+
     void printFullToFile(std::string filename) {
+#ifdef USE_INTEL_MKL
         size_t ii_counter;
         size_t jj_counter;
 
@@ -607,6 +690,9 @@ public:
             ofs<<std::endl;
         }
         ofs.close();
+#elif USE_EIGEN
+        eigenMat->printToFile(filename);
+#endif
     }
     /***********************************************************************************************
      * \brief This prints the matrix in sparse format (i,j)->v in a file.
@@ -615,6 +701,7 @@ public:
      * \author Fabien Pean
      ***********/
     void printCSRToFile(std::string filename, int offset=0) {
+#ifdef USE_INTEL_MKL
         std::ofstream ofs;
         ofs.open(filename.c_str(), std::ofstream::out);
         ofs << std::scientific;
@@ -638,11 +725,12 @@ public:
         }
         ofs << std::endl;
         ofs.close();
+#elif use_EIGEN
+        eigenMat->printToFile(filename);
+#endif
     }
 
 private:
-    /// pointer to the vector of maps
-    mat_t* mat;
     /// true if a square matrix should be stored
     bool isSquare;
     /// true if a symmetric matrix should be stored
@@ -656,6 +744,10 @@ private:
     size_t m;
     /// number of columns
     size_t n;
+
+#ifdef USE_INTEL_MKL
+    /// pointer to the vector of maps
+    mat_t* mat;
     /// A real array that contains the non-zero elements of a sparse matrix. The non-zero elements are mapped into the values array using the row-major upper triangular storage mapping.
     std::vector<T> values;
     /// Element i of the integer array columns is the number of the column that contains the i-th element in the values array.
@@ -663,10 +755,12 @@ private:
     /// Element j of the integer array rowIndex gives the index of the element in the values array that is first non-zero element in a row j.
     std::vector<int>* rowIndex;
 
-#ifdef USE_INTEL_MKL
     /// Object to access intel MKL functions
     PardisoAdapter* intelMKL;
+#elif USE_EIGEN
+    EigenAdapter<T>* eigenMat;
 #endif
+
 
 };
 
