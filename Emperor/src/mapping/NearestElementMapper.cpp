@@ -274,8 +274,8 @@ void NearestElementMapper::computeNeighborsAndWeights() {
                                 EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
                                 double quadPrj[12];
                                 EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
-                                for (int i = 0; i < 12; i++)
-                                quad[i] = quadPrj[i];
+                                for (int k = 0; k < 12; k++)
+                                quad[k] = quadPrj[k];
                             }
                             double projection[3];
                             EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &(nodesB[i * 3]), 1,
