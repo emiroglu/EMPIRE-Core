@@ -709,6 +709,18 @@ void parseCouplingLogicBlock(ticpp::Iterator<Element> &xmlCouplingLogicIn,
                         "relativeTolerance");
                 checkResidual.absoluteTolerance = xmlCheckResidual->GetAttribute<double>(
                         "absoluteTolerance");
+                // Aditya :: Start
+                std::string checkOn = xmlCheckResidual->GetAttribute<string>(
+                        "checkOn",false);
+                if(!checkOn.empty()){
+                	if(!checkOn.compare("absoluteTolerance"))
+                		checkResidual.isAbsolute = true;
+                	else
+                		checkResidual.isAbsolute = false;
+                } else {
+                	checkResidual.isAbsolute = false;
+                }
+                // Aditya :: End
                 checkResidual.residualRef.couplingAlgorithmName =
                         xmlCheckResidual->FirstChildElement("residualRef")->GetAttribute<string>(
                                 "couplingAlgorithmName");

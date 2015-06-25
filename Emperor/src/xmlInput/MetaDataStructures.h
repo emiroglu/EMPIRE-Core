@@ -255,6 +255,7 @@ struct structCouplingLogic {
             struct structCheckResidual {
                 double relativeTolerance;
                 double absoluteTolerance;
+                bool isAbsolute;
                 structResidualRef residualRef;
             };
             double maxNumOfIterations;

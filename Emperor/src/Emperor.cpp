@@ -551,7 +551,7 @@ AbstractCouplingLogic *Emperor::parseStructCouplingLogic(
                         nameToCouplingAlgorithmMap[settingCheckResidual.residualRef.couplingAlgorithmName];
                 checker->addCheckResidual(settingCheckResidual.absoluteTolerance,
                         settingCheckResidual.relativeTolerance, coupAlgRef,
-                        settingCheckResidual.residualRef.index);
+                        settingCheckResidual.residualRef.index, settingCheckResidual.isAbsolute);
             }
 
             iterativeCouplingLoop->setConvergenceChecker(checker);
