@@ -849,6 +849,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             fixU = false;
             fixV = true;
         } else if (fabs(dR[3]) < epsJ || fixV) {
+            // According to Fabien that must be R[0] / dR[0];
             R[0] = R[0] / dR[1];
             R[1] = 0.0;
             fixU = true;
@@ -1197,7 +1198,6 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 		// 2vii. Check and modify the surface parameters if they stay out of their knot spans
 		IGABasis->getUBSplineBasis1D()->clampKnot(u);
 		IGABasis->getVBSplineBasis1D()->clampKnot(v);
-
 	}
 
 	// 3. Check convergence criteria

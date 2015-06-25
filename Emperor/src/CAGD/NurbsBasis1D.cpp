@@ -19,8 +19,6 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 // Inclusion of standard libraries
-#include <iostream>
-#include <stdlib.h>
 #include <math.h>
 #include <assert.h>
 
@@ -29,10 +27,10 @@
 //#include "IGAMath.h"
 // Edit Aditya
 #include "MathLibrary.h"
-#include "Message.h"
+//#include "Message.h"
+//#include <stdlib.h>
 #define GETINDEX(x,y) (x*49+y)
 
-using namespace std;
 
 namespace EMPIRE {
 
@@ -41,8 +39,8 @@ NurbsBasis1D::NurbsBasis1D(int _ID = 0, int _pDegree = 0, int _noKnots = 0, doub
         BSplineBasis1D(_ID, _pDegree, _noKnots, _KnotVector), NoControlPoints(_noControlPoints) {
 
     if (_noControlPoints != _noKnots - _pDegree - 1) {
-        ERROR_OUT() << " in NurbsBasis1D::NurbsBasis1D" << endl;
-        ERROR_OUT() << "The Number of Control Points, the number of knots and the polynomial degree do not match" << endl;
+        std::cout << " in NurbsBasis1D::NurbsBasis1D" << std::endl;
+        std::cout << "The Number of Control Points, the number of knots and the polynomial degree do not match" << std::endl;
         exit(-1);
     }
 
@@ -281,8 +279,8 @@ void NurbsBasis1D::setControlPointWeights(int _noControlPoints, double* _control
 
     if (_noControlPoints != this->computeNoBasisFunctions()) {
 
-        ERROR_OUT() << "Error in NurbsBasis1D::setControlPointNet" << endl;
-        ERROR_OUT() << "The assigned number of Control Points does not match with the number of basis functions!" << endl;
+        std::cout << "Error in NurbsBasis1D::setControlPointNet" << std::endl;
+        std::cout << "The assigned number of Control Points does not match with the number of basis functions!" << std::endl;
         exit(-1);
     }
 
@@ -294,19 +292,19 @@ void NurbsBasis1D::setControlPointWeights(int _noControlPoints, double* _control
 
 Message &operator<<(Message &message, NurbsBasis1D &nurbsBasis1D) {
 
-    message << "\t+" << "NurbsBasis1D: " << endl;
-    message << "\t\t+" << "PDegree = " << nurbsBasis1D.getPolynomialDegree() << endl;
-    message << "\t\t+" << "NoKnots = " << nurbsBasis1D.getNoKnots() << endl;
+    message << "\t+" << "NurbsBasis1D: " << std::endl;
+    message << "\t\t+" << "PDegree = " << nurbsBasis1D.getPolynomialDegree() << std::endl;
+    message << "\t\t+" << "NoKnots = " << nurbsBasis1D.getNoKnots() << std::endl;
     message << "\t\t+" << "KnotVector = [\t";
     for (int i = 0; i < nurbsBasis1D.getNoKnots(); i++) {
         message << nurbsBasis1D.getKnotVector()[i] << "\t";
     }
     message << "\t\t+" << "ControlPointWeights = [\t";
     for (int i = 0; i < nurbsBasis1D.getNoControlPoints(); i++) {
-        message << "CP " << i << ": " << nurbsBasis1D.getControlPointWeights()[i] << endl;
+        message << "CP " << i << ": " << nurbsBasis1D.getControlPointWeights()[i] << std::endl;
     }
-    message << "]" << endl;
-    message() << "\t+" << "---------------------------------" << endl;
+    message << "]" << std::endl;
+    message() << "\t+" << "---------------------------------" << std::endl;
     return message;
 }
 

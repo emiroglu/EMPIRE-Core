@@ -93,7 +93,7 @@ void DataOutput::writeMeshes() {
             IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(it->second);
             MatlabIGAFileIO::writeIGAMesh(igaMesh);
         } else
-            assert(0);
+            ERROR_BLOCK_OUT("DataOutput","writeMeshes","Writer defined only for FEMesh,SectionMesh,IGAMesh");
     }
 }
 

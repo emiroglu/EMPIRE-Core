@@ -25,7 +25,7 @@
 #endif
 
 #ifndef USE_INTEL_MKL
-#include "lapacke.h"
+#include <Dense>
 #endif
 
 #ifdef FLANN
@@ -422,7 +422,7 @@ void MortarMapper::computeC_BA() {
 
 }
 
-void MortarMapper::enforceConsistency() {
+/*void MortarMapper::enforceConsistency() {
     // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
     if (!dual) {
         double *factor = new double[masterNumNodes];
@@ -474,6 +474,9 @@ void MortarMapper::enforceConsistency() {
             double sum = (*C_BA_DUAL).getRowSum(i);
 
             if ((sum < factor * 0.5) || (sum > factor * 1.5)) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+
                 //sparsityMapC_BA[i]->clear();
                 (*C_BA_DUAL).deleteRow(i);
                 double dummy;
@@ -499,6 +502,232 @@ void MortarMapper::enforceConsistency() {
 
         }
     }
+}*/
+
+
+void MortarMapper::enforceConsistency() {
+    // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
+    int numNodesToEnforce = 0;
+    if (!dual) {
+        double *factor = new double[masterNumNodes];
+        for (int i = 0; i < masterNumNodes; i++) {
+            factor[i] = 0.0;
+        }
+
+        for (int i = 0; i < masterNumNodes; i++) {
+                factor[i] += (*C_BB).getRowSum(i);
+        }
+
+        for (int i = 0; i < masterNumNodes; i++) {
+            double sum = 0.0;
+            // Row sum of the sparse Matrix
+            sum = (*C_BA).getRowSum(i);
+
+            if (sum < factor[i] * 0.9) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                numNodesToEnforce++;
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest element interpolation is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA).deleteRow(i);
+                double dummy;
+                int nb;
+#ifdef ANN
+                slaveNodesTree->annkSearch(&masterNodeCoors[i * 3], 1, &nb, &dummy);
+#endif
+#ifdef FLANN
+                flann::Matrix<double> masterNodeFlann(const_cast<double*>(&masterNodeCoors[i * 3]), 1, 3);
+                vector<vector<int> > indexes_tmp;
+                vector<vector<double> > dists_tmp;
+                FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
+                nb = indexes_tmp[0][0];
+#endif
+                //sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                // nearest element interpolation
+                vector<int> * vecElemOfNode = slaveNodeToElemTable[nb];
+                double minDistance = 1E100; // arbitrary big value
+                int elemWithMinDist = -1;
+
+                for (int j=0; j<vecElemOfNode->size(); j++) {
+                    int numNodesThisElem = slaveNodesPerElem[vecElemOfNode->at(j)];
+                    double *slaveElem = new double[numNodesThisElem * 3];
+                    getElemCoor(vecElemOfNode->at(j), MortarMapper::SLAVE, slaveElem);
+                    double center[3];
+                    EMPIRE::MathLibrary::computePolygonCenter(slaveElem, numNodesThisElem, center);
+                    double dist = EMPIRE::MathLibrary::distanceSquare(center, &masterNodeCoors[i * 3]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        elemWithMinDist = vecElemOfNode->at(j);
+                    }
+                    delete[] slaveElem;
+                }
+                int numNodesThisElem = slaveNodesPerElem[elemWithMinDist];;
+                if (numNodesThisElem == 3) {
+                    double triangle[3 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, triangle);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[3];
+                    EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject,
+                            projection, localCoors);
+
+                    for (int j=0; j<3; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA)(i,nodePos) = factor[i]*localCoors[j];
+                    }
+                } else if (numNodesThisElem == 4) {
+                    double quad[4 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, quad);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    { // replace the element by the projection of it on its "element plane"
+                        double quadCenter[3];
+                        EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
+                        double quadPrj[12];
+                        EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                        for (int j = 0; j < 12; j++)
+                            quad[j] = quadPrj[j];
+                    }
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[2];
+                    EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
+                            localCoors);
+                    double weights[4];
+                    EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weights);
+                    for (int j=0; j<4; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA)(i,nodePos) = factor[i]*weights[j];
+                    }
+                } else {
+                    assert(false);
+                }
+
+                sum = factor[i];
+            }
+            // rowsum of C_BA cannot be large than rowsum of C_BB
+            assert(sum<factor[i]*(1+1E-2));
+            factor[i] /= sum;
+
+            (*C_BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
+        }
+        delete[] factor;
+    } else { // If dual
+        for (int i = 0; i < masterNumNodes; i++) {
+            double factor = C_BB_A_DUAL[i];
+            // Row sum of the sparse Matrix
+            double sum = (*C_BA_DUAL).getRowSum(i);
+
+            if (sum < factor * 0.9) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                numNodesToEnforce++;
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest element interpolation is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA_DUAL).deleteRow(i);
+                double dummy;
+                int nb;
+#ifdef ANN
+                slaveNodesTree->annkSearch(&masterNodeCoors[i * 3], 1, &nb, &dummy);
+#endif
+#ifdef FLANN
+                flann::Matrix<double> masterNodeFlann(const_cast<double*>(&masterNodeCoors[i * 3]), 1, 3);
+                vector<vector<int> > indexes_tmp;
+                vector<vector<double> > dists_tmp;
+                FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
+                nb = indexes_tmp[0][0];
+#endif
+
+                // nearest element interpolation
+                vector<int> * vecElemOfNode = slaveNodeToElemTable[nb];
+                double minDistance = 1E100; // arbitrary big value
+                int elemWithMinDist = -1;
+
+                for (int j=0; j<vecElemOfNode->size(); j++) {
+                    int numNodesThisElem = slaveNodesPerElem[vecElemOfNode->at(j)];
+                    double *slaveElem = new double[numNodesThisElem * 3];
+                    getElemCoor(vecElemOfNode->at(j), MortarMapper::SLAVE, slaveElem);
+                    double center[3];
+                    EMPIRE::MathLibrary::computePolygonCenter(slaveElem, numNodesThisElem, center);
+                    double dist = EMPIRE::MathLibrary::distanceSquare(center, &masterNodeCoors[i * 3]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        elemWithMinDist = vecElemOfNode->at(j);
+                    }
+                    delete[] slaveElem;
+                }
+                int numNodesThisElem = slaveNodesPerElem[elemWithMinDist];;
+                if (numNodesThisElem == 3) {
+                    double triangle[3 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, triangle);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[3];
+                    EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject,
+                            projection, localCoors);
+
+                    for (int j=0; j<3; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA_DUAL)(i,nodePos) = factor*localCoors[j];
+                    }
+                } else if (numNodesThisElem == 4) {
+                    double quad[4 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, quad);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    { // replace the element by the projection of it on its "element plane"
+                        double quadCenter[3];
+                        EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
+                        double quadPrj[12];
+                        EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                        for (int j = 0; j < 12; j++)
+                            quad[j] = quadPrj[j];
+                    }
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[2];
+                    EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
+                            localCoors);
+                    double weights[4];
+                    EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weights);
+                    for (int j=0; j<4; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA_DUAL)(i,nodePos) = factor*weights[j];
+                    }
+                } else {
+                    assert(false);
+                }
+
+                sum = factor;
+            }
+            // rowsum of C_BA cannot be large than rowsum of C_BB
+            //assert(sum<factor*(1+1E-2)); // This is not the case for dual
+            factor /= sum;
+            (*C_BA_DUAL).multiplyRowWith(i,factor);
+
+        }
+    }
+    if (numNodesToEnforce > 0)
+        cout << "WARNING(MortarMapper::enforceConsistency): #nodes to enforce consistency: " << numNodesToEnforce << endl;;
 }
 
 
@@ -884,13 +1113,64 @@ void MortarMapper::computeDualCoeffMatrix(const double *elem, int numNodesElem,
     else if (numNodesElem == 3)
     	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
     else
-        assert(false);
+    	assert(false);
 
     int dummy[numNodesElem];
     int info = -1;
+#ifdef USE_INTEL_MKL
     info = LAPACKE_dsysv(LAPACK_COL_MAJOR, 'L', numNodesElem, numNodesElem, massMatrix,
-            numNodesElem, dummy, coeffMatrix, numNodesElem);
+    		numNodesElem, dummy, coeffMatrix, numNodesElem);
     assert(info == 0);
+#elif USE_EIGEN
+    if (numNodesElem == 4){
+
+    	Eigen::Matrix4d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8], massMatrix[9], massMatrix[10], massMatrix[11], massMatrix[12], massMatrix[13], massMatrix[14], massMatrix[15] ;
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8], coeffMatrix[9], coeffMatrix[10], coeffMatrix[11], coeffMatrix[12], coeffMatrix[13], coeffMatrix[14], coeffMatrix[15];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+    	coeffMatrix[3] = result(3,0);
+
+    	coeffMatrix[4] = result(0,1);
+    	coeffMatrix[5] = result(1,1);
+    	coeffMatrix[6] = result(2,1);
+    	coeffMatrix[7] = result(3,1);
+
+    	coeffMatrix[8]  = result(0,2);
+    	coeffMatrix[9]  = result(1,2);
+    	coeffMatrix[10] = result(2,2);
+    	coeffMatrix[11] = result(3,2);
+
+    	coeffMatrix[12] = result(0,3);
+    	coeffMatrix[13] = result(1,3);
+    	coeffMatrix[14] = result(2,3);
+    	coeffMatrix[15] = result(3,3);
+
+    }else if (numNodesElem == 3){
+
+    	Eigen::Matrix3d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8];
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+
+    	coeffMatrix[3] = result(0,1);
+    	coeffMatrix[4] = result(1,1);
+    	coeffMatrix[5] = result(2,1);
+
+    	coeffMatrix[6] = result(0,2);
+    	coeffMatrix[7] = result(1,2);
+    	coeffMatrix[8] = result(2,2);
+    }
+
+#endif
+
     // if it fails, then a singular mass matrix is indicated
 }
 

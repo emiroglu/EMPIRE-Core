@@ -227,6 +227,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
                 uNoControlPoints, vNoControlPoints, controlPointNet, dofIndexNet);
         
 
+        // Add and linearize the trimming curves
         int trimInfo[2];
         serverComm->receiveFromClientBlocking<int>(name, 2, trimInfo);
         int isTrimmed = trimInfo[0];
