@@ -108,7 +108,8 @@ enum EMPIRE_Extrapolator_type {
 enum EMPIRE_CouplingAlgorithm_type {
     EMPIRE_Aitken,
     EMPIRE_ConstantRelaxation,
-    EMPIRE_IJCSA
+    EMPIRE_IJCSA,
+    EMPIRE_GMRES
 };
 
 /********//**

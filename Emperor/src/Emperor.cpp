@@ -50,6 +50,7 @@
 #include "Aitken.h"
 #include "ConstantRelaxation.h"
 #include "IJCSA.h"
+#include "GMRES.h"
 #include "AbstractCouplingLogic.h"
 #include "LinearExtrapolator.h"
 #include "CouplingLogicSequence.h"
@@ -376,8 +377,23 @@ void Emperor::initCouplingAlgorithms() {
                 }
 
             }
-        } else {
-            assert(false);
+        }else if(settingCouplingAlgorithm.type == EMPIRE_GMRES){
+
+        	int maxOuterItter = settingCouplingAlgorithm.gmres.maxOuterItter;
+        	int maxInnerItter = settingCouplingAlgorithm.gmres.maxInnerItter;
+        	double residual = settingCouplingAlgorithm.gmres.residualTolerance;
+        	couplingAlgorithm = new GMRES(name, maxOuterItter, maxInnerItter, residual);
+        	int j;
+        	for(j=0; j<settingCouplingAlgorithm.gmres.inputs.size(); j++){
+
+        		if (GMRES* couplingAlgorithmGMRES = dynamic_cast<GMRES*>(couplingAlgorithm)){
+        			couplingAlgorithmGMRES -> addInputConnection( constructConnectionIO(settingCouplingAlgorithm.gmres.inputs[j]));
+        			couplingAlgorithmGMRES -> addOutputConnection( constructConnectionIO(settingCouplingAlgorithm.gmres.outputs[j]));
+        		}
+        	}
+
+        }else { // Nothing is found
+        	assert(false);
         }
         // add residuals
         for (int j = 0; j < settingCouplingAlgorithm.residuals.size(); j++) {
@@ -402,8 +418,7 @@ void Emperor::initCouplingAlgorithms() {
         // init all coupling algorithms
         couplingAlgorithm->init();
 
-        nameToCouplingAlgorithmMap.insert(
-                pair<string, AbstractCouplingAlgorithm*>(name, couplingAlgorithm));
+        nameToCouplingAlgorithmMap.insert(pair<string, AbstractCouplingAlgorithm*>(name, couplingAlgorithm));
     }
 }
 

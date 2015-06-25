@@ -160,6 +160,29 @@ struct structCouplingAlgorithm {
         structConnectionIO interfaceJacobianSignal;
         double coefficient;
     };
+
+    // Properties of GMRES algorithm
+    // Aditya Ghantasala.
+    // TODO :: Change accordingly.
+    struct structGMRES {
+    	 int maxOuterItter;
+    	 int maxInnerItter;
+    	 double residualTolerance;
+         std::vector<structConnectionIO> inputs;
+         std::vector<structConnectionIO> outputs;
+/*       unsigned int indexRow;
+         unsigned int indexColumn;
+         bool isConstant;
+         double value;
+         bool isAutoDiff;
+         structConnectionIO functionInput;
+         structConnectionIO functionOutput;
+         bool isSignal;
+         structConnectionIO interfaceJacobianSignal;
+         double coefficient;*/
+     };
+
+
     std::string name;
     EMPIRE_CouplingAlgorithm_type type;
     std::vector<structOutput> outputs;
@@ -167,6 +190,7 @@ struct structCouplingAlgorithm {
     std::vector<structResidual> residuals;
     structAitken aitken;
     structConstantRelaxation constantRelaxation;
+    structGMRES gmres;
 };
 
 struct structFilter {

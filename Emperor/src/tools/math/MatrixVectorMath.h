@@ -459,6 +459,26 @@ public:
 
 
     /***********************************************************************************************
+     * \brief This function resizes the sparse matrix to given sizes
+     * \param[in] startRow 			- Start row of the sub matrix required.
+     * \param[in] startCol 			- Start Column of the sub matrix required.
+     * \param[in] numRows 			- Number of rows from the startRow.
+     * \param[in] numColumns 		- Number of columns from the startCol
+     * \author Aditya Ghantasala
+     ***********/
+    void resize(long int startRow, long int startCol, long int numRows, long int numColumns) {
+
+    	for(int i=startRow; i<startRow+numRows; i++){
+    		for(int j= startCol; j<startCol+numColumns; j++){
+    			col_iter jj;
+    			jj = (*mat)[i].find(j);
+    			(*mat)[i].erase(jj);
+    		}
+    	}
+    }
+
+
+    /***********************************************************************************************
      * \brief This function multiplies the whole row of the sparse matrix with a given number
      * \param[in] 	-- row 			Row number of the sparse matrix for which should be multiplied with.
      * \param[in] 	-- face 		factor with which the row should be multiplied.

@@ -104,20 +104,23 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     initTables();
     initANNTree();
 
+
+
+
     // 2. compute C_BB
     computeC_BB();
-    /*if (!dual) {
-        MortarMath::printCSRMatrixSymmetric(C_BB_A, C_BB_IA, C_BB_JA, masterNumNodes);
+    if (!dual) {
+    	C_BB->printFullToFile("MortarMapper_Cbb.dat");
     } else {
-        MortarMath::printDiagonalMatrix(C_BB_A_DUAL, masterNumNodes);
-    }*/
+    	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
+    }
     // 3. compute C_BA
     computeC_BA();
-    /*if (!dual) {
-        MortarMath::printCSRMatrixUnsymmetric(C_BA_A, C_BA_IA, C_BA_JA, masterNumNodes, slaveNumNodes);
+    if (!dual) {
+    	C_BA->printFullToFile("MortarMapper_Cba.dat");
     } else {
-        MortarMath::printCSRMatrixUnsymmetric(C_BA_A_DUAL, C_BA_IA, C_BA_JA, masterNumNodes, slaveNumNodes);
-    }*/
+    	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
+    }
     deleteANNTree();
     deleteTables();
 
@@ -143,6 +146,10 @@ MortarMapper::~MortarMapper() {
 
 void MortarMapper::consistentMapping(const double *slaveField, double *masterField) {
     double *slaveFieldCopy = new double[slaveNumNodes];
+
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
+
     for (int i = 0; i < slaveNumNodes; i++)
         slaveFieldCopy[i] = slaveField[i];
 
@@ -178,6 +185,10 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
      * F_A --- slaveField
      * F_B --- masterField
      */
+
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
+//	  INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
+
     double *masterFieldCopy = new double[masterNumNodes];
     for (int i = 0; i < masterNumNodes; i++)
         masterFieldCopy[i] = masterField[i];

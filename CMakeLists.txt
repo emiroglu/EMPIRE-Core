@@ -21,6 +21,7 @@
 project (EMPIRE)
 #------------------------------------------------------------------------------------#
 cmake_minimum_required (VERSION 2.8.10)
+set( CMAKE_VERBOSE_MAKEFILE on )
 #------------------------------------------------------------------------------------#
 IF( (${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")) 
     enable_language(Fortran OPTIONAL)

@@ -73,9 +73,9 @@ ConnectionIO::~ConnectionIO() {
 }
 
 void ConnectionIO::send() {
-    if (type == EMPIRE_ConnectionIO_DataField)
+    if (type == EMPIRE_ConnectionIO_DataField){
         clientCode->sendDataField(mesh->name, dataField->name);
-    else if (type == EMPIRE_ConnectionIO_Signal)
+    }else if (type == EMPIRE_ConnectionIO_Signal)
         clientCode->sendSignal(signal->name);
     else
         assert(false);

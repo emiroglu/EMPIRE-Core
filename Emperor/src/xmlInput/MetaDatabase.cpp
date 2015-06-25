@@ -431,6 +431,7 @@ void MetaDatabase::fillSettingCouplingAlgorithmVec() {
             ticpp::Element *xmlAitken = xmlCoupAlg->FirstChildElement("aitken");
             double tmpDouble = xmlAitken->GetAttribute<double>("initialRelaxationFactor");
             coupAlg.aitken.initialRelaxationFactor = tmpDouble;
+
         } else if (xmlCoupAlg->GetAttribute<string>("type") == "constantRelaxation") {
             coupAlg.type = EMPIRE_ConstantRelaxation;
             ticpp::Element *constantRelaxation = xmlCoupAlg->FirstChildElement(
@@ -461,10 +462,13 @@ void MetaDatabase::fillSettingCouplingAlgorithmVec() {
 
                         interfaceJacobian.coefficient = xmlOutput->FirstChildElement(
                                 "automaticDetermination")->GetAttribute<double>("coefficient");
+
                         ticpp::Element *functionInput = xmlOutput->FirstChildElement(
                                 "automaticDetermination")->FirstChildElement("functionInput");
+
                         ticpp::Element *functionOutput = xmlOutput->FirstChildElement(
                                 "automaticDetermination")->FirstChildElement("functionOutput");
+
                         interfaceJacobian.functionInput = parseConnectionIORef(functionInput);
                         interfaceJacobian.functionOutput = parseConnectionIORef(functionOutput);
                         interfaceJacobian.isConstant = false;
@@ -475,7 +479,46 @@ void MetaDatabase::fillSettingCouplingAlgorithmVec() {
                 }
             }
             coupAlg.type = EMPIRE_IJCSA;
-        } else {
+
+        } else if(xmlCoupAlg->GetAttribute<string>("type") == "GMRES"){ // For GMRES Algorithm
+        	// TODO : Complete the implementation
+        	// Reading the GMRES element in XML file.
+        	ticpp::Iterator<Element> xmlOutput("GMRES");
+
+        	// Reading in maxOuterItter
+    		ticpp::Element *xmltempmaxOuterItter= xmlCoupAlg->FirstChildElement("maxOuterItter");
+    		unsigned int tempmaxOuterItter = xmltempmaxOuterItter->GetAttribute<unsigned int>("value");
+    		coupAlg.gmres.maxOuterItter = tempmaxOuterItter;
+    		// Reading in maxInnerItter
+    		ticpp::Element *xmltempmaxInnerItter= xmlCoupAlg->FirstChildElement("maxInnerItter");
+    		unsigned int tempmaxInnerItter = xmltempmaxInnerItter->GetAttribute<unsigned int>("value");
+    		coupAlg.gmres.maxInnerItter = tempmaxInnerItter;
+    		// Reading in residual
+    		ticpp::Element *xmltempresidual= xmlCoupAlg->FirstChildElement("tolerance");
+    		double temptolerance = xmltempresidual->GetAttribute<double>("value");
+    		coupAlg.gmres.residualTolerance = temptolerance;
+
+    		// Reading the connections
+    		ticpp::Iterator<Element> xmlConnection("connection");
+            for (xmlConnection = xmlConnection.begin(xmlCoupAlg.Get()); xmlConnection != xmlConnection.end();
+            		xmlConnection++) {
+    			if (xmlConnection->FirstChildElement("inputAndOutput", false) != NULL) {
+
+    				ticpp::Element *xmlIO = xmlConnection->FirstChildElement("inputAndOutput");
+    				structConnectionIO io = parseConnectionIORef(xmlIO);
+    				coupAlg.gmres.inputs.push_back(io);
+    				coupAlg.gmres.outputs.push_back(io);
+    			}
+    		}
+
+
+            //INFO_OUT() << "MetaDatabase :: GMRES :: maxIterBeforeRestart = " << coupAlg.gmres.maxInnerItter << endl;
+        	// Setting the coupling algorithm type.
+        	coupAlg.type = EMPIRE_GMRES;
+        	delete xmltempmaxOuterItter;
+        	delete xmltempmaxInnerItter;
+        	delete xmltempresidual;
+        } else{
             assert(false);
         }
         settingCouplingAlgorithmVec.push_back(coupAlg);

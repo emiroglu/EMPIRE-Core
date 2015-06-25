@@ -70,12 +70,16 @@ bool ConvergenceChecker::CheckResidual::isConvergent() {
 }
 
 void ConvergenceChecker::CheckResidual::writeResidualToShell() {
-    stringstream ss;
+    stringstream ss, ssR;
     ss << scientific;
+    ssR << scientific;
     ss << "ConvergenceChecker::CheckResidual(" << couplingAlgorithm->getName() << ", " << residualIndex
-            << "): " << "(" << getRelativeResidual() << ", " << getAbsoluteResidual() << ")"
-            << endl;
+            << "): " << endl;
+    ssR << "Residuals : ( Relative : " << getRelativeResidual() << ", Absolute: " << getAbsoluteResidual() << ")"
+    << endl;
     INDENT_OUT(1, ss.str(), infoOut);
+    INDENT_OUT(1, ssR.str(), infoOut);
+
 }
 
 ConvergenceChecker::ConvergenceChecker(double maxNumOfIters) :

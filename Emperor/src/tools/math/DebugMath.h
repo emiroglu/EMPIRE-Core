@@ -21,7 +21,7 @@
 
 #ifndef DEBUGMATH_H_
 #define DEBUGMATH_H_
-
+#include <string>
 
 namespace EMPIRE {
 namespace MathLibrary {
@@ -46,6 +46,14 @@ void printPoint(const double *p);
  * \author Tianyang Wang
  ***********/
 void printDiagonalMatrix(const double *A, int numRows);
+/***********************************************************************************************
+ * \brief print a diagonal matrix
+ * \param[in] filename the file name to which the matrix should be written to.
+ * \param[in] A the matrix
+ * \param[in] numRows number of rows of A
+ * \author Aditya Ghantasala
+ ***********/
+void printFullToFile(std::string filename, const double *A, int numRows);
 /***********************************************************************************************
  * \brief print a general matrix
  * \param[in] A the matrix
