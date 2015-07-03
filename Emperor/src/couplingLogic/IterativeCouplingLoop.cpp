@@ -91,9 +91,9 @@ void IterativeCouplingLoop::doCoupling() {
 			couplingAlgorithmVec[i]->updateAtIterationEnd();
 		}
 
-		// compute the new output of the coupling algorithm
+		// compute the new residual for the coupling algorithm.
 		for (int i = 0; i < couplingAlgorithmVec.size(); i++) {
-			couplingAlgorithmVec[i]->calcNewValue();
+			couplingAlgorithmVec[i]->calcCurrentResidual();
 		}
 
 		// broadcast convergence
@@ -104,6 +104,11 @@ void IterativeCouplingLoop::doCoupling() {
 			broadcastConvergenceToClients(false);
 		}
 		assert(count == convergenceChecker->getCurrentNumOfIterations());
+
+		// compute the new output of the coupling algorithm
+		for (int i = 0; i < couplingAlgorithmVec.size(); i++) {
+			couplingAlgorithmVec[i]->calcNewValue();
+		}
 
 	}
 	//std::cout << "number of iterative coupling loops: " << count << std::endl;

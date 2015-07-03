@@ -45,6 +45,7 @@ struct structClientCode {
             EMPIRE_DataField_typeOfQuantity typeOfQuantity;
         };
         std::string name;
+
         EMPIRE_Mesh_type type;
         std::string clientNameToCopyFrom;
         std::string meshNameToCopyFrom;
@@ -57,7 +58,9 @@ struct structClientCode {
         int size3D[3];
     };
     std::string name;
+    bool isRestart; // Flag mentioning if the code is restarted.
     std::vector<structMesh> meshes;
+    std::vector<std::string> initialDataFields;
     std::vector<structSignal> signals;
 };
 

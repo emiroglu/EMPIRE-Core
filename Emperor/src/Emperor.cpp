@@ -232,6 +232,7 @@ void Emperor::initClientCodes() {
         //assert(clientNames.find(name)!=clientNames.end());
         const vector<structClientCode::structMesh> &settingMeshes = settingClientCode.meshes;
         const vector<structClientCode::structSignal> &settingSignals = settingClientCode.signals;
+        const vector<std::string> &initialDataFields = settingClientCode.initialDataFields;
 
         ClientCode *clientCode = new ClientCode(name);
         clientCode->setServerCommunication(ServerCommunication::getSingleton());
@@ -265,13 +266,21 @@ void Emperor::initClientCodes() {
                 mesh->addDataField(settingDataFields[k].name, settingDataFields[k].location,
                         settingDataFields[k].dimension, settingDataFields[k].typeOfQuantity);
             }
+
+            // Receiving the initial values of the data fields specified. // Aditya
+            for (int k = 0; k < initialDataFields.size(); k++) {
+            	clientCode->recvDataField(settingMesh.name, initialDataFields.at(k));
+            }
         }
+
+
         for (int j = 0; j < settingSignals.size(); j++) {
             const structClientCode::structSignal &settingSignal = settingSignals[j];
             clientCode->addSignal(settingSignal.name, settingSignal.size3D[0],
                     settingSignal.size3D[1], settingSignal.size3D[2]);
         }
         nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
+
     }
 }
 

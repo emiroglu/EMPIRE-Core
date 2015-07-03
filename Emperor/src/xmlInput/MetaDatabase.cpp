@@ -115,6 +115,13 @@ void MetaDatabase::fillSettingClientCodesVec() {
             xmlClientCode++) {
         structClientCode clientCode;
         clientCode.name = xmlClientCode->GetAttribute<string>("name");
+        string tmpRestart = xmlClientCode->GetAttribute<string>("restart",false);
+        if(!tmpRestart.empty()){
+        	if(tmpRestart == "true")
+        		clientCode.isRestart = true;
+        	else
+        		clientCode.isRestart = false;
+        }
 
         ticpp::Iterator<Element> xmlMesh("mesh");
 
@@ -203,6 +210,7 @@ void MetaDatabase::fillSettingClientCodesVec() {
 
                 mesh.dataFields.push_back(dataField);
             }
+
             clientCode.meshes.push_back(mesh);
         }
 
@@ -241,6 +249,17 @@ void MetaDatabase::fillSettingClientCodesVec() {
                 }
             }
             clientCode.signals.push_back(signal);
+        }
+
+
+        ticpp::Iterator<Element> xmlInitialDataField("intialDataField");
+
+        for (xmlInitialDataField = xmlInitialDataField.begin(xmlClientCode.Get()); xmlInitialDataField != xmlInitialDataField.end(); xmlInitialDataField++) {
+
+            INFO_OUT() << "Initializing the datafield names for intialization." << endl;
+        	string tmpDataField = xmlInitialDataField->GetAttribute<string>("name",false);
+        	if(!tmpDataField.empty())
+        		clientCode.initialDataFields.push_back(tmpDataField);
         }
         settingClientCodeVec.push_back(clientCode);
     }
