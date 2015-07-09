@@ -317,7 +317,7 @@ void ClientCode::sendDataField(std::string meshName, std::string dataFieldName) 
     serverComm->sendToClientBlocking<int>(name, 1, &bufferSize);
     serverComm->sendToClientBlocking<double>(name, bufferSize, df->data);
     // debug
-    (*df).writeToFile("sentData.dat","sent data from empire", "end");
+    // (*df).writeToFile("sentData.dat","sent data from empire", "end");
     DEBUG_OUT() << (*df) << endl;
 }
 
