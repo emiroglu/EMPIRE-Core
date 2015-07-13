@@ -64,6 +64,11 @@ public:
      ***********/
     void calcNewValue();
     /***********************************************************************************************
+     * \brief Calculate the new value of the residual
+     * \author Aditya Ghantasala
+     ***********/
+    void calcCurrentResidual(){}
+    /***********************************************************************************************
      * \brief Init IJCSA
      * \author Stefan Sicklinger
      ***********/

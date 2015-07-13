@@ -23,6 +23,7 @@
 #include <math.h>
 #include <assert.h>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <list>
 using namespace std;
@@ -79,6 +80,34 @@ void printDiagonalMatrix(const double *A, int numRows) {
     }
     cout << "======================================================" << endl;
 }
+
+
+/***********************************************************************************************
+ * \brief This prints the matrix in full style in a file ready to be imported in matlab via dlmread('filename',' ')
+ * \author Aditya Ghantasala
+ ***********/
+void printFullToFile(std::string filename, const double *A, int numRows) {
+    size_t ii_counter;
+    size_t jj_counter;
+
+    std::ofstream ofs;
+    ofs.open(filename.c_str(), std::ofstream::out);
+    ofs << std::scientific;
+
+    for (int i = 0; i < numRows; i++) {
+        for (int j = 0; j < numRows; j++) {
+            if (i==j)
+            	ofs << setw(15) << A[i];
+            else
+            	ofs << setw(15) << 0.0;
+        }
+        ofs << endl;
+    }
+
+    ofs.close();
+}
+
+
 
 /***********************************************************************************************
  * \brief print a general matrix

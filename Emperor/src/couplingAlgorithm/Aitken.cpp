@@ -54,10 +54,10 @@ void Aitken::calcNewValue() {
 	{
 		startNewTimeStep();
 	}
-    /// compute the current residuals
-    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
-        it->second->computeCurrentResidual();
-    }
+//    /// compute the current residuals
+//    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+//        it->second->computeCurrentResidual();
+//    }
     /// assemble global residual vector
     int oldSize =0;
     for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
@@ -140,6 +140,13 @@ void Aitken::init() {
     globalResidualOld = new double [globalResidualSize];
     tmpVec            = new double [globalResidualSize];
     startNewTimeStep();
+}
+
+void Aitken::calcCurrentResidual() {
+    /// compute the current residuals
+    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+        it->second->computeCurrentResidual();
+    }
 }
 
 } /* namespace EMPIRE */

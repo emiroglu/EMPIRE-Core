@@ -45,6 +45,7 @@ struct structClientCode {
             EMPIRE_DataField_typeOfQuantity typeOfQuantity;
         };
         std::string name;
+
         EMPIRE_Mesh_type type;
         std::string clientNameToCopyFrom;
         std::string meshNameToCopyFrom;
@@ -57,7 +58,9 @@ struct structClientCode {
         int size3D[3];
     };
     std::string name;
+    bool isRestart; // Flag mentioning if the code is restarted.
     std::vector<structMesh> meshes;
+    std::vector<std::string> initialDataFields;
     std::vector<structSignal> signals;
 };
 
@@ -160,6 +163,29 @@ struct structCouplingAlgorithm {
         structConnectionIO interfaceJacobianSignal;
         double coefficient;
     };
+
+    // Properties of GMRES algorithm
+    // Aditya Ghantasala.
+    // TODO :: Change accordingly.
+    struct structGMRES {
+    	 int maxOuterItter;
+    	 int maxInnerItter;
+    	 double residualTolerance;
+         std::vector<structConnectionIO> inputs;
+         std::vector<structConnectionIO> outputs;
+/*       unsigned int indexRow;
+         unsigned int indexColumn;
+         bool isConstant;
+         double value;
+         bool isAutoDiff;
+         structConnectionIO functionInput;
+         structConnectionIO functionOutput;
+         bool isSignal;
+         structConnectionIO interfaceJacobianSignal;
+         double coefficient;*/
+     };
+
+
     std::string name;
     EMPIRE_CouplingAlgorithm_type type;
     std::vector<structOutput> outputs;
@@ -167,6 +193,7 @@ struct structCouplingAlgorithm {
     std::vector<structResidual> residuals;
     structAitken aitken;
     structConstantRelaxation constantRelaxation;
+    structGMRES gmres;
 };
 
 struct structFilter {
@@ -231,6 +258,7 @@ struct structCouplingLogic {
             struct structCheckResidual {
                 double relativeTolerance;
                 double absoluteTolerance;
+                bool isAbsolute;
                 structResidualRef residualRef;
             };
             double maxNumOfIterations;

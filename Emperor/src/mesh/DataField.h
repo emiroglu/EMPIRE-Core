@@ -52,6 +52,15 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~DataField();
+    /***********************************************************************************************
+     * \brief Method to write the data field out to a ASCII file
+     * \param[in] _name name of the file to which it should be written
+     * \param[in] _header Header which should be put on top of the file
+     * \param[in] _footer Header which should be put on top of the file
+     * \author Aditya Ghantasala
+     ***********/
+     void writeToFile(std::string _name,std::string _header, std::string _footer);
+
     /// name of the data field
     const std::string name;
     /// where the data are located, at node or at element centroid
@@ -64,6 +73,7 @@ public:
     const EMPIRE_DataField_typeOfQuantity typeOfQuantity;
     /// pointer to the data storage
     double * const data;
+
 };
 
 /***********************************************************************************************
