@@ -819,7 +819,7 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 		clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
 		/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
 		for(int index=0;index<listSpan.size();index++) {
-			ClipperAdapter::cleanPolygon(listPolygonUV[index]);
+			// ClipperAdapter::cleanPolygon(listPolygonUV[index],1e-9);
 			if(listPolygonUV[index].size()<3)
 				continue;
 			isIntegrated=true;
@@ -828,7 +828,7 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 			for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
 					triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
 				/// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
-				ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-6);
+				ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-8);
 				if(triangulatedPolygon->size()<3)
 					continue;
 				triangulatedProjectedPolygons[_elemIndex][_patchIndex].push_back(*triangulatedPolygon);

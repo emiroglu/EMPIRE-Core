@@ -850,7 +850,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             fixV = true;
         } else if (fabs(dR[3]) < epsJ || fixV) {
             // According to Fabien that must be R[0] / dR[0];
-            R[0] = R[0] / dR[1];
+            // R[0] = R[0] / dR[1];  // According to Chenshen
+            R[0] = R[0] / dR[0]; // According to Fabien
             R[1] = 0.0;
             fixU = true;
             fixV = false;
