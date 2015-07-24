@@ -150,10 +150,12 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Reserve some space for gauss point values
     streamGP.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+
     // Compute CNN and CNR
     computeCouplingMatrices();
 
-    writeGaussPointData();
+    //writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
