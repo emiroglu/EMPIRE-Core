@@ -23,6 +23,7 @@
 #include "MetaDataStructures.h"
 #include "GiDFileIO.h"
 #include "MatlabIGAFileIO.h"
+#include "GiDIGAFileIO.h" //
 #include "AbstractMesh.h"
 #include "FEMesh.h"
 #include "IGAMesh.h"
@@ -72,8 +73,7 @@ void DataOutput::writeMeshes() {
         const string UNDERSCORE = "_";
         string clientCodeName = dataFieldRefs[i].clientCodeName;
         string meshName = dataFieldRefs[i].meshName;
-        string meshFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE + meshName
-                + ".msh";
+        string meshFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE + meshName;
 
         assert(nameToClientCodeMap.find(clientCodeName) != nameToClientCodeMap.end());
         AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
@@ -85,13 +85,16 @@ void DataOutput::writeMeshes() {
         string meshFileName = it->first;
         if (it->second->type == EMPIRE_Mesh_FEMesh || it->second->type == EMPIRE_Mesh_SectionMesh) {
             FEMesh *mesh = dynamic_cast<FEMesh*>(it->second);
+            meshFileName.append(".msh");
             if (mesh->triangulate() != NULL)
                 mesh = mesh->triangulate();
             GiDFileIO::writeDotMsh(meshFileName, mesh->numNodes, mesh->numElems, mesh->nodes,
                     mesh->nodeIDs, mesh->numNodesPerElem, mesh->elems, mesh->elemIDs);
         } else if (it->second->type == EMPIRE_Mesh_IGAMesh) {
             IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(it->second);
-            MatlabIGAFileIO::writeIGAMesh(igaMesh);
+            meshFileName.append(".geo");
+            GiDIGAFileIO::writeIGAMesh(meshFileName, igaMesh);
+            //MatlabIGAFileIO::writeIGAMesh(igaMesh);
         } else
             ERROR_BLOCK_OUT("DataOutput","writeMeshes","Writer defined only for FEMesh,SectionMesh,IGAMesh");
     }
@@ -110,15 +113,17 @@ void DataOutput::initDataFieldFiles() {
         string clientCodeName = dataFieldRefs[i].clientCodeName;
         string meshName = dataFieldRefs[i].meshName;
         string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
-                + meshName + ".res";
+                + meshName;
 
         assert(nameToClientCodeMap.find(clientCodeName) != nameToClientCodeMap.end());
         AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
         if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
+        	dataFieldFileName.append(".res");
             FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
             dataFieldFileNameToMeshMap.insert(pair<string, FEMesh*>(dataFieldFileName, feMesh));
         } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
-
+        	dataFieldFileName.append(".post.res");
+        	GiDIGAFileIO::initDotPostRes(dataFieldFileName);
         } else
             assert(0);
     }
@@ -146,11 +151,12 @@ void DataOutput::writeDataFields(int step) {
             string meshName = dataFieldRef.meshName;
             string dataFieldName = dataFieldRef.dataFieldName;
             AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
+            const string UNDERSCORE = "_";
+            string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
+                    + meshName;
             if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
+            	dataFieldFileName.append(".res");
                 FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
-                const string UNDERSCORE = "_";
-                string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
-                        + meshName + ".res";
                 DataField *dataField = feMesh->getDataFieldByName(dataFieldName);
                 bool atNode = (dataField->location == EMPIRE_DataField_atNode ? true : false);
                 int *locationIDs = (atNode ? feMesh->nodeIDs : feMesh->elemIDs);
@@ -217,8 +223,17 @@ void DataOutput::writeDataFields(int step) {
                     assert(false);
                 }
             } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
+            	dataFieldFileName.append(".post.res");
                 DataField *dataField = mesh->getDataFieldByName(dataFieldName);
-                MatlabIGAFileIO::writeVectorFieldOnCPs(meshName, dataFieldName, step, dataField);
+                //MatlabIGAFileIO::writeVectorFieldOnCPs(meshName, dataFieldName, step, dataField);
+
+                string type;
+                if (dataField->dimension == EMPIRE_DataField_vector) {type = "vector";}
+                else if (dataField->dimension == EMPIRE_DataField_scalar) {type = "scalar";}
+                else {assert(false);}
+
+				IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(mesh);
+				GiDIGAFileIO::appendCPDataToDotRes(dataFieldFileName, dataFieldName,"\"EMPIRE_CoSimulation\"", step, type, dataField, igaMesh);
             } else {
                 assert(0);
             }
