@@ -19,6 +19,7 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "DataField.h"
+#include <fstream>
 
 namespace EMPIRE {
 using namespace std;
@@ -32,6 +33,33 @@ DataField::DataField(std::string _name, EMPIRE_DataField_location _location, int
 DataField::~DataField() {
     delete[] data;
 }
+
+void DataField::writeToFile(std::string name,std::string header, std::string footer){
+	// Opening a file to write into
+	ofstream myfile;
+	myfile.open (name.c_str());
+	// Writing the header
+	myfile << header <<std::endl;
+
+
+	//Writing the data field to the file
+	for (int i = 0; i < numLocations; i++) {
+		myfile << "\t\t+" << "\t";
+		for (int j = 0; j < dimension; j++) {
+			myfile << data[i * (dimension) + j] << "\t";
+		}
+		myfile << endl;
+	}
+
+	// Writing the footer
+	myfile << footer <<std::endl;
+	// Closing the file after writing.
+	myfile.close();
+}
+
+
+
+
 
 Message &operator<<(Message &message, DataField &dataField) {
     message << "\t+" << "DataField name: " << dataField.name << endl;

@@ -42,10 +42,10 @@ ConstantRelaxation::~ConstantRelaxation() {
 }
 
 void ConstantRelaxation::calcNewValue() {
-    // compute the current residual
-    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
-        it->second->computeCurrentResidual();
-    }
+//    // compute the current residual
+//    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+//        it->second->computeCurrentResidual();
+//    }
 
     // calculate the new output
     assert(outputs.size() == residuals.size());
@@ -63,4 +63,12 @@ void ConstantRelaxation::calcNewValue() {
         delete[] newOuput;
     }
 }
+
+void ConstantRelaxation::calcCurrentResidual() {
+    // compute the current residual
+    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+        it->second->computeCurrentResidual();
+    }
+}
+
 } /* namespace EMPIRE */

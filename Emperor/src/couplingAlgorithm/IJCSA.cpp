@@ -202,11 +202,11 @@ void IJCSA::init() {
 	autoDiffFile << "timeStep" << '\t' << "iteration" << '\t' << "interfaceJacobian" << '\t'<< endl;
 	assert(!autoDiffFile.fail());
 }
+
 void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
 		unsigned int _indexColumn, double _value) {
 	interfaceJacobianEntry tmp ={_indexRow,_indexColumn,true,_value,false,NULL,NULL,false,NULL,0,0,0};
 	interfaceJacobianEntrys.push_back(tmp);
-
 }
 
 void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
@@ -217,7 +217,6 @@ void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
 
 	interfaceJacobianEntry tmp ={_indexRow,_indexColumn,false,0.0,true,_functionInput,_functionOutput,false,NULL,_coefficient,0,0};
 	interfaceJacobianEntrys.push_back(tmp);
-
 }
 
 } /* namespace EMPIRE */

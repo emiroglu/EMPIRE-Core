@@ -53,6 +53,11 @@ public:
      ***********/
     void calcNewValue();
     /***********************************************************************************************
+     * \brief Calculate the new value of the output
+     * \author Aditya Ghantasala
+     ***********/
+    void calcCurrentResidual();
+    /***********************************************************************************************
      * \brief Init aitken relaxation
      * \author Stefan Sicklinger
      ***********/

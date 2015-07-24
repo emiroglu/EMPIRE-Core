@@ -102,7 +102,7 @@ void AbstractCouplingAlgorithm::updateAtIterationBeginning() {
     // update residuals
     for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++)
         it->second->updateAtIterationBeginning();
-    // update output copys
+    // update output copies
     for (map<int, CouplingAlgorithmOutput*>::iterator it = outputs.begin(); it != outputs.end();
             it++) {
         it->second->updateAtIterationBeginning();

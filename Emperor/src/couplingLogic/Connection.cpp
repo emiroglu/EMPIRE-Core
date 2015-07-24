@@ -65,8 +65,7 @@ void Connection::transferData() {
     timeMessage << "It took " << difftime(timeEnd, timeStart) << " seconds for filtering";
     INDENT_OUT(1, timeMessage.str(), infoOut);
     timeMessage.str("");
-    for (unsigned i = 0; i < outputVec.size(); i++)
-    {
+    for (unsigned i = 0; i < outputVec.size(); i++){
         outputVec[i]->send();
     }
 }

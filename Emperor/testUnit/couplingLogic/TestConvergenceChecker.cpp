@@ -61,7 +61,7 @@ public:
             Residual *residual = new Residual(1);
             ConstantRelaxation *constantRelaxation = new ConstantRelaxation("", 1.0);
             constantRelaxation->addResidual(residual, 1);
-            checker->addCheckResidual(-1.0, REL_TOL, constantRelaxation, 1);
+            checker->addCheckResidual(-1.0, REL_TOL, constantRelaxation, 1, false);
 
             checker->debugResidual = false;
             for (int i = 1; i <= NUM_TIME_STEP; i++) {
@@ -87,7 +87,7 @@ public:
             Residual *residual = new Residual(1);
             ConstantRelaxation *constantRelaxation = new ConstantRelaxation("", 1.0);
             constantRelaxation->addResidual(residual, 1);
-            checker->addCheckResidual(ABS_TOL, -1.0, constantRelaxation, 1);
+            checker->addCheckResidual(ABS_TOL, -1.0, constantRelaxation, 1, true);
 
             checker->debugResidual = false;
             for (int i = 1; i <= NUM_TIME_STEP; i++) {
@@ -112,7 +112,7 @@ public:
             Residual *residual = new Residual(1);
             ConstantRelaxation *constantRelaxation = new ConstantRelaxation("", 1.0);
             constantRelaxation->addResidual(residual, 1);
-            checker->addCheckResidual(-1.0, -1.0, constantRelaxation, 1);
+            checker->addCheckResidual(-1.0, -1.0, constantRelaxation, 1, false);
 
             checker->debugResidual = false;
             for (int i = 1; i <= NUM_TIME_STEP; i++) {

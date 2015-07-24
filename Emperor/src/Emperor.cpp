@@ -50,6 +50,7 @@
 #include "Aitken.h"
 #include "ConstantRelaxation.h"
 #include "IJCSA.h"
+#include "GMRES.h"
 #include "AbstractCouplingLogic.h"
 #include "LinearExtrapolator.h"
 #include "CouplingLogicSequence.h"
@@ -231,6 +232,7 @@ void Emperor::initClientCodes() {
         //assert(clientNames.find(name)!=clientNames.end());
         const vector<structClientCode::structMesh> &settingMeshes = settingClientCode.meshes;
         const vector<structClientCode::structSignal> &settingSignals = settingClientCode.signals;
+        const vector<std::string> &initialDataFields = settingClientCode.initialDataFields;
 
         ClientCode *clientCode = new ClientCode(name);
         clientCode->setServerCommunication(ServerCommunication::getSingleton());
@@ -264,13 +266,21 @@ void Emperor::initClientCodes() {
                 mesh->addDataField(settingDataFields[k].name, settingDataFields[k].location,
                         settingDataFields[k].dimension, settingDataFields[k].typeOfQuantity);
             }
+
+            // Receiving the initial values of the data fields specified. // Aditya
+            for (int k = 0; k < initialDataFields.size(); k++) {
+            	clientCode->recvDataField(settingMesh.name, initialDataFields.at(k));
+            }
         }
+
+
         for (int j = 0; j < settingSignals.size(); j++) {
             const structClientCode::structSignal &settingSignal = settingSignals[j];
             clientCode->addSignal(settingSignal.name, settingSignal.size3D[0],
                     settingSignal.size3D[1], settingSignal.size3D[2]);
         }
         nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
+
     }
 }
 
@@ -376,8 +386,23 @@ void Emperor::initCouplingAlgorithms() {
                 }
 
             }
-        } else {
-            assert(false);
+        }else if(settingCouplingAlgorithm.type == EMPIRE_GMRES){
+
+        	int maxOuterItter = settingCouplingAlgorithm.gmres.maxOuterItter;
+        	int maxInnerItter = settingCouplingAlgorithm.gmres.maxInnerItter;
+        	double residual = settingCouplingAlgorithm.gmres.residualTolerance;
+        	couplingAlgorithm = new GMRES(name, maxOuterItter, maxInnerItter, residual);
+        	int j;
+        	for(j=0; j<settingCouplingAlgorithm.gmres.inputs.size(); j++){
+
+        		if (GMRES* couplingAlgorithmGMRES = dynamic_cast<GMRES*>(couplingAlgorithm)){
+        			couplingAlgorithmGMRES -> addInputConnection( constructConnectionIO(settingCouplingAlgorithm.gmres.inputs[j]));
+        			couplingAlgorithmGMRES -> addOutputConnection( constructConnectionIO(settingCouplingAlgorithm.gmres.outputs[j]));
+        		}
+        	}
+
+        }else { // Nothing is found
+        	assert(false);
         }
         // add residuals
         for (int j = 0; j < settingCouplingAlgorithm.residuals.size(); j++) {
@@ -402,8 +427,7 @@ void Emperor::initCouplingAlgorithms() {
         // init all coupling algorithms
         couplingAlgorithm->init();
 
-        nameToCouplingAlgorithmMap.insert(
-                pair<string, AbstractCouplingAlgorithm*>(name, couplingAlgorithm));
+        nameToCouplingAlgorithmMap.insert(pair<string, AbstractCouplingAlgorithm*>(name, couplingAlgorithm));
     }
 }
 
@@ -536,7 +560,7 @@ AbstractCouplingLogic *Emperor::parseStructCouplingLogic(
                         nameToCouplingAlgorithmMap[settingCheckResidual.residualRef.couplingAlgorithmName];
                 checker->addCheckResidual(settingCheckResidual.absoluteTolerance,
                         settingCheckResidual.relativeTolerance, coupAlgRef,
-                        settingCheckResidual.residualRef.index);
+                        settingCheckResidual.residualRef.index, settingCheckResidual.isAbsolute);
             }
 
             iterativeCouplingLoop->setConvergenceChecker(checker);

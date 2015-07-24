@@ -52,6 +52,11 @@ public:
      ***********/
     void calcNewValue();
     /***********************************************************************************************
+     * \brief Calculate the new value residual
+     * \author Aditya Ghantasala
+     ***********/
+    void calcCurrentResidual();
+    /***********************************************************************************************
      * \brief Init constant relaxation
      * \author Stefan Sicklinger
      ***********/

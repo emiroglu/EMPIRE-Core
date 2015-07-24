@@ -555,6 +555,10 @@ void IGAMortarMapper::computeCouplingMatrices() {
     	}
     	WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Not all element in FE mesh integrated ! Coupling matrices invalid");
     }
+
+    C_NN->printFullToFile("IGAMortarMapper_CNN.dat");
+    C_NR->printFullToFile("IGAMortarMapper_CNR.dat");
+
 }
 
 void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchWithFullElt, set<int>& patchWithSplitElt) {
@@ -1289,6 +1293,9 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
      */
     double* tmpVec = new double[numNodesMaster];
 
+    //INFO_OUT() << "IGAMortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(_slaveField) << endl;
+    //INFO_OUT() << "IGAMortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(_masterField) << endl;
+
     // 1. matrix vector product (x_tmp = C_NR * x_slave)
     C_NR->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, numNodesMaster);
     if(!isMappingIGA2FEM) {
@@ -1317,6 +1324,10 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
      */
 
     double* tmpVec = new double[numNodesMaster];
+
+    //INFO_OUT() << "IGAMortarMapper::conservativeMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(_slaveField) << endl;
+    //INFO_OUT() << "IGAMortarMapper::conservativeMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(_masterField) << endl;
+
 
 // 1. solve C_NN * f_tmp = f_master;
     if(!isMappingIGA2FEM) {
