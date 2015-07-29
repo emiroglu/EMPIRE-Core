@@ -127,7 +127,7 @@ public:
      * \param[in] _vKnotSpanIndex The index of the knot span where the parametric coordinates _vPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeCartesianCoordinates(double*, double, int, double, int);
+    void computeCartesianCoordinates(double*, double, int, double, int)const;
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
@@ -136,7 +136,7 @@ public:
      * \compute the knot span Index inside the function. Convenient but in-efficient.
      * \author Chenshen Wu
      ***********/
-    void computeCartesianCoordinates(double*, double*);
+    void computeCartesianCoordinates(double*, double*)const;
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
@@ -146,7 +146,7 @@ public:
      * \param[in] _vKnotSpanIndex The index of the knot span where the parametric coordinates _vPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeCartesianCoordinates(double*, double*, int, int);
+    void computeCartesianCoordinates(double*, double*, int, int)const;
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions and their derivatives are given
@@ -157,7 +157,7 @@ public:
      * \param[in] _vKnotSpanIndex The index of the knot span where the parametric coordinates _vPrm lives in
      * \author Andreas Apostolatos
      ***********/
-    void computeCartesianCoordinates(double*, double*, int, int, int);
+    void computeCartesianCoordinates(double*, double*, int, int, int)const;
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of the base vectors at a given pair of surface parameters given the basis functions and their derivatives
@@ -168,7 +168,7 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void computeBaseVectors(double* _baseVectors, double* _localBasisFunctionsAndDerivatives,
-            int _uKnotSpanIndex, int _vKnotSpanIndex);
+            int _uKnotSpanIndex, int _vKnotSpanIndex)const;
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of the base vectors at a given pair of surface parameters given the basis functions and their derivatives
@@ -180,7 +180,7 @@ public:
      * \author Chenshen Wu
      ***********/
     void computeBaseVectors(double* _baseVectors, double _uPrm, int _uKnotSpanIndex, double _vPrm,
-            int _vKnotSpanIndex);
+            int _vKnotSpanIndex)const;
 
     /***********************************************************************************************
      * \brief Returns the index of the i-th partial derivative w.r.t. to u , j-th partial derivative w.r.t v of the _componentIndex-th component to the l-th base vector
@@ -323,9 +323,9 @@ public:
      * \author Chenshen Wu
      ***********/
     void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal, double _u,
-            double _v);
+            double _v)const;
     void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
-            double _u, double _v, int _spanU, int _spanV);
+            double _u, double _v, int _spanU, int _spanV)const;
 
     /// Postprocessing functions
 public:

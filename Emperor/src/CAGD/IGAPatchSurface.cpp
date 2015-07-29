@@ -192,7 +192,7 @@ void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, d
 }
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
-        int _uKnotSpanIndex, double _vPrm, int _vKnotSpanIndex) {
+        int _uKnotSpanIndex, double _vPrm, int _vKnotSpanIndex) const{
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  The coordinates of the point are assumed on the 3D space that is _cartesianCoordinates = [X Y Z]
@@ -248,7 +248,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 }
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
-        double* _localBasisFunctions, int _uKnotSpanIndex, int _vKnotSpanIndex) {
+        double* _localBasisFunctions, int _uKnotSpanIndex, int _vKnotSpanIndex) const{
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -299,7 +299,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 }
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
-        double* _localCoordinates) {
+        double* _localCoordinates) const {
     int _uKnotSpanIndex = IGABasis->getUBSplineBasis1D()->findKnotSpan(_localCoordinates[0]);
     int _vKnotSpanIndex = IGABasis->getVBSplineBasis1D()->findKnotSpan(_localCoordinates[1]);
     IGAPatchSurface::computeCartesianCoordinates(_cartesianCoordinates, _localCoordinates[0],
@@ -308,7 +308,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFctsAndDerivs, int _derivDegree, int _uKnotSpanIndex,
-        int _vKnotSpanIndex) {
+        int _vKnotSpanIndex) const {
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -369,7 +369,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 }
 
 void IGAPatchSurface::computeBaseVectors(double* _baseVectors,
-        double* _localBasisFunctionsAndDerivatives, int _uKnotSpanIndex, int _vKnotSpanIndex) {
+        double* _localBasisFunctionsAndDerivatives, int _uKnotSpanIndex, int _vKnotSpanIndex) const {
     /*
      *  Returns the base vectors at a given pair of surface parameters on the NURBS 2D patch. The function expects the computation of the
      *  basis functions and their derivatives to have been carried out outside the function and given as arguments.
@@ -469,7 +469,7 @@ void IGAPatchSurface::computeBaseVectors(double* _baseVectors,
 }
 
 void IGAPatchSurface::computeBaseVectors(double* _baseVectors, double _u, int _spanU, double _v,
-        int _spanV) {
+        int _spanV) const {
 
     // Get the polynomial degree of the basis in each direction
     int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
@@ -1410,7 +1410,7 @@ void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, d
 }
 
 void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
-        double _u, double _v) {
+        double _u, double _v)const {
 
     // The knot spans
     int spanU = IGABasis->getUBSplineBasis1D()->findKnotSpan(_u);
@@ -1429,7 +1429,7 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     _normal[2] = baseVec[0] * baseVec[4] - baseVec[1] * baseVec[3];
 }
 void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
-        double _u, double _v, int _spanU, int _spanV) {
+        double _u, double _v, int _spanU, int _spanV) const {
     // Compute the Cartesian coordinates of (_u,_v)
     computeCartesianCoordinates(_coords, _u, _spanU, _v, _spanV);
 
