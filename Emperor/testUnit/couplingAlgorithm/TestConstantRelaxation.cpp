@@ -107,6 +107,7 @@ public:
                     dfOut->data[j] = 20.0 + double(i);
                 }
                 constantRelaxation->updateAtIterationEnd();
+                constantRelaxation->calcCurrentResidual();
                 //debugOut << *dfIn;
                 if (i == 0)
                     constantRelaxation->setNewTimeStep(); // useful only for aitken
