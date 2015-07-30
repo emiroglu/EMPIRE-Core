@@ -29,6 +29,8 @@
 #include <math.h>
 #include <sstream>
 #include <string.h>
+#include <fstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -79,18 +81,44 @@ void Aitken::calcNewValue() {
 	}else{
 	    computeRelaxationFactor();
 	}
+
     /// apply the new output
     assert(outputs.size() == residuals.size());
     for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
         Residual *residual = it->second;
         assert(outputs.find(it->first) != outputs.end());
         CouplingAlgorithmOutput *output = outputs.find(it->first)->second;
+
+
+        // Writing out the ouputCopyAtIterationBeginning
+        std::ofstream file;
+        char fileName[22];
+        int n = sprintf(fileName,"outputCopyAtIterationBeginning_%d_%d",currentTimeStep,currentIteration);
+        file.open (fileName);
+        for (int i = 0; i < output->size; i++) {
+            file << output->outputCopyAtIterationBeginning[i+0]<<" "<<output->outputCopyAtIterationBeginning[i+1]<<" "<<output->outputCopyAtIterationBeginning[i+2]<<"\n";
+        }
+
+
+        // Writing out the ouputCopyAtIterationBeginning
+        std::ofstream testfile;
+        char testfileName[22];
+        int in = sprintf(testfileName,"residualVector_%d_%d",currentTimeStep,currentIteration);
+        testfile.open (testfileName);
+        for (int i = 0; i < output->size; i++) {
+        	testfile << residual->residualVector[i+0]<<" "<<residual->residualVector[i+1]<<" "<<residual->residualVector[i+2]<<"\n";
+        }
+
+
         assert(residual->size == output->size);
         double *newOuput = new double[residual->size];
         // U_i_n+1 = U_i_n + alpha R_i_n
         for (int i=0; i<residual->size; i++) {
             newOuput[i] = output->outputCopyAtIterationBeginning[i]+ relaxationFactor*residual->residualVector[i] ;
         }
+
+	    file.close();
+	    testfile.close();
         output->overwrite(newOuput);
         delete[] newOuput;
     }
