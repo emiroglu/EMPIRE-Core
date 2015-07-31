@@ -29,8 +29,8 @@
 #include <math.h>
 #include <sstream>
 #include <string.h>
-#include <fstream>
-#include <iomanip>
+//#include <fstream>
+//#include <iomanip>
 
 using namespace std;
 
@@ -89,27 +89,6 @@ void Aitken::calcNewValue() {
         assert(outputs.find(it->first) != outputs.end());
         CouplingAlgorithmOutput *output = outputs.find(it->first)->second;
 
-
-        // Writing out the ouputCopyAtIterationBeginning
-        std::ofstream file;
-        char fileName[22];
-        int n = sprintf(fileName,"outputCopyAtIterationBeginning_%d_%d",currentTimeStep,currentIteration);
-        file.open (fileName);
-        for (int i = 0; i < output->size; i++) {
-            file << output->outputCopyAtIterationBeginning[i+0]<<" "<<output->outputCopyAtIterationBeginning[i+1]<<" "<<output->outputCopyAtIterationBeginning[i+2]<<"\n";
-        }
-
-
-        // Writing out the ouputCopyAtIterationBeginning
-        std::ofstream testfile;
-        char testfileName[22];
-        int in = sprintf(testfileName,"residualVector_%d_%d",currentTimeStep,currentIteration);
-        testfile.open (testfileName);
-        for (int i = 0; i < output->size; i++) {
-        	testfile << residual->residualVector[i+0]<<" "<<residual->residualVector[i+1]<<" "<<residual->residualVector[i+2]<<"\n";
-        }
-
-
         assert(residual->size == output->size);
         double *newOuput = new double[residual->size];
         // U_i_n+1 = U_i_n + alpha R_i_n
@@ -117,8 +96,6 @@ void Aitken::calcNewValue() {
             newOuput[i] = output->outputCopyAtIterationBeginning[i]+ relaxationFactor*residual->residualVector[i] ;
         }
 
-	    file.close();
-	    testfile.close();
         output->overwrite(newOuput);
         delete[] newOuput;
     }
@@ -140,8 +117,7 @@ void Aitken::computeRelaxationFactor() {
 	//double numerator = MathLibrary::computeDenseDotProduct(globalResidualOld, tmpVec, globalResidualSize);
 	// Edit Aditya
 	double numerator = MathLibrary::computeDenseDotProduct(globalResidualSize,globalResidualOld,tmpVec);
-    if(denominator>1e-20)
-    {
+    if(denominator>1e-20){
     	relaxationFactor = relaxationFactorOld * (numerator/denominator);
     }else{
     	WARNING_OUT("Aitken :: Relaxation used from previous iteration !!");
@@ -178,5 +154,30 @@ void Aitken::calcCurrentResidual() {
         it->second->computeCurrentResidual();
     }
 }
+
+
+
+
+
+
+//// Writing out the ouputCopyAtIterationBeginning
+//std::ofstream file;
+//char fileName[22];
+//int n = sprintf(fileName,"outputCopyAtIterationBeginning_%d_%d",currentTimeStep,currentIteration);
+//file.open (fileName);
+//for (int i = 0; i < output->size; i++) {
+//    file << output->outputCopyAtIterationBeginning[i+0]<<" "<<output->outputCopyAtIterationBeginning[i+1]<<" "<<output->outputCopyAtIterationBeginning[i+2]<<"\n";
+//}
+//
+//
+//// Writing out the ouputCopyAtIterationBeginning
+//std::ofstream testfile;
+//char testfileName[22];
+//int in = sprintf(testfileName,"residualVector_%d_%d",currentTimeStep,currentIteration);
+//testfile.open (testfileName);
+//for (int i = 0; i < output->size; i++) {
+//	testfile << residual->residualVector[i+0]<<" "<<residual->residualVector[i+1]<<" "<<residual->residualVector[i+2]<<"\n";
+//}
+
 
 } /* namespace EMPIRE */
