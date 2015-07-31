@@ -140,9 +140,11 @@ void Aitken::computeRelaxationFactor() {
 	//double numerator = MathLibrary::computeDenseDotProduct(globalResidualOld, tmpVec, globalResidualSize);
 	// Edit Aditya
 	double numerator = MathLibrary::computeDenseDotProduct(globalResidualSize,globalResidualOld,tmpVec);
-    if(denominator>1e-10)
+    if(denominator>1e-20)
     {
     	relaxationFactor = relaxationFactorOld * (numerator/denominator);
+    }else{
+    	WARNING_OUT("Aitken :: Relaxation used from previous iteration !!");
     }
     stringstream toOutput;
     toOutput << scientific;
