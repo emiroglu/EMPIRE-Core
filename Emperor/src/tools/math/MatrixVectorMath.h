@@ -477,11 +477,13 @@ public:
     }
 
     bool isRowEmpty(size_t row) {
-      #ifdef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
     	if((*mat)[row].begin() == (*mat)[row].end())
     		return true;
 		return false;
-	#endif
+#elif USE_EIGEN
+		return eigenMat->isRowEmpty(row);
+#endif
     }
 
 

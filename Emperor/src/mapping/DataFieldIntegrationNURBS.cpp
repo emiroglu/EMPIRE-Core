@@ -92,24 +92,6 @@ DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh) {
 DataFieldIntegrationNURBS::~DataFieldIntegrationNURBS() {
 }
 
-void DataFieldIntegrationNURBS::deIntegrate(const double *forces, double *tractions) {
-	int numNodesReduced=tableCnn.size();
-	if(numNodesReduced) {
-		double* tmpVecReduced = new double[numNodesReduced];
-		for(int i=0;i<numNodesReduced;i++)
-			tmpVecReduced[i]=forces[tableCnn[i]];
-		double* tmpVecSolReduced = new double[numNodesReduced];
-		// 2. solve C_NN * x_master = x_tmp
-		massMatrix->solve(tmpVecSolReduced, tmpVecReduced);
-		for(int i=0;i<numNodesReduced;i++)
-			tractions[tableCnn[i]]=tmpVecSolReduced[i];
-		delete[] tmpVecReduced;
-		delete[] tmpVecSolReduced;
-    } else {
-        massMatrix->solve(tractions,const_cast<double*>(forces));
-    }
-}
-
 void DataFieldIntegrationNURBS::clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
 	ClipperAdapter c;
 	for(int loop=0;loop<_thePatch->getTrimming().getNumOfLoops();loop++) {
@@ -352,27 +334,11 @@ void DataFieldIntegrationNURBS::assemble(IGAPatchSurface* _thePatch, Polygon2D _
     }
 }
 
-void DataFieldIntegrationNURBS::reduceCnn() {
-	tableCnn.reserve(numNodes);
-	/// Build the index table
+void DataFieldIntegrationNURBS::enforceCnn() {
 	for(int i=0;i<numNodes;i++) {
-		if(!massMatrix->isRowEmpty(i))
-			tableCnn.push_back(i);
+		if(massMatrix->isRowEmpty(i))
+			(*massMatrix)(i,i)=1;
 	}
-	int numNodesReduced=tableCnn.size();
-	/// If nothing missing then do not recreate a matrix and clear table
-	if(numNodesReduced == numNodes) {
-		tableCnn.clear();
-		return;
-	}
-	/// Create and fill the reduced matrix
-	MathLibrary::SparseMatrix<double>* tmp_Cnn = new MathLibrary::SparseMatrix<double>(numNodesReduced, true);
-	for(int i=0;i<numNodesReduced;i++)
-		for(int j=i;j<numNodesReduced;j++)
-			(*tmp_Cnn)(i,j)=(*massMatrix)(tableCnn[i],tableCnn[j]);
-	/// Replace the matrix
-	delete massMatrix;
-	massMatrix=tmp_Cnn;
 }
 
 } /* namespace EMPIRE */

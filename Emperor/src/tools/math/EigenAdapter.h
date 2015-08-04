@@ -41,7 +41,7 @@ class EigenAdapter {
 	//typedef Eigen::SparseMatrix<double> SpMat; // declares a column-major sparse matrix type of double
 
 #ifdef EIGEN_ITERATIVE
-	typedef Eigen::ConjugateGradient<SpMat> SpCgSolver;
+	typedef Eigen::BiCGSTAB<SpMat> SpCgSolver;
 #else
 	typedef Eigen::SparseQR< SpMat, Eigen::NaturalOrdering<int> > SpSolver;
 #endif();
@@ -67,7 +67,6 @@ private:
 #endif
 
 public:
-
 	/***********************************************************************************************
 	 * \brief Constructor for unsymmetric matrices
 	 * \param[in] _m is the number of rows
@@ -95,7 +94,6 @@ public:
     	delete A;
     	delete solver;
     }
-
 
 	/***********************************************************************************************
 	 * \brief Operator overloaded () for assignment of value e.g. A(i,j)=10
@@ -179,11 +177,18 @@ public:
 			delete y;
 			return;
 		}
-
-
-
 	}
 
+    /***********************************************************************************************
+     * \brief This function resizes the sparse matrix to given sizes
+     * \param[in] startRow 			- Start row of the sub matrix required.
+     * \param[in] startCol 			- Start Column of the sub matrix required.
+     * \param[in] numRows 			- Number of rows from the startRow.
+     * \param[in] numColumns 		- Number of columns from the startCol
+     * \author Aditya Ghantasala
+     ***********/
+    void resize(long int startRow, long int startCol, long int numRows, long int numColumns) {
+    }
 
 	/***********************************************************************************************
 	 * \brief This function returns the sum of a requested row of the sparse matrix
@@ -201,6 +206,14 @@ public:
 		return sum;
 	}
 
+	/***********************************************************************************************
+         * \brief This function returns boolean whether row is empty or not
+         * \param[in]   -- row                  Row number of the sparse matrix to check
+         * \author Fabien Pean
+         ***********/
+	bool isRowEmpty(size_t row) {
+		return A->row(row).norm()==0;
+	}
 
 	/***********************************************************************************************
 	 * \brief This function deletes or resets a whole row in sparse matrix.
@@ -214,7 +227,6 @@ public:
 		A->makeCompressed();
 	}
 
-
     /***********************************************************************************************
      * \brief This function multiplies the whole row of the sparse matrix with a given number
      * \param[in] 	-- row 			Row number of the sparse matrix for which should be multiplied with.
@@ -227,7 +239,6 @@ public:
 		}
 	}
 
-
     /***********************************************************************************************
      * \brief This function performs the prepare of a solution
      * \param[in]  	-- x pointer to solution vector
@@ -236,6 +247,16 @@ public:
      ***********/
 	void solve(T* x, T* b) { //Computes x=A^-1 *b
 #ifdef EIGEN_ITERATIVE
+        if(!isCompressed)
+            determineCSR();
+
+        if(!isFactorized) {
+            solver->compute(*A);
+            isFactorized = 1;
+        }
+
+        if(!isAnalyzed)
+            solver->analyzePattern((*A));
 		//Converting into Eigen format
 		Eigen::VectorXd RHS(m);
 
@@ -281,8 +302,8 @@ public:
     	solver->analyzePattern((*A));
     	// Compute the numerical factorization
     	solver->factorize((*A));
-	isFactorized = true;
-	isAnalyzed = true;
+    	isFactorized = true;
+    	isAnalyzed = true;
     }
 
 

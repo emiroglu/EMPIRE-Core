@@ -58,7 +58,7 @@ public:
      * \param[out] tractions tractions (in one direction)
      * \author Tianyang Wang
      ***********/
-    virtual void deIntegrate(const double *forces, double *tractions) {
+    void deIntegrate(const double *forces, double *tractions) {
         // Edit Aditya
         massMatrix->solve(tractions,const_cast<double*>(forces));
     };
