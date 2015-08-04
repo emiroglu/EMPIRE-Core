@@ -127,6 +127,15 @@ public:
 
 
 	/***********************************************************************************************
+	 * \brief Method resizes the sparse matrix with given start and end col and rows
+	 * \author Aditya Ghantasala
+	 ***********/
+	void resize(long int startRow, long int startCol, long int numRows, long int numColumns){
+
+	}
+
+
+	/***********************************************************************************************
 	 * \brief This function is a fast alternative to the operator overloading alternative
 	 * \param[in] 	-- transpose 	Bool flag specifying if a transpose of the matrix should be multiplied or not.
 	 * \param[in] 	-- x 			Vector to be multiplied
