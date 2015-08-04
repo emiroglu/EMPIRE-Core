@@ -79,7 +79,7 @@ private:
 
     /// The mass-like matrix
     MathLibrary::SparseMatrix<double> *C_NN;
-    std::vector<int> tableC_NN;
+    std::vector<int> indexEmptyRowCnn;
 
     /// The right-hand side matrix
     MathLibrary::SparseMatrix<double> *C_NR;
@@ -91,16 +91,19 @@ private:
     EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
 
     /// The parametric coordinates of the projected nodes on the surface
+    /// For each node i, for each possible patch j, store parametric coordinates of i in j
     std::vector<std::map<int, std::vector<double> > > projectedCoords;
 
+    /// Polygon reconstructed in 2D parametric space stored for each patch
     std::map<int,ListPolygon2D> trimmedProjectedPolygons;
+    /// Triangulated polygon in 2D parametric space stored for each patch
     std::map<int,ListPolygon2D> triangulatedProjectedPolygons2;
 
-
     std::vector<std::map<int,Polygon2D> > projectedPolygons;
-
     std::vector<std::map<int,ListPolygon2D> > triangulatedProjectedPolygons;
 
+    /// Stream of gauss points stored in line with format
+    /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
     std::vector<std::vector<double> > streamGP;
 
     /// Flag on the mapping direction
@@ -385,10 +388,10 @@ private:
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
 
     /***********************************************************************************************
-	 * \brief Reduce Cnn matrix to only non-zeros rows
+	 * \brief Fill empty rows with identity for ensuring numerical stability
 	 * \author Fabien Pean
 	 ***********/
-    void reduceCnn();
+    void enforceCnn();
 
     /// Writing output functions
 public:
