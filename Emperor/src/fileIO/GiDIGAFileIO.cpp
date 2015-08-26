@@ -185,7 +185,7 @@ void writeIGAMesh(const std::string geometryFileName, const EMPIRE::IGAMesh* iga
 
 		// ********** untrimmed patch **********
 		else
-			myfile << "untrimmed patch not yet implemented" << endl;
+			WARNING_BLOCK_OUT("GidIGAFileIO","writeIGAMesh","Untrimmed patch mesh output not yet implemented");
 
 	} // loop patches
 
@@ -200,47 +200,6 @@ void initDotPostRes(const std::string _fileName) {
 	assert(!dotPostResFile.fail());
 	dotPostResFile << headerDotPostRes;
 	dotPostResFile.close();
-}
-
-void appendCPDataToDotRes(std::string _analysisName,std::string _meshName, std::string _dataFieldName, int _step, std::string _resultType, DataField* _dataField, std::map<int, std::vector<int> >& _patchToDof) {
-	// open initialized .post.res-file to append data
-	ofstream myfile;
-	string fileName = _meshName + "_IGA.post.res";
-	myfile.open(fileName.c_str(), ios::app);
-	myfile.precision(14);
-	myfile << std::dec;
-
-	// set dimension of problem
-	int dimension = 0;
-	if (_resultType == "vector")
-		dimension = 3;
-	else if (_resultType == "scalar")
-		dimension = 1;
-	else{
-		WARNING_OUT("!!! Dimension of Problem is incorrect !!!");
-		assert(false);
-	}
-
-	// start writing data to file ------------------------------------------------------------------------------
-	myfile << "Result " << "\"" << _dataFieldName << "\"" << SPACE << _analysisName << SPACE << _step << SPACE
-			<< _resultType << SPACE << "OnNurbsSurface" << endl;
-	myfile << "Values" << endl;
-
-	// loop over patches
-	for(map<int,vector<int> >::iterator itPatch=_patchToDof.begin(); itPatch!=_patchToDof.end(); itPatch++) {
-		myfile << (itPatch->first)+1 << endl;
-		INFO_OUT() << itPatch->second.size();
-		for(vector<int>::iterator itCP=itPatch->second.begin();itCP!=itPatch->second.end();itCP++) {
-			INFO_OUT()<<*itCP;
-			for(int d=0;d<dimension;d++)
-				myfile << _dataField->data[*itCP * dimension + d] << SPACE;
-			myfile << endl;
-		}
-	}
-	myfile << "End Values" << endl<<endl;
-	// end writing data to file ------------------------------------------------------------------------------
-
-	myfile.close();
 }
 
 void appendCPDataToDotRes(std::string _fileName, std::string _dataFieldName,std::string _analysisName, int _step, std::string _resultType, DataField* _dataField, const IGAMesh* const _mesh) {
