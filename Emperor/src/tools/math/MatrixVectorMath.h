@@ -306,8 +306,10 @@ public:
         if (i > j && isSymmetric == true)
             assert(0);
         //not allowed
+        isDetermined=false;
         return (*mat)[i][j];
 #elif USE_EIGEN
+        isDetermined=false;
         return (*eigenMat)(i,j);
 #endif
     }
@@ -341,6 +343,8 @@ public:
     		return;
 
 #ifdef USE_INTEL_MKL
+    	columns.clear();
+    	values.clear();
     	row_iter ii;
     	col_iter jj;
     	size_t ele_row = 0; //elements in current row

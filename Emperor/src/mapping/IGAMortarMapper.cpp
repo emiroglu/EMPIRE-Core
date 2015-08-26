@@ -1519,8 +1519,24 @@ void IGAMortarMapper::checkConsistency() {
     double output[numNodesMaster];
     this->consistentMapping(ones,output);
     double norm=0;
+    vector<int> inconsistentDoF;
     for(int i=0;i<numNodesMaster;i++) {
+    	if(fabs(output[i]-1) > 1e-6 && output[i] != 0)
+    		inconsistentDoF.push_back(i);
     	norm+=output[i]*output[i];
+    }
+    // Replace badly conditioned row of Cnn by sum value of Cnr
+    if(!inconsistentDoF.empty()) {
+		for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
+			C_NN->deleteRow(*it);
+			(*C_NN)(*it,*it) = C_NR->getRowSum(*it);
+		}
+		C_NN->factorize();
+		this->consistentMapping(ones,output);
+		norm=0;
+		for(int i=0;i<numNodesMaster;i++) {
+			norm += output[i]*output[i];
+		}
     }
     int denom = isMappingIGA2FEM?numNodesMaster:numNodesMaster-indexEmptyRowCnn.size();
     norm=sqrt(norm/denom);
