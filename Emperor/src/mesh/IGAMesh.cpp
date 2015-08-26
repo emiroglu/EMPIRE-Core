@@ -96,15 +96,15 @@ void IGAMesh::computeBoundingBox() {
 		double zmax = patch->getBoundingBox(5);
 		if (xmin < boundingBox[0])
 			boundingBox[0] = xmin;
-		else if ( xmax > boundingBox[1])
+		if ( xmax > boundingBox[1])
 			boundingBox[1] = xmax;
 		if (ymin < boundingBox[2])
 			boundingBox[2] = ymin;
-		else if (ymax > boundingBox[3])
+		if (ymax > boundingBox[3])
 			boundingBox[3] = ymax;
 		if (zmin < boundingBox[4])
 			boundingBox[4] = zmin;
-		else if (zmax > boundingBox[5])
+		if (zmax > boundingBox[5])
 			boundingBox[5] = zmax;
     }
     boundingBox.isComputed(true);
