@@ -70,7 +70,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     }
 
     C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
-    C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, true);
+    C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, false);
 
     setParametersProjection();
     setParametersNewtonRaphson();
@@ -150,10 +150,13 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Reserve some space for gauss point values
     streamGP.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+
     // Compute CNN and CNR
     computeCouplingMatrices();
 
-    writeGaussPointData();
+    //writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+    streamGP.clear();
+    
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
@@ -164,16 +167,17 @@ void IGAMortarMapper::buildCouplingMatrices() {
     //writeParametricProjectedPolygons("projectedPolygonsOntoNURBSSurface");
     //writeTriangulatedParametricPolygon("triangulatedProjectedPolygonsOntoNURBSSurface");
     
-    writeCouplingMatricesToFile();
-
     // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
-    if(!isMappingIGA2FEM)
-    	reduceCnn();
+    if(!isMappingIGA2FEM) {
+        enforceCnn();
+    }
+    
+    writeCouplingMatricesToFile();
 
     // Write out the matrices into file wrt a MATLAB indexing
     // Process LU factorization
     C_NN->factorize();
-    
+
     // Maps a unit field and checks whether is mapped onto a unit field
     checkConsistency();
 }
@@ -553,10 +557,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
     	}
     	WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Not all element in FE mesh integrated ! Coupling matrices invalid");
     }
-
-    C_NN->printFullToFile("IGAMortarMapper_CNN.dat");
-    C_NR->printFullToFile("IGAMortarMapper_CNR.dat");
-
 }
 
 void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchWithFullElt, set<int>& patchWithSplitElt) {
@@ -1191,9 +1191,10 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof2 = dofIGA[j];
             }
             // The matrix is here stored symmetrically, which might have to be changed to account for unsymmetric matrices (actually the adapter must take care of that)
-            if (dof1 < dof2)
+            //if (dof1 < dof2)
                 (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count];
-            else
+            //else
+            if(dof1!=dof2)
                 (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count];
             count++;
         }
@@ -1265,23 +1266,14 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
 	return -1;
 }
 
-void IGAMortarMapper::reduceCnn() {
-	tableC_NN.reserve(numNodesMaster);
-	/// Build the index table
+void IGAMortarMapper::enforceCnn() {
+	indexEmptyRowCnn.reserve(numNodesMaster);
 	for(int i=0;i<numNodesMaster;i++) {
-		/// Remove empty rows
-		if(!C_NN->isRowEmpty(i))
-			tableC_NN.push_back(i);
+		if(C_NN->isRowEmpty(i)) {
+			(*C_NN)(i,i) = 1;
+			indexEmptyRowCnn.push_back(i);
+		}
 	}
-	int numNodesReduced=tableC_NN.size();
-	// Create and fill the reduced matrix
-	MathLibrary::SparseMatrix<double>* tmp_Cnn = new MathLibrary::SparseMatrix<double>(numNodesReduced, true);
-	for(int i=0;i<numNodesReduced;i++)
-		for(int j=i;j<numNodesReduced;j++)
-			(*tmp_Cnn)(i,j)=(*C_NN)(tableC_NN[i],tableC_NN[j]);
-	// Replace the old by the new
-	delete C_NN;
-	C_NN=tmp_Cnn;
 }
 
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
@@ -1289,29 +1281,12 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
      * Mapping of the
      * C_NN * x_master = C_NR * x_slave
      */
-    double* tmpVec = new double[numNodesMaster];
-
-    //INFO_OUT() << "IGAMortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(_slaveField) << endl;
-    //INFO_OUT() << "IGAMortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(_masterField) << endl;
-
+    double* tmpVec = new double[numNodesMaster]();
     // 1. matrix vector product (x_tmp = C_NR * x_slave)
     C_NR->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, numNodesMaster);
-    if(!isMappingIGA2FEM) {
-    	int numNodesReduced=tableC_NN.size();
-		double* tmpVecReduced = new double[numNodesReduced];
-		for(int i=0;i<numNodesReduced;i++)
-			tmpVecReduced[i]=tmpVec[tableC_NN[i]];
-		double* tmpVecSolReduced = new double[numNodesReduced];
-		// 2. solve C_NN * x_master = x_tmp
-		C_NN->solve(tmpVecSolReduced, tmpVecReduced);
-		for(int i=0;i<numNodesReduced;i++)
-			_masterField[tableC_NN[i]]=tmpVecSolReduced[i];
-		delete[] tmpVecReduced;
-		delete[] tmpVecSolReduced;
-    } else {
-		// 2. solve C_NN * x_master = x_tmp
-    	C_NN->solve(_masterField, tmpVec);
-    }
+	// 2. solve C_NN * x_master = x_tmp
+	C_NN->solve(_masterField, tmpVec);
+
     delete[] tmpVec;
 }
 
@@ -1320,34 +1295,11 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
      * Mapping of the
      * f_slave = (C_NN^(-1) * C_NR)^T * f_master
      */
-
     double* tmpVec = new double[numNodesMaster];
-
-    //INFO_OUT() << "IGAMortarMapper::conservativeMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(_slaveField) << endl;
-    //INFO_OUT() << "IGAMortarMapper::conservativeMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(_masterField) << endl;
-
-
-// 1. solve C_NN * f_tmp = f_master;
-    if(!isMappingIGA2FEM) {
-    	int numNodesReduced=tableC_NN.size();
-		double* tmpVecReduced = new double[numNodesReduced];
-		for(int i=0;i<tableC_NN.size();i++) {
-			tmpVecReduced[i]=_masterField[tableC_NN[i]];
-		}
-		double* tmpVecSolReduced = new double[numNodesReduced];
-		// 2. solve C_NN * x_master = x_tmp
-		C_NN->solve(tmpVecSolReduced, tmpVecReduced);
-		for(int i=0;i<numNodesReduced;i++) {
-			tmpVec[tableC_NN[i]]=tmpVecSolReduced[i];
-		}
-		delete[] tmpVecReduced;
-		delete[] tmpVecSolReduced;
-    } else {
-    	C_NN->solve(tmpVec, const_cast<double *>(_masterField));
-    }
-// 2. matrix vector product (f_slave = C_NR^T * f_tmp)
+    // 1. solve C_NN * f_tmp = f_master;
+    C_NN->solve(tmpVec, const_cast<double *>(_masterField));
+    // 2. matrix vector product (f_slave = C_NR^T * f_tmp)
     C_NR->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
-
     delete[] tmpVec;
 }
 
@@ -1364,7 +1316,6 @@ void IGAMortarMapper::writeGaussPointData() {
     	filestream << endl;
     }
     filestream.close();
-    streamGP.clear();
 }
 
 void IGAMortarMapper::writeProjectedNodesOntoIGAMesh() {
@@ -1568,10 +1519,26 @@ void IGAMortarMapper::checkConsistency() {
     double output[numNodesMaster];
     this->consistentMapping(ones,output);
     double norm=0;
+    vector<int> inconsistentDoF;
     for(int i=0;i<numNodesMaster;i++) {
+    	if(fabs(output[i]-1) > 1e-6 && output[i] != 0)
+    		inconsistentDoF.push_back(i);
     	norm+=output[i]*output[i];
     }
-    int denom = isMappingIGA2FEM?numNodesMaster:tableC_NN.size();
+    // Replace badly conditioned row of Cnn by sum value of Cnr
+    if(!inconsistentDoF.empty()) {
+		for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
+			C_NN->deleteRow(*it);
+			(*C_NN)(*it,*it) = C_NR->getRowSum(*it);
+		}
+		C_NN->factorize();
+		this->consistentMapping(ones,output);
+		norm=0;
+		for(int i=0;i<numNodesMaster;i++) {
+			norm += output[i]*output[i];
+		}
+    }
+    int denom = isMappingIGA2FEM?numNodesMaster:numNodesMaster-indexEmptyRowCnn.size();
     norm=sqrt(norm/denom);
 
     DEBUG_OUT()<<"### Check consistency ###"<<endl;

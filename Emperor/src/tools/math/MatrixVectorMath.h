@@ -306,8 +306,10 @@ public:
         if (i > j && isSymmetric == true)
             assert(0);
         //not allowed
+        isDetermined=false;
         return (*mat)[i][j];
 #elif USE_EIGEN
+        isDetermined=false;
         return (*eigenMat)(i,j);
 #endif
     }
@@ -341,6 +343,8 @@ public:
     		return;
 
 #ifdef USE_INTEL_MKL
+    	columns.clear();
+    	values.clear();
     	row_iter ii;
     	col_iter jj;
     	size_t ele_row = 0; //elements in current row
@@ -477,11 +481,13 @@ public:
     }
 
     bool isRowEmpty(size_t row) {
-      #ifdef USE_INTEL_MKL
+#ifdef USE_INTEL_MKL
     	if((*mat)[row].begin() == (*mat)[row].end())
     		return true;
 		return false;
-	#endif
+#elif USE_EIGEN
+		return eigenMat->isRowEmpty(row);
+#endif
     }
 
 

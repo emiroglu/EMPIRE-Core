@@ -118,6 +118,8 @@ public:
      ***********/
     void setCurrentIteration(int _currentIteration){currentIteration=_currentIteration;}
 
+
+
 protected:
     /********//**
      * \brief Class CouplingAlgorithmOutput is the output of a coupling algorithm

@@ -111,6 +111,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
     mapper->setParametersNewtonRaphsonBoundary(_newtonRaphsonBoundaryMaxIt,
             _newtonRaphsonBoundaryTol);
     mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
+    mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
     mapper->buildCouplingMatrices();
 }
 
