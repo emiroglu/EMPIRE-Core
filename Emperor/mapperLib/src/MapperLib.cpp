@@ -128,7 +128,7 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const d
                 dataBtoWrite[i]=new double[sizeDataToWrite];
             }
             for (int i=0 ; i<dimension ; i++){
-                for (int j=0 ; j<sizeDataToWrite; j++){
+                for (int j=0 ; j<sizeDataToMap; j++){
                     dataAtoMap[i][j] = dataA[j*dimension+i];
                 }
 
