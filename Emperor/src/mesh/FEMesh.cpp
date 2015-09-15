@@ -104,6 +104,7 @@ FEMesh *FEMesh::triangulate() {
     vector<int> *elemsTri = new vector<int>;
     vector<int> *numNodesPerElemTri = new vector<int>;
     int count = 0;
+	bool isCompletelyTriangulated;
     for (int i = 0; i < numElems; i++) {
         int numNodesThisElem = numNodesPerElem[i];
         if (numNodesThisElem == 3) { // put triangles in the new mesh
@@ -127,7 +128,7 @@ FEMesh *FEMesh::triangulate() {
             }
             int numTriangles = numNodesThisElem - 2;
             int triangleIndexes[numTriangles * 3];
-            triangulator->triangulate(triangleIndexes);
+            isCompletelyTriangulated = triangulator->triangulate(triangleIndexes);
             for (int j = 0; j < numTriangles; j++) {
                 numNodesPerElemTri->push_back(3);
                 for (int k = 0; k < 3; k++) {
@@ -139,6 +140,7 @@ FEMesh *FEMesh::triangulate() {
         }
         count += numNodesThisElem;
     }
+	assert(isCompletelyTriangulated==true);
     delete nodeIDToNodePosMap;
     assert(count == elemsArraySize);
 
