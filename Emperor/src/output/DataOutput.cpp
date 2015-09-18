@@ -92,7 +92,6 @@ void DataOutput::writeMeshes() {
                     mesh->nodeIDs, mesh->numNodesPerElem, mesh->elems, mesh->elemIDs);
         } else if (it->second->type == EMPIRE_Mesh_IGAMesh) {
             IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(it->second);
-            meshFileName.append(".geo");
             GiDIGAFileIO::writeIGAMesh(meshFileName, igaMesh);
             //MatlabIGAFileIO::writeIGAMesh(igaMesh);
         } else
@@ -122,7 +121,6 @@ void DataOutput::initDataFieldFiles() {
             FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
             dataFieldFileNameToMeshMap.insert(pair<string, FEMesh*>(dataFieldFileName, feMesh));
         } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
-        	dataFieldFileName.append(".post.res");
         	GiDIGAFileIO::initDotPostRes(dataFieldFileName);
         } else
             assert(0);
@@ -223,7 +221,6 @@ void DataOutput::writeDataFields(int step) {
                     assert(false);
                 }
             } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
-            	dataFieldFileName.append(".post.res");
                 DataField *dataField = mesh->getDataFieldByName(dataFieldName);
                 //MatlabIGAFileIO::writeVectorFieldOnCPs(meshName, dataFieldName, step, dataField);
 
