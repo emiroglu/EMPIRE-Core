@@ -82,8 +82,9 @@ bool TriangulatorAdaptor::triangulate(int *triangleIndexes) {
         for (int i=0; i<polygon.size(); i++) {
             cout << polygon[i][0] << "   " << polygon[i][1] << "   " << polygon[i][2] << endl;
         }
+		return false;
     }
-    assert(success == 1);
+    //assert(success == 1);
     assert(triangles.size() +2 == polygon.size());
     int count = 0;
     for (list<TPPLPoly>::iterator it = triangles.begin(); it != triangles.end(); it++) {
