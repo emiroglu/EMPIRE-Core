@@ -25,6 +25,7 @@
 
 // Including the Eigen header
 #include <Sparse>
+#include <iostream>
 namespace EMPIRE {
 namespace MathLibrary {
 
@@ -44,7 +45,7 @@ class EigenAdapter {
 	typedef Eigen::BiCGSTAB<SpMat> SpCgSolver;
 #else
 	typedef Eigen::SparseQR< SpMat, Eigen::NaturalOrdering<int> > SpSolver;
-#endif();
+#endif
 
 private:
 	// Number of rows
@@ -121,8 +122,10 @@ public:
 	 * \author Aditya Ghantasala
 	 ***********/
 	void determineCSR(){
-		A-> makeCompressed();
-		isCompressed = true;
+		if(!isCompressed){
+			A-> makeCompressed();
+			isCompressed = true;
+		}
 	}
 
 
@@ -135,47 +138,35 @@ public:
 	 * \param[in] 	-- elements 	are the number of entries in the resultant vector (number of rows of the matrix m)
 	 * \edit   Aditya Ghantasala
 	 ***********/
-	void mulitplyVec(bool transpose, T* vec, T* resultVec, size_t elements) { //Computes y=A*x
+	void mulitplyVec(bool transpose, T* vec, T* resultVec, size_t elements) { //Computes resultVec=A*vec
 		assert(elements == m);
-		SpMat * b;
-		SpMat * y;	
 
-		
 		// TODO This is a very naive implementation. Improve it.
 
 		if(transpose == false){
-			b = new SpMat(n,1); // Vector to multiply.
+			Eigen::VectorXd b(n);
 			for(int i=0; i<n; i++){
-				(*b).coeffRef(i,0) = vec[i];
+				b(i) = vec[i];
 			}
 
-			y = new SpMat(m,1); //
-
-			(*y) = (*A) * (*b);
+			Eigen::VectorXd y = (*A) * (b);
 
 			for(int i=0; i<m; i++){
-				resultVec[i] = (*y).coeff(i,0);
+				resultVec[i] = y(i);
 			}
-
-			delete b;
-			delete y;
 			return;
 		}else{
 
-			b = new SpMat(m,1); // Vector to multiply.
+			Eigen::VectorXd b(m);
 			for(int i=0; i<m; i++){
-				(*b).coeffRef(i,0) = vec[i];
+				b(i) = vec[i];
 			}
 
-			y = new SpMat(n,1); //			
-
-			(*y) = SpMat(A->transpose()) * (*b);
+			Eigen::VectorXd y  = SpMat(A->transpose()) * (b);
 			for(int i=0; i<n; i++){
-				resultVec[i] = (*y).coeff(i,0);
+				resultVec[i] = y(i);
 			}
 
-			delete b;
-			delete y;
 			return;
 		}
 	}
@@ -299,6 +290,8 @@ public:
      * \author Aditya Ghantasala
      ***********/
     void factorize() {
+        if(!isCompressed)
+            determineCSR();
     	// Compute the ordering permutation vector from the structural pattern of A
     	solver->analyzePattern((*A));
     	// Compute the numerical factorization

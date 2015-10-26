@@ -236,6 +236,7 @@ public:
         intelMKL = new PardisoAdapter(isSymmetric);
 #elif USE_EIGEN
         eigenMat = new EigenAdapter<T>(m,n);
+        isFull = false;
 #endif
     }
     /***********************************************************************************************
@@ -328,6 +329,7 @@ public:
         //not allowed
         return (*mat)[i][j];
 #elif USE_EIGEN
+        isDetermined=false;
         return (*eigenMat)(i,j);
 #endif
     }
@@ -364,6 +366,8 @@ public:
     	// Tell the matrix that it is determined once.
     	isDetermined = true;
 #elif USE_EIGEN
+    	makeFullMatrix();
+    	isFull = true;
     	eigenMat->determineCSR();
     	// Tell the matrix that it is determined once.
     	isDetermined = true;
@@ -429,6 +433,8 @@ public:
     	assert(y != NULL);
     	assert(elements >= 0);
 
+    	// Formulating the vectors of the sparse matrix
+    	determineCSR();
 #ifdef USE_INTEL_MKL
     	if (this->m != elements)
     		assert(0);
@@ -465,6 +471,9 @@ public:
     	// Checking if the row requested is with in the limits
     	assert(row <= this->m);
     	T sum = 0.0;
+
+    	// Formulating the vectors of the sparse matrix
+    	determineCSR();
 
 #ifdef USE_INTEL_MKL
     	if (isSymmetric) {
@@ -534,6 +543,8 @@ public:
     void multiplyRowWith(size_t row, T fact) { //Computes y=A*x
     	// Checking if the row requested is with in the limits
     	assert(row <= this->m);
+    	// Formulating the vectors of the sparse matrix
+    	determineCSR();
 
 #ifdef USE_INTEL_MKL
     	if (isSymmetric) {
@@ -593,7 +604,7 @@ public:
    	determineCSR();
   	intelMKL->factorize(isSymmetric, m, &values[0], &((*rowIndex)[0]), &columns[0]);
 #elif USE_EIGEN
-  	eigenMat->determineCSR();
+    determineCSR();
   	eigenMat->factorize();
 #endif
 
@@ -791,6 +802,22 @@ private:
     PardisoAdapter* intelMKL;
 #elif USE_EIGEN
     EigenAdapter<T>* eigenMat;
+    bool isFull;
+#endif
+
+#ifdef USE_EIGEN
+    void makeFullMatrix(){
+    	if(!isFull){
+    	if(isSymmetric){
+    		for(int i=0; i<m; i++){
+    			for(int j=0; j<n; j++){
+    				(*eigenMat)(j,i) = (*eigenMat)(i,j);
+    			}
+    		}
+    	}
+    	}
+    }
+
 #endif
 
 

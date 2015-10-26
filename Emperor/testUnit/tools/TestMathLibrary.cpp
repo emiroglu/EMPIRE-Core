@@ -80,7 +80,6 @@ public:
         (*sparseMatSymm)(0,3)=1.8E2;
         (*sparseMatSymm)(1,2)=8.36E1;
         sparseMat = new SparseMatrix<double> (4,false);
-        (*sparseMat)(0,0)=1.00E2;
         (*sparseMat)(0,0)=1.38E2;
         (*sparseMat)(1,1)=1.3E1;
         (*sparseMat)(2,2)=9.1E5;
@@ -135,10 +134,10 @@ public:
         solution = new double[4]; // holds the solution
         (*sparseMatSymm).factorize();
         (*sparseMatSymm).solve(solution,vecA);
-        CPPUNIT_ASSERT(fabs(solution[0] - 4.9140893470790373e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[1] - 1.6930747279417244e-01) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[2] + 1.1927587610541555e-05) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[3] - 2.3436426116838494e-03) < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[0] - 0.00491408934707904)  < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[1] - 0.169307472794172)    < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[2] + 1.19275876105415e-05) < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[3] - 0.00234364261168385)  < 1000*AuxiliaryParameters::machineEpsilon);
         //(*sparseMatSymm).cleanPardiso();
 
         // Test asymmetric call

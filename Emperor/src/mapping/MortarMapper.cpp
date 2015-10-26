@@ -45,6 +45,7 @@
 #include <assert.h>
 #include <omp.h>
 #include "Message.h"
+//#include "math.h"
 
 using namespace std;
 namespace EMPIRE {
@@ -77,7 +78,7 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
 
     /// Initializing the sparse matrices
     /// This is symmetric square matrix of size "masterNumNodes". For first attempt
-    /// we store it as non symmetric.
+    /// we store it as full matrix
     C_BB = new MathLibrary::SparseMatrix<double>(masterNumNodes, false);
 
     /// This is a rectangular matrix of size
@@ -90,7 +91,7 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     	C_BA = NULL;
     }
 
-#ifndef USE_INTEL_MKL
+/*#ifndef USE_INTEL_MKL
     if (!dual) {
         cerr << endl;
         cerr
@@ -98,7 +99,7 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 << endl << "\t Try dual mortar mapper!" << endl;
         exit(EXIT_FAILURE);
     }
-#endif
+#endif*/
 
     // 1. initialize data that could be used later
     initTables();
@@ -109,18 +110,18 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
 
     // 2. compute C_BB
     computeC_BB();
-    /*if (!dual) {
+    if (!dual) {
     	C_BB->printFullToFile("MortarMapper_Cbb.dat");
     } else {
     	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
-    }*/
+    }
     // 3. compute C_BA
     computeC_BA();
-    /*if (!dual) {
+    if (!dual) {
     	C_BA->printFullToFile("MortarMapper_Cba.dat");
     } else {
     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
-    }*/
+    }
     deleteANNTree();
     deleteTables();
 
@@ -211,11 +212,9 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     int n = slaveNumNodes; // number of columns of C_BA
     if (!dual) {
     	(*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
-    	//assert(0);
     }
     else {
     	(*C_BA_DUAL).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
-    	//assert(0);
     }
 
     delete[] masterFieldCopy;
@@ -368,6 +367,7 @@ void MortarMapper::computeC_BA() {
 #endif
                                 {
                                 	(*C_BA)(posMasterNodes[ii], posSlaveNodes[jj]) += result[ii * numNodesSlaveElem + jj];
+                                	//std::cout<<"C_BA("<<posMasterNodes[ii]<<","<<posSlaveNodes[jj]<<") = "<<result[ii * numNodesSlaveElem + jj]<<std::endl;
                                 } //omp critical
                             }
                         }
@@ -384,15 +384,17 @@ void MortarMapper::computeC_BA() {
 #endif
                                 {
                                 	(*C_BA_DUAL)(posMasterNodes[ii], posSlaveNodes[jj]) += result_dual[ii * numNodesSlaveElem + jj];
+                                	if(result_dual[ii * numNodesSlaveElem + jj] == NAN)
+                                		std::cout<<"C_BA("<<posMasterNodes[ii]<<","<<posSlaveNodes[jj]<<") = "<<result[ii * numNodesSlaveElem + jj]<<std::endl;
                                 } //omp critical
                             }
                         }
+                        (*C_BA_DUAL).printFullToFile("Mortar_C_BA.log");
                     }
                 }
             }
             //delete
-            for (map<int, double*>::iterator it = projections->begin(); it != projections->end();
-                    it++)
+            for (map<int, double*>::iterator it = projections->begin(); it != projections->end(); it++)
                 delete[] it->second;
 
             delete[] masterElem;
@@ -615,7 +617,7 @@ void MortarMapper::enforceConsistency() {
                 sum = factor[i];
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
-            assert(sum<factor[i]*(1+1E-2));
+            assert(sum<=factor[i]*(1+1E-2));
             factor[i] /= sum;
 
             (*C_BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
@@ -720,7 +722,7 @@ void MortarMapper::enforceConsistency() {
                 sum = factor;
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
-            //assert(sum<factor*(1+1E-2)); // This is not the case for dual
+            assert(sum<factor*(1+1E-2)); // This is not the case for dual
             factor /= sum;
             (*C_BA_DUAL).multiplyRowWith(i,factor);
 
