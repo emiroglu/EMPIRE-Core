@@ -36,14 +36,14 @@ const std::string headerDotPostRes = "GiD Post Results File 1.2\n\n"; // Header
  * \param[in] igaMesh Information on the IGA mesh (polynomial orders, knot vectors, Control Points etc.)
  * \author Philipp Bucher
  ***********/
-void writeIGAMesh(const std::string geometryFileName, const EMPIRE::IGAMesh* igaMesh);
+void writeIGAMesh(const std::string _fileName, const EMPIRE::IGAMesh* igaMesh);
 /***********************************************************************************************
  * \brief Initialize a .post.res file
  * \param[in] fileName name of the result file
  * \param[in] numNodesPerElem number of nodes per element, used to output Gauss points information
  * \author Philipp Bucher
  ***********/
-void initDotPostRes(std::string _meshName);
+void initDotPostRes(std::string _fileName);
 /***********************************************************************************************
  * \brief Append data of a certain time step to a .post.res file
  * \param[in] fileName name of the result file
