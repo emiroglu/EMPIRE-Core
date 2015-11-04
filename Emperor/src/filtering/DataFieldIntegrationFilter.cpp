@@ -71,10 +71,6 @@ void DataFieldIntegrationFilter::init() {
     } else if (inDataField->typeOfQuantity == EMPIRE_DataField_fieldIntegral
             && outDataField->typeOfQuantity == EMPIRE_DataField_field) {
         doIntegration = false;
-#ifndef USE_INTEL_MKL
-        assert(false);
-        // require pardiso library to do deintegration
-#endif
     } else {
         assert(false);
     }
