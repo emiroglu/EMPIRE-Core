@@ -29,6 +29,8 @@
 #include <math.h>
 #include <sstream>
 #include <string.h>
+//#include <fstream>
+//#include <iomanip>
 
 using namespace std;
 
@@ -41,10 +43,8 @@ Aitken::Aitken(std::string _name, double _initRelaxationFactor) :
     globalResidualOld = NULL;
     tmpVec = NULL;
     
-    // own
     string filename = "outputEmperor_" + _name + ".dat";
     file.open (filename.c_str());
-    // own
 }
 
 Aitken::~Aitken() {
@@ -52,9 +52,7 @@ Aitken::~Aitken() {
     delete[] globalResidualOld;
     delete[] tmpVec;
     
-    // own
     file.close();
-    // own
 }
 
 void Aitken::calcNewValue() {
@@ -63,10 +61,10 @@ void Aitken::calcNewValue() {
 	{
 		startNewTimeStep();
 	}
-    /// compute the current residuals
-    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
-        it->second->computeCurrentResidual();
-    }
+//    /// compute the current residuals
+//    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+//        it->second->computeCurrentResidual();
+//    }
     /// assemble global residual vector
     int oldSize =0;
     for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
@@ -77,41 +75,43 @@ void Aitken::calcNewValue() {
     	oldSize+=it->second->size;;
     }
     /// compute Aitken update
-	if (newTimeStep) {
+	if (newTimeStep)
+	{
 	    stringstream toOutput;
 	    toOutput << scientific;
 	    toOutput << "Initial Aitken relaxation factor: " << relaxationFactor;
 	    INDENT_OUT(1, toOutput.str(), infoOut);
 		newTimeStep=false;
 		cout.unsetf(ios_base::floatfield);
-	}
-    else {
+	}else{
 	    computeRelaxationFactor();
 	}
+
     /// apply the new output
     assert(outputs.size() == residuals.size());
     for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
         Residual *residual = it->second;
         assert(outputs.find(it->first) != outputs.end());
         CouplingAlgorithmOutput *output = outputs.find(it->first)->second;
+
         assert(residual->size == output->size);
         double *newOuput = new double[residual->size];
         // U_i_n+1 = U_i_n + alpha R_i_n
         for (int i=0; i<residual->size; i++) {
             newOuput[i] = output->outputCopyAtIterationBeginning[i]+ relaxationFactor*residual->residualVector[i] ;
         }
+
         output->overwrite(newOuput);
         delete[] newOuput;
     }
-    
+
     /// save old values
     MathLibrary::copyDenseVector(globalResidualOld,globalResidual,globalResidualSize);
+
+    relaxationFactorOld=relaxationFactor;
     
-    relaxationFactorOld = relaxationFactor;
-    
-    // own
     file << currentTimeStep << "\t" << currentIteration << "\t" << relaxationFactor << "\t" << endl;
-    // own
+
 
 }
 
@@ -125,19 +125,14 @@ void Aitken::computeRelaxationFactor() {
 	//double numerator = MathLibrary::computeDenseDotProduct(globalResidualOld, tmpVec, globalResidualSize);
 	// Edit Aditya
 	double numerator = MathLibrary::computeDenseDotProduct(globalResidualSize,globalResidualOld,tmpVec);
-    // own
-    if (denominator>1e-30)
-    {
+    if (denominator>1e-30){
         relaxationFactor = relaxationFactorOld * (numerator/denominator);
-    }
-    else
-    {
+    }else{
         stringstream toOutput;
         toOutput << scientific;
         toOutput << "denominator = " << denominator << " <= 1.0e-30 close to zero !!!";
         WARNING_BLOCK_OUT("Aitken", "computeRelaxationFactor()", toOutput.str());
     }
-    // own
     stringstream toOutput;
     toOutput << scientific;
     toOutput << "Aitken relaxation factor: " << relaxationFactor;
@@ -146,10 +141,10 @@ void Aitken::computeRelaxationFactor() {
 }
 
 void Aitken::startNewTimeStep() {
-    relaxationFactor =    INIT_RELAXATION_FACTOR;
-    relaxationFactorOld = INIT_RELAXATION_FACTOR;
-    memset(globalResidual   , 0, sizeof(double) * globalResidualSize);
-    memset(globalResidualOld, 0, sizeof(double) * globalResidualSize);
+	relaxationFactor   =INIT_RELAXATION_FACTOR;
+	relaxationFactorOld=INIT_RELAXATION_FACTOR;
+	memset(globalResidual   ,0,sizeof(double)*globalResidualSize);
+	memset(globalResidualOld,0,sizeof(double)*globalResidualSize);
 }
 
 void Aitken::init() {
@@ -163,5 +158,37 @@ void Aitken::init() {
     tmpVec            = new double [globalResidualSize];
     startNewTimeStep();
 }
+
+void Aitken::calcCurrentResidual() {
+    /// compute the current residuals
+    for (map<int, Residual*>::iterator it = residuals.begin(); it != residuals.end(); it++) {
+        it->second->computeCurrentResidual();
+    }
+}
+
+
+
+
+
+
+//// Writing out the ouputCopyAtIterationBeginning
+//std::ofstream file;
+//char fileName[22];
+//int n = sprintf(fileName,"outputCopyAtIterationBeginning_%d_%d",currentTimeStep,currentIteration);
+//file.open (fileName);
+//for (int i = 0; i < output->size; i++) {
+//    file << output->outputCopyAtIterationBeginning[i+0]<<" "<<output->outputCopyAtIterationBeginning[i+1]<<" "<<output->outputCopyAtIterationBeginning[i+2]<<"\n";
+//}
+//
+//
+//// Writing out the ouputCopyAtIterationBeginning
+//std::ofstream testfile;
+//char testfileName[22];
+//int in = sprintf(testfileName,"residualVector_%d_%d",currentTimeStep,currentIteration);
+//testfile.open (testfileName);
+//for (int i = 0; i < output->size; i++) {
+//	testfile << residual->residualVector[i+0]<<" "<<residual->residualVector[i+1]<<" "<<residual->residualVector[i+2]<<"\n";
+//}
+
 
 } /* namespace EMPIRE */
