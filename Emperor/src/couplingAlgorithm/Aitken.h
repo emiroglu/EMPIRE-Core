@@ -29,6 +29,10 @@
 
 #include "AbstractCouplingAlgorithm.h"
 
+// own
+#include <fstream>
+// own
+
 namespace EMPIRE {
 /********//**
  * \brief Class Aitken does a dynamic relaxation
@@ -53,11 +57,6 @@ public:
      ***********/
     void calcNewValue();
     /***********************************************************************************************
-     * \brief Calculate the new value of the output
-     * \author Aditya Ghantasala
-     ***********/
-    void calcCurrentResidual();
-    /***********************************************************************************************
      * \brief Init aitken relaxation
      * \author Stefan Sicklinger
      ***********/
@@ -79,6 +78,8 @@ private:
     double relaxationFactor;
     /// old relaxation factor
     double relaxationFactorOld;
+    /// output file
+    std::ofstream file;
     /// whether output numbers or not
     bool debugMe;
     /// size of global residual vector
