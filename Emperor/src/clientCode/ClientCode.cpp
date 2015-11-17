@@ -170,6 +170,11 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
         copyMesh->numNodesPerElem = femesh->numNodesPerElem;
         copyMesh->initElems();
         copyMesh->elems = femesh->elems;
+        for (std::map<std::string, DataField*>::iterator it =  femesh->nameToDataFieldMap.begin(); it!= femesh->nameToDataFieldMap.end(); it++){
+        	DataField *newCopyDataField = new DataField(*(it->second));
+        	copyMesh->nameToDataFieldMap.insert(std::pair<std::string, DataField*>(it->first, newCopyDataField));
+        }
+        copyMesh->nameToDataFieldMap = femesh->nameToDataFieldMap;
         nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
         { // output to shell
             DEBUG_OUT() << (*copyMesh) << endl;
