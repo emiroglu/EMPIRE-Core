@@ -88,7 +88,9 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
         int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
         int _newtonRaphsonMaxIt, double _newtonRaphsonTol, int _newtonRaphsonBoundaryMaxIt,
         double _newtonRaphsonBoundaryTol, int _bisectionMaxIt, double _bisectionTol,
-        int _numGPTriangle, int _numGPQuad) {
+        int _numGPTriangle, int _numGPQuad,
+	double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
+        int _isDirichletBCs) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
@@ -112,6 +114,8 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
             _newtonRaphsonBoundaryTol);
     mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
+    mapper->setParametersIgaPatchCoupling(_dispPenalty, _rotPenalty, _isPenaltyPatchCoupling);
+    mapper->setParametersDirichletBCs(_isDirichletBCs);
     mapper->buildCouplingMatrices();
 }
 
@@ -170,7 +174,11 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
         assert(fieldA->dimension == EMPIRE_DataField_doubleVector);
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
-    } else { // CurveSurfaceMappers map DOFs seperately
+    }
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ) {
+        mapperImpl->consistentMapping(fieldA->data, fieldB->data);
+    }
+    else { // CurveSurfaceMappers map DOFs seperately
         int numNodesA, numNodesB;
         if (meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh)
             numNodesA = dynamic_cast<FEMesh *>(meshA)->numNodes;
@@ -216,7 +224,11 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
         assert(fieldA->dimension == EMPIRE_DataField_doubleVector);
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
-    } else { // CurveSurfaceMappers map DOFs seperately
+    } 
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties()) {
+        mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
+    }
+    else { // CurveSurfaceMappers map DOFs seperately
 
         int numNodesA, numNodesB;
         if (meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh)

@@ -384,6 +384,27 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.integration.numGPTriangle = 16;
                 mapper.igaMortarMapper.integration.numGPQuad = 25;
             }
+            ticpp::Element *xmlIgaPatchCoupling = xmlIGAMortar->FirstChildElement("IgaPatchCoupling", false);
+            if (xmlIgaPatchCoupling != NULL) {
+                mapper.igaMortarMapper.IgaPatchCoupling.dispPenalty =
+                        xmlIgaPatchCoupling->GetAttribute<double>("dispPenalty");
+                mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty =
+                        xmlIgaPatchCoupling->GetAttribute<double>("rotPenalty");
+                mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors =
+                        xmlIgaPatchCoupling->GetAttribute<int>("isAutomaticPenaltyFactors");
+            } else {
+                mapper.igaMortarMapper.IgaPatchCoupling.dispPenalty = 0;
+                mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty = 0;
+                mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
+            }
+
+            ticpp::Element *xmlDirichletBCs = xmlIGAMortar->FirstChildElement("dirichletBCs", false);
+            if (xmlDirichletBCs != NULL) {
+                mapper.igaMortarMapper.dirichletBCs.isDirichletBCs =
+                        xmlDirichletBCs->GetAttribute<int>("isDirichletBCs");
+            } else {
+                mapper.igaMortarMapper.dirichletBCs.isDirichletBCs = 0;
+            }
         } else if (xmlMapper->GetAttribute<string>("type") == "curveSurfaceMapper") {
             mapper.type = EMPIRE_CurveSurfaceMapper;
             ticpp::Element *xmlCurveSurfaceMapper = xmlMapper->FirstChildElement(

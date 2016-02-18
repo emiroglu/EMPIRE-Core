@@ -127,6 +127,14 @@ struct structMapper {
             int numGPTriangle;
             int numGPQuad;
         } integration;
+	struct IgaPatchCoupling {
+                double dispPenalty;
+                double rotPenalty;
+                int isAutomaticPenaltyFactors;
+        } IgaPatchCoupling;
+        struct dirichletBCs {
+            int isDirichletBCs;
+        }dirichletBCs;
     };
     struct structCurveSurfaceMapper {
         EMPIRE_CurveSurfaceMapper_type type;

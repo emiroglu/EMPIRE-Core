@@ -27,6 +27,9 @@
 #include "EMPIRE_API.h"
 #include <assert.h>
 #include <string>
+#include <vector>
+#include <cfloat>
+#include <iostream>
 
 using namespace EMPIRE;
 using namespace std;
@@ -87,6 +90,21 @@ void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnot
         double* _uKnotVector, int _uNumControlPoints, double* _cpNet) {
     empire->sendIGATrimmingCurve(_direction, _pDegree, _uNumKnots, _uKnotVector, _uNumControlPoints,
             _cpNet);
+}
+
+void EMPIRE_API_sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
+        int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
+        double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,
+        double* allTangents_master, double* allTangents_slave, double* allMappings) {
+
+    empire->sendIGAPatchCouplingGaussPointsTest(numPatches, numBRepsPerPatch, totalNumGP, totalNumBRePs,
+                allID_slave, allNumElemsPerBRep, allNumGPsPerElem,
+                allGPOfBRep_master, allGPOfBRep_slave, allGPOfBRep_weight,
+                allTangents_master, allTangents_slave, allMappings);
+}
+
+void EMPIRE_API_sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, int clampedDirections) {
+    empire->sendIGADirichletDofs(numberOfClampedDofs, clampedDofs, clampedDirections);
 }
 
 void EMPIRE_API_sendDataField(char *name, int sizeOfArray, double *dataField) {

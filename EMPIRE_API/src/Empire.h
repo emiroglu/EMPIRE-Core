@@ -28,6 +28,9 @@
 #define EMPIRE_H_
 
 #include <string>
+#include <vector>
+// how do I include cfloat, #include <cfloat> doesnt seem to work
+// check ManagePortability.h in carat
 
 namespace EMPIRE {
 /********//**
@@ -168,6 +171,38 @@ public:
      ***********/
     void sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector,
             int _uNumControlPoints, double* _cpNet);
+
+    /***********************************************************************************************
+     * \brief Send IGAPatchCoupling to the server
+     * \param[in] numPatches number of patches
+     * \param[in] numBRepsPerPatch number of BReps each patch has
+     * \param[in] totalNumGP total number of gausspoints on all patch coupling interfaces
+     * \param[in] totalNumBRePs total number of BReps
+     * \param[in] allID_slave all ids of the slave patches
+     * \param[in] allNumElemsPerBRep number of elements for all BReps
+     * \param[in] allNumGPsPerElem number of gauss points for each elem for all BReps
+     * \param[in] allGPOfBRep_master the parametric coordinates of the gauss points on the master patch
+     * \param[in] allGPOfBRep_slave the parametric coordinates of the gauss points on the slave patch
+     * \param[in] allGPOfBRep_weight the weight of the gauss points
+     * \param[in] allTangents_master all the tangents on the cartesian space on the master patch
+     * \param[in] allTangents_slave all the tangents on the cartesian space on the slave patch
+     * \param[in] allMappings the mapping of each gauss point from the parent element space to the cartesian space
+     * \author Ragnar Björnsson
+     ***********/
+    void sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
+            int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
+            double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,
+            double* allTangents_master, double* allTangents_slave, double* allMappings);
+
+    /***********************************************************************************************
+     * \brief Send IGA dirichlet boundary conditions to the server
+     * \param[in] numberOfClampedDofs total number of clamped IGA dofs
+     * \param[in] clampedDofs clamped IGA dofs
+     * \param[in] clampedDirections lowest number of clamped directions for all clamped nodes
+     * \author Ragnar Björnsson
+     ***********/
+    void sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, int clampedDirections);
+
     /***********************************************************************************************
      * \brief Send data field to the server
      * \param[in] sizeOfArray size of the array (data field)

@@ -43,6 +43,7 @@ IGAMesh::IGAMesh(std::string _name, int _numNodes) :
 IGAMesh::~IGAMesh() {
     for (int i = 0; i < surfacePatches.size(); i++)
         delete surfacePatches[i];
+    delete couplingData;
 }
 
 IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree,
@@ -96,15 +97,15 @@ void IGAMesh::computeBoundingBox() {
 		double zmax = patch->getBoundingBox(5);
 		if (xmin < boundingBox[0])
 			boundingBox[0] = xmin;
-		if ( xmax > boundingBox[1])
+		else if ( xmax > boundingBox[1])
 			boundingBox[1] = xmax;
 		if (ymin < boundingBox[2])
 			boundingBox[2] = ymin;
-		if (ymax > boundingBox[3])
+		else if (ymax > boundingBox[3])
 			boundingBox[3] = ymax;
 		if (zmin < boundingBox[4])
 			boundingBox[4] = zmin;
-		if (zmax > boundingBox[5])
+		else if (zmax > boundingBox[5])
 			boundingBox[5] = zmax;
     }
     boundingBox.isComputed(true);
@@ -112,7 +113,6 @@ void IGAMesh::computeBoundingBox() {
 
 void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _location,
         EMPIRE_DataField_dimension _dimension, EMPIRE_DataField_typeOfQuantity _typeOfQuantity) {
-
     int numLocations = -1;
     if (_location == EMPIRE_DataField_atNode)
         numLocations = numNodes;
@@ -124,6 +124,14 @@ void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _loc
             _typeOfQuantity);
     nameToDataFieldMap.insert(pair<string, DataField*>(_dataFieldName, dataField));
 
+}
+
+void IGAMesh::addCouplingData(int _patchCounter, int _BRepCounter, double* _GP_m, double* _GP_s, double* _GP_w,
+                              double* _tang_m, double* _tang_s, double* _map,
+                              int _ID_s, int _NumElemsOfBRep, int _NumGPsOfElem) {
+    couplingData->addBRePCouplingData(_patchCounter, _BRepCounter, _GP_m, _GP_s, _GP_w,
+                                      _tang_m, _tang_s, _map,
+                                      _ID_s, _NumElemsOfBRep, _NumGPsOfElem);
 }
 
 Message &operator<<(Message & _message, const IGAMesh & _mesh) {

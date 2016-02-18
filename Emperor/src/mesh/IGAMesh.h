@@ -29,14 +29,18 @@
 #define IGAMesh_H_
 
 #include <string>
+#include <cfloat>
 // Inclusion of user defined libraries
 #include "AbstractMesh.h"
+#include "IGAPatchCouplingCaratData.h"
 
 namespace EMPIRE {
 class DataField;
 class Message;
 class IGAPatchSurface;
 class IGAControlPoint;
+
+class IGAPatchCouplingCaratData;
 
 /********//**
  * \brief class IGAMesh is a specialization of the class AbstractMesh used for IGA Mesh containing number of IGA surface patches
@@ -47,6 +51,15 @@ class IGAMesh: public AbstractMesh {
 protected:
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
+
+    /// Vector of all clampedDofs
+    std::vector<int> clampedDofs;
+
+    /// the lowest number of clamped directions
+    int clampedDirections;
+
+    /// Object which has all the patch coupling data
+    IGAPatchCouplingCaratData* couplingData;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;
@@ -105,6 +118,25 @@ public:
      ***********/
     void computeBoundingBox();
 
+    /***********************************************************************************************
+     * \brief Add coupling data of a patch
+     * \param[in] _patchCounter number of the patch
+     * \param[in] _BRepCounter number of the BReP
+     * \param[in] _GP_m gauss point coordinates on master side
+     * \param[in] _GP_s gauss point coordinates on slave side
+     * \param[in] _GP_w gauss point weights
+     * \param[in] _tang_m tangent on master side
+     * \param[in] _tang_s tangent on slave side
+     * \param[in] _map mapping from element space to physical space
+     * \param[in] _ID_s ID of slave patch
+     * \param[in] _NumElemsOfBRep number of linear elements on the BReP
+     * \param[in] _NumGPsOfElem number of gauss points on each linear element
+     * \author Ragnar Björnsson
+     ***********/
+    void addCouplingData(int _patchCounter, int _BRepCounter, double* _GP_m, double* _GP_s, double* _GP_w,
+                         double* _tang_m, double* _tang_s, double* _map,
+                         int _ID_s, int _NumElemsOfBRep, int _NumGPsOfElem);
+
     /// Get and set functions
 public:
     /***********************************************************************************************
@@ -152,6 +184,60 @@ public:
      ***********/
     inline int getNumNodes() const {
         return numNodes;
+    }
+
+    /***********************************************************************************************
+     * \brief Initilize a object of IGAPatchCouplingCaratData
+     * \param[in] numPatches the number of patches
+     * \param[in] numBrepsPerPatch number of couplings for each patch
+     * \author Ragnar Björnsson
+     ***********/
+    void initializePatchCouplingData(int numPatches, int* numBrepsPerPatch) {
+        couplingData = new IGAPatchCouplingCaratData(numPatches,numBrepsPerPatch);
+    }
+
+    /***********************************************************************************************
+     * \brief get IGAPatchCouplingCaratData object
+     * \author Ragnar Björnsson
+     ***********/
+    IGAPatchCouplingCaratData* getIGAPatchCouplingData() {
+        return couplingData;
+    }
+
+    /***********************************************************************************************
+     * \brief set clamped dofs
+     * \param[in] numberOfClampedDofs the number of clamped dofs
+     * \param[in] _clampedDofs the clamped dofs
+     * \author Ragnar Björnsson
+     ***********/
+    void setClampedDofs(int numberOfClampedDofs, int* _clampedDofs) {
+        for(int i = 0 ; i < numberOfClampedDofs ; i++)
+            clampedDofs.push_back(_clampedDofs[i]);
+    }
+
+    /***********************************************************************************************
+     * \brief set clamped dircetions
+     * \param[in] _clampedDirections the lowest number of clamped directions
+     * \author Ragnar Björnsson
+     ***********/
+    void setClampedDirections(int _clampedDirections){
+        clampedDirections = _clampedDirections;
+    }
+
+    /***********************************************************************************************
+     * \brief get clamped dofs
+     * \author Ragnar Björnsson
+     ***********/
+    std::vector<int> getClampedDofs() {
+        return clampedDofs;
+    }
+
+    /***********************************************************************************************
+     * \brief get clamped directions
+     * \author Ragnar Björnsson
+     ***********/
+    int getClampedDirections() {
+        return clampedDirections;
     }
 
 };

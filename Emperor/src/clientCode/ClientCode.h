@@ -33,11 +33,15 @@
 #include <vector>
 #include "EMPEROR_Enum.h"
 
+#include "IGAPatchCouplingCaratData.h"
+
 namespace EMPIRE {
 
 class ServerCommunication;
 class AbstractMesh;
 class Signal;
+
+class IGAPatchCouplingCaratData;
 
 /********//**
  * \brief Class ClientCode performs communication to an EMPIRE client code (e.g. OpenFOAM, Carat++ ...)

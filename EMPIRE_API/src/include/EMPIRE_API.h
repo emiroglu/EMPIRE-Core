@@ -60,7 +60,6 @@
 #ifdef __cplusplus
 extern "C" { ///Define extern C if C++ compiler is used
 #endif
-
 /***********************************************************************************************
  * \brief Establishes the necessary connection with the Emperor
  ***********/
@@ -172,6 +171,37 @@ void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves);
  ***********/
 void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
         double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
+
+/***********************************************************************************************
+ * \brief Send IGAPatchCoupling to the server
+ * \param[in] numPatches number of patches
+ * \param[in] numBRepsPerPatch number of BReps each patch has
+ * \param[in] totalNumGP total number of gausspoints on all patch coupling interfaces
+ * \param[in] totalNumBRePs total number of BReps
+ * \param[in] allID_slave all ids of the slave patches
+ * \param[in] allNumElemsPerBRep number of elements for all BReps
+ * \param[in] allNumGPsPerElem number of gauss points for each elem for all BReps
+ * \param[in] allGPOfBRep_master the parametric coordinates of the gauss points on the master patch
+ * \param[in] allGPOfBRep_slave the parametric coordinates of the gauss points on the slave patch
+ * \param[in] allGPOfBRep_weight the weight of the gauss points
+ * \param[in] allTangents_master all the tangents on the cartesian space on the master patch
+ * \param[in] allTangents_slave all the tangents on the cartesian space on the slave patch
+ * \param[in] allMappings the mapping of each gauss point from the parent element space to the cartesian space
+ * \author Ragnar Björnsson
+ ***********/
+void EMPIRE_API_sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
+        int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
+        double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,
+        double* allTangents_master, double* allTangents_slave, double* allMappings);
+
+/***********************************************************************************************
+ * \brief Send IGA dirichlet boundary conditions to the server
+ * \param[in] numberOfClampedDofs total number of clamped IGA dofs
+ * \param[in] clampedDofs clamped IGA dofs
+ * \param[in] clampedDirections lowest number of clamped directions for all clamped nodes
+ * \author Ragnar Björnsson
+ ***********/
+void EMPIRE_API_sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, int clampedDirections);
 
 /***********************************************************************************************
  * \brief Send data field to the server

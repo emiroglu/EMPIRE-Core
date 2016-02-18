@@ -1,5 +1,5 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Munich
+ *  Stefan Sicklinger, Tianyang Wang, Andreas Apostolatos, Ragnar Björnsson Munich
  *
  *  All rights reserved.
  *
@@ -35,6 +35,7 @@
 #include "IGAPatchSurfaceTrimming.h"
 #include <limits>
 #include <set>
+#include <vector>
 
 namespace EMPIRE {
 class DataField;
@@ -95,7 +96,7 @@ public:
     /***********************************************************************************************
      * \brief Setup information about the loop soon to be received
      * \param[in] inner 0 for outter and 1 for inner
-     * \param[in] numCurves Number of curves to be received for this loop 
+     * \param[in] numCurves Number of curves to be received for this loop
      * \author Fabien Pean
      ***********/
     void addTrimLoop(int inner, int numCurves);
@@ -113,7 +114,7 @@ public:
      ***********/
     void addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                       int _uNoControlPoints, double* _controlPointNet);
-    
+
     void linearizeTrimming(){Trimming.linearizeLoops();};
 
     /// Basis related functions
@@ -206,6 +207,37 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void computeBaseVectorsAndDerivatives(double*, double*, int, int, int);
+
+    /***********************************************************************************************
+    * \brief Returns the Surface normals and its 1st derivatives, given the base vectors and their derivatives
+    * \param[out]  surface normal and derivatives
+    * \param[in] _baseVectorsAndDerivatives
+    * \author Ragnar Björnsson
+    ***********/
+    void computeSurfaceNormalAndDerivatives(std::vector<double>&, double*);
+
+    /***********************************************************************************************
+    * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
+    * \param[out]  covariant metric tensor
+    * \param[in] _baseVectors
+    * \author Ragnar Björnsson
+    ***********/
+    void computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov);
+
+    /***********************************************************************************************
+    * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
+    * \param[out]  B_rot curvature terms at _u, _v
+    * \param[out]  B_disp displacement terms at _u, _v
+    * \param[out]  normalAndDerivatives at _u, _v (will be used later to check orientation)
+    * \param[in] _u The parameter on the u-coordinate line
+    * \param[in] _uKnotSpanIndex The index of the knot span where the parametric coordinates _uPrm lives in
+    * \param[in] _v The parameter on the v-coordinate line
+    * \param[in] _vKnotSpanIndex The index of the knot span where the parametric coordinates _vPrm lives in
+    * \param[in] tangent at _u, _v
+    * \author Ragnar Björnsson
+    ***********/
+    void computeCurvatureAtPoint(std::vector<std::vector<double> >& B_rot, double* B_disp, std::vector<double>& normalAndDerivatives,
+            double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* tangent);
 
     /// Projection related functions
 public:
@@ -360,13 +392,13 @@ public:
         return IGABasis;
     }
     inline BSplineBasis1D* getIGABasis(bool _u0v1) const {
-    	if(_u0v1==0)	return IGABasis->getUBSplineBasis1D();
-    	else 			return IGABasis->getVBSplineBasis1D();
+        if(_u0v1==0)	return IGABasis->getUBSplineBasis1D();
+        else 			return IGABasis->getVBSplineBasis1D();
     }
     inline BSplineBasis1D* operator[](const char _uOrV) const {
-    	if(_uOrV=='u')		return IGABasis->getUBSplineBasis1D();
-    	else if(_uOrV=='v') return IGABasis->getVBSplineBasis1D();
-    	assert(0);			return NULL;
+        if(_uOrV=='u')		return IGABasis->getUBSplineBasis1D();
+        else if(_uOrV=='v') return IGABasis->getVBSplineBasis1D();
+        assert(0);			return NULL;
     }
 
     /***********************************************************************************************
@@ -425,7 +457,7 @@ public:
      * \author Fabien Pean
      ***********/
     inline IGAPatchSurfaceTrimming& getTrimming() {
-    	return Trimming;
+        return Trimming;
     }
     inline const IGAPatchSurfaceTrimming& getTrimming() const {
         return Trimming;
@@ -435,15 +467,15 @@ public:
      * \author Fabien Pean
      ***********/
     inline bool isTrimmed() const {
-    	return Trimming.isTrimmed();
+        return Trimming.isTrimmed();
     }
 
     inline double getBoundingBox(int id) {
-    	return boundingBox[id];
+        return boundingBox[id];
     }
 
     inline const BoundingBox& getBoundingBox() {
-    	return boundingBox;
+        return boundingBox;
     }
 
     /// The maximum number of Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
@@ -468,3 +500,4 @@ Message &operator<<(Message &message, const IGAPatchSurface &mesh);
 }/* namespace EMPIRE */
 
 #endif /* IGAPatchSurface_H_ */
+

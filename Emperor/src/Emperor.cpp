@@ -333,7 +333,11 @@ void Emperor::initMappers() {
                     settingMapper.igaMortarMapper.bisection.maxNumOfIterations,
                     settingMapper.igaMortarMapper.bisection.tolerance,
                     settingMapper.igaMortarMapper.integration.numGPTriangle,
-                    settingMapper.igaMortarMapper.integration.numGPQuad);
+                    settingMapper.igaMortarMapper.integration.numGPQuad,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.dispPenalty,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.rotPenalty,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors,
+                    settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs);
         } else if (settingMapper.type == EMPIRE_CurveSurfaceMapper) {
             mapper->initCurveSurfaceMapper(settingMapper.curveSurfaceMapper.type);
         } else {

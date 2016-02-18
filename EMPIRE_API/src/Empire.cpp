@@ -152,6 +152,33 @@ void Empire::sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
             _cpNet);
 }
 
+void Empire::sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
+        int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
+        double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,
+        double* allTangents_master, double* allTangents_slave, double* allMappings) {
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(numPatches, numBRepsPerPatch);
+
+    int CouplingInfo[2] = {totalNumGP, totalNumBRePs};
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(2, CouplingInfo);
+
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(totalNumBRePs, allID_slave);
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(totalNumBRePs, allNumElemsPerBRep);
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(totalNumBRePs, allNumGPsPerElem);
+
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(2*totalNumGP, allGPOfBRep_master);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(2*totalNumGP, allGPOfBRep_slave);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(totalNumGP, allGPOfBRep_weight);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(3*totalNumGP, allTangents_master);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(3*totalNumGP, allTangents_slave);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(totalNumGP, allMappings);
+}
+
+void Empire::sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, int clampedDirections) {
+    int dirichletBCInfo[3]={numberOfClampedDofs, clampedDirections};
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(2, dirichletBCInfo);
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(numberOfClampedDofs, clampedDofs);
+}
+
 void Empire::sendDataField(int sizeOfArray, double *dataField) {
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(1, &sizeOfArray);
     ClientCommunication::getSingleton()->sendToServerBlocking<double>(sizeOfArray, dataField);

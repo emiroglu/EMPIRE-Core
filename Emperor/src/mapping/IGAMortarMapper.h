@@ -1,6 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
  *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
- *  Stefan Sicklinger, Tianyang Wang, Munich
+ *  Ragnar Björnsson, Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -34,6 +34,7 @@
 #include <iostream>
 #include <assert.h>
 #include "AbstractMapper.h"
+#include "IGAMortarCouplingMatrices.h"
 
 namespace EMPIRE {
 
@@ -45,6 +46,7 @@ class IGAPatchSurface;
 class IGAMesh;
 class FEMesh;
 class DataField;
+class IGAMortarCouplingMatrices;
 
 namespace MathLibrary {
 
@@ -58,7 +60,7 @@ class IGAGaussQuadratureOnQuad;
  * ***********/
 class IGAMortarMapper: public AbstractMapper {
 private:
-	/// Type definitions
+    /// Type definitions
     typedef std::pair<double,double> Point2D;
     typedef std::vector<Point2D> Polygon2D;
     typedef std::vector<Polygon2D> ListPolygon2D;
@@ -77,12 +79,10 @@ private:
     /// The reverse element freedom table for the fluid mesh
     std::map<int, std::vector<int> > meshFENodeToElementTable;
 
-    /// The mass-like matrix
-    MathLibrary::SparseMatrix<double> *C_NN;
     std::vector<int> indexEmptyRowCnn;
 
-    /// The right-hand side matrix
-    MathLibrary::SparseMatrix<double> *C_NR;
+    IGAMortarCouplingMatrices *couplingMatrices;
+    bool useIGAPatchCouplingPenalties;
 
     /// Quadrature rule over the triangulated subdomains
     EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
@@ -106,6 +106,7 @@ private:
     /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
     std::vector<std::vector<double> > streamGP;
 
+
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
 
@@ -125,6 +126,15 @@ private:
         int numRefinementForIntialGuess;
         double maxDistanceForProjectedPointsOnDifferentPatches;
     } projectionProperties;
+    struct IgaPatchCoupling {
+            double dispPenalty;
+            double rotPenalty;
+            int isAutomaticPenaltyFactors;
+    } IgaPatchCoupling;
+
+    struct dirichletBCs {
+        int isDirichletBCs;
+    }dirichletBCs;
 
 public:
     /***********************************************************************************************
@@ -181,6 +191,20 @@ public:
      * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
      ***********/
     void setParametersIntegration(int _numGPTriangle = 16, int _numGPQuad = 25);
+
+    /***********************************************************************************************
+     * \brief Set parameter for penalty coupling
+     * \param[in] _dispPenalty The displacement penalty coupling factor
+     * \param[in] _rotPenalty The rotational penalty coupling factor
+     * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+     ***********/
+    void setParametersIgaPatchCoupling(double _dispPenalty = 0, double _rotPenalty = 0, int isAutomaticPenaltyFactors = 0);
+
+    /***********************************************************************************************
+     * \brief Set parameter for penalty coupling
+     * \param[in] _isDirichletBCs flag if dirichlet boundary conditions are used or not
+     ***********/
+    void setParametersDirichletBCs(int _isDirichletBCs = 0);
 
     /***********************************************************************************************
      * \brief Build the coupling matrcies C_NN and C_NR
@@ -252,10 +276,49 @@ private:
 
     /***********************************************************************************************
      * \brief Compute matrices C_NN and C_NR by looping over the FE elements and processing them
-     * \author Fabien Pean
+     * \author Fabien Pean, Chenshen Wu
      ***********/
     void computeCouplingMatrices();
 
+public:
+    /***********************************************************************************************
+     * \brief Compute  IGA Patch coupling matrix B by looping over the patches and their couplings to other patches
+     * \author Ragnar Björnsson
+     ***********/
+    void computeIGAPatchCouplingMatrix();
+
+    /***********************************************************************************************
+     * \brief Compute  IGA Patch coupling of current BREP and put it into C_NN_expanded at the right locations
+     * \param[in] masterPatch the master patch
+     * \param[in] slavePatch the slave patch
+     * \param[in] patchCounter id of the master patch
+     * \param[in] BRepCounter id of the coupling BRep of the master patch
+     * \param[in] alphaPrim the primary penalty factor
+     * \param[in] alphaSec the secondary penalty factor
+     * \author Ragnar Björnsson
+     ***********/
+    void computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch, IGAPatchSurface* slavePatch,
+            int patchCounter, int BRepCounter, double alphaPrim, double alphaSec);
+    /***********************************************************************************************
+     * \brief Compute  the penalty factors of the IGA Patch coupling by using the smallest element length of the patches at the interface
+     * \param[in/out] alphaPrim the primary penalty factor
+     * \param[in/out] alphaSec the secondary penalty factor
+     * \param[in] masterPatch the master patch
+     * \param[in] slavePatch the slave patch
+     * \param[in] gausspoints_master the gauss points on the master side
+     * \param[in] gausspoints_slave the gauss points on the slave side
+     * \param[in] gausspoints_weight the gauss point weights
+     * \param[in] mappings the mapping of the gausspoints from the parent element space to the physical space
+     * \param[in] numElemsPerBRep number of elements on the current BReP
+     * \param[in] numGPsPerElem number of gauss points on each element (they are of uniform length)
+     * \author Ragnar Björnsson
+     ***********/
+
+    void computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,
+            IGAPatchSurface* slavePatch, double* gausspoints_master, double* gausspoints_slave, double* gausspoints_weight,
+            double* mappings, int numElemsPerBRep, int numGPsPerElem);
+
+private:
     /***********************************************************************************************
      * \brief Get the patches index on which the FE-side element is projected
      * \param[in] _elemIndex The index of the element one is getting the patches for
@@ -377,7 +440,7 @@ private:
      ***********/
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
-    /***********************************************************************************************
+/***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
      * \param[in] _element		The element for which we want the neighbor
      * \param[in] _node1	 	The first node index of the edge
@@ -386,12 +449,6 @@ private:
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
-
-    /***********************************************************************************************
-	 * \brief Fill empty rows with identity for ensuring numerical stability
-	 * \author Fabien Pean
-	 ***********/
-    void enforceCnn();
 
     /// Writing output functions
 public:
@@ -407,17 +464,17 @@ public:
      * \param[in] _filename		The substring to append to open csv file and write vtk file
      * \author Fabien Pean
      ***********/
-    void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
+     void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
     /***********************************************************************************************
      * \brief Writes all FE mesh in parametric coordinates
      * \author Fabien Pean
      ***********/
-    void writeParametricProjectedPolygons(std::string _filename);
+     void writeParametricProjectedPolygons(std::string _filename);
     /***********************************************************************************************
      * \brief Writes all triangulated polygons to be integrated
      * \author Fabien Pean
      ***********/
-    void writeTriangulatedParametricPolygon(std::string _filename);
+     void writeTriangulatedParametricPolygon(std::string _filename);
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
@@ -436,16 +493,35 @@ public:
      * \author Fabien Pean
      ***********/
     void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
+
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR
      * \author Chenshen Wu
      ***********/
     void printCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Check consistency of the coupling, constant field gives constant field
      * \author Fabien Pean
      ***********/
     void checkConsistency();
+
+public:
+    /***********************************************************************************************
+     * \brief get boolean whether the IGA patch coupling was used or not
+     * \author Ragnar Björnsson
+     ***********/
+    bool getUseIGAPatchCouplingPenalties() {
+        return useIGAPatchCouplingPenalties;
+    }
+
+    /***********************************************************************************************
+     * \brief get couplingMatrices object
+     * \author Ragnar Björnsson
+     ***********/
+    IGAMortarCouplingMatrices* getCouplingMatrices() {
+        return couplingMatrices;
+    }
 
     /// unit test class
     friend class TestIGAMortarMapperTube;

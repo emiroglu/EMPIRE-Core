@@ -1,6 +1,6 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
  *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
- *  Stefan Sicklinger, Tianyang Wang, Munich
+ *  Ragnar Björnsson, Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
  *
@@ -35,6 +35,7 @@
 #include <math.h>
 #include <set>
 #include <algorithm>
+#include "IGAMortarCouplingMatrices.h"
 
 using namespace std;
 
@@ -69,14 +70,19 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesMaster = meshIGA->getNumNodes();
     }
 
-    C_NR = new MathLibrary::SparseMatrix<double>(numNodesMaster, numNodesSlave);
-    C_NN = new MathLibrary::SparseMatrix<double>(numNodesMaster, false);
+    // Initialize flag for the case that coupling between the patches is enables and when Dirichlet boundary conditions are applied in not all directions
+    useIGAPatchCouplingPenalties = false;
+    
+    // Initialize coupling matrices
+    couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
 
     setParametersProjection();
     setParametersNewtonRaphson();
     setParametersNewtonRaphsonBoundary();
     setParametersBisection();
     setParametersIntegration();
+    setParametersIgaPatchCoupling();
+    setParametersDirichletBCs();
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
@@ -84,13 +90,9 @@ IGAMortarMapper::~IGAMortarMapper() {
     for (int i = 0; i < meshFE->numElems; i++)
         delete[] meshFEDirectElemTable[i];
     delete[] meshFEDirectElemTable;
-
     delete gaussTriangle;
     delete gaussQuad;
-
-    //C_NN->cleanPardiso();
-    //delete C_NR;
-    //delete C_NN;
+    delete couplingMatrices;
 }
 
 void IGAMortarMapper::setParametersIntegration(int _numGPTriangle, int _numGPQuad) {
@@ -120,6 +122,16 @@ void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int
     projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches=_maxDistanceForProjectedPointsOnDifferentPatches;
 }
 
+void IGAMortarMapper::setParametersIgaPatchCoupling(double _dispPenalty, double _rotPenalty, int isAutomaticPenaltyFactors) {
+    IgaPatchCoupling.dispPenalty = _dispPenalty;
+    IgaPatchCoupling.rotPenalty = _rotPenalty;
+    IgaPatchCoupling.isAutomaticPenaltyFactors = isAutomaticPenaltyFactors;
+}
+
+void IGAMortarMapper::setParametersDirichletBCs(int _isDirichletBCs) {
+    dirichletBCs.isDirichletBCs = _isDirichletBCs;
+}
+
 void IGAMortarMapper::buildCouplingMatrices() {
     HEADING_OUT(3, "IGAMortarMapper", "Building coupling matrices for ("+ name +")...", infoOut);
     {
@@ -145,6 +157,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
     // Project the FE nodes onto the multipatch trimmed geometry
     projectPointsToSurface();
 
+//    // Initialize coupling matrices
+//    couplingMatrices = new IgaMortarCouplingMatrices(numNodesMaster , numNodesSlave);
+
     // Write the projected points on to a file to be used in MATLAB
     writeProjectedNodesOntoIGAMesh();
 
@@ -156,30 +171,60 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     //writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
     streamGP.clear();
-    
+
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
+    
+    if(IgaPatchCoupling.dispPenalty>0 || IgaPatchCoupling.rotPenalty>0)
+        useIGAPatchCouplingPenalties = true;
 
-    // Write the csv file of the full projected polygons and subtriangles to be processed for the computations of norms etc.
-    //writeParametricProjectedPolygons("projectedPolygonsOntoNURBSSurface");
-    //writeTriangulatedParametricPolygon("triangulatedProjectedPolygonsOntoNURBSSurface");
-    
-    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
-    if(!isMappingIGA2FEM) {
-        enforceCnn();
+    bool _isdirichletBCs = false;
+    bool isClampedDofs = false;
+    std::vector<int> clampedIDs;
+    if(dirichletBCs.isDirichletBCs==1) {
+        _isdirichletBCs = true;
+        clampedIDs = meshIGA->getClampedDofs();
+
+        int clampedDirections = meshIGA->getClampedDirections();
+        if(clampedDirections == 1 || clampedDirections == 2)
+            isClampedDofs = true;
     }
-    
+
+    couplingMatrices->setIsIGAPatchCoupling(useIGAPatchCouplingPenalties , isClampedDofs);
+
+    if(!(isMappingIGA2FEM) && useIGAPatchCouplingPenalties) {
+        INFO_OUT()<<"Compute Penalty Patch Coupling"<<endl;
+        computeIGAPatchCouplingMatrix();
+    }
+    else
+        INFO_OUT()<<"No Penalty Patch Coupling"<<std::endl;
+
+    if(isClampedDofs)                           // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
+        useIGAPatchCouplingPenalties=true;      // if it is not always clamped in all three dircetions
+
+
+    couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
+
+    if(dirichletBCs.isDirichletBCs==1)
+        couplingMatrices->applyDirichletBCs(clampedIDs);
+    else
+        INFO_OUT()<<"No Diriclet Boundary Conditions"<<std::endl;
+
+//    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
+    if(!isMappingIGA2FEM) {
+        couplingMatrices->enforceCnn();
+    }
+
     writeCouplingMatricesToFile();
 
-    // Write out the matrices into file wrt a MATLAB indexing
-    // Process LU factorization
-    C_NN->factorize();
+    couplingMatrices->factorizeCorrectCNN();
+    INFO_OUT()<<"Factorize was successful"<<std::endl;
 
-    // Maps a unit field and checks whether is mapped onto a unit field
-    checkConsistency();
+    if(dirichletBCs.isDirichletBCs==0)
+        checkConsistency();
 }
 
 void IGAMortarMapper::initTables() {
@@ -557,6 +602,354 @@ void IGAMortarMapper::computeCouplingMatrices() {
     	}
     	WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Not all element in FE mesh integrated ! Coupling matrices invalid");
     }
+}
+
+void IGAMortarMapper::computeIGAPatchCouplingMatrix() {
+    double alphaPrim = IgaPatchCoupling.dispPenalty;
+    double alphaSec = IgaPatchCoupling.rotPenalty;
+    INFO_OUT()<<"Manual patch coupling penalties: alphaPrim = "<<alphaPrim<<" alphaSec = "<<alphaSec<<std::endl;
+
+    // loop through all patches
+    for(int patchCounter = 0 ; patchCounter < meshIGA->getIGAPatchCouplingData()->getNumPatches() ; patchCounter++) {
+
+        // get master patch and polynomial degrees
+        IGAPatchSurface* masterPatch = meshIGA->getSurfacePatch(patchCounter);
+
+        // loop through all BReps where current patch is master
+        int* numOfBRepsPerPatch = meshIGA->getIGAPatchCouplingData()->getNumBrepsPerPatch();
+        for(int BRepCounter = 0 ; BRepCounter < numOfBRepsPerPatch[patchCounter] ; BRepCounter++) {
+            int slaveID = meshIGA->getIGAPatchCouplingData()->getSlaveID(patchCounter, BRepCounter);
+
+            // get slave patch and polynomial degrees
+            IGAPatchSurface* slavePatch = meshIGA->getSurfacePatch(slaveID);
+
+            // function here to do the penalty coupling for one brep
+            computeIGAPatchCouplingOfBRep(masterPatch, slavePatch, patchCounter, BRepCounter, alphaPrim, alphaSec);
+        }
+    }
+    INFO_OUT()<<"Penalty Patch Coupling Finished"<<std::endl;
+}
+
+void IGAMortarMapper::computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch, IGAPatchSurface* slavePatch,
+            int patchCounter, int BRepCounter, double alphaPrim, double alphaSec) {
+    double* gausspoints_master = meshIGA->getIGAPatchCouplingData()->getGPs_master(patchCounter, BRepCounter);
+    double* gausspoints_slave = meshIGA->getIGAPatchCouplingData()->getGPs_slave(patchCounter, BRepCounter);
+    double* gausspoints_weight = meshIGA->getIGAPatchCouplingData()->getGPs_weight(patchCounter, BRepCounter);
+    double* tangMaster = meshIGA->getIGAPatchCouplingData()->getTangents_master(patchCounter, BRepCounter);
+    double* tangSlave = meshIGA->getIGAPatchCouplingData()->getTangents_slave(patchCounter, BRepCounter);
+    double* mappings = meshIGA->getIGAPatchCouplingData()->getMappings(patchCounter, BRepCounter);
+
+    int numElemsPerBRep = meshIGA->getIGAPatchCouplingData()->getNumElemsOfBRep(patchCounter, BRepCounter);
+    int numGPsPerElem = meshIGA->getIGAPatchCouplingData()->getNumGPsOfElem(patchCounter, BRepCounter);
+
+    // check if penalty factors should be calculated automatically
+    if(IgaPatchCoupling.isAutomaticPenaltyFactors) {
+       INFO_OUT()<<"Compute Penalty Factors Automatically"<<std::endl;
+        computePenaltyFactorsForPatchCoupling(alphaPrim, alphaSec, masterPatch,
+                slavePatch, gausspoints_master, gausspoints_slave, gausspoints_weight,
+                mappings, numElemsPerBRep, numGPsPerElem);
+        INFO_OUT()<<"After: alphaPrim = "<<alphaPrim<<" alphaSec = "<<alphaSec<<std::endl;
+    }
+
+
+    int p_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int q_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+    int p_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int q_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+    // get number of local basis functions for master and slave patch
+    int noLocalBasisFunctions_m = (p_m+1)*(q_m+1);
+    int noLocalBasisFunctions_s = (p_s+1)*(q_s+1);
+
+    int noCoord = 3;
+    int numParametricDim = 2;
+
+    // initialize coupling matrices (for each BRepElem)
+    double* cPenaltyDisp_mm = new double[noLocalBasisFunctions_m * noLocalBasisFunctions_m];
+    double* cPenaltyDisp_ss = new double[noLocalBasisFunctions_s * noLocalBasisFunctions_s];
+    double* cPenaltyDisp_ms = new double[noLocalBasisFunctions_m * noLocalBasisFunctions_s];
+    double* cPenaltyRot_mm = new double[noCoord*noLocalBasisFunctions_m * noCoord*noLocalBasisFunctions_m];
+    double* cPenaltyRot_ss = new double[noCoord*noLocalBasisFunctions_s * noCoord*noLocalBasisFunctions_s];
+    double* cPenaltyRot_ms = new double[noCoord*noLocalBasisFunctions_m * noCoord*noLocalBasisFunctions_s];
+
+    // loop through all BRep-subelements
+    for(int BRepElemCounter = 0 ; BRepElemCounter < numElemsPerBRep ; BRepElemCounter++) {
+
+        // set all cPenaltyMatrices to zero at begining of each element, they sum up for all GPs on each element
+        for(int i = 0 ; i < noLocalBasisFunctions_m ; i++) {
+            for(int j = 0 ; j < noLocalBasisFunctions_m ; j++) {
+                cPenaltyDisp_mm[i*noLocalBasisFunctions_m + j] = 0.0;
+            }
+            for(int j = 0 ; j < noLocalBasisFunctions_s ; j++) {
+                cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j] = 0.0;
+            }
+        }
+        for(int i = 0 ; i < noLocalBasisFunctions_s ; i++) {
+            for(int j = 0 ; j < noLocalBasisFunctions_s ; j++) {
+                cPenaltyDisp_ss[i*noLocalBasisFunctions_s + j] = 0.0;
+            }
+        }
+        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_m ; i++) {
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_m ; j++) {
+                cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j] = 0.0;
+            }
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
+                cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] = 0.0;
+            }
+        }
+        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_s ; i++) {
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
+                cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j] = 0.0;
+            }
+        }
+
+        // get knotspans
+        // this should be the same for all gps on the element
+        int uKnotSpan_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_master[2*BRepElemCounter*numGPsPerElem]);
+        int vKnotSpan_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_master[2*BRepElemCounter*numGPsPerElem + 1]);
+        int uKnotSpan_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*BRepElemCounter*numGPsPerElem]);
+        int vKnotSpan_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 1]);
+
+        // loop through all gausspoints
+        for(int gpCounter = 0 ; gpCounter < numGPsPerElem ; gpCounter++) {
+
+            // get current gausspoint on master and slave
+            double u_m = gausspoints_master[2*BRepElemCounter*numGPsPerElem + 2*gpCounter];
+            double v_m = gausspoints_master[2*BRepElemCounter*numGPsPerElem + 2*gpCounter + 1];
+            double u_s = gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 2*gpCounter];
+            double v_s = gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 2*gpCounter + 1];
+
+            // get tangents of master and slave gausspoints
+            double* tang_m = new double[3];
+            double* tang_s = new double[3];
+            for(int i = 0 ; i < 3 ; i++) {
+                tang_m[i] = tangMaster[3*BRepElemCounter*numGPsPerElem + 3*gpCounter + i];
+                tang_s[i] = tangSlave[3*BRepElemCounter*numGPsPerElem + 3*gpCounter + i];
+            }
+
+            // calculate curvature at the point
+            // master patch
+            vector<vector<double> > B_rot_m;
+            double* B_disp_m = new double[noLocalBasisFunctions_m];
+            vector<double> normalAndDerivs_m;
+
+              masterPatch->computeCurvatureAtPoint(B_rot_m, B_disp_m, normalAndDerivs_m,
+                       u_m, uKnotSpan_m, v_m, vKnotSpan_m, tang_m);
+
+              // slave patch
+              vector<vector<double> > B_rot_s;
+              double* B_disp_s = new double[noLocalBasisFunctions_s];
+              vector<double> normalAndDerivs_s;
+
+              slavePatch->computeCurvatureAtPoint(B_rot_s, B_disp_s, normalAndDerivs_s,
+                       u_s, uKnotSpan_s, v_s, vKnotSpan_s, tang_s);
+
+              // check if the orientation of the surface normals are the same
+              bool haveSurfaceNormalsSameOrientation = true;
+              double sum = 0;
+              for(int i = 0 ; i < noCoord ; i++)
+                  sum += normalAndDerivs_m[i]*normalAndDerivs_s[i];
+              if(sum<0)
+                  haveSurfaceNormalsSameOrientation = false;
+
+              // calculate elementLength on GP (mapping from unit space to physical times the gpWeight)
+              double elementLengthOnGP = mappings[BRepElemCounter*numGPsPerElem + gpCounter]*
+                    gausspoints_weight[BRepElemCounter*numGPsPerElem + gpCounter];
+
+              // calculate the disp coupling penalty which will be added to C_NN
+              int count = 0;
+              int count_ms = 0;
+              for(int i = 0; i < noLocalBasisFunctions_m; i++) {
+                  for(int j = 0; j < noLocalBasisFunctions_m; j++) {
+                  // this will be summed up for all gausspoints on the element and then added to C_NN_expanded
+                  cPenaltyDisp_mm[count++] += B_disp_m[i] * B_disp_m[j]*elementLengthOnGP;
+                  }
+                  for(int j = 0; j < noLocalBasisFunctions_s; j++) {
+                      cPenaltyDisp_ms[count_ms++] -= B_disp_m[i] * B_disp_s[j]*elementLengthOnGP;
+                  }
+              }
+
+              count = 0;
+              for(int i = 0; i < noLocalBasisFunctions_s; i++) {
+                  for(int j = 0; j < noLocalBasisFunctions_s; j++) {
+                      cPenaltyDisp_ss[count++] += B_disp_s[i] * B_disp_s[j]*elementLengthOnGP;
+                  }
+              }
+
+              // calculate the rot coupling penalty which will be added to C_NN
+              for(int i = 0; i < noCoord*noLocalBasisFunctions_m; i++) {
+                  for(int j = 0; j < noCoord*noLocalBasisFunctions_m; j++) {
+                      double tmpSum = 0;
+                      for(int k = 0 ; k < numParametricDim ; k++) {
+                          tmpSum +=B_rot_m[k][i]*B_rot_m[k][j];
+                      }
+                      cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j] += tmpSum*elementLengthOnGP;
+                  }
+
+                  for(int j = 0; j < noCoord*noLocalBasisFunctions_s; j++) {
+                      double tmpSum = 0;
+                      for(int k = 0 ; k < numParametricDim ; k++) {
+                          tmpSum +=B_rot_m[k][i]*B_rot_s[k][j];
+                      }
+                      if(haveSurfaceNormalsSameOrientation) { // if the surface normals are in the same direction
+                          cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] += tmpSum*elementLengthOnGP;
+                      }
+                      else {
+                          cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] -= tmpSum*elementLengthOnGP;
+                      }
+                  }
+              }
+
+              for(int i = 0; i < noCoord*noLocalBasisFunctions_s; i++) {
+                  for(int j = 0; j < noCoord*noLocalBasisFunctions_s; j++) {
+                      double tmpSum = 0;
+                      for(int k = 0 ; k < numParametricDim ; k++) {
+                          tmpSum +=B_rot_s[k][i]*B_rot_s[k][j];
+                      }
+                      cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j] += tmpSum*elementLengthOnGP;
+                  }
+              }             
+
+              delete[] tang_m;
+              delete[] tang_s;
+              delete[] B_disp_m;
+              delete[] B_disp_s;
+        }   // end gausspoint loop
+
+        // get elementfreedom table
+        int dofIGA_m[noLocalBasisFunctions_m];
+        int dofIGARot_m[noCoord*noLocalBasisFunctions_m];
+        masterPatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan_m, vKnotSpan_m, dofIGA_m);
+        for(int i = 0; i < noLocalBasisFunctions_m; i++) {
+            dofIGA_m[i] = masterPatch->getControlPointNet()[dofIGA_m[i]]->getDofIndex();
+            dofIGARot_m[3*i] = 3*dofIGA_m[i];
+            dofIGARot_m[3*i+1] = 3*dofIGA_m[i]+1;
+            dofIGARot_m[3*i+2] = 3*dofIGA_m[i]+2;
+        }
+
+        int dofIGA_s[noLocalBasisFunctions_s];
+        int dofIGARot_s[noCoord*noLocalBasisFunctions_s];
+        slavePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan_s, vKnotSpan_s, dofIGA_s);
+        for(int i = 0; i < noLocalBasisFunctions_s; i++) {
+            dofIGA_s[i] = slavePatch->getControlPointNet()[dofIGA_s[i]]->getDofIndex();
+            dofIGARot_s[3*i] = 3*dofIGA_s[i];
+            dofIGARot_s[3*i+1] = 3*dofIGA_s[i]+1;
+            dofIGARot_s[3*i+2] = 3*dofIGA_s[i]+2;
+        }
+
+        // put the master-master and master-slave displacement penalty terms into C_NN
+        for(int i = 0; i < noLocalBasisFunctions_m; i++) {
+            for(int j = 0; j < noLocalBasisFunctions_m; j++) {
+                for(int r = 0 ; r < 3 ; r++) {
+                    couplingMatrices->addCNN_expandedValue(3*dofIGA_m[i] + r , 3*dofIGA_m[j] + r , alphaPrim*cPenaltyDisp_mm[i*noLocalBasisFunctions_m + j]);
+                }
+            }
+            for(int j = 0; j < noLocalBasisFunctions_s; j++) {
+                for(int r = 0 ; r < 3 ; r++) {
+                    couplingMatrices->addCNN_expandedValue(3*dofIGA_m[i] + r , 3*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j]);
+                    couplingMatrices->addCNN_expandedValue(3*dofIGA_s[j] + r , 3*dofIGA_m[i] + r , alphaPrim*cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j]);
+                }
+            }
+        }
+
+        // put the slave-slave displacement penalty terms into C_NN
+        for(int i = 0; i < noLocalBasisFunctions_s; i++) {
+            for(int j = 0; j < noLocalBasisFunctions_s; j++) {
+                for(int r = 0 ; r < 3 ; r++) {
+                    couplingMatrices->addCNN_expandedValue(3*dofIGA_s[i] + r , 3*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ss[i*noLocalBasisFunctions_s + j]);
+                }
+            }
+        }
+
+        // put the master-master and master-slave rotational penalty terms into C_NN
+        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_m ; i++) {
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_m ; j++) {
+                couplingMatrices->addCNN_expandedValue(dofIGARot_m[i], dofIGARot_m[j] , alphaSec*cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j]);
+            }
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
+                couplingMatrices->addCNN_expandedValue(dofIGARot_m[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j]);
+                couplingMatrices->addCNN_expandedValue(dofIGARot_s[j] , dofIGARot_m[i] , alphaSec*cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j]);
+            }
+        }
+
+        // put the slave-slave rotational penalty terms into C_NN
+        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_s ; i++) {
+            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
+                couplingMatrices->addCNN_expandedValue(dofIGARot_s[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j]);
+            }
+        }
+    }   // end BRepElement loop
+    delete[] cPenaltyDisp_mm;
+    delete[] cPenaltyDisp_ss;
+    delete[] cPenaltyDisp_ms;
+    delete[] cPenaltyRot_mm;
+    delete[] cPenaltyRot_ss;
+    delete[] cPenaltyRot_ms;
+}
+
+void IGAMortarMapper::computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,
+        IGAPatchSurface* slavePatch, double* gausspoints_master, double* gausspoints_slave, double* gausspoints_weight,
+        double* mappings, int numElemsPerBRep, int numGPsPerElem) {
+
+    std::vector<double> allElementLengths;
+
+    int uNoKnots_master = masterPatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+    int vNoKnots_master = masterPatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+    int p_master = masterPatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int q_master = masterPatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+    // loop through all nonzero knotspans
+    for(int uKnotCounter = p_master ; uKnotCounter < uNoKnots_master - p_master - 1 ; uKnotCounter++) {
+        for(int vKnotCounter = q_master ; vKnotCounter < vNoKnots_master - q_master - 1 ; vKnotCounter++) {
+            double elementLength_master = 0;
+
+            // loop through all gausspoints of the current BReP
+            for(int gpCounter = 0 ; gpCounter < numElemsPerBRep*numGPsPerElem ; gpCounter++) {
+                int uKnotSpanGP_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_master[2*gpCounter]);
+                int vKnotSpanGP_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_master[2*gpCounter+1]);
+                if(uKnotCounter == uKnotSpanGP_m && vKnotCounter == vKnotSpanGP_m) {
+                    elementLength_master += mappings[gpCounter] * gausspoints_weight[gpCounter];
+                }
+            }
+            if(elementLength_master > 0) {
+                allElementLengths.push_back(elementLength_master);
+            }
+        }
+    }
+
+    int uNoKnots_slave = slavePatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+    int vNoKnots_slave = slavePatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+    int p_slave = slavePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int q_slave = slavePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+    // loop through all nonzero knotspans
+    for(int uKnotCounter = p_slave ; uKnotCounter < uNoKnots_slave - p_slave - 1 ; uKnotCounter++) {
+        for(int vKnotCounter = q_slave ; vKnotCounter < vNoKnots_slave - q_slave - 1 ; vKnotCounter++) {
+            double elementLength_slave = 0;
+
+            // loop through all gausspoints of the current BReP
+            for(int gpCounter = 0 ; gpCounter < numElemsPerBRep*numGPsPerElem ; gpCounter++) {
+                int uKnotSpanGP_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*gpCounter]);
+                int vKnotSpanGP_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*gpCounter+1]);
+                if(uKnotCounter == uKnotSpanGP_s && vKnotCounter == vKnotSpanGP_s) {
+                    elementLength_slave += mappings[gpCounter] * gausspoints_weight[gpCounter];
+                }
+            }
+            if(elementLength_slave > 0) {
+                allElementLengths.push_back(elementLength_slave);
+            }
+        }
+    }
+
+    // find the smallest element length
+    double smallestElementLength = allElementLengths[0];
+    for(int elementCounter = 1 ; elementCounter < allElementLengths.size() ; elementCounter++) {
+        if(allElementLengths[elementCounter] < smallestElementLength)
+            smallestElementLength = allElementLengths[elementCounter];
+    }
+
+    alphaPrim = 1/smallestElementLength;
+    alphaSec = 1/(sqrt(smallestElementLength));
 }
 
 void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchWithFullElt, set<int>& patchWithSplitElt) {
@@ -1190,12 +1583,9 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof1 = dofIGA[i];
                 dof2 = dofIGA[j];
             }
-            // The matrix is here stored symmetrically, which might have to be changed to account for unsymmetric matrices (actually the adapter must take care of that)
-            //if (dof1 < dof2)
-                (*C_NN)(dof1, dof2) += elementCouplingMatrixNN[count];
-            //else
-            if(dof1!=dof2)
-                (*C_NN)(dof2, dof1) += elementCouplingMatrixNN[count];
+            couplingMatrices->addCNNValue(dof1,dof2,elementCouplingMatrixNN[count]);
+            if (dof1 != dof2)
+                couplingMatrices->addCNNValue(dof2,dof1,elementCouplingMatrixNN[count]);
             count++;
         }
 
@@ -1210,7 +1600,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 dof1 = dofIGA[i];
                 dof2 = meshFEDirectElemTable[_elementIndex][j];
             }
-            (*C_NR)(dof1, dof2) += elementCouplingMatrixNR[count];
+            couplingMatrices->addCNRValue(dof1,dof2,elementCouplingMatrixNR[count]);
             count ++;
         }
 	}
@@ -1266,26 +1656,18 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
 	return -1;
 }
 
-void IGAMortarMapper::enforceCnn() {
-	indexEmptyRowCnn.reserve(numNodesMaster);
-	for(int i=0;i<numNodesMaster;i++) {
-		if(C_NN->isRowEmpty(i)) {
-			(*C_NN)(i,i) = 1;
-			indexEmptyRowCnn.push_back(i);
-		}
-	}
-}
-
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
     /*
      * Mapping of the
      * C_NN * x_master = C_NR * x_slave
      */
-    double* tmpVec = new double[numNodesMaster]();
-    // 1. matrix vector product (x_tmp = C_NR * x_slave)
-    C_NR->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, numNodesMaster);
-	// 2. solve C_NN * x_master = x_tmp
-	C_NN->solve(_masterField, tmpVec);
+    int size_N = couplingMatrices->getCorrectSizeN();
+    int size_R = couplingMatrices->getCorrectSizeR();
+
+    double* tmpVec = new double[size_N]();
+    couplingMatrices->getCorrectCNR()->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, size_N);
+
+    couplingMatrices->getCorrectCNN()->solve(_masterField, tmpVec);
 
     delete[] tmpVec;
 }
@@ -1295,11 +1677,15 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
      * Mapping of the
      * f_slave = (C_NN^(-1) * C_NR)^T * f_master
      */
-    double* tmpVec = new double[numNodesMaster];
-    // 1. solve C_NN * f_tmp = f_master;
-    C_NN->solve(tmpVec, const_cast<double *>(_masterField));
-    // 2. matrix vector product (f_slave = C_NR^T * f_tmp)
-    C_NR->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
+    int size_N = couplingMatrices->getCorrectSizeN();
+    int size_R = couplingMatrices->getCorrectSizeR();
+
+    double* tmpVec = new double[size_N];
+
+    couplingMatrices->getCorrectCNN_conservative()->solve(tmpVec, const_cast<double *>(_masterField));
+
+    couplingMatrices->getCorrectCNR_conservative()->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
+
     delete[] tmpVec;
 }
 
@@ -1497,65 +1883,77 @@ void IGAMortarMapper::debugPolygon(const ListPolygon2D& _listPolygon, string _na
 void IGAMortarMapper::printCouplingMatrices() {
 
     ERROR_OUT() << "C_NN" << endl;
-    C_NN->printCSR();
+    couplingMatrices->getCorrectCNN()->printCSR();
     ERROR_OUT() << "C_NR" << endl;
-    C_NR->printCSR();
+    couplingMatrices->getCorrectCNR()->printCSR();
 }
 
 void IGAMortarMapper::writeCouplingMatricesToFile() {
 	DEBUG_OUT()<<"### Printing matrices into file ###"<<endl;
 	DEBUG_OUT()<<"Size of C_NR is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
     if(Message::isDebugMode()) {
-		C_NR->printCSRToFile(name + "_Cnr.dat",1);
-		C_NN->printCSRToFile(name + "_Cnn.dat",1);
+        couplingMatrices->getCorrectCNR()->printCSRToFile(name + "_Cnr.dat",1);
+        couplingMatrices->getCorrectCNN()->printCSRToFile(name + "_Cnn.dat",1);
 	}
 }
 
 void IGAMortarMapper::checkConsistency() {
-    double ones[numNodesSlave];
-    for(int i=0;i<numNodesSlave;i++) {
-    	ones[i]=1.0;
+    INFO_OUT()<<"Check Consistency"<<std::endl;
+
+    int size_N = couplingMatrices->getCorrectSizeN();
+    int size_R = couplingMatrices->getCorrectSizeR();
+
+    double ones[size_R];
+    for(int i=0;i<size_R;i++) {
+        ones[i]=1.0;
     }
-    double output[numNodesMaster];
+
+    double output[size_N];
     this->consistentMapping(ones,output);
+
     double norm=0;
     vector<int> inconsistentDoF;
-    for(int i=0;i<numNodesMaster;i++) {
-    	if(fabs(output[i]-1) > 1e-6 && output[i] != 0)
-    		inconsistentDoF.push_back(i);
-    	norm+=output[i]*output[i];
-    }
-    // Replace badly conditioned row of Cnn by sum value of Cnr
-    if(!inconsistentDoF.empty()) {
-		for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
-			C_NN->deleteRow(*it);
-			(*C_NN)(*it,*it) = C_NR->getRowSum(*it);
-		}
-		C_NN->factorize();
-		this->consistentMapping(ones,output);
-		norm=0;
-		for(int i=0;i<numNodesMaster;i++) {
-			norm += output[i]*output[i];
-		}
-    }
-    int denom = isMappingIGA2FEM?numNodesMaster:numNodesMaster-indexEmptyRowCnn.size();
+
+    for(int i=0;i<size_N;i++) {
+        if(fabs(output[i]-1) > 1e-6 && output[i] != 0)
+            inconsistentDoF.push_back(i);
+        norm+=output[i]*output[i];
+        }
+
+        // Replace badly conditioned row of Cnn by sum value of Cnr
+        if(!inconsistentDoF.empty()) {
+            INFO_OUT()<<"inconsistendDOF size = "<<inconsistentDoF.size()<<std::endl;
+            for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
+                if(!useIGAPatchCouplingPenalties) {
+                    couplingMatrices->deleterow(*it);       // deleterow might not be working for the new coupling matrix datastructure
+                    couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
+                }
+                else {
+                    couplingMatrices->deleterow(*it); // deleterow might not be working for the new coupling matrix datastructure
+                    couplingMatrices->addCNN_expandedValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
+                    }
+                }
+
+            couplingMatrices->factorizeCorrectCNN();
+            this->consistentMapping(ones,output);
+            norm=0;
+
+            for(int i=0;i<size_N;i++) {
+                norm += output[i]*output[i];
+            }
+        }
+
+    int denom = size_N - couplingMatrices->getIndexEmptyRowCnn().size();
+
     norm=sqrt(norm/denom);
 
     DEBUG_OUT()<<"### Check consistency ###"<<endl;
     DEBUG_OUT()<<"Norm of output field = "<<norm<<endl;
-    /// WARNING hard coded tolerance. Used to decide if mapping is valid or not
     if(fabs(norm-1.0)>1e-6) {
-    	if(isMappingIGA2FEM) {
-    		ERROR_OUT()<<"Coupling not consistent !"<<endl;
-    		ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
-    		exit(-1);
-    	} else {
-    		WARNING_OUT()<<"Coupling not consistent !"<<endl;
-    		WARNING_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
-    	}
+        ERROR_OUT()<<"Coupling not consistent !"<<endl;
+        ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
+        exit(-1);
     }
 }
 
 }
-
-

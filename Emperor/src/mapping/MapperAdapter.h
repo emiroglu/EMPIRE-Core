@@ -77,7 +77,9 @@ public:
                              int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
                              int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
                              int _bisectionMaxIt, double _bisectionTol,
-                             int _numGPTriangle, int _numGPQuad);
+                             int _numGPTriangle, int _numGPQuad,
+                             double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
+                             int _isDirichletBCs);
     /***********************************************************************************************
      * \brief Initialize NearestNeighborMapper
      * \author Tianyang Wang
