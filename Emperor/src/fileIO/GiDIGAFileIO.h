@@ -57,14 +57,21 @@ void initDotPostRes(std::string _fileName);
  ***********/
 void appendCPDataToDotRes(std::string _fileName, std::string _dataFieldName, std::string _analysisName, int _step, std::string _resultType, DataField* _dataField, const IGAMesh* const _mesh);
 /***********************************************************************************************
- * \brief Create a linear approximation for this curve using (#CPs times pDegree of the curve) nodes
+ * \brief Create a linear approximation for this  trimming curve using (#CPs times pDegree of the curve) nodes
  *  This allows a scalable linearization, quite refined.
  * \param[in] polylines vector to store parametric coordinates of linearized NURBS curve
  * \param[in] curve IGA-Curve to be linearized
  * \param[in] curveDirection orientation of curve
  * \author Philipp Bucher
  ***********/
-void linearizeUsingNCPxP(std::vector<double>& polylines, const EMPIRE::IGAPatchCurve* curve, bool curveDirection);
+void linearizeTrimmingCurve(std::vector<double>& polylines, const EMPIRE::IGAPatchCurve* curve, bool curveDirection);
+/***********************************************************************************************
+ * \brief compute number of sample points for linearization of a IGA curve
+ * \param[in] p degree of curve to linearize
+ * \param[in] noCPs number of control points of curve to linearize
+ * \author Philipp Bucher
+ ***********/
+int getNoLinearizationPoints(const int p, const int noCPs);
 /***********************************************************************************************
  * \brief rescale the span of the knot vector
  * This function is used to rescale the knotvector from the existing span (knotVector[0] to knotVector[noKnots-1])
@@ -91,7 +98,7 @@ void WriteCoordinates(std::ostream& myfile, double* _coords);
  * \param[in] pointCounter counter of points
  * \author Philipp Bucher
  ***********/
-void WritePoint(std::ostream& myfile, double* _coords, unsigned int &pointCounter);
+void WritePoint(std::ostream& myfile, double* _coords, int &pointCounter);
 /***********************************************************************************************
  * \brief write line segment to file
  * \param[in] myfile file to write line segment
@@ -100,14 +107,14 @@ void WritePoint(std::ostream& myfile, double* _coords, unsigned int &pointCounte
  * \param[in] endPoint end-point ID of segment
  * \author Philipp Bucher
  ***********/
-void WriteLineSegment(std::ostream& myfile, unsigned int &curveCounter, int startPoint, int endPoint);
+void WriteLineSegment(std::ostream& myfile, int &curveCounter, int startPoint, int endPoint);
 /***********************************************************************************************
  * \brief write surface header to file
  * \param[in] myfile file to write header
  * \param[in] surfaceCounter counter of surfaces
  * \author Philipp Bucher
  ***********/
-void WriteSurfaceHeader(std::ostream& myfile, unsigned int &surfaceCounter);
+void WriteSurfaceHeader(std::ostream& myfile, int &surfaceCounter);
 /***********************************************************************************************/
 
 } /* namespace GiDFileIO */

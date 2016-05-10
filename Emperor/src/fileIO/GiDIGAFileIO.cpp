@@ -50,51 +50,58 @@ void writeIGAMesh(const std::string _fileName, const EMPIRE::IGAMesh* igaMesh) {
 
 	ofstream dotGeoFile(geometryFileAndPathName.c_str()); // open geometry file in created folder
 	assert(!dotGeoFile.fail());
-	dotGeoFile.precision(14);
+	dotGeoFile.precision(12);
 	dotGeoFile << std::dec;
 
 	// start writing data to file
 	dotGeoFile << headerDotGeo;	// write header
 
-	unsigned int pointCounter = 1;
-	unsigned int curveCounter = 1;
-	unsigned int surfaceCounter = 1;
+	int pointCounter = 1;
+	int curveCounter = 1;
+	int surfaceCounter = 1;
 	double cartCoord[3], surfCoord[2];
+	int noSampPoints;
+	int startIndex;
+	int endIndex;
+	int firstLastPoint;
 	std::vector<double> polylines;// vector to store parametric coordinates of linearized NURBS curve
 
 	const int numPatches = igaMesh->getNumPatches();
+	
 	for (int indexPatch = 0; indexPatch < numPatches; indexPatch++) { // loop over patches in IGA-mesh
 		const EMPIRE::IGAPatchSurface* patch = igaMesh->getSurfacePatch(
 				indexPatch);
 		const int numCPSs = patch->getNoControlPoints();
-		const int numLoops = patch->getTrimming().getNumOfLoops();
-		unsigned int curveCounterBeginning = curveCounter;
-
+		int curveCounterBeginning = curveCounter;
+		bool patchIsTrimmed = patch->getTrimming().isTrimmed();
+		
 		// ********** trimmed patch **********
-		if (patch->getTrimming().isTrimmed()) {
+		if (patchIsTrimmed) {
+			
+			const int numLoops = patch->getTrimming().getNumOfLoops();
 			for (int indexLoop = 0; indexLoop < numLoops; indexLoop++) { // loop over trimming loops
 				const EMPIRE::IGAPatchSurfaceTrimmingLoop* loop =
 						&patch->getTrimming().getLoop(indexLoop);
 				const int numCurves = loop->getNoCurves();
-				int firstLastPoint = curveCounter;
+				firstLastPoint = pointCounter;
 
 				for (int indexCurve = 0; indexCurve < numCurves; indexCurve++) { // loop over curves in trimming loop
 					const EMPIRE::IGAPatchCurve* curve = &loop->getIGACurve(
 							indexCurve);
 
-					linearizeUsingNCPxP(polylines, curve,
+					linearizeTrimmingCurve(polylines, curve,
 							loop->getDirection(indexCurve)); // compute linearization of NURBS curve
 
-					int NoSampPoints = polylines.size() / 2;
+					noSampPoints = polylines.size() / 2;
 
-					int startIndex = 1;
-					int endIndex = NoSampPoints;
+					startIndex = 1;
+					endIndex = noSampPoints;
 
 					if (indexCurve == 0) // first curve in loop
 						startIndex = 0;
 
 					if (indexCurve == numCurves - 1) // last curve in loop
-						endIndex = NoSampPoints - 1;
+						endIndex = noSampPoints - 1;
 
 					// write points
 					for (int i = startIndex; i < endIndex; i++) {
@@ -106,7 +113,7 @@ void writeIGAMesh(const std::string _fileName, const EMPIRE::IGAMesh* igaMesh) {
 					}
 
 					// write line segments
-					for (int i = 0; i < NoSampPoints - 2; i++)
+					for (int i = 0; i < noSampPoints - 2; i++)
 						WriteLineSegment(dotGeoFile, curveCounter, curveCounter,
 								curveCounter + 1);
 					// write last segment
@@ -121,111 +128,219 @@ void writeIGAMesh(const std::string _fileName, const EMPIRE::IGAMesh* igaMesh) {
 				} // loop curve
 			} // loop trimming
 
-			// start of Patch declaration ------------------------------------------------------------------------------
-			WriteSurfaceHeader(dotGeoFile, surfaceCounter); // write SurfaceHeader;
-
-			// write number of curves per patch and the curve IDs
-			int NoPatchCurves = curveCounter - curveCounterBeginning; // number of curves for patch
-			dotGeoFile << NoPatchCurves << endl;
-
-			for (int curveIndex = curveCounterBeginning;
-					curveIndex < curveCounter; curveIndex++)
-				dotGeoFile << curveIndex << SPACE; // write curve ID
-			dotGeoFile << endl;
-
-			// write orientations of curves
-			for (int i = 0; i < NoPatchCurves; i++)
-				dotGeoFile << "0 ";
-			dotGeoFile << endl;
-
-			// write and compute approx center and corresponding normal (where label is drawn)
-			// compute middle of knotspan in U and V => used as approx center
-			double U_FirstKnot =
-					patch->getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
-			double U_LastKnot =
-					patch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
-
-			double V_FirstKnot =
-					patch->getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
-			double V_LastKnot =
-					patch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
-
-			double U_MidKnotSpan = (U_FirstKnot + U_LastKnot) / 2;
-			double V_MidKnotSpan = (V_FirstKnot + V_LastKnot) / 2;
-
-			double center[3];
-			double normal[3];
-
-			patch->computeCartesianCoordinatesAndNormalVector(center, normal,
-					U_MidKnotSpan, V_MidKnotSpan);
-
-			WriteCoordinates(dotGeoFile, center); // write center
-			WriteCoordinates(dotGeoFile, normal); // write normal
-
-			// write further information (N ofControlPoints u/v and pDegree u/v)
-			int noCPU = patch->getUNoControlPoints();
-			int noCPV = patch->getVNoControlPoints();
-
-			int pDegreeU =
-					patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-			int pDegreeV =
-					patch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-
-			dotGeoFile << "1 "; //1 stands for trimmed
-			dotGeoFile << noCPU << SPACE << noCPV << SPACE << pDegreeU << SPACE
-					<< pDegreeV << endl;
-
-			// compute and write Control Points of patch
-			for (int indexCP = 0; indexCP < numCPSs; indexCP++) {
-				// compute Point
-				cartCoord[0] = patch->getControlPointNet()[indexCP]->getX();
-				cartCoord[1] = patch->getControlPointNet()[indexCP]->getY();
-				cartCoord[2] = patch->getControlPointNet()[indexCP]->getZ();
-
-				WriteCoordinates(dotGeoFile, cartCoord); // write coordinates
-			}
-
-			// write knot vector
-			// knot vector U
-			int noKnots =
-					patch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
-			double* knotVector =
-					patch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
-
-			rescaleKnotVector(knotVector, noKnots);
-
-			for (int indexKnot = 0; indexKnot < noKnots; indexKnot++)
-				dotGeoFile << knotVector[indexKnot] << SPACE;
-			dotGeoFile << endl;
-
-			// knot vector V
-			noKnots = patch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
-			knotVector =
-					patch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
-
-			rescaleKnotVector(knotVector, noKnots);
-
-			for (int indexKnot = 0; indexKnot < noKnots; indexKnot++)
-				dotGeoFile << knotVector[indexKnot] << SPACE;
-			dotGeoFile << endl;
-
-			// write weights
-			dotGeoFile << "1 "; // 1 stands for rational
-
-			for (int indexCP = 0; indexCP < numCPSs; indexCP++)
-				dotGeoFile << patch->getControlPointNet()[indexCP]->getW()
-						<< SPACE;
-			patch->getControlPointNet()[1]->getW();
-			dotGeoFile << endl << endl;
-
-			// end of Patch declaration ------------------------------------------------------------------------------
-		} // loop patch
+			
+		} // end trimming
 
 		// ********** untrimmed patch **********
-		else
-			WARNING_BLOCK_OUT("GidIGAFileIO", "writeIGAMesh",
-					"Untrimmed patch mesh output not yet implemented");
+		else {
+			
+			/* 	   4	 |2|	 3
+			 * 		x-----------x
+			 * 		|			|
+			 * 		|			|
+			 * 	|3|	|	PATCH	| |1|
+			 * 		|			|
+			 * 		|			|
+			 * 		x-----------x
+			 * 	   1	 |0|	 2 
+			 */
+			
+			int noSampPoints_U = getNoLinearizationPoints(patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree(), 
+					patch->getUNoControlPoints());
+			int noSampPoints_V = getNoLinearizationPoints(patch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree(), 
+					patch->getVNoControlPoints());
+			firstLastPoint = pointCounter;
+			
+			const double U_FirstKnot = patch->getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
+			const double U_LastKnot = patch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
 
+			const double V_FirstKnot = patch->getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
+			const double V_LastKnot = patch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
+			
+			bool isOnU;
+			double UV_Start;
+			double UV_End;
+			double UV_Fixed;
+			double U;
+			double V;
+			double dUV_Running;
+			
+			// Loop over the 4 boundary curves of the patch
+			for (int indexCurve = 0; indexCurve < 4; indexCurve++) {
+				// Get fixed and running parameters on the boundary curve
+				if (indexCurve == 0){
+					isOnU = true;
+					UV_Start = U_FirstKnot;
+					UV_End = U_LastKnot;
+					UV_Fixed = V_FirstKnot;
+					U = UV_Start;
+					V = UV_Fixed;
+					noSampPoints = noSampPoints_U;
+				}
+				else if (indexCurve == 1) {
+					isOnU = false;
+					UV_Start = V_FirstKnot;
+					UV_End = V_LastKnot;
+					UV_Fixed = U_LastKnot;
+					U = UV_Fixed;
+					V = UV_Start;
+					noSampPoints = noSampPoints_V;
+				}
+				else if (indexCurve == 2) {
+					isOnU = true;
+					UV_Start = U_LastKnot;
+					UV_End = U_FirstKnot;
+					UV_Fixed = V_LastKnot;
+					U = UV_Start;
+					V = UV_Fixed;
+					noSampPoints = noSampPoints_U;
+				}
+				else {
+					isOnU = false;
+					UV_Start = V_LastKnot;
+					UV_End = V_FirstKnot;
+					UV_Fixed = U_FirstKnot;
+					U = UV_Fixed;
+					V = UV_Start;
+					noSampPoints = noSampPoints_V;
+				}
+				
+				// Initialize parameters and counters
+				dUV_Running = (UV_End - UV_Start) / (noSampPoints - 1);
+				startIndex = 1;
+				endIndex = noSampPoints;
+				if (indexCurve == 0) {
+					startIndex = 0;}
+				if (indexCurve == 3) {
+					endIndex = noSampPoints - 1;}
+				
+				// write points
+				for (int i = startIndex; i < endIndex; i++) {
+					if (isOnU) {
+						U = UV_Start + i * dUV_Running;
+					}
+					else {
+						V = UV_Start + i * dUV_Running;
+					}
+					surfCoord[0] = U;
+					surfCoord[1] = V;
+					
+					patch->computeCartesianCoordinates(cartCoord, surfCoord); // compute coord in cartesian coordinates
+					WritePoint(dotGeoFile, cartCoord, pointCounter); // write point				
+				}
+				
+				// write line segments
+				for (int i = 0; i < noSampPoints - 2; i++)
+					WriteLineSegment(dotGeoFile, curveCounter, curveCounter, curveCounter + 1);
+				// write last segment
+				if (indexCurve != 3) // check if curve is last curve in loop
+					WriteLineSegment(dotGeoFile, curveCounter, curveCounter, curveCounter + 1);
+				else
+					WriteLineSegment(dotGeoFile, curveCounter, curveCounter, firstLastPoint);
+				
+				dotGeoFile << endl;
+			}
+		
+		} // end untrimmed 
+		
+		// start of Patch declaration ------------------------------------------------------------------------------
+		WriteSurfaceHeader(dotGeoFile, surfaceCounter); // write SurfaceHeader;
+
+		// write number of curves per patch and the curve IDs
+		int NoPatchCurves = curveCounter - curveCounterBeginning; // number of curves for patch
+		dotGeoFile << NoPatchCurves << endl;
+
+		for (int curveIndex = curveCounterBeginning;
+				curveIndex < curveCounter; curveIndex++)
+			dotGeoFile << curveIndex << SPACE; // write curve ID
+		dotGeoFile << endl;
+
+		// write orientations of curves
+		for (int i = 0; i < NoPatchCurves; i++)
+			dotGeoFile << "0 ";
+		dotGeoFile << endl;
+
+		// write and compute approx center and corresponding normal (where label is drawn)
+		// compute middle of knotspan in U and V => used as approx center
+		double U_FirstKnot =
+				patch->getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
+		double U_LastKnot =
+				patch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
+
+		double V_FirstKnot =
+				patch->getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
+		double V_LastKnot =
+				patch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
+
+		double U_MidKnotSpan = (U_FirstKnot + U_LastKnot) / 2;
+		double V_MidKnotSpan = (V_FirstKnot + V_LastKnot) / 2;
+
+		double center[3];
+		double normal[3];
+
+		patch->computeCartesianCoordinatesAndNormalVector(center, normal,
+				U_MidKnotSpan, V_MidKnotSpan);
+
+		WriteCoordinates(dotGeoFile, center); // write center
+		WriteCoordinates(dotGeoFile, normal); // write normal
+
+		// write further information (N ofControlPoints u/v and pDegree u/v)
+		int noCPU = patch->getUNoControlPoints();
+		int noCPV = patch->getVNoControlPoints();
+
+		int pDegreeU =
+				patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+		int pDegreeV =
+				patch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+		dotGeoFile << patchIsTrimmed << SPACE;		
+		dotGeoFile << noCPU << SPACE << noCPV << SPACE << pDegreeU << SPACE	<< pDegreeV << endl;
+
+		// compute and write Control Points of patch
+		for (int indexCP = 0; indexCP < numCPSs; indexCP++) {
+			// compute Point
+			cartCoord[0] = patch->getControlPointNet()[indexCP]->getX();
+			cartCoord[1] = patch->getControlPointNet()[indexCP]->getY();
+			cartCoord[2] = patch->getControlPointNet()[indexCP]->getZ();
+
+			WriteCoordinates(dotGeoFile, cartCoord); // write coordinates
+		}
+
+		// write knot vector
+		// knot vector U
+		int noKnots =
+				patch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+		double* knotVector =
+				patch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
+
+		rescaleKnotVector(knotVector, noKnots);
+
+		for (int indexKnot = 0; indexKnot < noKnots; indexKnot++)
+			dotGeoFile << knotVector[indexKnot] << SPACE;
+		dotGeoFile << endl;
+
+		// knot vector V
+		noKnots = patch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+		knotVector =
+				patch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
+
+		rescaleKnotVector(knotVector, noKnots);
+
+		for (int indexKnot = 0; indexKnot < noKnots; indexKnot++)
+			dotGeoFile << knotVector[indexKnot] << SPACE;
+		dotGeoFile << endl;
+
+		// write weights
+		dotGeoFile << "1 "; // 1 stands for rational
+
+		for (int indexCP = 0; indexCP < numCPSs; indexCP++)
+			dotGeoFile << patch->getControlPointNet()[indexCP]->getW()
+					<< SPACE;
+		patch->getControlPointNet()[1]->getW();
+		dotGeoFile << endl << endl;
+		
+		// end of Patch declaration ------------------------------------------------------------------------------
+		
 	} // loop patches
 
 	dotGeoFile << "0"; // indicates the end of the definition of geometrical entities
@@ -306,19 +421,20 @@ void appendCPDataToDotRes(std::string _fileName, std::string _dataFieldName,
 	dotPostResFile.close();
 }
 
-void linearizeUsingNCPxP(std::vector<double>& polylines,
+void linearizeTrimmingCurve(std::vector<double>& polylines,
 		const EMPIRE::IGAPatchCurve* curve, bool curveDirection) {
 	polylines.clear();
-	int nCP = curve->getNoControlPoints();
+	int noCP = curve->getNoControlPoints();
 	int p = curve->getIGABasis()->getPolynomialDegree();
-	int factor = fmax(0, 4 - p); //4 is arbitrary degree upon linearization is fully NCPxP
-	factor = 1 + factor * factor * factor;
+	int noSampPoints = getNoLinearizationPoints(p, noCP);
+	
 	double u0 = curve->getIGABasis()->getFirstKnot();
 	double u1 = curve->getIGABasis()->getLastKnot();
-	double du = (u1 - u0) / (nCP * p * factor - 1);
-	/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
+	double du = (u1 - u0) / (noSampPoints - 1);
+	
+	// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
 	if (curveDirection) {
-		for (int i = 0; i < nCP * p * factor; i++) {
+		for (int i = 0; i < noSampPoints; i++) {
 			double knot = u0 + i * du;
 			double parametricCoordinates[2] = { 0 };
 			curve->computeCartesianCoordinates(parametricCoordinates, knot);
@@ -326,7 +442,7 @@ void linearizeUsingNCPxP(std::vector<double>& polylines,
 			polylines.push_back(parametricCoordinates[1]);
 		}
 	} else {
-		for (int i = nCP * p * factor - 1; i >= 0; i--) {
+		for (int i = noSampPoints - 1; i >= 0; i--) {
 			double knot = u0 + i * du;
 			double parametricCoordinates[2] = { 0 };
 			curve->computeCartesianCoordinates(parametricCoordinates, knot);
@@ -334,6 +450,12 @@ void linearizeUsingNCPxP(std::vector<double>& polylines,
 			polylines.push_back(parametricCoordinates[1]);
 		}
 	}
+}
+
+int getNoLinearizationPoints(const int p, const int noCPs) {
+	int factor = fmax(0, 4 - p); // 4 is arbitrary degree upon linearization is fully NCPxP
+	factor = 1 + factor * factor * factor;
+	return noCPs * p * factor; // return number of linearization points
 }
 
 void rescaleKnotVector(double* _knotVector, int _noKnots, double _firstKnot,
@@ -365,26 +487,23 @@ void WriteCoordinates(std::ostream& myfile, double* _coords) {
 }
 
 void WritePoint(std::ostream& myfile, double* _coords,
-		unsigned int &pointCounter) {
+		int &pointCounter) {
 	myfile << "1 " << pointCounter << " 0 0 2 0 0 2 0" << endl;	// write point header
 	pointCounter++;
 	WriteCoordinates(myfile, _coords); // write point coordinates
 	myfile << endl;
 }
 
-void WriteLineSegment(std::ostream& myfile, unsigned int &curveCounter,
+void WriteLineSegment(std::ostream& myfile, int &curveCounter,
 		int startPoint, int endPoint) {
 	myfile << "2 " << curveCounter << " 0 0 1 0 0 2 0" << endl; // write segment header
 	myfile << startPoint << SPACE << endPoint << endl;// write points that define segment
 	curveCounter++;
 }
 
-void WriteSurfaceHeader(std::ostream& myfile, unsigned int &surfaceCounter) {
+void WriteSurfaceHeader(std::ostream& myfile, int &surfaceCounter) {
 	myfile << "14 " << surfaceCounter << " 0 0 0 0 0 2 0" << endl; // write surface header
 	surfaceCounter++;
 }
-
 } /* namespace GiDIGAFileIO */
-
 } /* namespace EMPIRE */
-
