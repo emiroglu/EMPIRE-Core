@@ -117,11 +117,11 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     }
     // 3. compute C_BA
     computeC_BA();
-    if (!dual) {
+   /* if (!dual) {
     	C_BA->printFullToFile("MortarMapper_Cba.dat");
     } else {
     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
-    }
+    }*/
     deleteANNTree();
     deleteTables();
 
