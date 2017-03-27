@@ -122,6 +122,7 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
 //     } else {
 //     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
 //     }
+
     deleteANNTree();
     deleteTables();
 
