@@ -2043,7 +2043,7 @@ public:
 
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperSemisphereInterfaceLayer);
-    CPPUNIT_TEST (testIGAPatchCoupling);
+    // CPPUNIT_TEST (testIGAPatchCoupling);
     CPPUNIT_TEST (testComputePenaltyFactors);
     CPPUNIT_TEST_SUITE_END();
 }

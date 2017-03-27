@@ -338,6 +338,13 @@ void Emperor::initMappers() {
                     settingMapper.igaMortarMapper.IgaPatchCoupling.rotPenalty,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors,
                     settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs);
+	} else if (settingMapper.type == EMPIRE_IGABarycentricMapper) {
+            mapper->initIGABarycentricMapper(
+                    settingMapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance,
+                    settingMapper.igaBarycentricMapper.projectionProperties.numRefinementForIntialGuess,
+                    settingMapper.igaBarycentricMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches,
+                    settingMapper.igaBarycentricMapper.newtonRaphson.maxNumOfIterations,
+                    settingMapper.igaBarycentricMapper.newtonRaphson.tolerance);
         } else if (settingMapper.type == EMPIRE_CurveSurfaceMapper) {
             mapper->initCurveSurfaceMapper(settingMapper.curveSurfaceMapper.type);
         } else {

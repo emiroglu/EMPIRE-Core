@@ -110,18 +110,18 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
 
     // 2. compute C_BB
     computeC_BB();
-    if (!dual) {
-    	C_BB->printFullToFile("MortarMapper_Cbb.dat");
-    } else {
-    	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
-    }
+//     if (!dual) {
+//     	C_BB->printFullToFile("MortarMapper_Cbb.dat");
+//     } else {
+//     	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
+//     }
     // 3. compute C_BA
     computeC_BA();
-    if (!dual) {
-    	C_BA->printFullToFile("MortarMapper_Cba.dat");
-    } else {
-    	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
-    }
+//     if (!dual) {
+//     	C_BA->printFullToFile("MortarMapper_Cba.dat");
+//     } else {
+//     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
+//     }
     deleteANNTree();
     deleteTables();
 
@@ -389,7 +389,7 @@ void MortarMapper::computeC_BA() {
                                 } //omp critical
                             }
                         }
-                        (*C_BA_DUAL).printFullToFile("Mortar_C_BA.log");
+                        //(*C_BA_DUAL).printFullToFile("Mortar_C_BA.log");
                     }
                 }
             }
@@ -722,7 +722,7 @@ void MortarMapper::enforceConsistency() {
                 sum = factor;
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
-            assert(sum<factor*(1+1E-2)); // This is not the case for dual
+            //assert(sum<factor*(1+1E-2)); // This is not the case for dual
             factor /= sum;
             (*C_BA_DUAL).multiplyRowWith(i,factor);
 

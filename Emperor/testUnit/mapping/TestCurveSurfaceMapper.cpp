@@ -121,7 +121,7 @@ public:
         for (int i = 0; i < surfaceNumNodes; i++) {
             KM_O_Q.move(&surfaceNodeCoors[i * 3]);
         }
-
+        
         // construct the mapper
         CurveSurfaceMapper *mapper = new CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_linear,
                 curveNumNodes, curveNumElements, curveNodeCoors, curveNodeIDs, curveElems,

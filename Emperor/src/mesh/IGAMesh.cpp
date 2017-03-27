@@ -43,7 +43,8 @@ IGAMesh::IGAMesh(std::string _name, int _numNodes) :
 IGAMesh::~IGAMesh() {
     for (int i = 0; i < surfacePatches.size(); i++)
         delete surfacePatches[i];
-    delete couplingData;
+    if (couplingData != NULL)
+	delete couplingData;
 }
 
 IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree,

@@ -65,6 +65,7 @@ enum EMPIRE_Mapper_type {
     EMPIRE_BarycentricInterpolationMapper,
     EMPIRE_NearestElementMapper,
     EMPIRE_IGAMortarMapper,
+    EMPIRE_IGABarycentricMapper,
     EMPIRE_CurveSurfaceMapper
 };
 

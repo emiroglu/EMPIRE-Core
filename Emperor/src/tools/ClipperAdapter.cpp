@@ -286,15 +286,15 @@ std::vector<std::pair<double,double> > ClipperAdapter::clip(const std::vector<st
 	return nodesOutputPolygon;
 }
 
-int isPointIn(const std::pair<double,double>& _point, const std::vector<std::pair<double,double> >& _path, double _accuracy) {
+int ClipperAdapter::isPointIn(const std::pair<double,double>& _point, const std::vector<std::pair<double,double> >& _path, double _accuracy) {
 	double factor = 1 / _accuracy;
 	Path subj;
 	for(int p=0; p < _path.size(); p++) {
 		subj<<IntPoint((cInt)(_path[p].first*factor),(cInt)(_path[p].second*factor));
 	}
 	IntPoint point;
-	point.X=_point.first;
-	point.Y=_point.second;
+	point.X=_point.first*factor;
+	point.Y=_point.second*factor;
 
 	return ClipperLib::PointInPolygon(point,subj);
 }

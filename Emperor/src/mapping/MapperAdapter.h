@@ -81,6 +81,17 @@ public:
                              double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
                              int _isDirichletBCs);
     /***********************************************************************************************
+     * \brief Initialize IGA Barycentric Mapper
+     * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
+     * \param[in] _numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
+     * \param[in] _maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
+     * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \author Apostolos Petalas, Fabien Pean, Chenshen Wu
+     ***********/
+    void initIGABarycentricMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
+                             int _newtonRaphsonMaxIt, double _newtonRaphsonTol);
+    /***********************************************************************************************
      * \brief Initialize NearestNeighborMapper
      * \author Tianyang Wang
      ***********/
