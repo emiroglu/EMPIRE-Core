@@ -326,8 +326,6 @@ void IGAMortarMapper::projectPointsToSurface() {
             bool initialGuessComputed = false;
             for(int j = 0; j < numNodesInElem; j++) {
                 int nodeIndex = meshFEDirectElemTable[i][j];
-                //emiroglu debug
-//                std::cout << "ElementIndex: " << i << " NodeIndex: " << nodeIndex /*<< " " <<  meshFE->nodes[nodeIndex * 3 + 0] << " " <<meshFE->nodes[nodeIndex * 3 + 1] << " "<< meshFE->nodes[nodeIndex * 3 + 2]*/ <<std::endl;
                 // If already projected, go to next node
                 if(projectedCoords[nodeIndex].find(patchIndex) != projectedCoords[nodeIndex].end())
                     continue;

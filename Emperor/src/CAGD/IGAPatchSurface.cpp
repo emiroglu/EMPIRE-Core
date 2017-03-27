@@ -350,18 +350,9 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
             CPindex = (_vKnotSpanIndex - qDegree + j) * uNoControlPoints
                     + (_uKnotSpanIndex - pDegree + i);
 
-            //emiroglu
-//            std::cout << "DEBUG 1.2.1" << std::endl;
             // Update the basis function index
             indexBasis = IGABasis->indexDerivativeBasisFunction(_derivDegree, derivIndex,
                     derivIndex, counter_basis);
-//            //emiroglu
-//            std::cout << "DEBUG 1.2.2" << std::endl;
-//            std::cout << "indexBasis: "<< indexBasis <<std::endl;
-//            std::cout << "CPindex: "<< CPindex <<std::endl;
-//            std::cout << "_localBasisFctsAndDerivs: "<<_localBasisFctsAndDerivs[indexBasis] << std::endl;
-//            std::cout << "ControlPoint DOF index: "<<ControlPointNet[CPindex]->getDofIndex() << std::endl;
-//            std::cout << "ControlPoint Weight: "<<ControlPointNet[CPindex]->getW() << std::endl;
             // Compute iteratively the x-coordinate of the point
             _cartesianCoordinates[0] += _localBasisFctsAndDerivs[indexBasis]
                     * ControlPointNet[CPindex]->getX();
@@ -371,8 +362,6 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
             // Compute iteratively the z-coordinate of the point
             _cartesianCoordinates[2] += _localBasisFctsAndDerivs[indexBasis]
                     * ControlPointNet[CPindex]->getZ();
-            //emiroglu
-//            std::cout << "DEBUG 1.2.3" << std::endl;
             // Update basis function's counter
             counter_basis++;
         }

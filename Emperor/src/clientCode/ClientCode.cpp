@@ -269,91 +269,90 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         } // end isTrimmed
     } // end patch
     
-    //emiroglu debug
-//    //    // get the coupling data
-//    int* numBRepsPerPatch = new int[numPatches];
-//    serverComm->receiveFromClientBlocking<int>(name, numPatches, numBRepsPerPatch);
+    //    // get the coupling data
+    int* numBRepsPerPatch = new int[numPatches];
+    serverComm->receiveFromClientBlocking<int>(name, numPatches, numBRepsPerPatch);
 
-//    theIGAMesh->initializePatchCouplingData(numPatches, numBRepsPerPatch);
+    theIGAMesh->initializePatchCouplingData(numPatches, numBRepsPerPatch);
 
-//    int couplingInfo[2];
-//    serverComm->receiveFromClientBlocking<int>(name, 2, couplingInfo);
-//    int totalNumGP = couplingInfo[0];
-//    int totalNumBRePs = couplingInfo[1];
+    int couplingInfo[2];
+    serverComm->receiveFromClientBlocking<int>(name, 2, couplingInfo);
+    int totalNumGP = couplingInfo[0];
+    int totalNumBRePs = couplingInfo[1];
 
-//    int* allSlaveIDs = new int[totalNumBRePs];
-//    int* allNumElemsPerBRep = new int[totalNumBRePs];
-//    int* allNumGPsPerElem = new int[totalNumBRePs];
-//    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allSlaveIDs);
-//    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumElemsPerBRep);
-//    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumGPsPerElem);
+    int* allSlaveIDs = new int[totalNumBRePs];
+    int* allNumElemsPerBRep = new int[totalNumBRePs];
+    int* allNumGPsPerElem = new int[totalNumBRePs];
+    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allSlaveIDs);
+    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumElemsPerBRep);
+    serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumGPsPerElem);
 
-//    double* allGP_master = new double[2*totalNumGP];
-//    double* allGP_slave = new double[2*totalNumGP];
-//    double* allGP_weight = new double[totalNumGP];
-//    serverComm->receiveFromClientBlocking<double>(name, 2*totalNumGP, allGP_master);
-//    serverComm->receiveFromClientBlocking<double>(name, 2*totalNumGP, allGP_slave);
-//    serverComm->receiveFromClientBlocking<double>(name, totalNumGP, allGP_weight);
+    double* allGP_master = new double[2*totalNumGP];
+    double* allGP_slave = new double[2*totalNumGP];
+    double* allGP_weight = new double[totalNumGP];
+    serverComm->receiveFromClientBlocking<double>(name, 2*totalNumGP, allGP_master);
+    serverComm->receiveFromClientBlocking<double>(name, 2*totalNumGP, allGP_slave);
+    serverComm->receiveFromClientBlocking<double>(name, totalNumGP, allGP_weight);
 
-//    double* allTangents_master = new double[3*totalNumGP];
-//    double* allTangents_slave = new double[3*totalNumGP];
-//    serverComm->receiveFromClientBlocking<double>(name, 3*totalNumGP, allTangents_master);
-//    serverComm->receiveFromClientBlocking<double>(name, 3*totalNumGP, allTangents_slave);
+    double* allTangents_master = new double[3*totalNumGP];
+    double* allTangents_slave = new double[3*totalNumGP];
+    serverComm->receiveFromClientBlocking<double>(name, 3*totalNumGP, allTangents_master);
+    serverComm->receiveFromClientBlocking<double>(name, 3*totalNumGP, allTangents_slave);
 
-//    double* allMappings = new double[totalNumGP];
-//    serverComm->receiveFromClientBlocking<double>(name, totalNumGP, allMappings);
+    double* allMappings = new double[totalNumGP];
+    serverComm->receiveFromClientBlocking<double>(name, totalNumGP, allMappings);
 
-//    int globalBRePCounter = 0;
-//    int globalGPCounter = 0;
-//    for(int i = 0 ; i < numPatches ; i++) {
-//        for(int j = 0 ; j < numBRepsPerPatch[i] ; j++) {
-//            int slaveID = allSlaveIDs[globalBRePCounter];
-//            int numElemsPerBRep = allNumElemsPerBRep[globalBRePCounter];
-//            int numGPsPerElem = allNumGPsPerElem[globalBRePCounter];
+    int globalBRePCounter = 0;
+    int globalGPCounter = 0;
+    for(int i = 0 ; i < numPatches ; i++) {
+        for(int j = 0 ; j < numBRepsPerPatch[i] ; j++) {
+            int slaveID = allSlaveIDs[globalBRePCounter];
+            int numElemsPerBRep = allNumElemsPerBRep[globalBRePCounter];
+            int numGPsPerElem = allNumGPsPerElem[globalBRePCounter];
 
-//            double* allGPOfBRep_master = new double[2*numElemsPerBRep*numGPsPerElem];
-//            double* allGPOfBRep_slave = new double[2*numElemsPerBRep*numGPsPerElem];
-//            double* allGPOfBRep_weight = new double[numElemsPerBRep*numGPsPerElem];
-//            double* allTangentsOfBRep_master = new double[3*numElemsPerBRep*numGPsPerElem];
-//            double* allTangentsOfBRep_slave = new double[3*numElemsPerBRep*numGPsPerElem];
-//            double* Mapping = new double[numElemsPerBRep*numGPsPerElem];
+            double* allGPOfBRep_master = new double[2*numElemsPerBRep*numGPsPerElem];
+            double* allGPOfBRep_slave = new double[2*numElemsPerBRep*numGPsPerElem];
+            double* allGPOfBRep_weight = new double[numElemsPerBRep*numGPsPerElem];
+            double* allTangentsOfBRep_master = new double[3*numElemsPerBRep*numGPsPerElem];
+            double* allTangentsOfBRep_slave = new double[3*numElemsPerBRep*numGPsPerElem];
+            double* Mapping = new double[numElemsPerBRep*numGPsPerElem];
 
-//            for(int r = 0 ; r < numElemsPerBRep*numGPsPerElem ; r++) {
-//                allGPOfBRep_master[2*r] = allGP_master[2*globalGPCounter];
-//                allGPOfBRep_master[2*r + 1] = allGP_master[2*globalGPCounter + 1];
-//                allGPOfBRep_slave[2*r] = allGP_slave[2*globalGPCounter];
-//                allGPOfBRep_slave[2*r + 1] = allGP_slave[2*globalGPCounter + 1];
-//                allGPOfBRep_weight[r] = allGP_weight[globalGPCounter];
+            for(int r = 0 ; r < numElemsPerBRep*numGPsPerElem ; r++) {
+                allGPOfBRep_master[2*r] = allGP_master[2*globalGPCounter];
+                allGPOfBRep_master[2*r + 1] = allGP_master[2*globalGPCounter + 1];
+                allGPOfBRep_slave[2*r] = allGP_slave[2*globalGPCounter];
+                allGPOfBRep_slave[2*r + 1] = allGP_slave[2*globalGPCounter + 1];
+                allGPOfBRep_weight[r] = allGP_weight[globalGPCounter];
 
-//                allTangentsOfBRep_master[3*r] = allTangents_master[3*globalGPCounter];
-//                allTangentsOfBRep_master[3*r + 1] = allTangents_master[3*globalGPCounter + 1];
-//                allTangentsOfBRep_master[3*r + 2] = allTangents_master[3*globalGPCounter + 2];
-//                allTangentsOfBRep_slave[3*r] = allTangents_slave[3*globalGPCounter];
-//                allTangentsOfBRep_slave[3*r + 1] = allTangents_slave[3*globalGPCounter + 1];
-//                allTangentsOfBRep_slave[3*r + 2] = allTangents_slave[3*globalGPCounter + 2];
+                allTangentsOfBRep_master[3*r] = allTangents_master[3*globalGPCounter];
+                allTangentsOfBRep_master[3*r + 1] = allTangents_master[3*globalGPCounter + 1];
+                allTangentsOfBRep_master[3*r + 2] = allTangents_master[3*globalGPCounter + 2];
+                allTangentsOfBRep_slave[3*r] = allTangents_slave[3*globalGPCounter];
+                allTangentsOfBRep_slave[3*r + 1] = allTangents_slave[3*globalGPCounter + 1];
+                allTangentsOfBRep_slave[3*r + 2] = allTangents_slave[3*globalGPCounter + 2];
 
-//                Mapping[r] = allMappings[globalGPCounter];
-//                globalGPCounter++;
-//            }
+                Mapping[r] = allMappings[globalGPCounter];
+                globalGPCounter++;
+            }
 
-//            theIGAMesh->addCouplingData(i, j, allGPOfBRep_master, allGPOfBRep_slave, allGPOfBRep_weight,
-//                                        allTangentsOfBRep_master, allTangentsOfBRep_slave, Mapping,
-//                                        slaveID, numElemsPerBRep, numGPsPerElem);
-//            globalBRePCounter++;
-//        }
-//    }
+            theIGAMesh->addCouplingData(i, j, allGPOfBRep_master, allGPOfBRep_slave, allGPOfBRep_weight,
+                                        allTangentsOfBRep_master, allTangentsOfBRep_slave, Mapping,
+                                        slaveID, numElemsPerBRep, numGPsPerElem);
+            globalBRePCounter++;
+        }
+    }
 
-//    // get the dirichlet boundary conditions
-//    int dirichletBCInfo[2];
-//    serverComm->receiveFromClientBlocking<int>(name, 2, dirichletBCInfo);
-//    int numberOfClampedDofs = dirichletBCInfo[0];
-//    int clampedDirections = dirichletBCInfo[1];
+    // get the dirichlet boundary conditions
+    int dirichletBCInfo[2];
+    serverComm->receiveFromClientBlocking<int>(name, 2, dirichletBCInfo);
+    int numberOfClampedDofs = dirichletBCInfo[0];
+    int clampedDirections = dirichletBCInfo[1];
 
-//    int* clampedDofs = new int[numberOfClampedDofs];
-//    serverComm->receiveFromClientBlocking<int>(name, numberOfClampedDofs, clampedDofs);
+    int* clampedDofs = new int[numberOfClampedDofs];
+    serverComm->receiveFromClientBlocking<int>(name, numberOfClampedDofs, clampedDofs);
 
-//    theIGAMesh->setClampedDofs(numberOfClampedDofs, clampedDofs);
-//    theIGAMesh->setClampedDirections(clampedDirections);
+    theIGAMesh->setClampedDofs(numberOfClampedDofs, clampedDofs);
+    theIGAMesh->setClampedDirections(clampedDirections);
 
     { // output to shell
         DEBUG_OUT() << (*theIGAMesh) << endl;
