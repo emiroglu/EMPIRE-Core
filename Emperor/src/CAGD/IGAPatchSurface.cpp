@@ -350,10 +350,18 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
             CPindex = (_vKnotSpanIndex - qDegree + j) * uNoControlPoints
                     + (_uKnotSpanIndex - pDegree + i);
 
+            //emiroglu
+//            std::cout << "DEBUG 1.2.1" << std::endl;
             // Update the basis function index
             indexBasis = IGABasis->indexDerivativeBasisFunction(_derivDegree, derivIndex,
                     derivIndex, counter_basis);
-
+//            //emiroglu
+//            std::cout << "DEBUG 1.2.2" << std::endl;
+//            std::cout << "indexBasis: "<< indexBasis <<std::endl;
+//            std::cout << "CPindex: "<< CPindex <<std::endl;
+//            std::cout << "_localBasisFctsAndDerivs: "<<_localBasisFctsAndDerivs[indexBasis] << std::endl;
+//            std::cout << "ControlPoint DOF index: "<<ControlPointNet[CPindex]->getDofIndex() << std::endl;
+//            std::cout << "ControlPoint Weight: "<<ControlPointNet[CPindex]->getW() << std::endl;
             // Compute iteratively the x-coordinate of the point
             _cartesianCoordinates[0] += _localBasisFctsAndDerivs[indexBasis]
                     * ControlPointNet[CPindex]->getX();
@@ -363,7 +371,8 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
             // Compute iteratively the z-coordinate of the point
             _cartesianCoordinates[2] += _localBasisFctsAndDerivs[indexBasis]
                     * ControlPointNet[CPindex]->getZ();
-
+            //emiroglu
+//            std::cout << "DEBUG 1.2.3" << std::endl;
             // Update basis function's counter
             counter_basis++;
         }
@@ -999,10 +1008,17 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     bool flagNewtonRaphson = true;
     _flagConverge = true;
 
+    // Flag for solving linear equation system
+    bool isSystemSolvable = true;
+    bool conditionFirstColumnZero = false;
+    bool conditionSecondColumnZero = false;
+    bool conditionFirstRowZero = false;
+    bool conditionSecondRowZero = false;
+
     const double epsJ = 1e-6;
     const double epsDuv = 1e-10;
-    bool fixU = false;
-    bool fixV = false;
+//    bool fixU = false;
+//    bool fixV = false;
 
     // Initialize number of spatial dimensions
     int noSpatialDimensions = 3;
@@ -1101,7 +1117,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         IGABasis->computeLocalBasisFunctionsAndDerivatives(basisFctsAndDerivs, derivDegreeBasis, _u,
                 uKnotSpan, _v, vKnotSpan);
 
-        // 2iv. Compute the Cartesian components of the point on the surface
         computeCartesianCoordinates(_P, basisFctsAndDerivs, derivDegreeBasis, uKnotSpan, vKnotSpan);
 
         // 2v. Compute the distance vector between the vector to be projected and the estimated one
@@ -1170,20 +1185,33 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         R[0] = -EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gu, distanceVector);
         R[1] = -EMPIRE::MathLibrary::computeDenseDotProduct(noSpatialDimensions, Gv, distanceVector);
 
-        if (fabs(dR[0]) < epsJ || fixU) {
-            R[0] = 0.0;
-            R[1] = R[1] / dR[3];
-            fixU = false;
-            fixV = true;
-        } else if (fabs(dR[3]) < epsJ || fixV) {
-            // According to Fabien that must be R[0] / dR[0];
-            // R[0] = R[0] / dR[1];  // According to Chenshen
-            R[0] = R[0] / dR[0]; // According to Fabien
-            R[1] = 0.0;
-            fixU = true;
-            fixV = false;
-        } else {
 
+        conditionFirstRowZero = false;
+        if ((fabs(dR[0]) < epsJ && fabs(dR[1]) < epsJ) ){
+            conditionFirstRowZero = true;
+        }
+
+        conditionSecondRowZero = false;
+        if (fabs(dR[2]) < epsJ && fabs(dR[3]) < epsJ){
+            conditionSecondRowZero = true;
+        }
+
+        conditionFirstColumnZero = false;
+        if ((fabs(dR[0]) < epsJ && fabs(dR[2]) < epsJ) ){
+            conditionFirstColumnZero = true;
+        }
+
+        conditionSecondColumnZero = false;
+        if ((fabs(dR[0]) < epsJ && fabs(dR[2]) < epsJ) ){
+            conditionSecondColumnZero = true;
+        }
+
+        // Check if the system is solvable by checking the condition of the diagonal entries
+        if (conditionFirstRowZero || conditionSecondRowZero || conditionFirstColumnZero || conditionSecondColumnZero){
+            isSystemSolvable = false;
+        }
+
+        if (isSystemSolvable){
             // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
 
             // Solve the equation system
@@ -1201,7 +1229,57 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
                 ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
                 exit(-1);
             }
+        } else {
+            if (conditionFirstRowZero){
+                R[1] = R[1] / dR[3];
+                R[0] = 0.0;
+            } else if(conditionSecondRowZero){
+                R[0] = R[0] / dR[0];
+                R[1] = 0.0;
+            } else if(conditionFirstColumnZero){
+                R[1] = (R[0] + R[1])/(dR[1]+dR[3]);
+                R[0] = 0.0;
+            } else if(conditionSecondColumnZero){
+                R[0] = (R[0] + R[1])/(dR[0]+dR[2]);
+                R[1] = 0.0;
+            }
         }
+
+//        if (fabs(dR[0]) < epsJ || fixU) {
+//            std::cout << "fabs(dR[0]) < epsJ || fixU dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
+//            R[0] = 0.0;
+//            R[1] = R[1] / dR[3];
+//            fixU = false;
+//            fixV = true;
+//        } else if (fabs(dR[3]) < epsJ || fixV) {
+//            std::cout << "fabs(dR[3]) < epsJ || fixV dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
+//            // According to Fabien that must be R[0] / dR[0];
+//            // R[0] = R[0] / dR[1];  // According to Chenshen
+//            R[0] = R[0] / dR[0]; // According to Fabien
+//            R[1] = 0.0;
+//            fixU = true;
+//            fixV = false;
+//        } else {
+//            std::cout << "Solving the linear system !"<<std::endl;
+//            // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
+
+//            // Solve the equation system
+//            flagLinearSystem = EMPIRE::MathLibrary::solve2x2LinearSystem(dR, R, EMPIRE::MathLibrary::EPS );
+
+//            // Check if the equation system has been successfully solved
+//            if (!flagLinearSystem) {
+//                ERROR_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
+//                ERROR_OUT()
+//                        << "The 2x2 equation system to find the updates of the surface parameters"
+//                        << endl;
+//                ERROR_OUT()
+//                        << "for the orthogonal projection of a point on the NURBS patch has been"
+//                        << endl;
+//                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
+//                exit(-1);
+//            }
+//        }
+
         // 2xv. Update the surface parameters u += du and v += dv
         _u += R[0];
         _v += R[1];

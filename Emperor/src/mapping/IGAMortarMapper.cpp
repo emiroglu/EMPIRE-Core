@@ -326,17 +326,19 @@ void IGAMortarMapper::projectPointsToSurface() {
             bool initialGuessComputed = false;
             for(int j = 0; j < numNodesInElem; j++) {
                 int nodeIndex = meshFEDirectElemTable[i][j];
+                //emiroglu debug
+//                std::cout << "ElementIndex: " << i << " NodeIndex: " << nodeIndex /*<< " " <<  meshFE->nodes[nodeIndex * 3 + 0] << " " <<meshFE->nodes[nodeIndex * 3 + 1] << " "<< meshFE->nodes[nodeIndex * 3 + 2]*/ <<std::endl;
                 // If already projected, go to next node
                 if(projectedCoords[nodeIndex].find(patchIndex) != projectedCoords[nodeIndex].end())
-                	continue;
+                    continue;
                 // If node in BBox of patch
-            	if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
-            		if(!initialGuessComputed) {
-            			computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
+                if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
+                    if(!initialGuessComputed) {
+                        computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
             			initialGuessComputed = true;
-            		}
+                    }
             		bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
-            		isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
+                    isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
             	}
             }
         }
@@ -442,7 +444,7 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIn
     /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
     bool hasResidualConverged;
     bool hasConverged = thePatch->computePointProjectionOnPatch(u, v, projectedP,
-    		hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
+            hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
     double distance = MathLibrary::computePointDistance(P, projectedP);
     if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
     	/// Perform some validity checks to validate the projected point
