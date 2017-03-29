@@ -136,6 +136,17 @@ struct structMapper {
             int isDirichletBCs;
         }dirichletBCs;
     };
+    struct structIGABarycentricMapper {
+        struct projectionProperties {
+            double maxProjectionDistance;
+            int numRefinementForIntialGuess;
+            double maxDistanceForProjectedPointsOnDifferentPatches;
+        } projectionProperties;
+        struct nonlinearSchemeProperties {
+            int maxNumOfIterations;
+            double tolerance;
+        } newtonRaphson;
+    };
     struct structCurveSurfaceMapper {
         EMPIRE_CurveSurfaceMapper_type type;
     };
@@ -145,6 +156,7 @@ struct structMapper {
     EMPIRE_Mapper_type type;
     structMortarMapper mortarMapper;
     structIGAMortarMapper igaMortarMapper;
+    structIGABarycentricMapper igaBarycentricMapper;
     structCurveSurfaceMapper curveSurfaceMapper;
 };
 

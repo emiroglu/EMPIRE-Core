@@ -59,7 +59,7 @@ protected:
     int clampedDirections;
 
     /// Object which has all the patch coupling data
-    IGAPatchCouplingCaratData* couplingData;
+    IGAPatchCouplingCaratData* couplingData = NULL;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;

@@ -405,6 +405,37 @@ void MetaDatabase::fillSettingMapperVec() {
             } else {
                 mapper.igaMortarMapper.dirichletBCs.isDirichletBCs = 0;
             }
+	} else if (xmlMapper->GetAttribute<string>("type") == "IGABarycentricMapper") {
+            mapper.type = EMPIRE_IGABarycentricMapper;
+            ticpp::Element *xmlIGABarycentric = xmlMapper->FirstChildElement("IGABarycentricMapper");
+            assert(xmlIGABarycentric != NULL);
+            ticpp::Element *xmlProjection = xmlIGABarycentric->FirstChildElement("projectionProperties",
+                    false);
+            if (xmlProjection != NULL) {
+                mapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance =
+                        xmlProjection->GetAttribute<double>("maxProjectionDistance");
+                mapper.igaBarycentricMapper.projectionProperties.numRefinementForIntialGuess =
+                        xmlProjection->GetAttribute<int>("numRefinementForIntialGuess");
+                mapper.igaBarycentricMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                        xmlProjection->GetAttribute<double>(
+                                "maxDistanceForProjectedPointsOnDifferentPatches");
+            } else {
+                mapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance = 1e-2;
+                mapper.igaBarycentricMapper.projectionProperties.numRefinementForIntialGuess = 10;
+                mapper.igaBarycentricMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                        1e-3;
+            }
+            ticpp::Element *xmlNewtonRaphson = xmlIGABarycentric->FirstChildElement("newtonRaphson",
+                    false);
+            if (xmlNewtonRaphson != NULL) {
+                mapper.igaBarycentricMapper.newtonRaphson.maxNumOfIterations =
+                        xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
+                mapper.igaBarycentricMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<
+                        double>("tolerance");
+            } else {
+                mapper.igaBarycentricMapper.newtonRaphson.maxNumOfIterations = 20;
+                mapper.igaBarycentricMapper.newtonRaphson.tolerance = 1e-9;
+            }
         } else if (xmlMapper->GetAttribute<string>("type") == "curveSurfaceMapper") {
             mapper.type = EMPIRE_CurveSurfaceMapper;
             ticpp::Element *xmlCurveSurfaceMapper = xmlMapper->FirstChildElement(

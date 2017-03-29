@@ -49,10 +49,14 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
     // sort surface nodes according to x in Q system
     sortedPosToUnsortedPos = new int[surfaceNumNodes];
 
+    cout << "Andreas started debugging" << endl;
+    
     multimap<double, int> *mapCoorX2Pos = new multimap<double, int>; // sort by x coordinate
     for (int i = 0; i < surfaceNumNodes; i++) {
         mapCoorX2Pos->insert(pair<double, int>(surfaceNodeCoorsInQ[i * 3 + 0], i));
     }
+    
+    cout << "Andreas ended debugging" << endl;
 
     int count = 0;
     for (multimap<double, int>::iterator it = mapCoorX2Pos->begin(); it != mapCoorX2Pos->end();
@@ -60,9 +64,9 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
         sortedPosToUnsortedPos[count] = it->second;
         count++;
     }
-
+    
     delete mapCoorX2Pos;
-
+    
     // curve node coordinates in Q
     curveNodeCoorsInQ = new double[curveNumNodes * 3];
     for (int i = 0; i < curveNumNodes * 3; i++)
@@ -345,6 +349,7 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
     } else {
         assert(false);
     }
+    
 }
 
 CurveSurfaceMapper::~CurveSurfaceMapper() {

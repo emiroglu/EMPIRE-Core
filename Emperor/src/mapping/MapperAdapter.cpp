@@ -21,6 +21,7 @@
 #include "MapperAdapter.h"
 #include "MortarMapper.h"
 #include "IGAMortarMapper.h"
+#include "IGABarycentricMapper.h"
 #include "NearestNeighborMapper.h"
 #include "BarycentricInterpolationMapper.h"
 #include "NearestElementMapper.h"
@@ -119,6 +120,30 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
     mapper->buildCouplingMatrices();
 }
 
+void MapperAdapter::initIGABarycentricMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess,
+    double _maxDistanceForProjectedPointsOnDifferentPatches, int _newtonRaphsonMaxIt, double _newtonRaphsonTol) {
+    bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
+    bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
+    if (meshAIGA && !meshBIGA) {
+        assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
+        mapperImpl = new IGABarycentricMapper(name, dynamic_cast<IGAMesh *>(meshA),
+                dynamic_cast<FEMesh *>(meshB), true);
+    } else if (!meshAIGA && meshBIGA) {
+        assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+        mapperImpl = new IGABarycentricMapper(name, dynamic_cast<IGAMesh *>(meshB),
+                dynamic_cast<FEMesh *>(meshA), false);
+    } else {
+        ERROR_OUT() << "Error in MapperAdapter::initIGABarycentricMapper" << endl;
+        ERROR_OUT() << "Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
+        exit(-1);
+    }
+    IGABarycentricMapper* mapper = static_cast<IGABarycentricMapper*>(mapperImpl);
+    mapper->setParametersProjection(_maxProjectionDistance, _numRefinementForIntialGuess,
+            _maxDistanceForProjectedPointsOnDifferentPatches);
+    mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt, _newtonRaphsonTol);
+    mapper->buildCouplingMatrices();
+}
+
 void MapperAdapter::initNearestNeighborMapper() {
     assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
     assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
@@ -178,6 +203,9 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
     else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ) {
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
+    else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {
+        mapperImpl->consistentMapping(fieldA->data, fieldB->data);
+    }
     else { // CurveSurfaceMappers map DOFs seperately
         int numNodesA, numNodesB;
         if (meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh)
@@ -226,6 +254,9 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     } 
     else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties()) {
+        mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
+    }
+    else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     }
     else { // CurveSurfaceMappers map DOFs seperately
