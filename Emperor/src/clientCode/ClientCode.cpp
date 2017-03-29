@@ -269,7 +269,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         } // end isTrimmed
     } // end patch
     
-    //    // get the coupling data
+    // get the coupling data
     int* numBRepsPerPatch = new int[numPatches];
     serverComm->receiveFromClientBlocking<int>(name, numPatches, numBRepsPerPatch);
 
