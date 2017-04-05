@@ -34,25 +34,21 @@ extern "C" { ///Define extern C if C++ compiler is used
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
- *
  * \param[in] AnumNodes number of nodes on slave side
  * \param[in] AnumElems number of elements on slave side
  * \param[in] AnumNodesPerElem number of nodes per element on slave side
  * \param[in] Anodes coordinates of all nodes on slave side
  * \param[in] AnodeIDs IDs of all nodes on slave side
  * \param[in] Aelems connectivity table of all elements on slave side
- *
  * \param[in] BnumNodes number of nodes on master side
  * \param[in] BnumElems number of elements on master side
  * \param[in] BnumNodesPerElem number of nodes per element on master side
  * \param[in] Bnodes coordinates of all nodes on master side
  * \param[in] BnodeIDs IDs of all nodes on master side
  * \param[in] Belems connectivity table of all elements on master side
- *
  * \param[in] oppositeSurfaceNormal whether the interface of master side and of master side have opposite normals  or not (true or false)
  * \param[in] dual whether or not to use dual mortar (true or false)
  * \param[in] enforceConsistency whether or not to enforce consistency
- *
  * \author Altug Emiroglu
  ***********/
 void init_FE_MortarMapper(char* mapperName,
@@ -63,13 +59,10 @@ void init_FE_MortarMapper(char* mapperName,
 /***********************************************************************************************
  * \brief Initializes and inserts a NearestNeighborMapper to the mapper list
  * \param[in] mapperName name of the mapper
- *
  * \param[in] AnumNodes number of nodes on slave side
  * \param[in] Anodes coordinates of all nodes on slave side
- *
  * \param[in] BnumNodes number of nodes on master side
  * \param[in] Bnodes coordinates of all nodes on master side
- *
  * \author Altug Emiroglu
  ***********/
 void init_FE_NearestNeighborMapper(char* mapperName, 
@@ -79,21 +72,18 @@ void init_FE_NearestNeighborMapper(char* mapperName,
 /***********************************************************************************************
  * \brief Initializes and inserts a NearestElementMapper to the mapper list
  * \param[in] mapperName name of the mapper
- *
  * \param[in] AnumNodes number of nodes on slave side
  * \param[in] AnumElems number of elements on slave side
  * \param[in] AnumNodesPerElem number of nodes per element on slave side
  * \param[in] Anodes coordinates of all nodes on slave side
  * \param[in] AnodeIDs IDs of all nodes on slave side
  * \param[in] Aelems connectivity table of all elements on slave side
- *
  * \param[in] BnumNodes number of nodes on master side
  * \param[in] BnumElems number of elements on master side
  * \param[in] BnumNodesPerElem number of nodes per element on master side
  * \param[in] Bnodes coordinates of all nodes on master side
  * \param[in] BnodeIDs IDs of all nodes on master side
  * \param[in] Belems connectivity table of all elements on master side
- *
  * \author Altug Emiroglu
 ***********/
 void init_FE_NearestElementMapper(char* mapperName,
@@ -103,18 +93,152 @@ void init_FE_NearestElementMapper(char* mapperName,
 /***********************************************************************************************
  * \brief Initializes and inserts a BarycentricInterpolationMapper to the mapper list
  * \param[in] mapperName name of the mapper
- *
  * \param[in] AnumNodes number of nodes on slave side
  * \param[in] AnumElems number of elements on slave side
-
  * \param[in] BnumNodes number of nodes on master side
  * \param[in] BnumElems number of elements on master side
- *
  * \author Altug Emiroglu
 ***********/
 void init_FE_BarycentricInterpolationMapper(char* mapperName, 
                                             int AnumNodes, const double *Anodes,
                                             int BnumNodes, const double *Bnodes);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a FEMesh to the mesh list
+ * \param[in] meshName name of the mesh
+ * \param[in] numNodes number of nodes
+ * \param[in] numElems number of elements
+ * \param[in] triangulateAll flag to determinf if elements should be triangulated
+ * \author Altug Emiroglu
+***********/
+void initFEMesh(char* meshName, int numNodes, int numElems, bool triangulateAll);
+
+/***********************************************************************************************
+ * \brief Sets the nodes of a previously initialized FEMesh
+ * \param[in] meshName name of the mesh
+ * \param[in] nodeIDs node IDs
+ * \param[in] nodes XYZ coordinates of the nodes with the ordering of the nodeIDs
+ * \author Altug Emiroglu
+***********/
+void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes);
+
+/***********************************************************************************************
+ * \brief Sets the elements of a previously initialized FEMesh
+ * \param[in] meshName name of the mesh
+ * \param[in] numNodesPerElem number of nodes per element
+ * \param[in] elems ordered nodeIDs of each element collected into an array
+ * \author Altug Emiroglu
+***********/
+void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a IGAMesh to the mesh list
+ * \param[in] meshName name of the mesh
+ * \param[in] numNodes total number of CPs in a multipatch geometry
+ * \author Altug Emiroglu
+***********/
+void initIGAMesh(char* meshName, int numNodes);
+
+/***********************************************************************************************
+ * brief Adds a new patch patch to a previously initialized IGA mesh
+ * \param[in] meshName name of the mesh
+ * \param[in] pDegree The polynomial degree of the IGA 2D patch in the u-direction
+ * \param[in] uNoKnots The number of knots for the knot vector in the u-direction
+ * \param[in] uKnotVector The underlying knot vector of the IGA 2D patch in the u-direction
+ * \param[in] qDegree The polynomial degree of the IGA 2D patch in the v-direction
+ * \param[in] vNoKnots The number of knots for the knot vector in the v-direction
+ * \param[in] vKnotVector The underlying knot vector of the IGA 2D patch in the v-direction
+ * \param[in] uNoControlPoints The number of the Control Points for the 2D NURBS patch in the u-direction
+ * \param[in] vNoControlPoints The number of the Control Points for the 2D NURBS patch in the v-direction
+ * \param[in] controlPointNet The set of the Control Points related to the 2D NURBS patch
+ * \param[in] dofIndexNet The index of the dof of the each Control Points related to. Equivalent to equation ID
+ * \author Altug Emiroglu
+ ***********/
+void addPatchToIGAMesh(char* meshName,
+                       int pDegree, int uNoKnots, double* uKnotVector,
+                       int qDegree, int vNoKnots, double* vKnotVector,
+                       int uNoControlPoints, int vNoControlPoints,
+                       double* controlPointNet, int* dofIndexNet);
+
+/***********************************************************************************************
+ * \brief Adds trimming loop information to a previously added patch of a mesh
+ * \param[in] meshName name of the mesh
+ * \param[in] idxSurfacePatch index of the surface patch that is previously added to the mesh
+ * \param[in] inner 0 for outter and 1 for inner
+ * \param[in] numCurves Number of curves to be received for this loop
+ * \author Altug Emiroglu
+ ***********/
+void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
+                            int inner, int numCurves);
+
+/***********************************************************************************************
+ * \brief Adds a NURBS curve for the current loop and its attached information.
+ *        It always adds the curve to the last initialized trimming loop
+ * \param[in] direction The direction of the curve according to its CP and knot vector ordering
+ * \param[in] pDegree The polynomial degree of the IGA 1D curve in the u-direction
+ * \param[in] uNoKnots The number of knots for the knot vector in the u-direction
+ * \param[in] uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
+ * \param[in] uNoControlPoints The number of the Control Points for the 1D NURBS patch in the u-direction
+ * \param[in] controlPoints The set of the Control Points related to the 1D NURBS curve
+ * \author Altug Emiroglu
+ ***********/
+void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
+                                    int direction, int pDegree, int uNoKnots, double* uKnotVector,
+                                    int uNoControlPoints, double* controlPoints);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a MortarMapper to the mapper list
+ * \param[in] mapperName name of the mapper
+ * \param[in] AmeshName a previously initialized slave FEMesh name
+ * \param[in] BmeshName a previously initialized master FEMesh name
+ * \author Altug Emiroglu
+ ***********/
+void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* BmeshName);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a MortarMapper to the mapper list
+ * \param[in] mapperName name of the mapper
+ * \param[in] AmeshName a previously initialized slave FEMesh name
+ * \param[in] BmeshName a previously initialized master FEMesh name
+ * \author Altug Emiroglu
+ ***********/
+void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshName);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a MortarMapper to the mapper list
+ * \param[in] mapperName name of the mapper
+ * \param[in] AmeshName a previously initialized slave FEMesh name
+ * \param[in] BmeshName a previously initialized master FEMesh name
+ * \author Altug Emiroglu
+ ***********/
+void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, char* BmeshName);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a MortarMapper to the mapper list
+ * \param[in] mapperName name of the mapper
+ * \param[in] AmeshName a previously initialized slave FEMesh name
+ * \param[in] BmeshName a previously initialized master FEMesh name
+ * \param[in] oppositeSurfaceNormal whether the master side and slave side have opposite normals(true or false)
+ * \param[in] dual whether or not to use dual mortar (true or false)
+ * \param[in] enforceConsistency whether or not to enforce consistency
+ * \author Altug Emiroglu
+ ***********/
+void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
+                          int oppositeSurfaceNormal, int dual, int enforceConsistency);
+
+/***********************************************************************************************
+ * \brief Initializes and inserts a MortarMapper to the mapper list
+ * \param[in] mapperName name of the mapper
+ * \param[in] IGAMeshName a previously initialized IGAMeshName name
+ * \param[in] FEMeshName a previously initialized FEMeshName name
+ * \param[in] isMappingIGA2FEM direction of the mapping to be generated (true=IGA->FEM or false=FEM->IGA)
+ * \author Altug Emiroglu
+ ***********/
+void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isMappingIGA2FEM);
+
+/////////////////////////////////////////////////////
+void printMeshNameAndType(char* meshName);
+/////////////////////////////////////////////////////
 
 /***********************************************************************************************
  * \brief Performs consistent mapping on fields (e.g. displacements or tractions) with the previously initialized mapper with name mapperName
