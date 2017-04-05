@@ -39,6 +39,9 @@ NearestNeighborMapper::NearestNeighborMapper(int _numNodesA, const double *_node
         numNodesA(_numNodesA), nodesA(_nodesA), numNodesB(_numNodesB), nodesB(_nodesB) {
     neighborsTable = new int[numNodesB];
     {
+
+    mapperType = EMPIRE_NearestNeighborMapper;
+
 #ifdef ANN
         double **ANodes = new double*[numNodesA]; // ANN uses 2D array
         for (int i = 0; i < numNodesA; i++)

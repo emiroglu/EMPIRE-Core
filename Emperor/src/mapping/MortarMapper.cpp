@@ -72,6 +72,9 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 _masterNodesPerElem), masterNodeCoors(_masterNodeCoors), masterNodeNumbers(
                 _masterNodeNumbers), masterElemTable(_masterElemTable), oppositeSurfaceNormal(
                 _oppositeSurfaceNormal), dual(_dual), toEnforceConsistency(_toEnforceConsistency) {
+
+    mapperType = EMPIRE_MortarMapper;
+
     // a could-be NULL pointer must be initialized to NULL, otherwise there could be segmentation fault when delete it
     C_BB_A_DUAL = NULL;
     // check whether the necessary libraries are there

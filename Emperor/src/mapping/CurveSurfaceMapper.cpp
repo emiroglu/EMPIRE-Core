@@ -20,6 +20,9 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
                 _surfaceNumRootSectionNodes), surfaceNumNormalSectionNodes(
                 _surfaceNumNormalSectionNodes), surfaceNumTipSectionNodes(
                 _surfaceNumTipSectionNodes) {
+
+    mapperType = EMPIRE_CurveSurfaceMapper;
+
     /*
      * Coordinate systems:
      *   O --- global

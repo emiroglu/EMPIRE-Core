@@ -29,6 +29,8 @@
 
 #include <string>
 
+#include "EMPEROR_Enum.h"
+
 namespace EMPIRE {
 class DataField;
 class AbstractMesh;
@@ -65,6 +67,9 @@ public:
      * \author Tianyang Wang
      * ***********/
     virtual void conservativeMapping(const double *fieldB, double *fieldA) = 0;
+
+    /// type of the mapper
+    EMPIRE_Mapper_type mapperType;
 };
 
 } /* namespace EMPIRE */

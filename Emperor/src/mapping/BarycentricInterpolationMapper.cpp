@@ -45,6 +45,9 @@ const int BarycentricInterpolationMapper::MAX_NUM_NEIGHBORS_TO_SEARCH = 50;
 BarycentricInterpolationMapper::BarycentricInterpolationMapper(int _numNodesA,
         const double *_nodesA, int _numNodesB, const double *_nodesB) :
         numNodesA(_numNodesA), nodesA(_nodesA), numNodesB(_numNodesB), nodesB(_nodesB) {
+
+    mapperType = EMPIRE_BarycentricInterpolationMapper;
+
     neighborsTable = new int[numNodesB * 3];
     weightsTable = new double[numNodesB * 3];
 

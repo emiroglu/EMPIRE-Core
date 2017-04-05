@@ -135,7 +135,8 @@ void initFEMesh(char* meshName, int numNodes, int numElems, bool triangulateAll 
 
     if (meshList.count( meshNameToMap )){
         ERROR_OUT("A mesh with name : " + meshNameToMap + "has already been initialized!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Mesh not generated!");
+        return;
     } else {
         meshList[meshNameToMap] = new FEMesh(meshNameToMap, numNodes, numElems, triangulateAll);
     }
@@ -148,7 +149,8 @@ void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
 
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Did nothing!");
+        return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         for(int i=0; i<tmpFEMesh->numNodes;i++){
@@ -164,7 +166,8 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
 
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Did nothing!");
+        return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         tmpFEMesh->initElems();
@@ -181,7 +184,8 @@ void initIGAMesh(char* meshName, int numNodes){
 
     if (meshList.count( meshNameToMap )){
         ERROR_OUT("A mesh with name : " + meshNameToMap + "has already been initialized!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Mesh not generated!");
+        return;
     } else {
         meshList[meshNameToMap] = new IGAMesh(meshNameToMap, numNodes);
     }
@@ -197,7 +201,8 @@ void addPatchToIGAMesh(char* meshName,
 
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Did nothing!");
+        return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         tmpIGAMesh->addPatch(pDegree, uNoKnots, uKnotVector,
@@ -214,7 +219,8 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
 
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Did nothing!");
+        return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimLoop(inner,numCurves);
@@ -229,7 +235,8 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
 
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
-        exit(EXIT_FAILURE);
+        ERROR_OUT("Did nothing!");
+        return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
@@ -473,6 +480,124 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
     }
 }
 
+void setParametersProjection(char* mapperName,
+                             double maxProjectionDistance, int numRefinementForIntialGuess,
+                             double maxDistanceForProjectedPointsOnDifferentPatches){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+    else{
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersProjection(maxProjectionDistance, numRefinementForIntialGuess, maxDistanceForProjectedPointsOnDifferentPatches);
+    }
+
+}
+
+void setParametersNewtonRaphson(char* mapperName,
+                                int maxNumOfIterations, double tolerance){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+    else{
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersNewtonRaphson(maxNumOfIterations, tolerance);
+    }
+}
+
+void setParametersNewtonRaphsonBoundary(char* mapperName,
+                                        int maxNumOfIterations, double tolerance){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+    else{
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersNewtonRaphsonBoundary(maxNumOfIterations, tolerance);
+    }
+}
+
+void setParametersBisection(char* mapperName,
+                            int maxNumOfIterations, double tolerance){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+    else{
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersBisection(maxNumOfIterations, tolerance);
+    }
+}
+
+void setParametersIntegration(char* mapperName,
+                              int numGPTriangle, int numGPQuad){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+    else{
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersIntegration(numGPTriangle, numGPQuad);
+    }
+}
+
+
 void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const double* dataA, int dataSizeB, double* dataB){
     assert(dimension == 1 || dimension == 3);
 
@@ -601,5 +726,3 @@ void deleteAllMappers(){
         mapperList.erase(iter);
     }
 }
-
-

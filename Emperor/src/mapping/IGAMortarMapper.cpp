@@ -58,6 +58,8 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     else
         meshFE = _meshFE->triangulate();
 
+    mapperType = EMPIRE_IGAMortarMapper;
+
     projectedCoords.resize(meshFE->numNodes);
     projectedPolygons.resize(meshFE->numElems);
     triangulatedProjectedPolygons.resize(meshFE->numElems);

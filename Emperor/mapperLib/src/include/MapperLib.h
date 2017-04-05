@@ -193,7 +193,8 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
  * \param[in] BmeshName a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* BmeshName);
+void initFEMNearestNeighborMapper(char* mapperName,
+                                  char* AmeshName, char* BmeshName);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -202,7 +203,8 @@ void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* Bmesh
  * \param[in] BmeshName a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshName);
+void initFEMNearestElementMapper(char* mapperName,
+                                 char* AmeshName, char* BmeshName);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -211,7 +213,8 @@ void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshN
  * \param[in] BmeshName a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, char* BmeshName);
+void initFEMBarycentricInterpolationMapper(char* mapperName,
+                                           char* AmeshName, char* BmeshName);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -223,8 +226,9 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
  * \param[in] enforceConsistency whether or not to enforce consistency
  * \author Altug Emiroglu
  ***********/
-void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
-                          int oppositeSurfaceNormal, int dual, int enforceConsistency);
+void initFEMMortarMapper(char* mapperName,
+                         char* AmeshName, char* BmeshName,
+                         int oppositeSurfaceNormal, int dual, int enforceConsistency);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -235,6 +239,53 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
  * \author Altug Emiroglu
  ***********/
 void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isMappingIGA2FEM);
+
+/***********************************************************************************************
+ * \brief Set parameter for the projection of mesh onto the NURBS surface
+ * \param[in] maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
+ * \param[in] numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
+ * \param[in] maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
+ * \author Altug Emiroglu
+ ***********/
+void setParametersProjection(char* mapperName,
+                             double maxProjectionDistance, int numRefinementForIntialGuess,
+                             double maxDistanceForProjectedPointsOnDifferentPatches);
+
+/***********************************************************************************************
+ * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
+ * \param[in] newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+ * \param[in] newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+* \author Altug Emiroglu
+ ***********/
+void setParametersNewtonRaphson(char* mapperName,
+                                int maxNumOfIterations, double tolerance);
+
+/***********************************************************************************************
+ * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
+ * \param[in] newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+ * \param[in] newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+ * \author Altug Emiroglu
+ ***********/
+void setParametersNewtonRaphsonBoundary(char* mapperName,
+                                        int maxNumOfIterations, double tolerance);
+
+/***********************************************************************************************
+ * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
+ * \param[in] bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
+ * \param[in] bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
+ * \author Altug Emiroglu
+ ***********/
+void setParametersBisection(char* mapperName,
+                            int maxNumOfIterations, double tolerance);
+
+/***********************************************************************************************
+ * \brief Set parameter for integration
+ * \param[in] numGPsTriangle The number of Gauss points when performs integration on triangle
+ * \param[in] numGPsQuad The number of Gauss points when performs integration on quadrilateral
+ * \author Altug Emiroglu
+ ***********/
+void setParametersIntegration(char* mapperName,
+                              int numGPTriangle, int numGPQuad);
 
 /////////////////////////////////////////////////////
 void printMeshNameAndType(char* meshName);
@@ -269,6 +320,7 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
 /***********************************************************************************************
  * \brief Deletes a previously initialized mapper
  * \param[in] mapperName name of the mapper to be deleted from the mapper list
+ * \author Altug Emiroglu
  ***********/
 void deleteMapper(char* mapperName);
 
