@@ -38,10 +38,18 @@ NearestNeighborMapper::NearestNeighborMapper(int _numNodesA, const double *_node
         const double *_nodesB) :
         numNodesA(_numNodesA), nodesA(_nodesA), numNodesB(_numNodesB), nodesB(_nodesB) {
     neighborsTable = new int[numNodesB];
-    {
 
     mapperType = EMPIRE_NearestNeighborMapper;
 
+}
+
+NearestNeighborMapper::~NearestNeighborMapper() {
+    delete[] neighborsTable;
+}
+
+void NearestNeighborMapper::buildCouplingMatrices(){
+
+    {
 #ifdef ANN
         double **ANodes = new double*[numNodesA]; // ANN uses 2D array
         for (int i = 0; i < numNodesA; i++)
@@ -83,10 +91,7 @@ NearestNeighborMapper::NearestNeighborMapper(int _numNodesA, const double *_node
         delete ANodesTree;
 #endif
     }
-}
 
-NearestNeighborMapper::~NearestNeighborMapper() {
-    delete[] neighborsTable;
 }
 
 void NearestNeighborMapper::consistentMapping(const double *DOF_A, double *DOF_B) {

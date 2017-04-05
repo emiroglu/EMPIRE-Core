@@ -49,6 +49,9 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~NearestNeighborMapper();
+
+    void buildCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions)
      * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)

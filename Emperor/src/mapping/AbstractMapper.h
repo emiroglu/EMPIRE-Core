@@ -53,6 +53,9 @@ public:
      ***********/
     virtual ~AbstractMapper() {
     }
+
+    virtual void buildCouplingMatrices() = 0;
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions)
      * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)

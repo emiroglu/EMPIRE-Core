@@ -68,6 +68,9 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~CurveSurfaceMapper();
+
+    void buildCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Map deformation from curve to surface / reconstruct the deformed surface according to beam DOFs.
      * \param[in] curveDispRot displacements and rotations on curve nodes

@@ -597,6 +597,20 @@ void setParametersIntegration(char* mapperName,
     }
 }
 
+void buildCouplingMatrices(char *mapperName){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    // check if the mapper with the given name is generated
+    if (mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+
+    mapperList[mapperNameInMap]->buildCouplingMatrices();
+
+}
 
 void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const double* dataA, int dataSizeB, double* dataB){
     assert(dimension == 1 || dimension == 3);
@@ -686,13 +700,6 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
             mapperList[mapperNameToMap]->conservativeMapping(dataB, dataA);
         }
     }
-}
-
-void printMeshNameAndType(char* meshName){
-    std::string meshNameStr = std::string(meshName);
-
-    std::cout << "Mesh name: " <<meshList[meshNameStr]->name <<std::endl;
-    std::cout << "Mesh type: " <<meshList[meshNameStr]->type <<std::endl;
 }
 
 void deleteMesh(char* meshName){

@@ -51,8 +51,6 @@ BarycentricInterpolationMapper::BarycentricInterpolationMapper(int _numNodesA,
     neighborsTable = new int[numNodesB * 3];
     weightsTable = new double[numNodesB * 3];
 
-    computeNeighbors();
-    computeWeights();
 }
 
 BarycentricInterpolationMapper::~BarycentricInterpolationMapper() {
@@ -87,6 +85,11 @@ void BarycentricInterpolationMapper::conservativeMapping(const double *fieldB,
             fieldA[neighbors[j]] += weightsTable[i * 3 + j] * fieldB[i];
         }
     }
+}
+
+void BarycentricInterpolationMapper::buildCouplingMatrices(){
+    computeNeighbors();
+    computeWeights();
 }
 
 void BarycentricInterpolationMapper::computeNeighbors() {

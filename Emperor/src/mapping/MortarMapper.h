@@ -81,6 +81,9 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~MortarMapper();
+
+    void buildCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions) --- C_BB * masterField = C_BA * slaveField
      * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)

@@ -386,6 +386,10 @@ CurveSurfaceMapper::~CurveSurfaceMapper() {
     }
 }
 
+void CurveSurfaceMapper::buildCouplingMatrices(){
+    // do nothing because the constructor constructs the matrices already
+}
+
 void CurveSurfaceMapper::consistentMapping(const double *curveDispRot, double *surfaceDisp) {
     if (type == EMPIRE_CurveSurfaceMapper_linear) {
         consistentMappingLinear(curveDispRot, surfaceDisp);

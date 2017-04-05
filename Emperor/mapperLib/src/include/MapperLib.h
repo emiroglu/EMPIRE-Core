@@ -21,7 +21,7 @@
 /***********************************************************************************************//**
  * \file MapperLib.h
  * This file defines the EMPIRE Mapper Library API
- * \date 2/22/2012
+ * \date 5/12/2014
  **************************************************************************************************/
 
 #ifndef MAPPERLIB_H_
@@ -242,6 +242,7 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
 
 /***********************************************************************************************
  * \brief Set parameter for the projection of mesh onto the NURBS surface
+ * \param[in] mapperName name of the mapper
  * \param[in] maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
  * \param[in] numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
  * \param[in] maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
@@ -253,6 +254,7 @@ void setParametersProjection(char* mapperName,
 
 /***********************************************************************************************
  * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
+ * \param[in] mapperName name of the mapper
  * \param[in] newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
  * \param[in] newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
 * \author Altug Emiroglu
@@ -262,6 +264,7 @@ void setParametersNewtonRaphson(char* mapperName,
 
 /***********************************************************************************************
  * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
+ * \param[in] mapperName name of the mapper
  * \param[in] newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
  * \param[in] newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
  * \author Altug Emiroglu
@@ -271,6 +274,7 @@ void setParametersNewtonRaphsonBoundary(char* mapperName,
 
 /***********************************************************************************************
  * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
+ * \param[in] mapperName name of the mapper
  * \param[in] bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
  * \param[in] bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
  * \author Altug Emiroglu
@@ -280,6 +284,7 @@ void setParametersBisection(char* mapperName,
 
 /***********************************************************************************************
  * \brief Set parameter for integration
+ * \param[in] mapperName name of the mapper
  * \param[in] numGPsTriangle The number of Gauss points when performs integration on triangle
  * \param[in] numGPsQuad The number of Gauss points when performs integration on quadrilateral
  * \author Altug Emiroglu
@@ -287,9 +292,14 @@ void setParametersBisection(char* mapperName,
 void setParametersIntegration(char* mapperName,
                               int numGPTriangle, int numGPQuad);
 
-/////////////////////////////////////////////////////
-void printMeshNameAndType(char* meshName);
-/////////////////////////////////////////////////////
+/***********************************************************************************************
+ * \brief Build Coupling Matrices
+ * \param[in] mapperName name of the mapper
+ * \param[in] mapperName The number of Gauss points when performs integration on triangle
+ * \param[in] numGPsQuad The number of Gauss points when performs integration on quadrilateral
+ * \author Altug Emiroglu
+ ***********/
+void buildCouplingMatrices(char* mapperName);
 
 /***********************************************************************************************
  * \brief Performs consistent mapping on fields (e.g. displacements or tractions) with the previously initialized mapper with name mapperName

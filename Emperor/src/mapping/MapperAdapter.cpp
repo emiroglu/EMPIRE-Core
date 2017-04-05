@@ -83,6 +83,8 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
     mapperImpl = new MortarMapper(a->numNodes, a->numElems, a->numNodesPerElem, a->nodes,
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems, oppositeSurfaceNormal, dual, enforceConsistency);
+    MortarMapper* mapper = static_cast<MortarMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
@@ -153,6 +155,8 @@ void MapperAdapter::initNearestNeighborMapper() {
     assert(mapperImpl == NULL);
 
     mapperImpl = new NearestNeighborMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
+    NearestNeighborMapper* mapper = static_cast<NearestNeighborMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initBarycentricInterpolationMapper() {
@@ -164,6 +168,8 @@ void MapperAdapter::initBarycentricInterpolationMapper() {
     assert(mapperImpl == NULL);
 
     mapperImpl = new BarycentricInterpolationMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
+    BarycentricInterpolationMapper* mapper = static_cast<BarycentricInterpolationMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initNearestElementMapper() {
@@ -178,6 +184,8 @@ void MapperAdapter::initNearestElementMapper() {
     mapperImpl = new NearestElementMapper(a->numNodes, a->numElems, a->numNodesPerElem, a->nodes,
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems);
+    NearestElementMapper* mapper = static_cast<NearestElementMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) {

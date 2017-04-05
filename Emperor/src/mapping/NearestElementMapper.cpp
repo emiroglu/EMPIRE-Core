@@ -56,7 +56,7 @@ NearestElementMapper::NearestElementMapper(int _numNodesA, int _numElemsA,
     numNodesPerNeighborElem = new int[numNodesB];
     neighborsTable = new vector<int*>(numNodesB);
     weightsTable = new vector<double*>(numNodesB);
-    computeNeighborsAndWeights();
+//    computeNeighborsAndWeights();
 }
 
 NearestElementMapper::~NearestElementMapper() {
@@ -119,7 +119,7 @@ void NearestElementMapper::conservativeMapping(const double *fieldB, double *fie
     //      << endl;
 }
 
-void NearestElementMapper::computeNeighborsAndWeights() {
+void NearestElementMapper::buildCouplingMatrices() {
     // compute directElemTableA
     map<int, int> *nodesIDToPosMap = new map<int, int>;
     for (int i = 0; i < numNodesA; i++)

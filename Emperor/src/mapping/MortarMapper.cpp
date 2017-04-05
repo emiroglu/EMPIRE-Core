@@ -108,8 +108,9 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     initTables();
     initANNTree();
 
+}
 
-
+void MortarMapper::buildCouplingMatrices(){
 
     // 2. compute C_BB
     computeC_BB();
@@ -136,9 +137,9 @@ MortarMapper::~MortarMapper() {
     delete[] C_BB_A_DUAL;
 
     if(!dual){
-    	delete C_BA;
+        delete C_BA;
     }else{
-    	delete C_BA_DUAL;
+        delete C_BA_DUAL;
     }
 
 #ifdef ANN
