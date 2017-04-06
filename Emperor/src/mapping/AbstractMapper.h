@@ -54,6 +54,10 @@ public:
     virtual ~AbstractMapper() {
     }
 
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \author Altug Emiroglu
+     ***********/
     virtual void buildCouplingMatrices() = 0;
 
     /***********************************************************************************************

@@ -1059,14 +1059,14 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
 			u = u0In;
 			v = v0In;
-			dis = projectionProperties.maxProjectionDistance;
+            dis = projectionProperties.maxProjectionDistance;
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 			double u0=u,v0=v,div0=div;
 			double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
 			double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
 			u = u2In;
 			v = v2In;
-			dis = projectionProperties.maxProjectionDistance;
+            dis = projectionProperties.maxProjectionDistance;
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 			double u2=u,v2=v,div2=div;
 			/// If two valid line parameter found
@@ -1105,7 +1105,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			u = uIn;
 			v = vIn;
 			dis = projectionProperties.maxProjectionDistance;
-			// Project on boundary
+            // Project on boundary
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 		}
 		/// Node outside and previous neighbor outside and next neighbor inside
@@ -1116,7 +1116,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			u = uIn;
 			v = vIn;
 			dis = projectionProperties.maxProjectionDistance;
-			// Project on boundary
+            // Project on boundary
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 		}
 		/// Node outside and both neighbor outside  or no valid line parameter div computed before
@@ -1130,7 +1130,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 				vIn = projectedCoords[*it][patchIndex][1];
 				u = uIn;
 				v = vIn;
-				dis = projectionProperties.maxProjectionDistance;
+                dis = projectionProperties.maxProjectionDistance;
 				isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 			}
 		}

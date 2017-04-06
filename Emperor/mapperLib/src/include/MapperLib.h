@@ -295,8 +295,6 @@ void setParametersIntegration(char* mapperName,
 /***********************************************************************************************
  * \brief Build Coupling Matrices
  * \param[in] mapperName name of the mapper
- * \param[in] mapperName The number of Gauss points when performs integration on triangle
- * \param[in] numGPsQuad The number of Gauss points when performs integration on quadrilateral
  * \author Altug Emiroglu
  ***********/
 void buildCouplingMatrices(char* mapperName);

@@ -69,6 +69,11 @@ public:
      ***********/
     virtual ~CurveSurfaceMapper();
 
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \param[in] mapperName name of the mapper
+     * \author Altug Emiroglu
+     ***********/
     void buildCouplingMatrices();
 
     /***********************************************************************************************

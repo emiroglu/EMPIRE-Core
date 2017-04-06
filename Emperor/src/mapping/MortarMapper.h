@@ -82,6 +82,11 @@ public:
      ***********/
     virtual ~MortarMapper();
 
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \param[in] mapperName name of the mapper
+     * \author Altug Emiroglu
+     ***********/
     void buildCouplingMatrices();
 
     /***********************************************************************************************

@@ -254,7 +254,8 @@ bool solve2x2LinearSystem(const double *A, double *b, double EPS) {
     double v1LengthSquare = A[0] * A[0] + A[1] * A[1];
     double v2LengthSquare = A[2] * A[2] + A[3] * A[3];
     double max = (v1LengthSquare > v2LengthSquare) ? v1LengthSquare : v2LengthSquare;
-    assert(max > 1E-20); // assume the length of the vector cannot be too small
+    // emiroglu
+    //assert(max > 1E-20); // assume the length of the vector cannot be too small
 
     if (fabs(detA) < EPS * fabs(det0))
         return false;

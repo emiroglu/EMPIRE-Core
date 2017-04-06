@@ -65,6 +65,7 @@ public:
     /***********************************************************************************************
      * \brief Compute the neighbors and the weights
      * \author Tianyang Wang
+     * \edit Altug Emiroglu function name changed from computeNeighborsAndWeights to buildCouplingMatrices
      ***********/
     void buildCouplingMatrices();
     /***********************************************************************************************

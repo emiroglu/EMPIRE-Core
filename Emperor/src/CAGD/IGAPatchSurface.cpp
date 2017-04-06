@@ -1632,7 +1632,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 	// 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
 	// Clear the memory on the heap
 	delete[] basisFctsAndDerivs;
-	delete[] baseVecAndDerivs;
+    delete[] baseVecAndDerivs;
 
 	// Return the flag
 	return flagNewtonRaphson;
