@@ -602,13 +602,13 @@ void buildCouplingMatrices(char *mapperName){
     std::string mapperNameInMap = std::string(mapperName);
 
     // check if the mapper with the given name is generated
-    if (mapperList.count( mapperNameInMap )){
+    if (!mapperList.count( mapperNameInMap )){
         ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
         ERROR_OUT("Did nothing!");
         return;
+    } else{
+        mapperList[mapperNameInMap]->buildCouplingMatrices();
     }
-
-    mapperList[mapperNameInMap]->buildCouplingMatrices();
 
 }
 
