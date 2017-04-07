@@ -71,9 +71,6 @@ void ClientCode::recvFEMesh(std::string meshName, bool triangulateAll) {
     int numElems = meshInfo[1];
 
     FEMesh *mesh = new FEMesh(meshName, numNodes, numElems, triangulateAll);
-//	std::cout << meshName << std::endl;
-//	std::cout << numNodes << std::endl;
-//	std::cout << numElems << std::endl;
     serverComm->receiveFromClientBlocking<double>(name, numNodes * 3, mesh->nodes);
 	serverComm->receiveFromClientBlocking<int>(name, numNodes, mesh->nodeIDs);
     serverComm->receiveFromClientBlocking<int>(name, numElems, mesh->numNodesPerElem);
