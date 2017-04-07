@@ -138,9 +138,10 @@ void initFEMesh(char* meshName, int numNodes, int numElems, bool triangulateAll 
         ERROR_OUT("Mesh not generated!");
         return;
     } else {
-        meshList[meshNameToMap] = new FEMesh(meshNameToMap, numNodes, numElems, triangulateAll);
+        FEMesh* tmpFEMesh = new FEMesh(meshNameToMap, numNodes, numElems, triangulateAll);
+        meshList[meshNameToMap] = tmpFEMesh;
+        INFO_OUT("FEMesh generated");
     }
-
 }
 
 void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
@@ -153,10 +154,8 @@ void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
-        for(int i=0; i<tmpFEMesh->numNodes;i++){
-            tmpFEMesh->nodes[i] = nodes[i];
-            tmpFEMesh->nodeIDs[i] = nodeIDs[i];
-        }
+        for(int i=0; i<tmpFEMesh->numNodes;i++) tmpFEMesh->nodeIDs[i] = nodeIDs[i];
+        for(int i=0; i<(tmpFEMesh->numNodes)*3;i++) tmpFEMesh->nodes[i] = nodes[i];
     }
 }
 
@@ -170,11 +169,10 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
+        tmpFEMesh->elems = NULL;
+        for(int i=0; i<tmpFEMesh->numElems;i++) tmpFEMesh->numNodesPerElem[i] = numNodesPerElem[i];
         tmpFEMesh->initElems();
-        for(int i=0; i<tmpFEMesh->numElems;i++){
-            tmpFEMesh->numNodesPerElem[i] = numNodesPerElem[i];
-            tmpFEMesh->elems[i] = elems[i];
-        }
+        for(int i=0; i<tmpFEMesh->elemsArraySize;i++) tmpFEMesh->elems[i] = elems[i];
     }
 }
 
@@ -188,6 +186,7 @@ void initIGAMesh(char* meshName, int numNodes){
         return;
     } else {
         meshList[meshNameToMap] = new IGAMesh(meshNameToMap, numNodes);
+        INFO_OUT("IGAMesh generated");
     }
 }
 
@@ -700,6 +699,14 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
             mapperList[mapperNameToMap]->conservativeMapping(dataB, dataA);
         }
     }
+}
+
+void printMesh(char* meshName){
+
+    std::string meshNameInMap = std::string(meshName);
+    (meshList[meshNameInMap])->computeBoundingBox();
+    INFO_OUT() << (meshList[meshNameInMap])->boundingBox << endl;
+
 }
 
 void deleteMesh(char* meshName){

@@ -326,6 +326,20 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const d
 void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const double* dataB, int dataSizeA, double* dataA);
 
 /***********************************************************************************************
+ * \brief Calculates and prints the bounding box of the mesh
+ * \param[in] meshName name of the mesh
+ * \author Altug Emiroglu
+***********/
+void printMesh(char* meshName);
+
+/***********************************************************************************************
+ * \brief Deletes a previously initialized mesh
+ * \param[in] meshName name of the mesh to be deleted from the mesh list
+ * \author Altug Emiroglu
+ ***********/
+void deleteMesh(char* meshName);
+
+/***********************************************************************************************
  * \brief Deletes a previously initialized mapper
  * \param[in] mapperName name of the mapper to be deleted from the mapper list
  * \author Altug Emiroglu
