@@ -1249,7 +1249,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 //            fixU = true;
 //            fixV = false;
 //        } else {
-//            //std::cout << "Solving the linear system !"<<std::endl;
+//            std::cout << "Solving the linear system !"<<std::endl;
 //            // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
 
 //            // Solve the equation system
@@ -1758,6 +1758,9 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, double* _P,
         int _uDiv, int _vDiv) {
 
+    if (_P==NULL){
+        cout << " findInitialGuess4PointProjection  p is null " << endl;
+    }
     assert(_P != NULL);
 
     const int noSpatialDimensions = 3;
