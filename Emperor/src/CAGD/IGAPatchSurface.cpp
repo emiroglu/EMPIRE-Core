@@ -1758,9 +1758,6 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 void IGAPatchSurface::findInitialGuess4PointProjection(double& _u, double& _v, double* _P,
         int _uDiv, int _vDiv) {
 
-    if (_P==NULL){
-        cout << " findInitialGuess4PointProjection  p is null " << endl;
-    }
     assert(_P != NULL);
 
     const int noSpatialDimensions = 3;
