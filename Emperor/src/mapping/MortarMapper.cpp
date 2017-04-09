@@ -114,18 +114,18 @@ void MortarMapper::buildCouplingMatrices(){
 
     // 2. compute C_BB
     computeC_BB();
-//     if (!dual) {
-//     	C_BB->printFullToFile("MortarMapper_Cbb.dat");
-//     } else {
-//     	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
-//     }
+     if (!dual) {
+        C_BB->printFullToFile("MortarMapper_Cbb.dat");
+     } else {
+        MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
+     }
     // 3. compute C_BA
     computeC_BA();
-//     if (!dual) {
-//     	C_BA->printFullToFile("MortarMapper_Cba.dat");
-//     } else {
-//     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
-//     }
+     if (!dual) {
+        C_BA->printFullToFile("MortarMapper_Cba.dat");
+     } else {
+        C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
+     }
 
     deleteANNTree();
     deleteTables();
