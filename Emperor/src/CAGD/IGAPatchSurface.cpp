@@ -996,6 +996,9 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     // Initialize the flag to true
     bool flagNewtonRaphson = true;
     _flagConverge = true;
+	
+	// Flag for solvability of linear equation system
+	bool isSystemSolved = true;
 
     // Flag for solving linear equation system
     bool isSystemSolvable = true;
@@ -1208,15 +1211,17 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
             // Check if the equation system has been successfully solved
             if (!flagLinearSystem) {
-                ERROR_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
-                ERROR_OUT()
+                WARNING_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
+                WARNING_OUT()
                         << "The 2x2 equation system to find the updates of the surface parameters"
                         << endl;
-                ERROR_OUT()
+                WARNING_OUT()
                         << "for the orthogonal projection of a point on the NURBS patch has been"
                         << endl;
-                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
-                exit(-1);
+                WARNING_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
+                // exit(-1);
+				isSystemSolved = false;
+				break;
             }
         } else {
             if (conditionFirstRowZero){
@@ -1287,6 +1292,10 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     } else {
         flagNewtonRaphson = true;
     }
+    if (!isSystemSolved) {
+		flagNewtonRaphson = false;
+	}
+    
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
     delete[] basisFctsAndDerivs;
