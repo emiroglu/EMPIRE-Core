@@ -1009,8 +1009,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
     const double epsJ = 1e-6;
     const double epsDuv = 1e-10;
-//    bool fixU = false;
-//    bool fixV = false;
+    bool fixU = false;
+    bool fixV = false;
 
     // Initialize number of spatial dimensions
     int noSpatialDimensions = 3;
@@ -1641,7 +1641,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
 	// 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
 	// Clear the memory on the heap
 	delete[] basisFctsAndDerivs;
-	delete[] baseVecAndDerivs;
+    delete[] baseVecAndDerivs;
 
 	// Return the flag
 	return flagNewtonRaphson;
@@ -1667,31 +1667,31 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
     // Loop over all the edges of the NURBS patch (for tensor product surfaces there are 4 edges)
     for (int edge = 0; edge < 4; edge++) {
     	// Store intermediate results
-    	double u[3];
-    	double v[3];
+        double u[3];
+        double v[3];
         bool hasConverged=false;
 
     	// Do the test for every edge for each extremity of the boundary patch
-    	for(int point=0;point<3;point++) {
-			// Find the fixed and the running parameter on the patch boundary
-			if (edge == 0 || edge == 1)
-				if(point==0)
-					t=IGABasis->getUBSplineBasis1D()->getFirstKnot();
-				else
-					t=IGABasis->getUBSplineBasis1D()->getLastKnot();
-			else
-				if(point==0)
-					t=IGABasis->getVBSplineBasis1D()->getFirstKnot();
-				else
-					t=IGABasis->getVBSplineBasis1D()->getLastKnot();
+        for(int point=0;point<3;point++) {
+            // Find the fixed and the running parameter on the patch boundary
+            if (edge == 0 || edge == 1)
+                if(point==0)
+                    t=IGABasis->getUBSplineBasis1D()->getFirstKnot();
+                else
+                    t=IGABasis->getUBSplineBasis1D()->getLastKnot();
+            else
+                if(point==0)
+                    t=IGABasis->getVBSplineBasis1D()->getFirstKnot();
+                else
+                    t=IGABasis->getVBSplineBasis1D()->getLastKnot();
 
-	        // If extremities of edge have not converged then try with initial guess
-			if(point==2 && !hasConverged) {
-				if (edge == 0 || edge == 1)
-					t = u1;
-				else
-					t = v1;
-			}
+            // If extremities of edge have not converged then try with initial guess
+            if(point==2 && !hasConverged) {
+                if (edge == 0 || edge == 1)
+                    t = u1;
+                else
+                    t = v1;
+            }
 			// Compute point projection from the line to the NURBS patch boundary
             isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, div, distance, _P1, _P2, edge, _maxIt, _tol);
 
@@ -1710,31 +1710,31 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 				case 0:
 					edgeOut=EDGE_V0;
 					IGABasis->getUBSplineBasis1D()->clampKnot(t);
-					u[point] = t;
-					v[point] = IGABasis->getVBSplineBasis1D()->getFirstKnot();
+                    u[point] = t;
+                    v[point] = IGABasis->getVBSplineBasis1D()->getFirstKnot();
 					break;
 				case 1:
 					edgeOut=EDGE_VN;
 					IGABasis->getUBSplineBasis1D()->clampKnot(t);
-					u[point] = t;
-					v[point] = IGABasis->getVBSplineBasis1D()->getLastKnot();
+                    u[point] = t;
+                    v[point] = IGABasis->getVBSplineBasis1D()->getLastKnot();
 					break;
 				case 2:
 					edgeOut=EDGE_U0;
 					IGABasis->getVBSplineBasis1D()->clampKnot(t);
-					u[point] = IGABasis->getUBSplineBasis1D()->getFirstKnot();
-					v[point] = t;
+                    u[point] = IGABasis->getUBSplineBasis1D()->getFirstKnot();
+                    v[point] = t;
 					break;
 				case 3:
 					edgeOut=EDGE_UN;
 					IGABasis->getVBSplineBasis1D()->clampKnot(t);
-					u[point] = IGABasis->getUBSplineBasis1D()->getLastKnot();
-					v[point] = t;
+                    u[point] = IGABasis->getUBSplineBasis1D()->getLastKnot();
+                    v[point] = t;
 					break;
 				}
 				// If the point is the same as the initial guess from input function
-				bool validPoint1=(u[point]!=u1 || v[point]!=v1); //Different from entry point then true else false
-				bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false; //Both are the same then true else false
+                bool validPoint1=(u[point]!=u1 || v[point]!=v1); //Different from entry point then true else false
+                bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false; //Both are the same then true else false
 				// If it is not a point to take into account, continue
 				if(!(validPoint1 || validPoint2) && point<2) continue;
 				// Otherwise store it under following conditions

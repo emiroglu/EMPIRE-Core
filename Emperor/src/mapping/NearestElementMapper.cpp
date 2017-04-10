@@ -50,10 +50,13 @@ NearestElementMapper::NearestElementMapper(int _numNodesA, int _numElemsA,
                 _nodesA), nodeIDsA(_nodeIDsA), elemTableA(_elemTableA), numNodesB(_numNodesB), numElemsB(
                 _numElemsB), numNodesPerElemB(_numNodesPerElemB), nodesB(_nodesB), nodeIDsB(
                 _nodeIDsB), elemTableB(_elemTableB) {
+
+    mapperType = EMPIRE_NearestElementMapper;
+
     numNodesPerNeighborElem = new int[numNodesB];
     neighborsTable = new vector<int*>(numNodesB);
     weightsTable = new vector<double*>(numNodesB);
-    computeNeighborsAndWeights();
+//    computeNeighborsAndWeights();
 }
 
 NearestElementMapper::~NearestElementMapper() {
@@ -116,7 +119,7 @@ void NearestElementMapper::conservativeMapping(const double *fieldB, double *fie
     //      << endl;
 }
 
-void NearestElementMapper::computeNeighborsAndWeights() {
+void NearestElementMapper::buildCouplingMatrices() {
     // compute directElemTableA
     map<int, int> *nodesIDToPosMap = new map<int, int>;
     for (int i = 0; i < numNodesA; i++)

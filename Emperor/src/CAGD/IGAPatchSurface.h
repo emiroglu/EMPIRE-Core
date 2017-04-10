@@ -102,9 +102,7 @@ public:
     void addTrimLoop(int inner, int numCurves);
     /***********************************************************************************************
      * \brief Add a Nurbs curve for the current loop and its attached information
-     * \param[in] inner Value 0 for outter and 1 for inner
      * \param[in] direction The direction of the curve if is following standard or not
-     * \param[in] ID The id of the curve
      * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
      * \param[in] _uNoKnots The number of knots for the knot vector in the u-direction
      * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction

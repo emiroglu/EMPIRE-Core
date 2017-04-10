@@ -20,6 +20,9 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
                 _surfaceNumRootSectionNodes), surfaceNumNormalSectionNodes(
                 _surfaceNumNormalSectionNodes), surfaceNumTipSectionNodes(
                 _surfaceNumTipSectionNodes) {
+
+    mapperType = EMPIRE_CurveSurfaceMapper;
+
     /*
      * Coordinate systems:
      *   O --- global
@@ -49,14 +52,10 @@ CurveSurfaceMapper::CurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type _type, int
     // sort surface nodes according to x in Q system
     sortedPosToUnsortedPos = new int[surfaceNumNodes];
 
-    cout << "Andreas started debugging" << endl;
-    
     multimap<double, int> *mapCoorX2Pos = new multimap<double, int>; // sort by x coordinate
     for (int i = 0; i < surfaceNumNodes; i++) {
         mapCoorX2Pos->insert(pair<double, int>(surfaceNodeCoorsInQ[i * 3 + 0], i));
     }
-    
-    cout << "Andreas ended debugging" << endl;
 
     int count = 0;
     for (multimap<double, int>::iterator it = mapCoorX2Pos->begin(); it != mapCoorX2Pos->end();
@@ -381,6 +380,10 @@ CurveSurfaceMapper::~CurveSurfaceMapper() {
     } else {
         assert(false);
     }
+}
+
+void CurveSurfaceMapper::buildCouplingMatrices(){
+    // do nothing because the constructor constructs the matrices already
 }
 
 void CurveSurfaceMapper::consistentMapping(const double *curveDispRot, double *surfaceDisp) {

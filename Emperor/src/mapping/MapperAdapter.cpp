@@ -83,6 +83,8 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
     mapperImpl = new MortarMapper(a->numNodes, a->numElems, a->numNodesPerElem, a->nodes,
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems, oppositeSurfaceNormal, dual, enforceConsistency);
+    MortarMapper* mapper = dynamic_cast<MortarMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
@@ -107,7 +109,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
         ERROR_OUT() << "Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
         exit(-1);
     }
-    IGAMortarMapper* mapper = static_cast<IGAMortarMapper*>(mapperImpl);
+    IGAMortarMapper* mapper = dynamic_cast<IGAMortarMapper*>(mapperImpl);
     mapper->setParametersProjection(_maxProjectionDistance, _numRefinementForIntialGuess,
             _maxDistanceForProjectedPointsOnDifferentPatches);
     mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt, _newtonRaphsonTol);
@@ -137,7 +139,7 @@ void MapperAdapter::initIGABarycentricMapper(double _maxProjectionDistance, int 
         ERROR_OUT() << "Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
         exit(-1);
     }
-    IGABarycentricMapper* mapper = static_cast<IGABarycentricMapper*>(mapperImpl);
+    IGABarycentricMapper* mapper = dynamic_cast<IGABarycentricMapper*>(mapperImpl);
     mapper->setParametersProjection(_maxProjectionDistance, _numRefinementForIntialGuess,
             _maxDistanceForProjectedPointsOnDifferentPatches);
     mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt, _newtonRaphsonTol);
@@ -153,6 +155,8 @@ void MapperAdapter::initNearestNeighborMapper() {
     assert(mapperImpl == NULL);
 
     mapperImpl = new NearestNeighborMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
+    NearestNeighborMapper* mapper = dynamic_cast<NearestNeighborMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initBarycentricInterpolationMapper() {
@@ -164,6 +168,8 @@ void MapperAdapter::initBarycentricInterpolationMapper() {
     assert(mapperImpl == NULL);
 
     mapperImpl = new BarycentricInterpolationMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
+    BarycentricInterpolationMapper* mapper = dynamic_cast<BarycentricInterpolationMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initNearestElementMapper() {
@@ -178,6 +184,8 @@ void MapperAdapter::initNearestElementMapper() {
     mapperImpl = new NearestElementMapper(a->numNodes, a->numElems, a->numNodesPerElem, a->nodes,
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems);
+    NearestElementMapper* mapper = dynamic_cast<NearestElementMapper*>(mapperImpl);
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) {

@@ -50,6 +50,14 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~BarycentricInterpolationMapper();
+
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \param[in] mapperName name of the mapper
+     * \author Altug Emiroglu
+     ***********/
+    void buildCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions)
      * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)

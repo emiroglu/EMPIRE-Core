@@ -269,7 +269,7 @@ std::vector<std::pair<double,double> > ClipperAdapter::clip(const std::vector<st
 		clip<<IntPoint((cInt)(_nodesClipper[p].first*factor),(cInt)(_nodesClipper[p].second*factor));
 	}
 
-	assert(clipper.AddPath(subj, ptSubject, true)==true);
+    assert(clipper.AddPath(subj, ptSubject, true)==true);
 	assert(clipper.AddPath(clip, ptClip, true)==true);
 	assert(clipper.Execute(operation, solution, pftNonZero, pftNonZero)==true);
 

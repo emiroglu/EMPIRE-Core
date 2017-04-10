@@ -58,6 +58,8 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     else
         meshFE = _meshFE->triangulate();
 
+    mapperType = EMPIRE_IGAMortarMapper;
+
     projectedCoords.resize(meshFE->numNodes);
     projectedPolygons.resize(meshFE->numElems);
     triangulatedProjectedPolygons.resize(meshFE->numElems);
@@ -333,7 +335,7 @@ void IGAMortarMapper::projectPointsToSurface() {
                 if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
                     if(!initialGuessComputed) {
                         computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
-            			initialGuessComputed = true;
+                        initialGuessComputed = true;
                     }
             		bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
                     isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
@@ -584,7 +586,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
 			// Stores points of the polygon clipped by the nurbs patch
 			Polygon2D polygonUV;
 			buildBoundaryParametricElement(elemIndex, numNodesElementFE, patchIndex, polygonUV);
-			ClipperAdapter::cleanPolygon(polygonUV);
+            ClipperAdapter::cleanPolygon(polygonUV);
 			bool isIntegrated = computeLocalCouplingMatrix(elemIndex, patchIndex, polygonUV);
 			if(isIntegrated) {
 				elementIntegrated.insert(elemIndex);
@@ -1048,7 +1050,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 		if(isNodeInsidePatch) {
 			u = projectedCoords[nodeIndex][patchIndex][0];
 			v = projectedCoords[nodeIndex][patchIndex][1];
-			polygonUV.push_back(make_pair(u,v));
+            polygonUV.push_back(make_pair(u,v));
 			continue;
 		}
 		/// Node outside and both neighbors inside
@@ -1057,25 +1059,26 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
 			u = u0In;
 			v = v0In;
-			dis = projectionProperties.maxProjectionDistance;
+            dis = projectionProperties.maxProjectionDistance;
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 			double u0=u,v0=v,div0=div;
 			double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
 			double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
 			u = u2In;
 			v = v2In;
-			dis = projectionProperties.maxProjectionDistance;
+            dis = projectionProperties.maxProjectionDistance;
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 			double u2=u,v2=v,div2=div;
-			/// If two valid line parameter found
-			if(div0 >= toleranceRatio && div2 >= toleranceRatio) {
+            double denominator = (u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2);
+            /// If two valid line parameter found and the denominator is valid
+            if(div0 >= toleranceRatio && div2 >= toleranceRatio && fabs(denominator) > toleranceRatio) {
 				// Compute intersection of the two lines
 				// See http://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
-				u = ((u0In*v0-v0In*u0)*(u2In-u2)-(u0In-u0)*(u2In*v2-v2In*u2))/((u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2));
-				v = ((u0In*v0-v0In*u0)*(v2In-v2)-(v0In-v0)*(u2In*v2-v2In*u2))/((u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2));
-				// Store the point
-				polygonUV.push_back(make_pair(u,v));
-				continue;
+                    u = ((u0In*v0-v0In*u0)*(u2In-u2)-(u0In-u0)*(u2In*v2-v2In*u2))/denominator;
+                    v = ((u0In*v0-v0In*u0)*(v2In-v2)-(v0In-v0)*(u2In*v2-v2In*u2))/denominator;
+                    // Store the point
+                    polygonUV.push_back(make_pair(u,v));
+                continue;
 			// If only first line parameter valid
 			} else if(div0 >= toleranceRatio) {
 				/// Save data from first projection
@@ -1103,7 +1106,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			u = uIn;
 			v = vIn;
 			dis = projectionProperties.maxProjectionDistance;
-			// Project on boundary
+            // Project on boundary
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
 		}
 		/// Node outside and previous neighbor outside and next neighbor inside
@@ -1114,7 +1117,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 			u = uIn;
 			v = vIn;
 			dis = projectionProperties.maxProjectionDistance;
-			// Project on boundary
+            // Project on boundary
 			isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 		}
 		/// Node outside and both neighbor outside  or no valid line parameter div computed before
@@ -1128,7 +1131,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
 				vIn = projectedCoords[*it][patchIndex][1];
 				u = uIn;
 				v = vIn;
-				dis = projectionProperties.maxProjectionDistance;
+                dis = projectionProperties.maxProjectionDistance;
 				isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
 			}
 		}
@@ -1136,7 +1139,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
         if(div >= toleranceRatio) {
         	u = uIn + (u-uIn)/div;
         	v = vIn + (v-vIn)/div;
-			polygonUV.push_back(make_pair(u,v));
+            polygonUV.push_back(make_pair(u,v));
         }
         /// Warning/Error output
 		if(!isProjectedOnPatchBoundary) {
@@ -1225,7 +1228,7 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
 			for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
 					triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
 				/// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
-				ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-8);
+                ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-8);
 				if(triangulatedPolygon->size()<3)
 					continue;
 				triangulatedProjectedPolygons[_elemIndex][_patchIndex].push_back(*triangulatedPolygon);
@@ -1250,7 +1253,7 @@ void IGAMortarMapper::clipByPatch(const IGAPatchSurface* _thePatch, Polygon2D& _
 	knotSpanWindow[1]=make_pair(u1,v0);
 	knotSpanWindow[2]=make_pair(u1,v1);
 	knotSpanWindow[3]=make_pair(u0,v1);
-	ClipperAdapter c;
+    ClipperAdapter c;
 	_polygonUV = c.clip(_polygonUV,knotSpanWindow);
 }
 
@@ -1263,8 +1266,8 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 	}
 	// Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
 	c.setFilling(ClipperAdapter::POSITIVE, 0);
-	c.addPathSubject(_polygonUV);
-	c.clip();
+    c.addPathSubject(_polygonUV);
+    c.clip();
 	c.getSolution(_listPolygonUV);
 }
 
@@ -1298,7 +1301,8 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 					knotSpanWindow[2]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
 					knotSpanWindow[3]=make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
 					/// WARNING design. Here we assume to get only a single output polygon from the clipping !
-					Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
+                    Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
+
 					/// Store polygon and its knot span for integration
 					_listPolygon.push_back(solution);
 					_listSpan.push_back(make_pair(spanU,spanV));

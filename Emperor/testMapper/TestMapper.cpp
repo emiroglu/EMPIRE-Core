@@ -353,15 +353,19 @@ void TestMapper::doMapping() {
             mapper = new MortarMapper(numNodesA, numElemsA, numNodesPerElemA, nodeCoorsA, nodeIDsA,
                     elemTableA, numNodesB, numElemsB, numNodesPerElemB, nodeCoorsB, nodeIDsB,
                     elemTableB, oppositeSurfaceNormal, dual, enforceConsistency);
+            mapper->buildCouplingMatrices();
         } else if (settingMappers[i].type == "nearestNeighborMapper") {
             mapper = new NearestNeighborMapper(numNodesA, nodeCoorsA, numNodesB, nodeCoorsB);
+            mapper->buildCouplingMatrices();
         } else if (settingMappers[i].type == "barycentricInterpolationMapper") {
             mapper = new BarycentricInterpolationMapper(numNodesA, nodeCoorsA, numNodesB,
                     nodeCoorsB);
+            mapper->buildCouplingMatrices();
         } else if (settingMappers[i].type == "nearestElementMapper") {
             mapper = new NearestElementMapper(numNodesA, numElemsA, numNodesPerElemA, nodeCoorsA,
                     nodeIDsA, elemTableA, numNodesB, numElemsB, numNodesPerElemB, nodeCoorsB,
                     nodeIDsB, elemTableB);
+            mapper->buildCouplingMatrices();
         } else {
             assert(false);
         }

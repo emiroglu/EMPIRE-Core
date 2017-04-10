@@ -72,6 +72,9 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 _masterNodesPerElem), masterNodeCoors(_masterNodeCoors), masterNodeNumbers(
                 _masterNodeNumbers), masterElemTable(_masterElemTable), oppositeSurfaceNormal(
                 _oppositeSurfaceNormal), dual(_dual), toEnforceConsistency(_toEnforceConsistency) {
+
+    mapperType = EMPIRE_MortarMapper;
+
     // a could-be NULL pointer must be initialized to NULL, otherwise there could be segmentation fault when delete it
     C_BB_A_DUAL = NULL;
     // check whether the necessary libraries are there
@@ -105,22 +108,23 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
     initTables();
     initANNTree();
 
+}
 
-
+void MortarMapper::buildCouplingMatrices(){
 
     // 2. compute C_BB
     computeC_BB();
 //     if (!dual) {
-//     	C_BB->printFullToFile("MortarMapper_Cbb.dat");
+//        C_BB->printFullToFile("MortarMapper_Cbb.dat");
 //     } else {
-//     	MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
+//        MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
 //     }
     // 3. compute C_BA
     computeC_BA();
 //     if (!dual) {
-//     	C_BA->printFullToFile("MortarMapper_Cba.dat");
+//        C_BA->printFullToFile("MortarMapper_Cba.dat");
 //     } else {
-//     	C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
+//        C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
 //     }
 
     deleteANNTree();
@@ -133,9 +137,9 @@ MortarMapper::~MortarMapper() {
     delete[] C_BB_A_DUAL;
 
     if(!dual){
-    	delete C_BA;
+        delete C_BA;
     }else{
-    	delete C_BA_DUAL;
+        delete C_BA_DUAL;
     }
 
 #ifdef ANN

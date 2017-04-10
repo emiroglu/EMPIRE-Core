@@ -132,11 +132,11 @@ bool BSplineBasis1D::clampKnot(double& _uPrm) const {
 int BSplineBasis1D::findKnotSpan(double _uPrm) const {
     // Check input
 	double uPrm = _uPrm;
-	if(!clampKnot(_uPrm)) {
-		stringstream sstream;
-		sstream << "Given parameter "<<uPrm<<" out of knot bounds ["<<getFirstKnot()<<", "<<getLastKnot()<<"]"<<endl;
-		WARNING_BLOCK_OUT("BSplineBasis1D","findKnotSpan",sstream.str());
-	}
+    if(!clampKnot(_uPrm)) {
+        stringstream sstream;
+        sstream << "Given parameter "<<uPrm<<" out of knot bounds ["<<getFirstKnot()<<", "<<getLastKnot()<<"]"<<endl;
+        WARNING_BLOCK_OUT("BSplineBasis1D","findKnotSpan",sstream.str());
+    }
 
     // Compute the number of basis functions
     int n = computeNoBasisFunctions();
@@ -144,7 +144,6 @@ int BSplineBasis1D::findKnotSpan(double _uPrm) const {
     // Special case, for the last knot
     if (_uPrm == KnotVector[n + 1])
         return n - 1;
-
     // Do binary search
     int low = PDegree;
     int high = n + 1;
