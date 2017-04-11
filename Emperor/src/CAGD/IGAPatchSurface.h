@@ -113,6 +113,10 @@ public:
     void addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                       int _uNoControlPoints, double* _controlPointNet);
 
+    /***********************************************************************************************
+     * \brief Linearize all the trimming loops and curves of the given mesh and patch
+     * \author Altug Emiroglu
+     ***********/
     void linearizeTrimming(){Trimming.linearizeLoops();};
 
     /// Basis related functions

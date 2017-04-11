@@ -335,11 +335,10 @@ void IGAMortarMapper::projectPointsToSurface() {
                 if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
                     if(!initialGuessComputed) {
                         computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
-                        initialGuessComputed = true;
                     }
             		bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
                     isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
-            	}
+                }
             }
         }
     }
@@ -398,6 +397,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 }
 
 void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, const int _elemIndex, const int _nodeIndex, double& _u, double& _v) {
+
     IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchIndex);
 	/// 1iii.1. Initialize the flag to false and the node id to zero
     bool isNodeInsideElementProjected = false;
@@ -432,6 +432,7 @@ void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, co
 }
 
 bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+
     IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
     /// Get the Cartesian coordinates of the node in the FE side
 	double P[3], projectedP[3];
@@ -1820,7 +1821,7 @@ void IGAMortarMapper::writeCartesianProjectedPolygon(const string _filename, std
     		for(Polygon2D::iterator itPolygon=itListPolygon->begin(); itPolygon!=itListPolygon->end(); itPolygon++) {
         		double local[2], global[3];
         		local[0] = itPolygon->first;
-        		local[1] = itPolygon->second;
+                local[1] = itPolygon->second;
         		thePatch->computeCartesianCoordinates(global,local);
         		stringstream pointStream;
         		pointStream << global[0];

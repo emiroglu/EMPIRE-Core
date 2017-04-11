@@ -195,6 +195,7 @@ void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, d
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
         int _uKnotSpanIndex, double _vPrm, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  The coordinates of the point are assumed on the 3D space that is _cartesianCoordinates = [X Y Z]
@@ -251,6 +252,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFunctions, int _uKnotSpanIndex, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -302,6 +304,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localCoordinates) const {
+
     int _uKnotSpanIndex = IGABasis->getUBSplineBasis1D()->findKnotSpan(_localCoordinates[0]);
     int _vKnotSpanIndex = IGABasis->getVBSplineBasis1D()->findKnotSpan(_localCoordinates[1]);
     IGAPatchSurface::computeCartesianCoordinates(_cartesianCoordinates, _localCoordinates[0],
@@ -311,6 +314,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFctsAndDerivs, int _derivDegree, int _uKnotSpanIndex,
         int _vKnotSpanIndex) const {
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.

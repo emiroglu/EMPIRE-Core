@@ -58,6 +58,7 @@ IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVe
     IGAControlPoint **cpNet;
     cpNet = new IGAControlPoint*[numCPs];
 
+    std::cout << " " << std::endl;
     for (int i = 0; i < numCPs; i++) {
         if (_dofIndexNet[i] < numNodes && _dofIndexNet[i] >= 0)
             cpNet[i] = new IGAControlPoint(_dofIndexNet[i], &_controlPointNet[i * 4]);
