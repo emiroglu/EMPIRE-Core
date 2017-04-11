@@ -335,6 +335,7 @@ void IGAMortarMapper::projectPointsToSurface() {
                 if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
                     if(!initialGuessComputed) {
                         computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
+                        initialGuessComputed = true;
                     }
             		bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
                     isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
