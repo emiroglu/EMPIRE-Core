@@ -16,7 +16,8 @@ LIBS      = $(EMPIRE_API_LIBSO_ON_MACHINE)
 
 
 # LINK MATLIB INTERFACE LIBRARIES
-MATLIB_HOME = /opt/MATLAB/R2012b
+@echo "Set MATLIB_HOME in the include file to your MATLAB installation"
+MATLIB_HOME = $(HOME)/software/matlab/
 MATLIB_ARC = glnxa64
 INCLUDES += -I$(MATLIB_HOME)/extern/include
 #RPATH = -Wl,-rpath-link,$(MATLIB_HOME)/bin/glnxa64
