@@ -286,7 +286,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
     serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allSlaveIDs);
     serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumElemsPerBRep);
     serverComm->receiveFromClientBlocking<int>(name, totalNumBRePs, allNumGPsPerElem);
-
+	
     double* allGP_master = new double[2*totalNumGP];
     double* allGP_slave = new double[2*totalNumGP];
     double* allGP_weight = new double[totalNumGP];

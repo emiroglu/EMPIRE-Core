@@ -51,6 +51,7 @@ class IGAMesh: public AbstractMesh {
 protected:
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
+// 	std::map<int,IGAPatchSurface*> surfacePatches;
 
     /// Vector of all clampedDofs
     std::vector<int> clampedDofs;

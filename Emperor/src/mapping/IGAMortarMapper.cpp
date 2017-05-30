@@ -197,7 +197,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     couplingMatrices->setIsIGAPatchCoupling(useIGAPatchCouplingPenalties , isClampedDofs);
 
-    if(!(isMappingIGA2FEM) && useIGAPatchCouplingPenalties) {
+    if (useIGAPatchCouplingPenalties) {
         INFO_OUT()<<"Compute Penalty Patch Coupling"<<endl;
         computeIGAPatchCouplingMatrix();
     }
@@ -597,6 +597,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
     time(&timeEnd);
     INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds." << endl;
     if(elementIntegrated.size() != meshFE->numElems) {
+		cout << "Hello 2" << endl;
         WARNING_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
     	for(int i = 0; i < meshFE->numElems; i++) {
     		if(!elementIntegrated.count(i))
@@ -610,21 +611,23 @@ void IGAMortarMapper::computeIGAPatchCouplingMatrix() {
     double alphaPrim = IgaPatchCoupling.dispPenalty;
     double alphaSec = IgaPatchCoupling.rotPenalty;
     INFO_OUT()<<"Manual patch coupling penalties: alphaPrim = "<<alphaPrim<<" alphaSec = "<<alphaSec<<std::endl;
-
+	
     // loop through all patches
     for(int patchCounter = 0 ; patchCounter < meshIGA->getIGAPatchCouplingData()->getNumPatches() ; patchCounter++) {
-
+		
         // get master patch and polynomial degrees
         IGAPatchSurface* masterPatch = meshIGA->getSurfacePatch(patchCounter);
-
+		
         // loop through all BReps where current patch is master
         int* numOfBRepsPerPatch = meshIGA->getIGAPatchCouplingData()->getNumBrepsPerPatch();
+		
         for(int BRepCounter = 0 ; BRepCounter < numOfBRepsPerPatch[patchCounter] ; BRepCounter++) {
             int slaveID = meshIGA->getIGAPatchCouplingData()->getSlaveID(patchCounter, BRepCounter);
-
+			
             // get slave patch and polynomial degrees
             IGAPatchSurface* slavePatch = meshIGA->getSurfacePatch(slaveID);
-
+			
+			
             // function here to do the penalty coupling for one brep
             computeIGAPatchCouplingOfBRep(masterPatch, slavePatch, patchCounter, BRepCounter, alphaPrim, alphaSec);
         }
