@@ -51,6 +51,7 @@ class IGAMesh: public AbstractMesh {
 protected:
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
+// 	std::map<int,IGAPatchSurface*> surfacePatches;
 
     /// Vector of all clampedDofs
     std::vector<int> clampedDofs;
@@ -59,7 +60,7 @@ protected:
     int clampedDirections;
 
     /// Object which has all the patch coupling data
-    IGAPatchCouplingCaratData* couplingData = NULL;
+    IGAPatchCouplingCaratData* couplingData;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;

@@ -38,6 +38,9 @@ namespace EMPIRE {
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
         AbstractMesh(_name), numNodes(_numNodes) {
     type = EMPIRE_Mesh_IGAMesh;
+	
+	// Initialize the coupling data
+	couplingData = NULL;
 }
 
 IGAMesh::~IGAMesh() {
