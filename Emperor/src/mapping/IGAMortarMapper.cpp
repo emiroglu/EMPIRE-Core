@@ -170,8 +170,10 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Compute CNN and CNR
     computeCouplingMatrices();
-
-    //writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+	
+	if(Message::isDebugMode()) {
+		writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+	}
     streamGP.clear();
 
     // Write polygon net of projected elements to a vtk file
@@ -599,7 +601,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
     time(&timeEnd);
     INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds." << endl;
     if(elementIntegrated.size() != meshFE->numElems) {
-		cout << "Hello 2" << endl;
         WARNING_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
     	for(int i = 0; i < meshFE->numElems; i++) {
     		if(!elementIntegrated.count(i))
