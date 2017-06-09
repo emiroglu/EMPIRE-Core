@@ -152,6 +152,7 @@ void EMPIRE_API_sendIGAMesh(char *_name, int _numPatches, int _numNodes);
  * \author Fabien Pean
  ***********/
 void EMPIRE_API_sendIGATrimmingInfo(int _isTrimmed, int _numLoops);
+
 /***********************************************************************************************
  * \brief Send the IGA trimming information about the loop to the server
  * \param[in] _inner whether loop is outter boundary loop or inner
@@ -159,6 +160,7 @@ void EMPIRE_API_sendIGATrimmingInfo(int _isTrimmed, int _numLoops);
  * \author Fabien Pean
  ***********/
 void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves);
+
 /***********************************************************************************************
  * \brief Send a IGA trimming curve to the server
  * \param[in] direction The direction of the curve if is following standard or not
@@ -171,6 +173,44 @@ void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves);
  ***********/
 void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
         double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
+
+/***********************************************************************************************
+ * \brief Send the coupling information of the current connection to the server
+ * \param[in] _numConnections Number of connections between patches in the multipatch geometry
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ************/
+void EMPIRE_API_sendIGANumPatchConnections(int _numConnections);
+
+/***********************************************************************************************
+ * \brief Send the coupling information of the current connection to the server
+ * \param[in] _masterPatchCtr The index of the master patch in the EMPIRE data structure
+ * \param[in] _masterPatchBLCtr The index of the master patch boundary loop in the EMPIRE data structure
+ * \param[in] _masterPatchBLTrCurveCtr The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \param[in] _slavePatchCtr The index of the slave patch in the EMPIRE data structure
+ * \param[in] _slavePatchBLCtr The index of the slave patch boundary loop in the EMPIRE data structure
+ * \param[in] _slavePatchBLTrCurveCtr The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \param[in] _isGPprovided Flag if the GP data is provided
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ***********/
+void EMPIRE_API_sendIGAPatchConnectionInfo(int _masterPatchCtr, int _masterPatchBLCtr, int _masterPatchBLTrCurveCtr,
+                                           int _slavePatchCtr, int _slavePatchBLCtr, int _slavePatchBLTrCurveCtr,
+                                           int _isGPProvided);
+
+/***********************************************************************************************
+ * \brief Send the coupling information of the current connection to the server
+ * \param[in] _trCurveNumGP The total number of GPs on the trimming curve
+ * \param[in] _trCurveMasterGPs The parametric coordinates of the GPs on the master trimming curve in the master patch parameter space
+ * \param[in] _trCurveSlaveGPs The parametric coordinates of the GPs on the slave trimming curve in the slave patch parameter space
+ * \param[in] _trCurveGPWeights The GP weights
+ * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch (third coordinate is 0 or unused)
+ * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch (third coordinate is 0 or unused)
+ * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ***********/
+void EMPIRE_API_sendIGAPatchConnectionData(int _trCurveNumGP,
+                                           double* _trCurveMasterGPs, double* _trCurveSlaveGPs, double* _trCurveGPWeights,
+                                           double* _trCurveMasterGPTangents, double* _trCurveSlaveGPTangents,
+                                           double* _trCurveGPJacobianProducts);
 
 /***********************************************************************************************
  * \brief Send IGAPatchCoupling to the server
@@ -209,8 +249,8 @@ void EMPIRE_API_sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, 
  * \param[in] sizeOfArray size of the array (data field)
  * \param[in] dataField the data field to be sent
  ***********/
-
 void EMPIRE_API_sendDataField(char *name, int sizeOfArray, double *dataField);
+
 /***********************************************************************************************
  * \brief Receive data field from the server
  * \param[in] name name of the field
@@ -218,6 +258,7 @@ void EMPIRE_API_sendDataField(char *name, int sizeOfArray, double *dataField);
  * \param[out] dataField the data field to be received
  ***********/
 void EMPIRE_API_recvDataField(char *name, int sizeOfArray, double *dataField);
+
 /***********************************************************************************************
  * \brief Send signal to the server
  * \param[in] name name of the signal
@@ -225,6 +266,7 @@ void EMPIRE_API_recvDataField(char *name, int sizeOfArray, double *dataField);
  * \param[in] signal the signal
  ***********/
 void EMPIRE_API_sendSignal_double(char *name, int sizeOfArray, double *signal);
+
 /***********************************************************************************************
  * \brief Receive signal from the server
  * \param[in] name name of the signal
@@ -232,16 +274,19 @@ void EMPIRE_API_sendSignal_double(char *name, int sizeOfArray, double *signal);
  * \param[in] signal the signal
  ***********/
 void EMPIRE_API_recvSignal_double(char *name, int sizeOfArray, double *signal);
+
 /***********************************************************************************************
  * \brief Receive the convergence signal of an loop
  * \return 1 means convergence, 0 means non-convergence
  ***********/
 int EMPIRE_API_recvConvergenceSignal();
+
 /***********************************************************************************************
  * \brief Send the convergence signal of an loop
  * \param[in] signal 1 means convergence, 0 means non-convergence
  ***********/
 void EMPIRE_API_sendConvergenceSignal(int signal);
+
 /***********************************************************************************************
  * \brief A simple debug function showing the content of the data field
  * \param[in] name name of the data field
@@ -249,6 +294,7 @@ void EMPIRE_API_sendConvergenceSignal(int signal);
  * \param[in] dataField the data field to be printed
  ***********/
 void EMPIRE_API_printDataField(char *name, int sizeOfArray, double *dataField);
+
 /***********************************************************************************************
  * \brief Performs disconnection and finalization operations to the Emperor
  ***********/

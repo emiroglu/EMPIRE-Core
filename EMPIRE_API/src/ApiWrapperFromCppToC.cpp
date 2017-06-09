@@ -92,6 +92,28 @@ void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnot
             _cpNet);
 }
 
+void EMPIRE_API_sendIGANumPatchConnections(int _numConnections){
+    empire->sendIGANumPatchConnections(_numConnections);
+}
+
+void EMPIRE_API_sendIGAPatchConnectionInfo(int _masterPatchCtr, int _masterPatchBLCtr, int _masterPatchBLTrCurveCtr,
+                                           int _slavePatchCtr, int _slavePatchBLCtr, int _slavePatchBLTrCurveCtr,
+                                           int _isGPProvided) {
+    empire->sendIGAPatchConnectionInfo(_masterPatchCtr, _masterPatchBLCtr, _masterPatchBLTrCurveCtr,
+                                       _slavePatchCtr, _slavePatchBLCtr, _slavePatchBLTrCurveCtr,
+                                       _isGPProvided);
+}
+
+void EMPIRE_API_sendIGAPatchConnectionData(int _trCurveNumGP,
+                                           double *_trCurveMasterGPs, double *_trCurveSlaveGPs, double *_trCurveGPWeights,
+                                           double *_trCurveMasterGPTangents, double *_trCurveSlaveGPTangents,
+                                           double *_trCurveGPJacobianProducts) {
+    empire->sendIGAPatchConnectionData(_trCurveNumGP,
+                                       _trCurveMasterGPs, _trCurveSlaveGPs, _trCurveGPWeights,
+                                       _trCurveMasterGPTangents, _trCurveSlaveGPTangents,
+                                       _trCurveGPJacobianProducts);
+}
+
 void EMPIRE_API_sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
         int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
         double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,

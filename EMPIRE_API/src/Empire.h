@@ -89,6 +89,7 @@ public:
      ***********/
     void sendMesh(int numNodes, int numElems, double *nodes, int *nodeIDs, int *numNodesPerElem,
             int *elems);
+
     /***********************************************************************************************
      * \brief Send the section mesh to the server (for mapping with beam elements)
      * \param[in] name name of the mesh
@@ -109,6 +110,7 @@ public:
             int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
             int numNormalSectionNodes, int numTipSectionNodes, double *rotationGlobal2Root,
             double *translationGlobal2Root);
+
     /***********************************************************************************************
      * \brief Receive mesh from the server
      * \param[in] numNodes number of nodes
@@ -121,6 +123,7 @@ public:
      ***********/
     void recvMesh(int *numNodes, int *numElems, double **nodes, int **nodeIDs,
             int **numNodesPerElem, int **elems);
+
     /***********************************************************************************************
      * \brief Send the IGA patch to the server
      * \param[in] _pDegree The polynomial degree of the IGA 2D patch in the u-direction
@@ -138,6 +141,7 @@ public:
     void sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
             int _vNumKnots, double* _vKnotVector, int _uNumControlPoints, int _vNumControlPoints,
             double* _cpNet, int* _nodeNet);
+
     /***********************************************************************************************
      * \brief Send the IGA mesh to the server
      * \param[in] _numPatches The number of the patches out of which the IGA mesh consists
@@ -145,6 +149,7 @@ public:
      * \author Chenshen Wu
      ***********/
     void sendIGAMesh(int _numPatches, int _numNodes);
+
     /***********************************************************************************************
      * \brief Send the IGA trimming information to the server
      * \param[in] _isTrimmed Whether the current considered patch is trimmed
@@ -152,6 +157,7 @@ public:
      * \author Fabien Pean
      ***********/
     void sendIGATrimmingInfo(int _isTrimmed, int _numLoops);
+
     /***********************************************************************************************
      * \brief Send the IGA trimming information about the loop to the server
      * \param[in] _inner whether loop is outter boundary loop or inner
@@ -159,8 +165,9 @@ public:
      * \author Fabien Pean
      ***********/
     void sendIGATrimmingLoopInfo(int _inner, int _numCurves);
+
     /***********************************************************************************************
-     * \brief Send a IGA trimming curve to the server
+     * \brief Send the IGA trimming curve to the server
      * \param[in] direction The direction of the curve if is following standard or not
      * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
      * \param[in] _uNumKnots The number of knots for the knot vector in the u-direction
@@ -171,6 +178,44 @@ public:
      ***********/
     void sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector,
             int _uNumControlPoints, double* _cpNet);
+
+    /***********************************************************************************************
+     * \brief Send the coupling information of the current connection to the server
+     * \param[in] _numConnections Number of connections between patches in the multipatch geometry
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ************/
+    void sendIGANumPatchConnections(int _numConnections);
+
+    /***********************************************************************************************
+     * \brief Send the coupling information of the current connection to the server
+     * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
+     * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
+     * \param[in] _masterPatchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
+     * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _isGPprovided Flag if the GP data is provided
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void sendIGAPatchConnectionInfo(int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                                    int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
+                                    int _isGPProvided);
+
+    /***********************************************************************************************
+     * \brief Send the coupling information of the current connection to the server
+     * \param[in] _trCurveNumGP The total number of GPs on the trimming curve
+     * \param[in] _trCurveMasterGPs The parametric coordinates of the GPs on the master trimming curve in the master patch parameter space
+     * \param[in] _trCurveSlaveGPs The parametric coordinates of the GPs on the slave trimming curve in the slave patch parameter space
+     * \param[in] _trCurveGPWeights The GP weights
+     * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch (third coordinate is 0 or unused)
+     * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch (third coordinate is 0 or unused)
+     * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void sendIGAPatchConnectionData(int _trCurveNumGP,
+                                    double* _trCurveMasterGPs, double* _trCurveSlaveGPs, double* _trCurveGPWeights,
+                                    double* _trCurveMasterGPTangents, double* _trCurveSlaveGPTangents,
+                                    double* _trCurveGPJacobianProducts);
 
     /***********************************************************************************************
      * \brief Send IGAPatchCoupling to the server
