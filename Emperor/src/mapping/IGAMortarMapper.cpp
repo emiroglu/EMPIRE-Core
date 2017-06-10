@@ -768,17 +768,20 @@ void IGAMortarMapper::computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch
               for(int i = 0; i < noLocalBasisFunctions_m; i++) {
                   for(int j = 0; j < noLocalBasisFunctions_m; j++) {
                   // this will be summed up for all gausspoints on the element and then added to C_NN_expanded
-                  cPenaltyDisp_mm[count++] += B_disp_m[i] * B_disp_m[j]*elementLengthOnGP;
+                  cPenaltyDisp_mm[count] += B_disp_m[i] * B_disp_m[j]*elementLengthOnGP;
+                  count++;
                   }
                   for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                      cPenaltyDisp_ms[count_ms++] -= B_disp_m[i] * B_disp_s[j]*elementLengthOnGP;
+                      cPenaltyDisp_ms[count_ms] -= B_disp_m[i] * B_disp_s[j]*elementLengthOnGP;
+                      count_ms++;
                   }
               }
 
               count = 0;
               for(int i = 0; i < noLocalBasisFunctions_s; i++) {
                   for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                      cPenaltyDisp_ss[count++] += B_disp_s[i] * B_disp_s[j]*elementLengthOnGP;
+                      cPenaltyDisp_ss[count] += B_disp_s[i] * B_disp_s[j]*elementLengthOnGP;
+                      count++;
                   }
               }
 
@@ -814,7 +817,7 @@ void IGAMortarMapper::computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch
                       }
                       cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j] += tmpSum*elementLengthOnGP;
                   }
-              }             
+              }
 
               delete[] tang_m;
               delete[] tang_s;
