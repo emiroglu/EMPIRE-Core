@@ -212,12 +212,31 @@ public:
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of the surface normal vector and its first derivatives at a given pair of surface parameters given the surface base vectors
-     * \param[in]  _baseVctU The Cartesian components of the base vector along u parametric coordinates
-     * \param[in]  _baseVctV The Cartesian components of the base vector along v parametric coordinates
-     * \param[out] _surfNormalVctAndDervs The surface normal vector and its derivatives
+     * \param[in/out] _surfNormalVctAndDervs The surface normal vector and its derivatives, should be static array of size 9
+     * \param[in] _baseVctsAndDerivs The base vectors and their first order parametric derivatives
+     * \param[in] _derivDegreeBaseVec The derivative order up to which the base vectors have been computed
      * \author Andreas Apostolatos
      ***********/
-//    void computeSurfaceNormalVectorAndDerivatives(double*, double*, double*);
+    void computeSurfaceNormalVectorAndDerivatives(double*, double*, int);
+
+    /***********************************************************************************************
+     * \brief Returns the coefficients of the covariant metric tensor
+     * \param[in/out] _covariantMetricTensor The coefficients of the covariant metric tensor in an array of constant size 4
+     * \param[in] _baseVctsAndDerivs The base vectors and their first order parametric derivatives
+     * \param[in] _derivDegreeBaseVec The derivative order up to which the base vectors have been computed
+     * \author Andreas Apostolatos
+     ***********/
+    void computeCovariantMetricTensor(double*, double*, int);
+
+    /***********************************************************************************************
+     * \brief Returns the contravariant base vectors of the surface
+     * \param[in/out] _contravariantBaseVcts The Cartesian components of the contravariant base vectors stored in an array of constant size 6
+     * \param[in] _covariantMetricTensor The coefficients of the covariant metric tensor stored in an array of constant sizes 4
+     * \param[in] _baseVctsAndDerivs The base vectors and their first order parametric derivatives
+     * \param[in] _derivDegreeBaseVec The derivative order up to which the base vectors have been computed
+     * \author Andreas Apostolatos
+     ***********/
+    void computeContravariantBaseVectors(double*, double*, double*, int);
 
     /***********************************************************************************************
     * \brief Returns the Surface normals and its 1st derivatives, given the base vectors and their derivatives
@@ -225,7 +244,7 @@ public:
     * \param[in] _baseVectorsAndDerivatives
     * \author Ragnar Björnsson
     ***********/
-    void computeSurfaceNormalAndDerivatives(std::vector<double>&, double*);
+//    void computeSurfaceNormalAndDerivatives(std::vector<double>&, double*);
 
     /***********************************************************************************************
     * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
@@ -233,7 +252,7 @@ public:
     * \param[in] _baseVectors
     * \author Ragnar Björnsson
     ***********/
-    void computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov);
+//    void computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov);
 
     /***********************************************************************************************
     * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
@@ -247,8 +266,8 @@ public:
     * \param[in] tangent at _u, _v
     * \author Ragnar Björnsson
     ***********/
-    void computeCurvatureAtPoint(std::vector<std::vector<double> >& B_rot, double* B_disp, std::vector<double>& normalAndDerivatives,
-            double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* tangent);
+//    void computeCurvatureAtPoint(std::vector<std::vector<double> >& B_rot, double* B_disp, std::vector<double>& normalAndDerivatives,
+//            double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* tangent);
 
     /// Projection related functions
 public:

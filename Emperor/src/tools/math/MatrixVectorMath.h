@@ -120,7 +120,7 @@ void crossProduct(double* _product, double* _v1, double* _v2);
 * \param[in] _vectors has x,y,z of both vectors in order [1x,2x,1y,2y,1z,2z]
 * \author Ragnar Björnsson
 ***********/
-void crossProduct(std::vector<double>& _product , std::vector<double>& _vector1 , std::vector<double>& _vector2);
+//void crossProduct(std::vector<double>& _product , std::vector<double>& _vector1 , std::vector<double>& _vector2);
 
 /***********************************************************************************************
  * \brief Solve a 2x2 linear system by close form formula

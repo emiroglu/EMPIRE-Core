@@ -217,16 +217,16 @@ void crossProduct(double* _product, double* _v1, double* _v2) {
 * \param[in] _v2 The 2nd vector
 * \author Ragnar Björnsson
 ***********/
-void crossProduct(vector<double>& _product , vector<double>& _vector1 , vector<double>& _vector2) {
+//void crossProduct(vector<double>& _product , vector<double>& _vector1 , vector<double>& _vector2) {
 
-    // Compute the cross product using the permutation tensor
-    _product.push_back(_vector1[1] * _vector2[2] - _vector1[2] * _vector2[1]);
-    _product.push_back(_vector1[2] * _vector2[0] - _vector1[0] * _vector2[2]);
-    _product.push_back(_vector1[0] * _vector2[1] - _vector1[1] * _vector2[0]);
+//    // Compute the cross product using the permutation tensor
+//    _product.push_back(_vector1[1] * _vector2[2] - _vector1[2] * _vector2[1]);
+//    _product.push_back(_vector1[2] * _vector2[0] - _vector1[0] * _vector2[2]);
+//    _product.push_back(_vector1[0] * _vector2[1] - _vector1[1] * _vector2[0]);
 
-    // No return value
-    return;
-}
+//    // No return value
+//    return;
+//}
 
 /***********************************************************************************************
  * \brief Solve a 2x2 linear system by close form formula

@@ -632,354 +632,517 @@ void IGAPatchSurface::computeBaseVectorsAndDerivatives(double* _baseVectorsAndDe
     }
 }
 
-//void IGAPatchSurface::computeSurfaceNormalVectorAndDerivatives(double* _baseVctU, double* _baseVctV, double* _surfNormalVctAndDervs){
-//    /*
-//     * Returns the surface normal base vector and its first order parametric derivatives given the surface base vectors. The output array is
-//     * filled up the components of the surface normal base vector and its derivatives as follows:
-//     *
-//     * · The array _surfNormalVctAndDervs = double[9] with
-//     *   _surfNormalVctAndDervs = [surfNormalVct[0] surfNormalVct[1] surfNormalVct[2] …
-//     *                             dSurfNormalVctdU[0] dSurfNormalVctdU[1] dSurfNormalVctdU[2] …
-//     *                             dSurfNormalVctdV[0] dSurfNormalVctdV[1] dSurfNormalVctdV[2]]
-//     */
+void IGAPatchSurface::computeSurfaceNormalVectorAndDerivatives(double* _surfNormalVctAndDervs, double* _baseVctsAndDerivs, int _derivDegreeBaseVec){
+    /*
+     * Returns the surface normal base vector and its first order parametric derivatives given the surface base vectors and
+     * their first order parametric derivatives. The output array is filled up the components of the surface normal base
+     * vector and its derivatives as follows:
+     *
+     * · The array _surfNormalVctAndDervs = double[9] with
+     *   _surfNormalVctAndDervs = [surfNormalVct[0] surfNormalVct[1] surfNormalVct[2] …
+     *                             dSurfNormalVctdU[0] dSurfNormalVctdU[1] dSurfNormalVctdU[2] …
+     *                             dSurfNormalVctdV[0] dSurfNormalVctdV[1] dSurfNormalVctdV[2]]
+     */
 
-//    // Number of Cartesian coodinates
-//    int noCoord = 3;
+    // Initialize auxiliary variables
+    int indexBaseVct;
 
-//    // Compute the not normalized surface normal vector
-//    double* surfNormalVctTilde[3];
+    // Number of Cartesian coodinates
+    int noCoord = 3;
+
+    // Get the base vector along u
+    double baseVctU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 0);
+        baseVctU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the base vector along v
+    double baseVctV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 1);
+        baseVctV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along u with respect to u parametric direction
+    double dBaseVctUdU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 1, 0, i, 0);
+        dBaseVctUdU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along v with respect to u parametric direction
+    double dBaseVctVdU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 1, 0, i, 1);
+        dBaseVctVdU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along u with respect to v parametric direction
+    double dBaseVctUdV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 1, i, 0);
+        dBaseVctUdV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along v with respect to v parametric direction
+    double dBaseVctVdV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 1, i, 1);
+        dBaseVctVdV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Compute the not normalized surface normal vector
+    double surfNormalVctTilde[noCoord];
+    MathLibrary::crossProduct(surfNormalVctTilde, baseVctU, baseVctV);
+
+    // Compute the differential area
+    double dA = MathLibrary::vector2norm(surfNormalVctTilde,noCoord);
+
+    // Compute the surface normal vector
+    for(int i = 0; i < noCoord; i++){
+        _surfNormalVctAndDervs[i] = surfNormalVctTilde[i]/dA;
+    }
+
+    // Compute the derivative of the surface normal vector with respect to the u parametric coordinate
+    double dBaseVctUdUTimesBaseVctV[noCoord];
+    double baseVctUTimesdBaseVctVdU[noCoord];
+    MathLibrary::crossProduct(dBaseVctUdUTimesBaseVctV, dBaseVctUdU, baseVctV);
+    MathLibrary::crossProduct(baseVctUTimesdBaseVctVdU, baseVctU, dBaseVctVdU);
+    // A1TimesA2Komma1 = cross(dGCovariant(:,1),GCovariant(:,2)) + cross(GCovariant(:,1),dGCovariant(:,3));
+    MathLibrary::computeDenseVectorAddition(dBaseVctUdUTimesBaseVctV, baseVctUTimesdBaseVctVdU,1.0,noCoord);
+    // A3TildeDotA1TimesA2Komma1 = A3Tilde'*A1TimesA2Komma1
+    double A3TildeDotA1TimesA2Komma1 = MathLibrary::computeDenseDotProduct(noCoord,surfNormalVctTilde,dBaseVctUdUTimesBaseVctV);
+    // dA3Komma1 = (1/dA)*A1TimesA2Komma1 - (1/dA^3)*(A3Tilde'*A1TimesA2Komma1)*A3Tilde;
+    for(int i = 0; i < noCoord; i++){
+        _surfNormalVctAndDervs[1*noCoord + i] = (1/dA)*dBaseVctUdUTimesBaseVctV[i] - (1/(dA*dA*dA))*A3TildeDotA1TimesA2Komma1*surfNormalVctTilde[i];
+    }
+
+    // Compute the derivative of the surface normal vector with respect to the u parametric coordinate
+    double dBaseVctUdVTimesBaseVctV[noCoord];
+    double baseVctUTimesdBaseVctVdV[noCoord];
+    MathLibrary::crossProduct(dBaseVctUdVTimesBaseVctV, dBaseVctUdV, baseVctV);
+    MathLibrary::crossProduct(baseVctUTimesdBaseVctVdV, baseVctU, dBaseVctVdV);
+    // A1TimesA2Komma2 = cross(dGCovariant(:,3),GCovariant(:,2)) + cross(GCovariant(:,1),dGCovariant(:,2));
+    MathLibrary::computeDenseVectorAddition(dBaseVctUdVTimesBaseVctV, baseVctUTimesdBaseVctVdV,1.0,noCoord);
+    double A3TildeDotA1TimesA2Komma2 = MathLibrary::computeDenseDotProduct(noCoord,surfNormalVctTilde,dBaseVctUdVTimesBaseVctV);
+    // dA3Komma2 = (1/dA)*A1TimesA2Komma2 - (1/dA^3)*(A3Tilde'*A1TimesA2Komma2)*A3Tilde;
+    for(int i = 0; i < noCoord; i++){
+        _surfNormalVctAndDervs[2*noCoord + i] = (1/dA)*dBaseVctUdVTimesBaseVctV[i] - (1/(dA*dA*dA))*A3TildeDotA1TimesA2Komma2*surfNormalVctTilde[i];
+    }
+}
+
+void IGAPatchSurface::computeCovariantMetricTensor(double* _covariantMetricTensor, double* _baseVctsAndDerivs, int _derivDegreeBaseVec){
+    /*
+     * Returns the coefficients of the covariant metric tensor.
+     *
+     * · The array _covariantMetricTensor = double[4] is sorted as
+     *   _surfNormalVctAndDervs = [baseVctU*baseVctU baseVctU*baseVctV baseVctV*baseVctU baseVctV*baseVctV]
+     */
+
+    // Initialize auxiliary variables
+    int indexBaseVct;
+
+    // Number of Cartesian coodinates
+    int noCoord = 3;
+
+    // Get the base vector along u
+    double baseVctU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 0);
+        baseVctU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the base vector along v
+    double baseVctV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 1);
+        baseVctV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Compute the entries of the covariant metric tensor
+    _covariantMetricTensor[0] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,baseVctU,baseVctU);
+    _covariantMetricTensor[1] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,baseVctU,baseVctV);
+    _covariantMetricTensor[2] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,baseVctV,baseVctU);
+    _covariantMetricTensor[3] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,baseVctV,baseVctV);
+}
+
+void IGAPatchSurface::computeContravariantBaseVectors(double* _contravariantBaseVcts, double* _covariantMetricTensor, double* _baseVctsAndDerivs, int _derivDegreeBaseVec) {
+    /*
+     * Returns the Cartesian components of the contravariant base vectors in an array of constant size 6
+     *
+     * · The array _contravariantBaseVcts = double[4] is sorted as
+     *   _contravariantBaseVcts = [baseVctContraU[0] baseVctContraU[1] baseVctContraU[2] baseVctContraV[0] baseVctContraV[1] baseVctContraV[2]]
+     */
+
+    // Initialize flag for the solvability of the linear equation system
+    bool isLinearSystemSolvable;
+
+    // Initialize auxiliary variables
+    int indexBaseVct;
+
+    // Number of Cartesian coodinates
+    int noCoord = 3;
+
+    // Number of parametric coordinates
+    int noParameticCoord = 2;
+
+    // Initialize the components of the base vectors for each Cartesian direction seperately
+    double baseVctComponents[noParameticCoord];
+
+    // Get the base vector along u
+    double baseVctU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 0);
+        baseVctU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the base vector along v
+    double baseVctV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 0, i, 1);
+        baseVctV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Loop over all Cartesian directions
+    for(int i = 0; i < noCoord; i++){
+        // Get the right-hand side of the linear equation system
+        baseVctComponents[0] = baseVctU[i];
+        baseVctComponents[1] = baseVctV[i];
+
+        // Solve for the Cartesian coordinates of the contravariant base vectors
+        isLinearSystemSolvable = EMPIRE::MathLibrary::solve2x2LinearSystem(_covariantMetricTensor, baseVctComponents, EMPIRE::MathLibrary::EPS);
+
+        // Assign the values to the return array
+        _contravariantBaseVcts[i] = baseVctComponents[0];
+        _contravariantBaseVcts[noCoord + i] = baseVctComponents[1];
+    }
+}
+
+//void IGAPatchSurface::computeSurfaceNormalAndDerivatives(std::vector<double>& _normalAndDerivatives, double* _baseVectorsAndDerivatives) {
+
+//    int uDrv=1;
+//    int vDrv=1;
+//    int noCoordinates=3;
+//    int noBaseVct=2;
+
+//    _normalAndDerivatives.resize((noBaseVct+1)*noCoordinates);
+
+//    std::vector<double> baseVectors[noBaseVct];
+//    for(int i = 0 ; i < noBaseVct ; i++)
+//        baseVectors[i].reserve(noCoordinates);
+
+//    std::vector<double> baseVectorDerivs[noBaseVct*noBaseVct];
+//    for(int i = 0 ; i < noBaseVct*noBaseVct ; i++)
+//        baseVectorDerivs[i].reserve(noCoordinates);         // 4 vectors A1,1 A1,2 A2,1 and A2,2
+
+//    // Loop over all the derivatives in v-direction
+//    for (int i = 0; i <= vDrv; i++) {
+//        // Loop over all the derivatives in u-direction
+//        for (int j = 0; j <= uDrv - i; j++) {
+//            // Loop over all the coordinates
+//            for (int coordinate = 0; coordinate < noCoordinates; coordinate++) {
+//                // Loop over all the base vectors
+//                for (int basevectorNum = 0; basevectorNum < noBaseVct; basevectorNum++) {
+//                    int indexBaseVct = indexDerivativeBaseVector(1, j, i, coordinate, basevectorNum);
+//                    if(i==0 && j==0) {
+//                        baseVectors[basevectorNum].push_back(_baseVectorsAndDerivatives[indexBaseVct]);
+//                    }
+//                    else {
+//                        baseVectorDerivs[basevectorNum*noBaseVct+i].push_back(_baseVectorsAndDerivatives[indexBaseVct]);
+//                    }
+//                }
+//            }
+//        }
+//    }
+
+
+//    // compute non-normalized Normal
+//    std::vector<double> normalVector;
+//    normalVector.reserve(noCoordinates);
+
 //    MathLibrary::crossProduct(normalVector,baseVectors[0],baseVectors[1]);
 
-//    // Initialize output array
-//    double* _surfNormalVctAndDervs[9];
+//    // compute length of Normal
+//    double normalVecNorm = 0;
+//    for(int i = 0; i < noCoordinates; i++){
+//        normalVecNorm += normalVector[i]*normalVector[i];
+//    }
+//    normalVecNorm = sqrt(normalVecNorm);
 
+//    for(int i = 0; i < noCoordinates; i++){
+//        _normalAndDerivatives.at(i) = normalVector[i]/normalVecNorm;
+//    }
 
+//    std::vector<double> aTilda3commaR[noBaseVct];           // eq 5.24 Joseph Kiendl Isogeometric page 46
+//    for(int i = 0 ; i < noBaseVct ; i++) {
+//        aTilda3commaR[i].resize(noCoordinates);
+//    }
+
+//    for(int i = 0 ; i < noBaseVct ; i++) {
+
+//        std::vector<double> crossProductResult[noBaseVct];
+//        for(int j = 0 ; j < noBaseVct ; j++)
+//            crossProductResult[j].reserve(noCoordinates);
+
+//        MathLibrary::crossProduct(crossProductResult[0],baseVectorDerivs[0+i], baseVectors[1]);   //crossProductResult[0]=A_1,i x A_2;
+//        MathLibrary::crossProduct(crossProductResult[1],baseVectors[0],baseVectorDerivs[2+i]);   //crossProductResult[1]=A_1 x A_2,i;
+
+//        for(int j = 0 ; j < noCoordinates ; j++)
+//            aTilda3commaR[i].at(j) = crossProductResult[0][j]+crossProductResult[1][j]; // tildaA_3,i = A_1,i x A_2 + A_1 x A_2,i
+//    }
+
+//    double normal_times_normalderivR[noBaseVct];
+//    for(int i = 0 ; i < noBaseVct ; i++) {
+//        normal_times_normalderivR[i]=0.0;
+//        for(int j = 0 ; j < noCoordinates ; j++) {
+//            normal_times_normalderivR[i] +=normalVector[j]*aTilda3commaR[i][j];
+//        }
+//        for(int j = 0 ; j < noCoordinates ; j++) {
+//            _normalAndDerivatives.at((i+1)*noCoordinates + j) = (aTilda3commaR[i][j]/normalVecNorm)
+//                    -(normalVector[j]*normal_times_normalderivR[i])/(normalVecNorm*normalVecNorm*normalVecNorm);
+//        }
+//    }
 //}
 
-void IGAPatchSurface::computeSurfaceNormalAndDerivatives(std::vector<double>& _normalAndDerivatives, double* _baseVectorsAndDerivatives) {
-
-    int uDrv=1;
-    int vDrv=1;
-    int noCoordinates=3;
-    int noBaseVct=2;
-
-    _normalAndDerivatives.resize((noBaseVct+1)*noCoordinates);
-
-    std::vector<double> baseVectors[noBaseVct];
-    for(int i = 0 ; i < noBaseVct ; i++)
-        baseVectors[i].reserve(noCoordinates);
-
-    std::vector<double> baseVectorDerivs[noBaseVct*noBaseVct];
-    for(int i = 0 ; i < noBaseVct*noBaseVct ; i++)
-        baseVectorDerivs[i].reserve(noCoordinates);         // 4 vectors A1,1 A1,2 A2,1 and A2,2
-
-    // Loop over all the derivatives in v-direction
-    for (int i = 0; i <= vDrv; i++) {
-        // Loop over all the derivatives in u-direction
-        for (int j = 0; j <= uDrv - i; j++) {
-            // Loop over all the coordinates
-            for (int coordinate = 0; coordinate < noCoordinates; coordinate++) {
-                // Loop over all the base vectors
-                for (int basevectorNum = 0; basevectorNum < noBaseVct; basevectorNum++) {
-                    int indexBaseVct = indexDerivativeBaseVector(1, j, i, coordinate, basevectorNum);
-                    if(i==0 && j==0) {
-                        baseVectors[basevectorNum].push_back(_baseVectorsAndDerivatives[indexBaseVct]);
-                    }
-                    else {
-                        baseVectorDerivs[basevectorNum*noBaseVct+i].push_back(_baseVectorsAndDerivatives[indexBaseVct]);
-                    }
-                }
-            }
-        }
-    }
-
-
-    // compute non-normalized Normal
-    std::vector<double> normalVector;
-    normalVector.reserve(noCoordinates);
-
-    MathLibrary::crossProduct(normalVector,baseVectors[0],baseVectors[1]);
-
-    // compute length of Normal
-    double normalVecNorm = 0;
-    for(int i = 0; i < noCoordinates; i++){
-        normalVecNorm += normalVector[i]*normalVector[i];
-    }
-    normalVecNorm = sqrt(normalVecNorm);
-
-    for(int i = 0; i < noCoordinates; i++){
-        _normalAndDerivatives.at(i) = normalVector[i]/normalVecNorm;
-    }
-
-    std::vector<double> aTilda3commaR[noBaseVct];           // eq 5.24 Joseph Kiendl Isogeometric page 46
-    for(int i = 0 ; i < noBaseVct ; i++) {
-        aTilda3commaR[i].resize(noCoordinates);
-    }
-
-    for(int i = 0 ; i < noBaseVct ; i++) {
-
-        std::vector<double> crossProductResult[noBaseVct];
-        for(int j = 0 ; j < noBaseVct ; j++)
-            crossProductResult[j].reserve(noCoordinates);
-
-        MathLibrary::crossProduct(crossProductResult[0],baseVectorDerivs[0+i], baseVectors[1]);   //crossProductResult[0]=A_1,i x A_2;
-        MathLibrary::crossProduct(crossProductResult[1],baseVectors[0],baseVectorDerivs[2+i]);   //crossProductResult[1]=A_1 x A_2,i;
-
-        for(int j = 0 ; j < noCoordinates ; j++)
-            aTilda3commaR[i].at(j) = crossProductResult[0][j]+crossProductResult[1][j]; // tildaA_3,i = A_1,i x A_2 + A_1 x A_2,i
-    }
-
-    double normal_times_normalderivR[noBaseVct];
-    for(int i = 0 ; i < noBaseVct ; i++) {
-        normal_times_normalderivR[i]=0.0;
-        for(int j = 0 ; j < noCoordinates ; j++) {
-            normal_times_normalderivR[i] +=normalVector[j]*aTilda3commaR[i][j];
-        }
-        for(int j = 0 ; j < noCoordinates ; j++) {
-            _normalAndDerivatives.at((i+1)*noCoordinates + j) = (aTilda3commaR[i][j]/normalVecNorm)
-                    -(normalVector[j]*normal_times_normalderivR[i])/(normalVecNorm*normalVecNorm*normalVecNorm);
-        }
-    }
-}
-
-void IGAPatchSurface::computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov) {
-    double* metric = new double[4];
-    int counter = 0;
-    for (int i = 0 ; i < 2 ; i++) {
-        for (int j = 0 ; j < 2 ; j++) {
-            double sum=0;
-            for (int coordinates = 0 ; coordinates < 3 ; coordinates++) {
-                sum += baseVecCov[2*coordinates+i] * baseVecCov[2*coordinates+j];
-            }
-            metric[counter] = sum;
-            counter++;
-        }
-    }
-
-    for (int j = 0 ; j < 3 ; j++) {
-        double* basevecCovEachCoordinate = new double[2];
-        for (int i = 0 ; i < 2 ; i++) {
-            basevecCovEachCoordinate[i] = baseVecCov[2*j+i];
-        }
-        bool solvable = MathLibrary::solve2x2LinearSystem(metric, basevecCovEachCoordinate);
-            if (solvable) {
-
-                for (int i = 0 ; i < 2 ; i++) {
-                    _baseVecContra.push_back(basevecCovEachCoordinate[i]);
-                }
-            }
-            delete[] basevecCovEachCoordinate;
-    }
-    delete[] metric;
-}
-
-void IGAPatchSurface::computeCurvatureAtPoint(vector<vector<double> >& B_rot, double* B_disp, vector<double>& normalAndDerivatives,
-        double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* t_contra) {
-
-    // in this function C.48 and C.50 from Andreas Apostolatos Master thesis (DOMAIN DECOMPOSITION METHODS IN ISOGEOMETRIC
-    // ANALYSIS) is implemented
-
-    // Get the polynomial degree of the basis in each direction
-    int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
-    int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
-    int noLocalBasisFunctions = (pDegree + 1) * (qDegree + 1);
-
-    // Derivative order of the basis functions needed for the computation of the base vectors
-    int derivDegree = 2;
-
-    // Compute the local basis functions and their derivatives
-    double* localBasisFunctionsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
-            * noLocalBasisFunctions / 2];
-    IGABasis->computeLocalBasisFunctionsAndDerivatives(localBasisFunctionsAndDerivatives,
-            derivDegree, _u, _uKnotSpanIndex, _v, _vKnotSpanIndex);
-
-    // calculate Bdisp matrix (is just the R values for all localcps)
-    int counter_basis = 0;
-    int indexBasis;
-    // Loop over all the non-zero contributions
-    for (int j = 0; j <= qDegree; j++) {
-        for (int i = 0; i <= pDegree; i++) {
-            // Update the basis function index
-            indexBasis = IGABasis->indexDerivativeBasisFunction(derivDegree, 0,
-                    0, counter_basis);
-
-            B_disp[counter_basis] = localBasisFunctionsAndDerivatives[indexBasis];
-
-            // Update basis function's counter
-            counter_basis++;
-        }
-    }
-
-    std::vector<double> dRdXiEta(2*noLocalBasisFunctions);
-    int indexBasisXi, indexBasisEta;
-    counter_basis = 0;
-    // Loop over all the non-zero contributions
-    for(int i = 0 ; i < noLocalBasisFunctions; i++) {
-        // Update the basis function index
-        indexBasisXi = IGABasis->indexDerivativeBasisFunction(derivDegree, 1,
-                0, counter_basis);
-        indexBasisEta = IGABasis->indexDerivativeBasisFunction(derivDegree, 0,
-                1, counter_basis);
-        dRdXiEta.at(counter_basis) = localBasisFunctionsAndDerivatives[indexBasisXi];
-        dRdXiEta.at(counter_basis+noLocalBasisFunctions) = localBasisFunctionsAndDerivatives[indexBasisEta];
-        // Update basis function's counter
-        counter_basis++;
-    }
-
-    int noCoord=3;
-    int noBaseVec=2;
-
-    // Compute the basevectors and their derivatives
-    double* baseVectorsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
-            * noCoord * noBaseVec / 2];
-    computeBaseVectorsAndDerivatives(baseVectorsAndDerivatives, localBasisFunctionsAndDerivatives
-            ,derivDegree, _uKnotSpanIndex,_vKnotSpanIndex);
-
-    // Compute surface normals and their derivatives
-    computeSurfaceNormalAndDerivatives(normalAndDerivatives, baseVectorsAndDerivatives);
-
-    // put covariant basevectors and derivatives into correct form used for the functions
-    int uDrv=1;
-    int vDrv=1;
-
-    // collect all components into a more manageble vectors
-    std::vector<double> baseVecCov;
-    baseVecCov.reserve(noBaseVec*noCoord);
-
-    std::vector<double> baseVecCovDerivs;       // these will be used in calculating B operator
-    baseVecCovDerivs.reserve(noBaseVec*noBaseVec*noCoord);
-
-    // Loop over all the derivatives in v-direction
-    for (int i = 0; i <= vDrv; i++) {
-        // Loop over all the derivatives in u-direction
-        for (int j = 0; j <= uDrv - i; j++) {
-            // Loop over all the coordinates
-            for (int coordinate = 0; coordinate < noCoord; coordinate++) {
-                // Loop over all the base vectors
-                for (int basevectorNum = 0; basevectorNum < noBaseVec; basevectorNum++) {
-                    int indexBaseVct = indexDerivativeBaseVector(1, j, i, coordinate, basevectorNum);
-                    if(i==0 && j==0) {
-                        baseVecCov.push_back(baseVectorsAndDerivatives[indexBaseVct]);
-                    }
-                    else {
-                        baseVecCovDerivs.push_back(baseVectorsAndDerivatives[indexBaseVct]);
-                    }
-                }
-            }
-        }
-    }
-
-        // get length of baseVectors
-        double* normalVecCov = new double[noCoord];             // need this for the crossproduct later
-            for(int coordinates = 0 ; coordinates < noCoord ; coordinates++) {
-                normalVecCov[coordinates] = normalAndDerivatives[coordinates];   // needs to be double* for crossproduct
-            }
+//void IGAPatchSurface::computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov) {
+//    double* metric = new double[4];
+//    int counter = 0;
+//    for (int i = 0 ; i < 2 ; i++) {
+//        for (int j = 0 ; j < 2 ; j++) {
+//            double sum=0;
+//            for (int coordinates = 0 ; coordinates < 3 ; coordinates++) {
+//                sum += baseVecCov[2*coordinates+i] * baseVecCov[2*coordinates+j];
+//            }
+//            metric[counter] = sum;
+//            counter++;
 //        }
-    double* n_contra = new double[noCoord];
-    MathLibrary::crossProduct(n_contra, t_contra, normalVecCov);
+//    }
 
-    // calculate contravaraiant basevectors
-    vector<double> baseVecContra;
-    baseVecContra.reserve(noBaseVec*noCoord);
-    computeContravariantBaseVectors(baseVecContra, baseVecCov);
+//    for (int j = 0 ; j < 3 ; j++) {
+//        double* basevecCovEachCoordinate = new double[2];
+//        for (int i = 0 ; i < 2 ; i++) {
+//            basevecCovEachCoordinate[i] = baseVecCov[2*j+i];
+//        }
+//        bool solvable = MathLibrary::solve2x2LinearSystem(metric, basevecCovEachCoordinate);
+//            if (solvable) {
 
-    std::vector<double> t_cov(noBaseVec);
-    std::vector<double> n_cov(noBaseVec);
+//                for (int i = 0 ; i < 2 ; i++) {
+//                    _baseVecContra.push_back(basevecCovEachCoordinate[i]);
+//                }
+//            }
+//            delete[] basevecCovEachCoordinate;
+//    }
+//    delete[] metric;
+//}
 
-    for(int basevectorNum = 0; basevectorNum < noBaseVec; basevectorNum++) {
+//void IGAPatchSurface::computeCurvatureAtPoint(vector<vector<double> >& B_rot, double* B_disp, vector<double>& normalAndDerivatives,
+//        double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* t_contra) {
 
-        t_cov.at(basevectorNum)=0.0;
-        n_cov.at(basevectorNum)=0.0;
+//    // in this function C.48 and C.50 from Andreas Apostolatos Master thesis (DOMAIN DECOMPOSITION METHODS IN ISOGEOMETRIC
+//    // ANALYSIS) is implemented
 
-        for(int coordinates = 0 ; coordinates < noCoord ; coordinates++) {
-            t_cov.at(basevectorNum) += baseVecContra[noBaseVec*coordinates+basevectorNum] * t_contra[coordinates];
-            n_cov.at(basevectorNum) += baseVecContra[noBaseVec*coordinates+basevectorNum] * n_contra[coordinates];
-        }
-    }
+//    // Get the polynomial degree of the basis in each direction
+//    int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
+//    int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
+//    int noLocalBasisFunctions = (pDegree + 1) * (qDegree + 1);
 
-    // calculate B operator (related to curvature)
-    vector<double> Boperator(noBaseVec*noBaseVec);      // [A1,1 A1,2]          eq 3.28 Josef Kiendl Isogeometric
-                                                        // [A2,1 A2,2]*A3
-    int counterBop = 0;
+//    // Derivative order of the basis functions needed for the computation of the base vectors
+//    int derivDegree = 2;
 
-    for (int coordDerivative = 0 ; coordDerivative < noBaseVec; coordDerivative++) {
-        for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
-            double sum=0;
-            for(int coordinate = 0; coordinate < noCoord; coordinate++) {
-                sum += baseVecCovDerivs[(2*coordinate) + numBaseVec + noBaseVec*noCoord*coordDerivative]
-                        *normalAndDerivatives[coordinate];
-            }
-            Boperator.at(counterBop++)=sum;
-        }
-    }
+//    // Compute the local basis functions and their derivatives
+//    double* localBasisFunctionsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
+//            * noLocalBasisFunctions / 2];
+//    IGABasis->computeLocalBasisFunctionsAndDerivatives(localBasisFunctionsAndDerivatives,
+//            derivDegree, _u, _uKnotSpanIndex, _v, _vKnotSpanIndex);
 
-//    vector<vector<double> > C;
-    vector<double> C[noBaseVec];
-    for(int i = 0 ; i < noBaseVec ; i++)
-        C[i].resize(noCoord);
+//    // calculate Bdisp matrix (is just the R values for all localcps)
+//    int counter_basis = 0;
+//    int indexBasis;
+//    // Loop over all the non-zero contributions
+//    for (int j = 0; j <= qDegree; j++) {
+//        for (int i = 0; i <= pDegree; i++) {
+//            // Update the basis function index
+//            indexBasis = IGABasis->indexDerivativeBasisFunction(derivDegree, 0,
+//                    0, counter_basis);
 
-    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
+//            B_disp[counter_basis] = localBasisFunctionsAndDerivatives[indexBasis];
+
+//            // Update basis function's counter
+//            counter_basis++;
+//        }
+//    }
+
+//    std::vector<double> dRdXiEta(2*noLocalBasisFunctions);
+//    int indexBasisXi, indexBasisEta;
+//    counter_basis = 0;
+//    // Loop over all the non-zero contributions
+//    for(int i = 0 ; i < noLocalBasisFunctions; i++) {
+//        // Update the basis function index
+//        indexBasisXi = IGABasis->indexDerivativeBasisFunction(derivDegree, 1,
+//                0, counter_basis);
+//        indexBasisEta = IGABasis->indexDerivativeBasisFunction(derivDegree, 0,
+//                1, counter_basis);
+//        dRdXiEta.at(counter_basis) = localBasisFunctionsAndDerivatives[indexBasisXi];
+//        dRdXiEta.at(counter_basis+noLocalBasisFunctions) = localBasisFunctionsAndDerivatives[indexBasisEta];
+//        // Update basis function's counter
+//        counter_basis++;
+//    }
+
+//    int noCoord=3;
+//    int noBaseVec=2;
+
+//    // Compute the basevectors and their derivatives
+//    double* baseVectorsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
+//            * noCoord * noBaseVec / 2];
+//    computeBaseVectorsAndDerivatives(baseVectorsAndDerivatives, localBasisFunctionsAndDerivatives
+//            ,derivDegree, _uKnotSpanIndex,_vKnotSpanIndex);
+
+//    // Compute surface normals and their derivatives
+//    computeSurfaceNormalAndDerivatives(normalAndDerivatives, baseVectorsAndDerivatives);
+
+//    // put covariant basevectors and derivatives into correct form used for the functions
+//    int uDrv=1;
+//    int vDrv=1;
+
+//    // collect all components into a more manageble vectors
+//    std::vector<double> baseVecCov;
+//    baseVecCov.reserve(noBaseVec*noCoord);
+
+//    std::vector<double> baseVecCovDerivs;       // these will be used in calculating B operator
+//    baseVecCovDerivs.reserve(noBaseVec*noBaseVec*noCoord);
+
+//    // Loop over all the derivatives in v-direction
+//    for (int i = 0; i <= vDrv; i++) {
+//        // Loop over all the derivatives in u-direction
+//        for (int j = 0; j <= uDrv - i; j++) {
+//            // Loop over all the coordinates
+//            for (int coordinate = 0; coordinate < noCoord; coordinate++) {
+//                // Loop over all the base vectors
+//                for (int basevectorNum = 0; basevectorNum < noBaseVec; basevectorNum++) {
+//                    int indexBaseVct = indexDerivativeBaseVector(1, j, i, coordinate, basevectorNum);
+//                    if(i==0 && j==0) {
+//                        baseVecCov.push_back(baseVectorsAndDerivatives[indexBaseVct]);
+//                    }
+//                    else {
+//                        baseVecCovDerivs.push_back(baseVectorsAndDerivatives[indexBaseVct]);
+//                    }
+//                }
+//            }
+//        }
+//    }
+
+//        // get length of baseVectors
+//        double* normalVecCov = new double[noCoord];             // need this for the crossproduct later
+//            for(int coordinates = 0 ; coordinates < noCoord ; coordinates++) {
+//                normalVecCov[coordinates] = normalAndDerivatives[coordinates];   // needs to be double* for crossproduct
+//            }
+////        }
+//    double* n_contra = new double[noCoord];
+//    MathLibrary::crossProduct(n_contra, t_contra, normalVecCov);
+
+//    // calculate contravaraiant basevectors
+//    vector<double> baseVecContra;
+//    baseVecContra.reserve(noBaseVec*noCoord);
+//    computeContravariantBaseVectors(baseVecContra, baseVecCov);
+
+//    std::vector<double> t_cov(noBaseVec);
+//    std::vector<double> n_cov(noBaseVec);
+
+//    for(int basevectorNum = 0; basevectorNum < noBaseVec; basevectorNum++) {
+
+//        t_cov.at(basevectorNum)=0.0;
+//        n_cov.at(basevectorNum)=0.0;
+
+//        for(int coordinates = 0 ; coordinates < noCoord ; coordinates++) {
+//            t_cov.at(basevectorNum) += baseVecContra[noBaseVec*coordinates+basevectorNum] * t_contra[coordinates];
+//            n_cov.at(basevectorNum) += baseVecContra[noBaseVec*coordinates+basevectorNum] * n_contra[coordinates];
+//        }
+//    }
+
+//    // calculate B operator (related to curvature)
+//    vector<double> Boperator(noBaseVec*noBaseVec);      // [A1,1 A1,2]          eq 3.28 Josef Kiendl Isogeometric
+//                                                        // [A2,1 A2,2]*A3
+//    int counterBop = 0;
+
+//    for (int coordDerivative = 0 ; coordDerivative < noBaseVec; coordDerivative++) {
+//        for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
+//            double sum=0;
+//            for(int coordinate = 0; coordinate < noCoord; coordinate++) {
+//                sum += baseVecCovDerivs[(2*coordinate) + numBaseVec + noBaseVec*noCoord*coordDerivative]
+//                        *normalAndDerivatives[coordinate];
+//            }
+//            Boperator.at(counterBop++)=sum;
+//        }
+//    }
+
+////    vector<vector<double> > C;
+//    vector<double> C[noBaseVec];
+//    for(int i = 0 ; i < noBaseVec ; i++)
+//        C[i].resize(noCoord);
+
+//    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
+////        vector<double> tmpVec;
+//        for(int coord = 0; coord < noCoord ; coord++) {
+//            double tmpSum=0.0;
+//            for(int i = 0 ; i < noBaseVec; i++) {
+//                // better to do this first, else 3 matrix multiplications together will get messy
+//                tmpSum += Boperator[noBaseVec*numBaseVec + i]*baseVecContra[noBaseVec*coord + i];
+//            }
+//            C[numBaseVec].at(coord)=tmpSum;
+//        }
+//        // C = Bab*A_contra
+//    }
+
+//    // calculate Brot array
+//    vector<double> commonOperator[noBaseVec];
+//    for(int i = 0 ; i < noBaseVec ; i++)
+//        commonOperator[i].resize(noCoord*noLocalBasisFunctions);
+
+
+//    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
 //        vector<double> tmpVec;
-        for(int coord = 0; coord < noCoord ; coord++) {
-            double tmpSum=0.0;
-            for(int i = 0 ; i < noBaseVec; i++) {
-                // better to do this first, else 3 matrix multiplications together will get messy
-                tmpSum += Boperator[noBaseVec*numBaseVec + i]*baseVecContra[noBaseVec*coord + i];
-            }
-            C[numBaseVec].at(coord)=tmpSum;
-        }
-        // C = Bab*A_contra
-    }
-
-    // calculate Brot array
-    vector<double> commonOperator[noBaseVec];
-    for(int i = 0 ; i < noBaseVec ; i++)
-        commonOperator[i].resize(noCoord*noLocalBasisFunctions);
+//        for(int localBFCounter = 0 ; localBFCounter < noLocalBasisFunctions; localBFCounter++) {
+//            for(int coord = 0; coord < noCoord ; coord++) {
+//                tmpVec.push_back(normalAndDerivatives[coord] * dRdXiEta[localBFCounter+numBaseVec*noLocalBasisFunctions] +
+//                        normalAndDerivatives[coord+(numBaseVec+1)*noCoord] * B_disp[localBFCounter] +
+//                        C[numBaseVec][coord] * B_disp[localBFCounter]);
 
 
-    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
-        vector<double> tmpVec;
-        for(int localBFCounter = 0 ; localBFCounter < noLocalBasisFunctions; localBFCounter++) {
-            for(int coord = 0; coord < noCoord ; coord++) {
-                tmpVec.push_back(normalAndDerivatives[coord] * dRdXiEta[localBFCounter+numBaseVec*noLocalBasisFunctions] +
-                        normalAndDerivatives[coord+(numBaseVec+1)*noCoord] * B_disp[localBFCounter] +
-                        C[numBaseVec][coord] * B_disp[localBFCounter]);
+//                commonOperator[numBaseVec].at(localBFCounter*noCoord + coord) = normalAndDerivatives[coord]
+//                        * dRdXiEta[localBFCounter+numBaseVec*noLocalBasisFunctions] +
+//                        normalAndDerivatives[coord+(numBaseVec+1)*noCoord] * B_disp[localBFCounter] +
+//                        C[numBaseVec][coord] * B_disp[localBFCounter];
+//               // commonOperator = A3*dRdXiEta + A3,alpha * R + Bab*A_contra*R
+//               //                                                 ^ = C
+//           }
+//       }
+//    }
 
+//    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
+//        vector<double> tmpVec;
+//        for(int i = 0 ; i < noCoord*noLocalBasisFunctions; i++) {
+//            double tmpSum = 0;
+//            for(int j = 0 ; j < noBaseVec ; j++) {
+//                if(numBaseVec==0) {
+//                    tmpSum += -n_cov[j]*commonOperator[j][i];
+//                }
+//                else {
+//                    tmpSum += t_cov[j]*commonOperator[j][i];
+//                }
+//            }
+//            tmpVec.push_back(tmpSum);
+//        }
+//        B_rot.push_back(tmpVec);
+//    }
 
-                commonOperator[numBaseVec].at(localBFCounter*noCoord + coord) = normalAndDerivatives[coord]
-                        * dRdXiEta[localBFCounter+numBaseVec*noLocalBasisFunctions] +
-                        normalAndDerivatives[coord+(numBaseVec+1)*noCoord] * B_disp[localBFCounter] +
-                        C[numBaseVec][coord] * B_disp[localBFCounter];
-               // commonOperator = A3*dRdXiEta + A3,alpha * R + Bab*A_contra*R
-               //                                                 ^ = C
-           }
-       }
-    }
+//    // delete dynamic arrays
+//    delete[] localBasisFunctionsAndDerivatives;
+//    delete[] baseVectorsAndDerivatives;
+//    delete[] normalVecCov;
+//    delete[] n_contra;
 
-    for(int numBaseVec = 0 ; numBaseVec < noBaseVec; numBaseVec++) {
-        vector<double> tmpVec;
-        for(int i = 0 ; i < noCoord*noLocalBasisFunctions; i++) {
-            double tmpSum = 0;
-            for(int j = 0 ; j < noBaseVec ; j++) {
-                if(numBaseVec==0) {
-                    tmpSum += -n_cov[j]*commonOperator[j][i];
-                }
-                else {
-                    tmpSum += t_cov[j]*commonOperator[j][i];
-                }
-            }
-            tmpVec.push_back(tmpSum);
-        }
-        B_rot.push_back(tmpVec);
-    }
-
-    // delete dynamic arrays
-    delete[] localBasisFunctionsAndDerivatives;
-    delete[] baseVectorsAndDerivatives;
-    delete[] normalVecCov;
-    delete[] n_contra;
-
-}
+//}
 
 bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, double* _P,
         bool& _flagConverge, int _maxIt, double _tol) {
