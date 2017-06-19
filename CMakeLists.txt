@@ -21,7 +21,7 @@
 project (EMPIRE)
 #------------------------------------------------------------------------------------#
 cmake_minimum_required (VERSION 2.8.10)
-set( CMAKE_VERBOSE_MAKEFILE on )
+set( CMAKE_VERBOSE_MAKEFILE off )
 #------------------------------------------------------------------------------------#
 
 #set( CMAKE_VERBOSE_MAKEFILE on )
@@ -55,6 +55,7 @@ ENDIF()
 #1. Option
 ######################################################################################
 #option(USE_INTEL_COMPILERS_MKL_IMPI      "Use Intel Compilers C/C++,     Intel MKL and Intel MPI"  ON )
+option(USE_PYTHON_BINDINGS      "Compile the python version of EMPIRE with bindings "  OFF )
 option(USE_INTEL_COMPILERS_EIGEN      "Use Intel Compilers C/C++,     EIGEN for linear algebra and Intel MPI"  OFF )
 option(USE_EIGEN_ITERATIVE      "Use Iterative solvers in EIGEN,   EIGEN for linear algebra and Intel MPI"  OFF )
 #option(USE_MICROSOFT_COMPILERS_MKL_IMPI  "Use Microsoft Compilers C/C++, Intel MKL and Intel MPI"  OFF )
@@ -147,8 +148,8 @@ IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND "${CMAKE_C_COMPILER_ID}" STR
 ## This is for all compilers
     check_c_compiler_flag(-xHost   CHECKXHOST)
     check_cxx_compiler_flag(-xHost CHECKXHOST)
-	SET (CMAKE_C_FLAGS "-xHost -std=c99")
-	SET (CMAKE_CXX_FLAGS "-xHost")
+	SET (CMAKE_C_FLAGS "-xHost -std=c99 -fPIC")
+	SET (CMAKE_CXX_FLAGS "-xHost -fPIC")
 ENDIF()
 ## Here Intel Windows specific flags are taken care for
 IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
@@ -158,8 +159,8 @@ ENDIF()
 
 IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 ## This is for all compilers
-	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -lstdc++")
-	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -lstdc++ -fPIC")
+	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 ENDIF()
 
 # HACK for mapperlib
@@ -179,6 +180,10 @@ ENDIF()
 ######################################################################################
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../EMPIRE-Libraries" "${CMAKE_CURRENT_BINARY_DIR}/EMPIRE-Libraries")
 add_subdirectory(Emperor)
-add_subdirectory(EMPIRE_API)
+IF(USE_PYTHON_BINDINGS)
+    add_subdirectory(py_EMPIRE_API)
+ELSE()
+    add_subdirectory(EMPIRE_API)
+ENDIF()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../EMPIRE-Testing" "${CMAKE_CURRENT_BINARY_DIR}/EMPIRE-Testing")
 
