@@ -33,7 +33,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     assert(mxIsDouble(NUM_ELEMENTS_IN));
     assert(mxGetNumberOfElements(NUM_ELEMENTS_IN) == 1);
     int numElems = (int) mxGetPr(NUM_ELEMENTS_IN)[0]; // cast from double to int
-
     // coordinates of nodes
     assert(mxIsDouble(NODES_IN));
     assert(mxGetNumberOfElements(NODES_IN) == numNodes*3);

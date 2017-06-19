@@ -281,24 +281,13 @@ private:
     void computeCouplingMatrices();
 
 public:
-    /***********************************************************************************************
-     * \brief Compute  IGA Patch coupling matrix B by looping over the patches and their couplings to other patches
-     * \author Ragnar Björnsson
-     ***********/
-    void computeIGAPatchCouplingMatrix();
 
     /***********************************************************************************************
-     * \brief Compute  IGA Patch coupling of current BREP and put it into C_NN_expanded at the right locations
-     * \param[in] masterPatch the master patch
-     * \param[in] slavePatch the slave patch
-     * \param[in] patchCounter id of the master patch
-     * \param[in] BRepCounter id of the coupling BRep of the master patch
-     * \param[in] alphaPrim the primary penalty factor
-     * \param[in] alphaSec the secondary penalty factor
-     * \author Ragnar Björnsson
+     * \brief Compute  IGA Patch weak continuity condition matrices
+     * \author Andreas Apostolatos, Altug Emiroglu, Ragnar Björnsson
      ***********/
-    void computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch, IGAPatchSurface* slavePatch,
-            int patchCounter, int BRepCounter, double alphaPrim, double alphaSec);
+    void computeIGAPatchWeakContinuityConditionMatrices();
+
     /***********************************************************************************************
      * \brief Compute  the penalty factors of the IGA Patch coupling by using the smallest element length of the patches at the interface
      * \param[in/out] alphaPrim the primary penalty factor

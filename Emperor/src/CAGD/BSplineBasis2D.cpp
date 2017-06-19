@@ -37,7 +37,6 @@ BSplineBasis2D::BSplineBasis2D(int _ID = 0, int _pDegree = 0, int _noKnotsU = 0,
                 NULL) :
         AbstractBSplineBasis2D(_ID) {
 
-
     // The NURBS basis functions in u-direction
     uBSplineBasis1D = new BSplineBasis1D(_ID, _pDegree, _noKnotsU, _KnotVectorU);
 

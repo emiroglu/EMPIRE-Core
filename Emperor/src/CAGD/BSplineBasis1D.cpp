@@ -39,7 +39,10 @@ BSplineBasis1D::BSplineBasis1D(int _ID = 0, int _pDegree = 0, int _noKnots = 0,
         AbstractBSplineBasis1D(_ID), PDegree(_pDegree), NoKnots(_noKnots) {
     // Assign the given pointer to the knot vector
     assert(_KnotVector!=NULL);
-    KnotVector = _KnotVector;
+
+    // copying the values of _KnotVector pointer to KnotVector pointer
+    KnotVector = new double[_noKnots];
+    for (int i = 0; i<_noKnots; i++) KnotVector[i] = _KnotVector[i];
 
     for (int i = 1; i < PDegree + 1; i++) {
         if (KnotVector[i] != KnotVector[0]) {
@@ -84,9 +87,7 @@ BSplineBasis1D& BSplineBasis1D::operator=(const BSplineBasis1D& _bsplineBasis1D)
 }
 
 BSplineBasis1D::~BSplineBasis1D() {
-
     delete[] KnotVector;
-
 }
 
 double BSplineBasis1D::computeGrevilleAbscissae(const int _controlPointIndex) const {

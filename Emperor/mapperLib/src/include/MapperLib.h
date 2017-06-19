@@ -187,6 +187,14 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
                                     int uNoControlPoints, double* controlPoints);
 
 /***********************************************************************************************
+ * \brief Linearize all the trimming loops and curves of the given mesh and patch
+ * \param[in] meshName name of the mesh
+ * \param[in] idxSurfacePatch index of the surface patch that is previously added to the mesh
+ * \author Altug Emiroglu
+ ***********/
+void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch);
+
+/***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
  * \param[in] AmeshName a previously initialized slave FEMesh name

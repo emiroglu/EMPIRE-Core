@@ -83,6 +83,10 @@ enum EMPIRE_Mesh_type {
     EMPIRE_Mesh_SectionMesh
 };
 
+enum EMPIRE_Condition_type{
+    EMPIRE_WeakIGAPatchContinuityCondition
+};
+
 enum EMPIRE_DataFieldFilter_type {
     EMPIRE_CopyFilter,
     EMPIRE_MappingFilter,

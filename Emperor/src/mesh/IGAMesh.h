@@ -33,6 +33,7 @@
 // Inclusion of user defined libraries
 #include "AbstractMesh.h"
 #include "IGAPatchCouplingCaratData.h"
+#include "WeakIGAPatchContinuityCondition.h"
 
 namespace EMPIRE {
 class DataField;
@@ -51,6 +52,9 @@ class IGAMesh: public AbstractMesh {
 protected:
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
+// 	std::map<int,IGAPatchSurface*> surfacePatches;
+
+    std::vector<IGAPatchSurface*>* surfacePatchesPointer;
 
     /// Vector of all clampedDofs
     std::vector<int> clampedDofs;
@@ -59,7 +63,13 @@ protected:
     int clampedDirections;
 
     /// Object which has all the patch coupling data
-    IGAPatchCouplingCaratData* couplingData = NULL;
+    IGAPatchCouplingCaratData* couplingData;
+
+    /// Vector of all weak conditions
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
+
+    /// Vector of all strong conditions
+//    std::vector<AbstractCondition*> strongConditions;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;
@@ -117,6 +127,30 @@ public:
      * \author Chenshen Wu
      ***********/
     void computeBoundingBox();
+
+    /***********************************************************************************************
+     * brief Add a new weak condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
+     * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
+     * \param[in] _masterPatchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
+     * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _isGPprovided Flag if the GP data is provided
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+     WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int _connectionID,
+                          int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                          int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex,
+                          bool _isGPProvided);
+
+     /***********************************************************************************************
+      * brief Create the GP data for the weak continuity condition if not provided
+      * \author Andreas Apostolatos, Altug Emiroglu
+      ***********/
+     void createWeakContinuityConditionGPData();
 
     /***********************************************************************************************
      * \brief Add coupling data of a patch
@@ -184,6 +218,10 @@ public:
      ***********/
     inline int getNumNodes() const {
         return numNodes;
+    }
+
+    std::vector<WeakIGAPatchContinuityCondition*> getWeakIGAPatchContinuityConditions() const{
+        return weakIGAPatchContinuityConditions;
     }
 
     /***********************************************************************************************

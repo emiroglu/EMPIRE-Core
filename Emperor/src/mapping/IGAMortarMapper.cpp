@@ -170,8 +170,10 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Compute CNN and CNR
     computeCouplingMatrices();
-
-    //writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+	
+	if(Message::isDebugMode()) {
+		writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+	}
     streamGP.clear();
 
     // Write polygon net of projected elements to a vtk file
@@ -197,9 +199,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     couplingMatrices->setIsIGAPatchCoupling(useIGAPatchCouplingPenalties , isClampedDofs);
 
-    if(!(isMappingIGA2FEM) && useIGAPatchCouplingPenalties) {
+    if (useIGAPatchCouplingPenalties) {
         INFO_OUT()<<"Compute Penalty Patch Coupling"<<endl;
-        computeIGAPatchCouplingMatrix();
+        computeIGAPatchWeakContinuityConditionMatrices();
     }
     else
         INFO_OUT()<<"No Penalty Patch Coupling"<<std::endl;
@@ -339,7 +341,7 @@ void IGAMortarMapper::projectPointsToSurface() {
                     }
             		bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
                     isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
-            	}
+                }
             }
         }
     }
@@ -398,6 +400,7 @@ void IGAMortarMapper::projectPointsToSurface() {
 }
 
 void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, const int _elemIndex, const int _nodeIndex, double& _u, double& _v) {
+
     IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchIndex);
 	/// 1iii.1. Initialize the flag to false and the node id to zero
     bool isNodeInsideElementProjected = false;
@@ -432,6 +435,7 @@ void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, co
 }
 
 bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+
     IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
     /// Get the Cartesian coordinates of the node in the FE side
 	double P[3], projectedP[3];
@@ -606,287 +610,330 @@ void IGAMortarMapper::computeCouplingMatrices() {
     }
 }
 
-void IGAMortarMapper::computeIGAPatchCouplingMatrix() {
+void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
+
     double alphaPrim = IgaPatchCoupling.dispPenalty;
     double alphaSec = IgaPatchCoupling.rotPenalty;
     INFO_OUT()<<"Manual patch coupling penalties: alphaPrim = "<<alphaPrim<<" alphaSec = "<<alphaSec<<std::endl;
 
-    // loop through all patches
-    for(int patchCounter = 0 ; patchCounter < meshIGA->getIGAPatchCouplingData()->getNumPatches() ; patchCounter++) {
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
 
-        // get master patch and polynomial degrees
-        IGAPatchSurface* masterPatch = meshIGA->getSurfacePatch(patchCounter);
+    for (int weakContCondCtr = 0; weakContCondCtr<weakIGAPatchContinuityConditions.size(); weakContCondCtr++){
 
-        // loop through all BReps where current patch is master
-        int* numOfBRepsPerPatch = meshIGA->getIGAPatchCouplingData()->getNumBrepsPerPatch();
-        for(int BRepCounter = 0 ; BRepCounter < numOfBRepsPerPatch[patchCounter] ; BRepCounter++) {
-            int slaveID = meshIGA->getIGAPatchCouplingData()->getSlaveID(patchCounter, BRepCounter);
+        int masterPatchIndex = weakIGAPatchContinuityConditions[weakContCondCtr]->getMasterPatchIndex();
+        int slavePatchIndex = weakIGAPatchContinuityConditions[weakContCondCtr]->getSlavePatchIndex();
 
-            // get slave patch and polynomial degrees
-            IGAPatchSurface* slavePatch = meshIGA->getSurfacePatch(slaveID);
+        int trCurveNumGP = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveNumGP();
+        double* trCurveMasterGPs = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveMasterGPs();
+        double* trCurveSlaveGPs = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveSlaveGPs();
+        double* trCurveGPWeights = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveGPWeights();
+        double* trCurveMasterGPTangents = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveMasterGPTangents();
+        double* trCurveSlaveGPTangents = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveSlaveGPTangents();
+        double* trCurveGPJacobianProducts = weakIGAPatchContinuityConditions[weakContCondCtr]->getTrCurveGPJacobianProducts();
 
-            // function here to do the penalty coupling for one brep
-            computeIGAPatchCouplingOfBRep(masterPatch, slavePatch, patchCounter, BRepCounter, alphaPrim, alphaSec);
-        }
-    }
-    INFO_OUT()<<"Penalty Patch Coupling Finished"<<std::endl;
-}
+        IGAPatchSurface* masterPatch = meshIGA->getSurfacePatch(masterPatchIndex);
+        IGAPatchSurface* slavePatch = meshIGA->getSurfacePatch(slavePatchIndex);
 
-void IGAMortarMapper::computeIGAPatchCouplingOfBRep(IGAPatchSurface* masterPatch, IGAPatchSurface* slavePatch,
-            int patchCounter, int BRepCounter, double alphaPrim, double alphaSec) {
-    double* gausspoints_master = meshIGA->getIGAPatchCouplingData()->getGPs_master(patchCounter, BRepCounter);
-    double* gausspoints_slave = meshIGA->getIGAPatchCouplingData()->getGPs_slave(patchCounter, BRepCounter);
-    double* gausspoints_weight = meshIGA->getIGAPatchCouplingData()->getGPs_weight(patchCounter, BRepCounter);
-    double* tangMaster = meshIGA->getIGAPatchCouplingData()->getTangents_master(patchCounter, BRepCounter);
-    double* tangSlave = meshIGA->getIGAPatchCouplingData()->getTangents_slave(patchCounter, BRepCounter);
-    double* mappings = meshIGA->getIGAPatchCouplingData()->getMappings(patchCounter, BRepCounter);
+        int pMaster = masterPatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        int qMaster = masterPatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        int pSlave = slavePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        int qSlave = slavePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
-    int numElemsPerBRep = meshIGA->getIGAPatchCouplingData()->getNumElemsOfBRep(patchCounter, BRepCounter);
-    int numGPsPerElem = meshIGA->getIGAPatchCouplingData()->getNumGPsOfElem(patchCounter, BRepCounter);
+        // get number of local basis functions for master and slave patch
+        int masterNumLocalBasisFunctions = (pMaster+1)*(qMaster+1);
+        int slaveNumLocalBasisFunctions = (pSlave+1)*(qSlave+1);
 
-    // check if penalty factors should be calculated automatically
-    if(IgaPatchCoupling.isAutomaticPenaltyFactors) {
-       INFO_OUT()<<"Compute Penalty Factors Automatically"<<std::endl;
-        computePenaltyFactorsForPatchCoupling(alphaPrim, alphaSec, masterPatch,
-                slavePatch, gausspoints_master, gausspoints_slave, gausspoints_weight,
-                mappings, numElemsPerBRep, numGPsPerElem);
-        INFO_OUT()<<"After: alphaPrim = "<<alphaPrim<<" alphaSec = "<<alphaSec<<std::endl;
-    }
+        int numCoord = 3;
+        int numParametricDim = 2;
 
-
-    int p_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int q_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-    int p_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int q_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-
-    // get number of local basis functions for master and slave patch
-    int noLocalBasisFunctions_m = (p_m+1)*(q_m+1);
-    int noLocalBasisFunctions_s = (p_s+1)*(q_s+1);
-
-    int noCoord = 3;
-    int numParametricDim = 2;
-
-    // initialize coupling matrices (for each BRepElem)
-    double* cPenaltyDisp_mm = new double[noLocalBasisFunctions_m * noLocalBasisFunctions_m];
-    double* cPenaltyDisp_ss = new double[noLocalBasisFunctions_s * noLocalBasisFunctions_s];
-    double* cPenaltyDisp_ms = new double[noLocalBasisFunctions_m * noLocalBasisFunctions_s];
-    double* cPenaltyRot_mm = new double[noCoord*noLocalBasisFunctions_m * noCoord*noLocalBasisFunctions_m];
-    double* cPenaltyRot_ss = new double[noCoord*noLocalBasisFunctions_s * noCoord*noLocalBasisFunctions_s];
-    double* cPenaltyRot_ms = new double[noCoord*noLocalBasisFunctions_m * noCoord*noLocalBasisFunctions_s];
-
-    // loop through all BRep-subelements
-    for(int BRepElemCounter = 0 ; BRepElemCounter < numElemsPerBRep ; BRepElemCounter++) {
-
-        // set all cPenaltyMatrices to zero at begining of each element, they sum up for all GPs on each element
-        for(int i = 0 ; i < noLocalBasisFunctions_m ; i++) {
-            for(int j = 0 ; j < noLocalBasisFunctions_m ; j++) {
-                cPenaltyDisp_mm[i*noLocalBasisFunctions_m + j] = 0.0;
-            }
-            for(int j = 0 ; j < noLocalBasisFunctions_s ; j++) {
-                cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j] = 0.0;
-            }
-        }
-        for(int i = 0 ; i < noLocalBasisFunctions_s ; i++) {
-            for(int j = 0 ; j < noLocalBasisFunctions_s ; j++) {
-                cPenaltyDisp_ss[i*noLocalBasisFunctions_s + j] = 0.0;
-            }
-        }
-        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_m ; i++) {
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_m ; j++) {
-                cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j] = 0.0;
-            }
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
-                cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] = 0.0;
-            }
-        }
-        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_s ; i++) {
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
-                cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j] = 0.0;
-            }
-        }
-
-        // get knotspans
-        // this should be the same for all gps on the element
-        int uKnotSpan_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_master[2*BRepElemCounter*numGPsPerElem]);
-        int vKnotSpan_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_master[2*BRepElemCounter*numGPsPerElem + 1]);
-        int uKnotSpan_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*BRepElemCounter*numGPsPerElem]);
-        int vKnotSpan_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 1]);
+        // initialize coupling matrices (for each weak continuity condition)
+        double* cPenaltyDisp_mm = new double[masterNumLocalBasisFunctions * masterNumLocalBasisFunctions];
+        double* cPenaltyDisp_ss = new double[slaveNumLocalBasisFunctions * slaveNumLocalBasisFunctions];
+        double* cPenaltyDisp_ms = new double[masterNumLocalBasisFunctions * slaveNumLocalBasisFunctions];
+//        double* cPenaltyRot_mm = new double[numCoord*masterNumLocalBasisFunctions * numCoord*masterNumLocalBasisFunctions];
+//        double* cPenaltyRot_ss = new double[numCoord*slaveNumLocalBasisFunctions * numCoord*slaveNumLocalBasisFunctions];
+//        double* cPenaltyRot_ms = new double[numCoord*masterNumLocalBasisFunctions * numCoord*slaveNumLocalBasisFunctions];
 
         // loop through all gausspoints
-        for(int gpCounter = 0 ; gpCounter < numGPsPerElem ; gpCounter++) {
+        for(int GPCtr = 0 ; GPCtr < trCurveNumGP ; GPCtr++) {
+
+            // set all cPenaltyMatrices to zero at begining of each GP
+            for(int i = 0 ; i < masterNumLocalBasisFunctions ; i++) {
+                for(int j = 0 ; j < masterNumLocalBasisFunctions ; j++) {
+                    cPenaltyDisp_mm[i*masterNumLocalBasisFunctions + j] = 0.0;
+                }
+                for(int j = 0 ; j < slaveNumLocalBasisFunctions ; j++) {
+                    cPenaltyDisp_ms[i*slaveNumLocalBasisFunctions + j] = 0.0;
+                }
+            }
+            for(int i = 0 ; i < slaveNumLocalBasisFunctions ; i++) {
+                for(int j = 0 ; j < slaveNumLocalBasisFunctions ; j++) {
+                    cPenaltyDisp_ss[i*slaveNumLocalBasisFunctions + j] = 0.0;
+                }
+            }
+//            for(int i = 0 ; i < numCoord*masterNumLocalBasisFunctions ; i++) {
+//                for(int j = 0 ; j < numCoord*masterNumLocalBasisFunctions ; j++) {
+//                    cPenaltyRot_mm[i*numCoord*masterNumLocalBasisFunctions + j] = 0.0;
+//                }
+//                for(int j = 0 ; j < numCoord*slaveNumLocalBasisFunctions ; j++) {
+//                    cPenaltyRot_ms[i*numCoord*slaveNumLocalBasisFunctions + j] = 0.0;
+//                }
+//            }
+//            for(int i = 0 ; i < numCoord*slaveNumLocalBasisFunctions ; i++) {
+//                for(int j = 0 ; j < numCoord*slaveNumLocalBasisFunctions ; j++) {
+//                    cPenaltyRot_ss[i*numCoord*slaveNumLocalBasisFunctions + j] = 0.0;
+//                }
+//            }
 
             // get current gausspoint on master and slave
-            double u_m = gausspoints_master[2*BRepElemCounter*numGPsPerElem + 2*gpCounter];
-            double v_m = gausspoints_master[2*BRepElemCounter*numGPsPerElem + 2*gpCounter + 1];
-            double u_s = gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 2*gpCounter];
-            double v_s = gausspoints_slave[2*BRepElemCounter*numGPsPerElem + 2*gpCounter + 1];
+            double uMaster = trCurveMasterGPs[2*GPCtr];
+            double vMaster = trCurveMasterGPs[2*GPCtr + 1];
+            double uSlave = trCurveSlaveGPs[2*GPCtr];
+            double vSlave = trCurveSlaveGPs[2*GPCtr + 1];
+
+            std::cout << "uMaster: " << uMaster << std::endl;
+            std::cout << "vMaster: " << vMaster << std::endl;
+            std::cout << "uSlave: " << uSlave << std::endl;
+            std::cout << "vSlave: " << vSlave << std::endl;
+
+            // get knotspans
+            // this should be the same for all gps on the element
+            int uKnotSpanMaster = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uMaster);
+            int vKnotSpanMaster = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vMaster);
+            int uKnotSpanSlave = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uSlave);
+            int vKnotSpanSlave = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vSlave);
 
             // get tangents of master and slave gausspoints
-            double* tang_m = new double[3];
-            double* tang_s = new double[3];
-            for(int i = 0 ; i < 3 ; i++) {
-                tang_m[i] = tangMaster[3*BRepElemCounter*numGPsPerElem + 3*gpCounter + i];
-                tang_s[i] = tangSlave[3*BRepElemCounter*numGPsPerElem + 3*gpCounter + i];
+            double* tangentVctMaster = new double[numCoord];
+            double* tangentVctSlave = new double[numCoord];
+            for(int dimCtr = 0 ; dimCtr < numCoord ; dimCtr++) {
+                tangentVctMaster[dimCtr] = trCurveMasterGPTangents[3*GPCtr + dimCtr];
+                tangentVctSlave[dimCtr] = trCurveSlaveGPTangents[3*GPCtr + dimCtr];
             }
 
             // calculate curvature at the point
             // master patch
-            vector<vector<double> > B_rot_m;
-            double* B_disp_m = new double[noLocalBasisFunctions_m];
-            vector<double> normalAndDerivs_m;
+//            vector<vector<double> > B_rot_m;
+            double* B_disp_m = new double[masterNumLocalBasisFunctions];
+//            vector<double> normalAndDerivs_m;
 
-              masterPatch->computeCurvatureAtPoint(B_rot_m, B_disp_m, normalAndDerivs_m,
-                       u_m, uKnotSpan_m, v_m, vKnotSpan_m, tang_m);
+            ///////////////////////
 
-              // slave patch
-              vector<vector<double> > B_rot_s;
-              double* B_disp_s = new double[noLocalBasisFunctions_s];
-              vector<double> normalAndDerivs_s;
+            // Get the polynomial degree of the basis in each direction
 
-              slavePatch->computeCurvatureAtPoint(B_rot_s, B_disp_s, normalAndDerivs_s,
-                       u_s, uKnotSpan_s, v_s, vKnotSpan_s, tang_s);
+            // Derivative order of the basis functions needed for the computation of the base vectors
+            int derivDegree = 2;
 
-              // check if the orientation of the surface normals are the same
-              bool haveSurfaceNormalsSameOrientation = true;
-              double sum = 0;
-              for(int i = 0 ; i < noCoord ; i++)
-                  sum += normalAndDerivs_m[i]*normalAndDerivs_s[i];
-              if(sum<0)
-                  haveSurfaceNormalsSameOrientation = false;
+            // Compute the local basis functions and their derivatives
+            double* masterLocalBasisFunctionsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
+                    * masterNumLocalBasisFunctions / 2];
+            masterPatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(masterLocalBasisFunctionsAndDerivatives,
+                    derivDegree, uMaster, uKnotSpanMaster, vMaster, vKnotSpanMaster);
 
-              // calculate elementLength on GP (mapping from unit space to physical times the gpWeight)
-              double elementLengthOnGP = mappings[BRepElemCounter*numGPsPerElem + gpCounter]*
-                    gausspoints_weight[BRepElemCounter*numGPsPerElem + gpCounter];
+            // calculate Bdisp matrix (is just the R values for all localcps)
+            int counter_basis_m = 0;
+            int indexBasis_m;
+            // Loop over all the non-zero contributions
+            for (int j = 0; j <= qMaster; j++) {
+                for (int i = 0; i <= pMaster; i++) {
+                    // Update the basis function index
+                    indexBasis_m = masterPatch->getIGABasis()->indexDerivativeBasisFunction(derivDegree, 0,
+                            0, counter_basis_m);
 
-              // calculate the disp coupling penalty which will be added to C_NN
-              int count = 0;
-              int count_ms = 0;
-              for(int i = 0; i < noLocalBasisFunctions_m; i++) {
-                  for(int j = 0; j < noLocalBasisFunctions_m; j++) {
-                  // this will be summed up for all gausspoints on the element and then added to C_NN_expanded
-                  cPenaltyDisp_mm[count++] += B_disp_m[i] * B_disp_m[j]*elementLengthOnGP;
-                  }
-                  for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                      cPenaltyDisp_ms[count_ms++] -= B_disp_m[i] * B_disp_s[j]*elementLengthOnGP;
-                  }
-              }
+                    B_disp_m[counter_basis_m] = masterLocalBasisFunctionsAndDerivatives[indexBasis_m];
 
-              count = 0;
-              for(int i = 0; i < noLocalBasisFunctions_s; i++) {
-                  for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                      cPenaltyDisp_ss[count++] += B_disp_s[i] * B_disp_s[j]*elementLengthOnGP;
-                  }
-              }
+                    // Update basis function's counter
+                    counter_basis_m++;
+                }
+            }
+            /////////////////////////////
+//            masterPatch->computeCurvatureAtPoint(B_rot_m, B_disp_m, normalAndDerivs_m,
+//                                                 uMaster, uKnotSpanMaster, vMaster, vKnotSpanMaster, tangentVctMaster);
 
-              // calculate the rot coupling penalty which will be added to C_NN
-              for(int i = 0; i < noCoord*noLocalBasisFunctions_m; i++) {
-                  for(int j = 0; j < noCoord*noLocalBasisFunctions_m; j++) {
-                      double tmpSum = 0;
-                      for(int k = 0 ; k < numParametricDim ; k++) {
-                          tmpSum +=B_rot_m[k][i]*B_rot_m[k][j];
-                      }
-                      cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j] += tmpSum*elementLengthOnGP;
-                  }
+            // slave patch
+//            vector<vector<double> > B_rot_s;
+            double* B_disp_s = new double[slaveNumLocalBasisFunctions];
+//            vector<double> normalAndDerivs_s;
 
-                  for(int j = 0; j < noCoord*noLocalBasisFunctions_s; j++) {
-                      double tmpSum = 0;
-                      for(int k = 0 ; k < numParametricDim ; k++) {
-                          tmpSum +=B_rot_m[k][i]*B_rot_s[k][j];
-                      }
-                      if(haveSurfaceNormalsSameOrientation) { // if the surface normals are in the same direction
-                          cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] += tmpSum*elementLengthOnGP;
-                      }
-                      else {
-                          cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j] -= tmpSum*elementLengthOnGP;
-                      }
-                  }
-              }
+            ///////////////////////
+            // Get the polynomial degree of the basis in each direction
 
-              for(int i = 0; i < noCoord*noLocalBasisFunctions_s; i++) {
-                  for(int j = 0; j < noCoord*noLocalBasisFunctions_s; j++) {
-                      double tmpSum = 0;
-                      for(int k = 0 ; k < numParametricDim ; k++) {
-                          tmpSum +=B_rot_s[k][i]*B_rot_s[k][j];
-                      }
-                      cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j] += tmpSum*elementLengthOnGP;
-                  }
-              }             
+            // Derivative order of the basis functions needed for the computation of the base vectors
+//            int derivDegree = 2;
 
-              delete[] tang_m;
-              delete[] tang_s;
-              delete[] B_disp_m;
-              delete[] B_disp_s;
+            // Compute the local basis functions and their derivatives
+            double* slaveLocalBasisFunctionsAndDerivatives = new double[(derivDegree + 1) * (derivDegree + 2)
+                    * slaveNumLocalBasisFunctions / 2];
+            slavePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(slaveLocalBasisFunctionsAndDerivatives,
+                    derivDegree, uSlave, uKnotSpanSlave, vSlave, vKnotSpanSlave);
+
+            // calculate Bdisp matrix (is just the R values for all localcps)
+            int counter_basis_s = 0;
+            int indexBasis_s;
+            // Loop over all the non-zero contributions
+            for (int j = 0; j <= qSlave; j++) {
+                for (int i = 0; i <= pSlave; i++) {
+                    // Update the basis function index
+                    indexBasis_s = slavePatch->getIGABasis()->indexDerivativeBasisFunction(derivDegree, 0,
+                            0, counter_basis_s);
+
+                    B_disp_s[counter_basis_s] = slaveLocalBasisFunctionsAndDerivatives[indexBasis_s];
+
+                    // Update basis function's counter
+                    counter_basis_s++;
+                }
+            }
+
+            //////////////////////////////////7
+
+//            slavePatch->computeCurvatureAtPoint(B_rot_s, B_disp_s, normalAndDerivs_s,
+//                                                uSlave, uKnotSpanSlave, vSlave, vKnotSpanSlave, tangentVctSlave);
+
+//            // check if the orientation of the surface normals are the same
+//            bool haveSurfaceNormalsSameOrientation = true;
+//            double sum = 0;
+//            for(int dimCtr = 0 ; dimCtr < numCoord ; dimCtr++)
+//                sum += normalAndDerivs_m[dimCtr]*normalAndDerivs_s[dimCtr];
+//            if(sum<0)
+//                haveSurfaceNormalsSameOrientation = false;
+
+            // calculate elementLength on GP (mapping from unit space to physical times the gpWeight)
+            double elementLengthOnGP = trCurveGPJacobianProducts[GPCtr]*trCurveGPWeights[GPCtr];
+
+            // calculate the disp coupling penalty which will be added to C_NN
+            int count = 0;
+            int count_ms = 0;
+            for(int i = 0; i < masterNumLocalBasisFunctions; i++) {
+                for(int j = 0; j < masterNumLocalBasisFunctions; j++) {
+                    // this will be summed up for all gausspoints on the element and then added to C_NN_expanded
+                    cPenaltyDisp_mm[count++] += B_disp_m[i] * B_disp_m[j]*elementLengthOnGP;
+                }
+                for(int j = 0; j < slaveNumLocalBasisFunctions; j++) {
+                    cPenaltyDisp_ms[count_ms++] -= B_disp_m[i] * B_disp_s[j]*elementLengthOnGP;
+                }
+            }
+
+            count = 0;
+            for(int i = 0; i < slaveNumLocalBasisFunctions; i++) {
+                for(int j = 0; j < slaveNumLocalBasisFunctions; j++) {
+                    cPenaltyDisp_ss[count++] += B_disp_s[i] * B_disp_s[j]*elementLengthOnGP;
+                }
+            }
+
+//            // calculate the rot coupling penalty which will be added to C_NN
+//            for(int i = 0; i < numCoord*masterNumLocalBasisFunctions; i++) {
+//                for(int j = 0; j < numCoord*masterNumLocalBasisFunctions; j++) {
+//                    double tmpSum = 0;
+//                    for(int k = 0 ; k < numParametricDim ; k++) {
+//                        tmpSum +=B_rot_m[k][i]*B_rot_m[k][j];
+//                    }
+//                    cPenaltyRot_mm[i*numCoord*masterNumLocalBasisFunctions + j] += tmpSum*elementLengthOnGP;
+//                }
+
+//                for(int j = 0; j < numCoord*slaveNumLocalBasisFunctions; j++) {
+//                    double tmpSum = 0;
+//                    for(int k = 0 ; k < numParametricDim ; k++) {
+//                        tmpSum +=B_rot_m[k][i]*B_rot_s[k][j];
+//                    }
+//                    if(haveSurfaceNormalsSameOrientation) { // if the surface normals are in the same direction
+//                        cPenaltyRot_ms[i*numCoord*slaveNumLocalBasisFunctions + j] += tmpSum*elementLengthOnGP;
+//                    }
+//                    else {
+//                        cPenaltyRot_ms[i*numCoord*slaveNumLocalBasisFunctions + j] -= tmpSum*elementLengthOnGP;
+//                    }
+//                }
+//            }
+
+//            for(int i = 0; i < numCoord*slaveNumLocalBasisFunctions; i++) {
+//                for(int j = 0; j < numCoord*slaveNumLocalBasisFunctions; j++) {
+//                    double tmpSum = 0;
+//                    for(int k = 0 ; k < numParametricDim ; k++) {
+//                        tmpSum +=B_rot_s[k][i]*B_rot_s[k][j];
+//                    }
+//                    cPenaltyRot_ss[i*numCoord*slaveNumLocalBasisFunctions + j] += tmpSum*elementLengthOnGP;
+//                }
+//            }
+
+            delete[] tangentVctMaster;
+            delete[] tangentVctSlave;
+            delete[] B_disp_m;
+            delete[] B_disp_s;
+
+            // get elementfreedom table
+            int dofIGA_m[masterNumLocalBasisFunctions];
+            int dofIGARot_m[numCoord*masterNumLocalBasisFunctions];
+            masterPatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpanMaster, vKnotSpanMaster, dofIGA_m);
+            for(int i = 0; i < masterNumLocalBasisFunctions; i++) {
+                dofIGA_m[i] = masterPatch->getControlPointNet()[dofIGA_m[i]]->getDofIndex();
+//                dofIGARot_m[numCoord*i] = numCoord*dofIGA_m[i];
+//                dofIGARot_m[numCoord*i+1] = numCoord*dofIGA_m[i]+1;
+//                dofIGARot_m[numCoord*i+2] = numCoord*dofIGA_m[i]+2;
+            }
+
+            int dofIGA_s[slaveNumLocalBasisFunctions];
+            int dofIGARot_s[numCoord*slaveNumLocalBasisFunctions];
+            slavePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpanSlave, vKnotSpanSlave, dofIGA_s);
+            for(int i = 0; i < slaveNumLocalBasisFunctions; i++) {
+                dofIGA_s[i] = slavePatch->getControlPointNet()[dofIGA_s[i]]->getDofIndex();
+//                dofIGARot_s[numCoord*i] = numCoord*dofIGA_s[i];
+//                dofIGARot_s[numCoord*i+1] = numCoord*dofIGA_s[i]+1;
+//                dofIGARot_s[numCoord*i+2] = numCoord*dofIGA_s[i]+2;
+            }
+
+            // put the master-master and master-slave displacement penalty terms into C_NN
+            for(int i = 0; i < masterNumLocalBasisFunctions; i++) {
+                for(int j = 0; j < masterNumLocalBasisFunctions; j++) {
+                    for(int r = 0 ; r < numCoord ; r++) {
+                        couplingMatrices->addCNN_expandedValue(numCoord*dofIGA_m[i] + r , numCoord*dofIGA_m[j] + r , alphaPrim*cPenaltyDisp_mm[i*masterNumLocalBasisFunctions + j]);
+                    }
+                }
+                for(int j = 0; j < slaveNumLocalBasisFunctions; j++) {
+                    for(int r = 0 ; r < numCoord ; r++) {
+                        couplingMatrices->addCNN_expandedValue(numCoord*dofIGA_m[i] + r , numCoord*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ms[i*slaveNumLocalBasisFunctions + j]);
+                        couplingMatrices->addCNN_expandedValue(numCoord*dofIGA_s[j] + r , numCoord*dofIGA_m[i] + r , alphaPrim*cPenaltyDisp_ms[i*slaveNumLocalBasisFunctions + j]);
+                    }
+                }
+            }
+
+            // put the slave-slave displacement penalty terms into C_NN
+            for(int i = 0; i < slaveNumLocalBasisFunctions; i++) {
+                for(int j = 0; j < slaveNumLocalBasisFunctions; j++) {
+                    for(int r = 0 ; r < numCoord ; r++) {
+                        couplingMatrices->addCNN_expandedValue(numCoord*dofIGA_s[i] + r , numCoord*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ss[i*slaveNumLocalBasisFunctions + j]);
+                    }
+                }
+            }
+
+//            // put the master-master and master-slave rotational penalty terms into C_NN
+//            for(int i = 0 ; i < numCoord*masterNumLocalBasisFunctions ; i++) {
+//                for(int j = 0 ; j < numCoord*masterNumLocalBasisFunctions ; j++) {
+//                    couplingMatrices->addCNN_expandedValue(dofIGARot_m[i], dofIGARot_m[j] , alphaSec*cPenaltyRot_mm[i*numCoord*masterNumLocalBasisFunctions + j]);
+//                }
+//                for(int j = 0 ; j < numCoord*slaveNumLocalBasisFunctions ; j++) {
+//                    couplingMatrices->addCNN_expandedValue(dofIGARot_m[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ms[i*numCoord*slaveNumLocalBasisFunctions + j]);
+//                    couplingMatrices->addCNN_expandedValue(dofIGARot_s[j] , dofIGARot_m[i] , alphaSec*cPenaltyRot_ms[i*numCoord*slaveNumLocalBasisFunctions + j]);
+//                }
+//            }
+
+//            // put the slave-slave rotational penalty terms into C_NN
+//            for(int i = 0 ; i < numCoord*slaveNumLocalBasisFunctions ; i++) {
+//                for(int j = 0 ; j < numCoord*slaveNumLocalBasisFunctions ; j++) {
+//                    couplingMatrices->addCNN_expandedValue(dofIGARot_s[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ss[i*numCoord*slaveNumLocalBasisFunctions + j]);
+//                }
+//            }
         }   // end gausspoint loop
 
-        // get elementfreedom table
-        int dofIGA_m[noLocalBasisFunctions_m];
-        int dofIGARot_m[noCoord*noLocalBasisFunctions_m];
-        masterPatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan_m, vKnotSpan_m, dofIGA_m);
-        for(int i = 0; i < noLocalBasisFunctions_m; i++) {
-            dofIGA_m[i] = masterPatch->getControlPointNet()[dofIGA_m[i]]->getDofIndex();
-            dofIGARot_m[3*i] = 3*dofIGA_m[i];
-            dofIGARot_m[3*i+1] = 3*dofIGA_m[i]+1;
-            dofIGARot_m[3*i+2] = 3*dofIGA_m[i]+2;
-        }
+        delete[] cPenaltyDisp_mm;
+        delete[] cPenaltyDisp_ss;
+        delete[] cPenaltyDisp_ms;
+//        delete[] cPenaltyRot_mm;
+//        delete[] cPenaltyRot_ss;
+//        delete[] cPenaltyRot_ms;
+    } // end WeakCondition loop
 
-        int dofIGA_s[noLocalBasisFunctions_s];
-        int dofIGARot_s[noCoord*noLocalBasisFunctions_s];
-        slavePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan_s, vKnotSpan_s, dofIGA_s);
-        for(int i = 0; i < noLocalBasisFunctions_s; i++) {
-            dofIGA_s[i] = slavePatch->getControlPointNet()[dofIGA_s[i]]->getDofIndex();
-            dofIGARot_s[3*i] = 3*dofIGA_s[i];
-            dofIGARot_s[3*i+1] = 3*dofIGA_s[i]+1;
-            dofIGARot_s[3*i+2] = 3*dofIGA_s[i]+2;
-        }
 
-        // put the master-master and master-slave displacement penalty terms into C_NN
-        for(int i = 0; i < noLocalBasisFunctions_m; i++) {
-            for(int j = 0; j < noLocalBasisFunctions_m; j++) {
-                for(int r = 0 ; r < 3 ; r++) {
-                    couplingMatrices->addCNN_expandedValue(3*dofIGA_m[i] + r , 3*dofIGA_m[j] + r , alphaPrim*cPenaltyDisp_mm[i*noLocalBasisFunctions_m + j]);
-                }
-            }
-            for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                for(int r = 0 ; r < 3 ; r++) {
-                    couplingMatrices->addCNN_expandedValue(3*dofIGA_m[i] + r , 3*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j]);
-                    couplingMatrices->addCNN_expandedValue(3*dofIGA_s[j] + r , 3*dofIGA_m[i] + r , alphaPrim*cPenaltyDisp_ms[i*noLocalBasisFunctions_s + j]);
-                }
-            }
-        }
 
-        // put the slave-slave displacement penalty terms into C_NN
-        for(int i = 0; i < noLocalBasisFunctions_s; i++) {
-            for(int j = 0; j < noLocalBasisFunctions_s; j++) {
-                for(int r = 0 ; r < 3 ; r++) {
-                    couplingMatrices->addCNN_expandedValue(3*dofIGA_s[i] + r , 3*dofIGA_s[j] + r , alphaPrim*cPenaltyDisp_ss[i*noLocalBasisFunctions_s + j]);
-                }
-            }
-        }
-
-        // put the master-master and master-slave rotational penalty terms into C_NN
-        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_m ; i++) {
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_m ; j++) {
-                couplingMatrices->addCNN_expandedValue(dofIGARot_m[i], dofIGARot_m[j] , alphaSec*cPenaltyRot_mm[i*noCoord*noLocalBasisFunctions_m + j]);
-            }
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
-                couplingMatrices->addCNN_expandedValue(dofIGARot_m[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j]);
-                couplingMatrices->addCNN_expandedValue(dofIGARot_s[j] , dofIGARot_m[i] , alphaSec*cPenaltyRot_ms[i*noCoord*noLocalBasisFunctions_s + j]);
-            }
-        }
-
-        // put the slave-slave rotational penalty terms into C_NN
-        for(int i = 0 ; i < noCoord*noLocalBasisFunctions_s ; i++) {
-            for(int j = 0 ; j < noCoord*noLocalBasisFunctions_s ; j++) {
-                couplingMatrices->addCNN_expandedValue(dofIGARot_s[i] , dofIGARot_s[j] , alphaSec*cPenaltyRot_ss[i*noCoord*noLocalBasisFunctions_s + j]);
-            }
-        }
-    }   // end BRepElement loop
-    delete[] cPenaltyDisp_mm;
-    delete[] cPenaltyDisp_ss;
-    delete[] cPenaltyDisp_ms;
-    delete[] cPenaltyRot_mm;
-    delete[] cPenaltyRot_ss;
-    delete[] cPenaltyRot_ms;
+    INFO_OUT()<<"Penalty Patch Coupling Finished"<<std::endl;
 }
 
 void IGAMortarMapper::computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,
@@ -1820,7 +1867,7 @@ void IGAMortarMapper::writeCartesianProjectedPolygon(const string _filename, std
     		for(Polygon2D::iterator itPolygon=itListPolygon->begin(); itPolygon!=itListPolygon->end(); itPolygon++) {
         		double local[2], global[3];
         		local[0] = itPolygon->first;
-        		local[1] = itPolygon->second;
+                local[1] = itPolygon->second;
         		thePatch->computeCartesianCoordinates(global,local);
         		stringstream pointStream;
         		pointStream << global[0];

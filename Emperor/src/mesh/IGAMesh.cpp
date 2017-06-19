@@ -38,13 +38,19 @@ namespace EMPIRE {
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
         AbstractMesh(_name), numNodes(_numNodes) {
     type = EMPIRE_Mesh_IGAMesh;
+	
+	// Initialize the coupling data
+	couplingData = NULL;
 }
 
 IGAMesh::~IGAMesh() {
     for (int i = 0; i < surfacePatches.size(); i++)
         delete surfacePatches[i];
-    if (couplingData != NULL)
-	delete couplingData;
+//    if (couplingData != NULL)
+//	delete couplingData;
+
+    for (int i = 0; i < weakIGAPatchContinuityConditions.size(); i++)
+        delete weakIGAPatchContinuityConditions[i];
 }
 
 IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree,
@@ -125,6 +131,25 @@ void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _loc
             _typeOfQuantity);
     nameToDataFieldMap.insert(pair<string, DataField*>(_dataFieldName, dataField));
 
+}
+
+WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
+                                                             int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                                                             int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
+                                                             bool _isGPProvided){
+
+    weakIGAPatchContinuityConditions.push_back(new WeakIGAPatchContinuityCondition(_connectionID,
+                                                                _masterPatchIndex, _masterPatchBLIndex, _masterPatchBLTrCurveIndex,
+                                                                _slavePatchIndex, _slavePatchBLIndex, _slavePatchBLTrCurveIndex,
+                                                                _isGPProvided));
+    return weakIGAPatchContinuityConditions.back();
+
+}
+
+void IGAMesh::createWeakContinuityConditionGPData(){
+    ERROR_OUT("Weak continuity condition GP data cannot be created!!");
+    ERROR_OUT("GP data must be provided!!");
+    exit(-1);
 }
 
 void IGAMesh::addCouplingData(int _patchCounter, int _BRepCounter, double* _GP_m, double* _GP_s, double* _GP_w,

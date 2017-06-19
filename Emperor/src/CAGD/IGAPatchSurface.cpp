@@ -195,6 +195,7 @@ void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, d
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
         int _uKnotSpanIndex, double _vPrm, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  The coordinates of the point are assumed on the 3D space that is _cartesianCoordinates = [X Y Z]
@@ -251,6 +252,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFunctions, int _uKnotSpanIndex, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -302,6 +304,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localCoordinates) const {
+
     int _uKnotSpanIndex = IGABasis->getUBSplineBasis1D()->findKnotSpan(_localCoordinates[0]);
     int _vKnotSpanIndex = IGABasis->getVBSplineBasis1D()->findKnotSpan(_localCoordinates[1]);
     IGAPatchSurface::computeCartesianCoordinates(_cartesianCoordinates, _localCoordinates[0],
@@ -311,6 +314,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFctsAndDerivs, int _derivDegree, int _uKnotSpanIndex,
         int _vKnotSpanIndex) const {
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -996,6 +1000,9 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     // Initialize the flag to true
     bool flagNewtonRaphson = true;
     _flagConverge = true;
+	
+	// Flag for solvability of linear equation system
+	bool isSystemSolved = true;
 
     // Flag for solving linear equation system
     bool isSystemSolvable = true;
@@ -1208,15 +1215,17 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
             // Check if the equation system has been successfully solved
             if (!flagLinearSystem) {
-                ERROR_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
-                ERROR_OUT()
+                WARNING_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
+                WARNING_OUT()
                         << "The 2x2 equation system to find the updates of the surface parameters"
                         << endl;
-                ERROR_OUT()
+                WARNING_OUT()
                         << "for the orthogonal projection of a point on the NURBS patch has been"
                         << endl;
-                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
-                exit(-1);
+                WARNING_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
+                // exit(-1);
+				isSystemSolved = false;
+				break;
             }
         } else {
             if (conditionFirstRowZero){
@@ -1287,6 +1296,10 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     } else {
         flagNewtonRaphson = true;
     }
+    if (!isSystemSolved) {
+		flagNewtonRaphson = false;
+	}
+    
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
     delete[] basisFctsAndDerivs;
