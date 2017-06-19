@@ -142,6 +142,7 @@ void Empire::sendIGATrimmingLoopInfo(int _inner, int _numCurves) {
     int trimInfo[BUFFER_SIZE] = { _inner, _numCurves };
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE, trimInfo);
 }
+
 void Empire::sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
         double* _uKnotVector, int _uNumControlPoints, double* _cpNet) {
     const int BUFFER_SIZE = 4;
@@ -150,6 +151,36 @@ void Empire::sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
     ClientCommunication::getSingleton()->sendToServerBlocking<double>(_uNumKnots, _uKnotVector);
     ClientCommunication::getSingleton()->sendToServerBlocking<double>(_uNumControlPoints * 4,
             _cpNet);
+}
+
+void Empire::sendIGANumPatchConnections(int _numConnections){
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_numConnections);
+}
+
+void Empire::sendIGAPatchConnectionInfo(int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                                        int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
+                                        int _isGPProvided){
+    const int BUFFER_SIZE = 6;
+    int couplingInfo[BUFFER_SIZE] = { _masterPatchIndex, _masterPatchBLIndex, _masterPatchBLTrCurveIndex,
+                                      _slavePatchIndex, _slavePatchBLIndex, _slavePatchBLTrCurveIndex };
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,couplingInfo);
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_isGPProvided);
+
+}
+
+void Empire::sendIGAPatchConnectionData(int _trCurveNumGP,
+                                        double *_trCurveMasterGPs, double *_trCurveSlaveGPs, double *_trCurveGPWeights,
+                                        double *_trCurveMasterGPTangents, double *_trCurveSlaveGPTangents,
+                                        double *_trCurveGPJacobianProducts){
+
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_trCurveNumGP);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*2,_trCurveMasterGPs);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*2,_trCurveSlaveGPs);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP,_trCurveGPWeights);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*3,_trCurveMasterGPTangents);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*3,_trCurveSlaveGPTangents);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP,_trCurveGPJacobianProducts);
+
 }
 
 void Empire::sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,

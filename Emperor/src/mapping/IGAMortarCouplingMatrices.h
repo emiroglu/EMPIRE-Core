@@ -164,7 +164,6 @@ public:
      * \author Ragnar Björnsson
      ***********/
     int getCorrectSizeN() {
-
         if(isIGAPatchCoupling || isClampedDofs)
             return 3*size_N;
         else

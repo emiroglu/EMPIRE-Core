@@ -56,7 +56,7 @@ void init_FE_NearestNeighborMapper(char* mapperName,
     std::string mapperNameToMap = std::string(mapperName);
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : \"" + mapperNameToMap + "\" has already been initialized!");
         exit(EXIT_FAILURE);
     }
     else{
@@ -74,9 +74,9 @@ void init_FE_NearestElementMapper(char* mapperName,
     WARNING_OUT("Please check \"initFEMNearestElementMapper\" for the new declaration.");
 
     std::string mapperNameToMap = std::string(mapperName);
-    
+
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : \"" + mapperNameToMap + "\" has already been initialized!");
         exit(EXIT_FAILURE);
     }
     else{
@@ -94,12 +94,14 @@ void init_FE_BarycentricInterpolationMapper(char* mapperName,
     WARNING_OUT("Please check \"initFEMBarycentricInterpolationMapper\" for the new declaration.");
 
     std::string mapperNameToMap = std::string(mapperName);
-    
+
     if (mapperList.count( mapperNameToMap )){
         ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
         exit(EXIT_FAILURE);
     } else {
         mapperList[mapperNameToMap] = new BarycentricInterpolationMapper(AnumNodes, Anodes, BnumNodes, Bnodes);
+        mapperList[mapperNameToMap]->buildCouplingMatrices();
+        INFO_OUT("Mapper \"" + mapperNameToMap + "\" is generated");
     }
 }
 
@@ -140,7 +142,7 @@ void initFEMesh(char* meshName, int numNodes, int numElems, bool triangulateAll 
     std::string meshNameToMap = std::string(meshName);
 
     if (meshList.count( meshNameToMap )){
-        ERROR_OUT("A mesh with name : " + meshNameToMap + "has already been initialized!");
+        ERROR_OUT("A mesh with name : " + meshNameToMap + " has already been initialized!");
         ERROR_OUT("Mesh not generated!");
         return;
     } else {
@@ -155,11 +157,11 @@ void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
     std::string meshNameInMap = std::string(meshName);
 
     if (!meshList.count( meshNameInMap )){
-        ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
-        FEMesh *tmpFEMesh = static_cast<FEMesh *>(meshList[meshNameInMap]);
+        FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         for(int i=0; i<tmpFEMesh->numNodes;i++) tmpFEMesh->nodeIDs[i] = nodeIDs[i];
         for(int i=0; i<(tmpFEMesh->numNodes)*3;i++) tmpFEMesh->nodes[i] = nodes[i];
         INFO_OUT("Nodes set to \"" + meshNameInMap );
@@ -171,11 +173,11 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
     std::string meshNameInMap = std::string(meshName);
 
     if (!meshList.count( meshNameInMap )){
-        ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_FEMesh){
-        FEMesh *tmpFEMesh = static_cast<FEMesh *>(meshList[meshNameInMap]);
+        FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         tmpFEMesh->elems = NULL;
         for(int i=0; i<tmpFEMesh->numElems;i++) tmpFEMesh->numNodesPerElem[i] = numNodesPerElem[i];
         tmpFEMesh->initElems();
@@ -189,7 +191,7 @@ void initIGAMesh(char* meshName, int numNodes){
     std::string meshNameToMap = std::string(meshName);
 
     if (meshList.count( meshNameToMap )){
-        ERROR_OUT("A mesh with name : " + meshNameToMap + "has already been initialized!");
+        ERROR_OUT("A mesh with name : " + meshNameToMap + " has already been initialized!");
         ERROR_OUT("Mesh not generated!");
         return;
     } else {
@@ -207,11 +209,11 @@ void addPatchToIGAMesh(char* meshName,
     std::string meshNameInMap = std::string(meshName);
 
     if (!meshList.count( meshNameInMap )){
-        ERROR_OUT("A mesh with name : " + meshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
-        IGAMesh *tmpIGAMesh = static_cast<IGAMesh *>(meshList[meshNameInMap]);
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         tmpIGAMesh->addPatch(pDegree, uNoKnots, uKnotVector,
                              qDegree, vNoKnots, vKnotVector,
                              uNoControlPoints, vNoControlPoints,
@@ -230,7 +232,7 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
         ERROR_OUT("Did nothing!");
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
-        IGAMesh *tmpIGAMesh = static_cast<IGAMesh *>(meshList[meshNameInMap]);
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimLoop(inner,numCurves);
         INFO_OUT()<<"Added trimming loop to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
     }
@@ -247,10 +249,25 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
         ERROR_OUT("Did nothing!");
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
-        IGAMesh *tmpIGAMesh = static_cast<IGAMesh *>(meshList[meshNameInMap]);
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
                                                                      uNoControlPoints, controlPoints);
         INFO_OUT()<<"Added trimming curve to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
+    }
+}
+
+void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch){
+
+    std::string meshNameInMap = std::string(meshName);
+
+    if (!meshList.count( meshNameInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
+        (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->linearizeTrimming();
+        INFO_OUT()<<"Linearized trimming curves of \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
     }
 }
 
@@ -266,7 +283,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( aFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[aFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -274,12 +291,12 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( bFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[bFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -287,7 +304,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpbFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     bool _oppositeSurfaceNormal = false;
@@ -299,7 +316,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
     if (enforceConsistency != 0) _enforceConsistency = true;
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
@@ -326,7 +343,7 @@ void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* Bmesh
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( aFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[aFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -334,12 +351,12 @@ void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* Bmesh
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( bFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[bFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -347,11 +364,11 @@ void initFEMNearestNeighborMapper(char* mapperName, char* AmeshName, char* Bmesh
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpbFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
@@ -377,7 +394,7 @@ void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshN
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( aFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[aFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -385,12 +402,12 @@ void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshN
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( bFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[bFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -398,11 +415,11 @@ void initFEMNearestElementMapper(char* mapperName, char* AmeshName, char* BmeshN
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpbFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
@@ -427,7 +444,7 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( aFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + aFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[aFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -435,12 +452,12 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( bFEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + bFEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[bFEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -448,11 +465,11 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpbFEMesh = static_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
@@ -477,7 +494,7 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( IGAMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + IGAMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + IGAMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[IGAMeshNameInMap]->type != EMPIRE_Mesh_IGAMesh){
@@ -485,12 +502,12 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpIGAMesh = static_cast<IGAMesh *>(meshList[IGAMeshNameInMap]);
+        tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[IGAMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
     if (!meshList.count( FEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + FEMeshNameInMap + "does not exist!");
+        ERROR_OUT("A mesh with name : " + FEMeshNameInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else if (meshList[FEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
@@ -498,11 +515,11 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpFEMesh = static_cast<FEMesh *>(meshList[FEMeshNameInMap]);
+        tmpFEMesh = dynamic_cast<FEMesh *>(meshList[FEMeshNameInMap]);
     }
 
     if (mapperList.count( mapperNameToMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameToMap + "has already been initialized!");
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
@@ -525,7 +542,7 @@ void setParametersProjection(char* mapperName,
 
     // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
@@ -534,7 +551,7 @@ void setParametersProjection(char* mapperName,
         return;
     }
     else{
-        tmpIGAMortarMapper = static_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersProjection(maxProjectionDistance, numRefinementForIntialGuess, maxDistanceForProjectedPointsOnDifferentPatches);
     }
 
@@ -549,7 +566,7 @@ void setParametersNewtonRaphson(char* mapperName,
 
     // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
@@ -558,7 +575,7 @@ void setParametersNewtonRaphson(char* mapperName,
         return;
     }
     else{
-        tmpIGAMortarMapper = static_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersNewtonRaphson(maxNumOfIterations, tolerance);
     }
 }
@@ -572,7 +589,7 @@ void setParametersNewtonRaphsonBoundary(char* mapperName,
 
     // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
@@ -581,7 +598,7 @@ void setParametersNewtonRaphsonBoundary(char* mapperName,
         return;
     }
     else{
-        tmpIGAMortarMapper = static_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersNewtonRaphsonBoundary(maxNumOfIterations, tolerance);
     }
 }
@@ -595,7 +612,7 @@ void setParametersBisection(char* mapperName,
 
     // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
@@ -603,7 +620,7 @@ void setParametersBisection(char* mapperName,
         ERROR_OUT("Did nothing!");
         return;
     } else {
-        tmpIGAMortarMapper = static_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersBisection(maxNumOfIterations, tolerance);
     }
 }
@@ -617,7 +634,7 @@ void setParametersIntegration(char* mapperName,
 
     // check if the mapper with the given name is generated and is of correct type
     if (mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
@@ -626,7 +643,7 @@ void setParametersIntegration(char* mapperName,
         return;
     }
     else{
-        tmpIGAMortarMapper = static_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersIntegration(numGPTriangle, numGPQuad);
     }
 }
@@ -637,7 +654,7 @@ void buildCouplingMatrices(char *mapperName){
 
     // check if the mapper with the given name is generated
     if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + "does not exist!");
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
     } else{
@@ -742,9 +759,10 @@ void printMesh(char* meshName){
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("Mesh with name: \"" + meshNameInMap + "\" does not exist : ");
         ERROR_OUT("Did nothing!");
-        return;
     } else {
         if (!((meshList[meshNameInMap])->boundingBox.isComputed())) (meshList[meshNameInMap])->computeBoundingBox();
+
+        INFO_OUT(" ======== " + meshNameInMap + " ======== ");
         INFO_OUT() << (meshList[meshNameInMap])->boundingBox << endl;
     }
 }
@@ -754,7 +772,6 @@ void deleteMesh(char* meshName){
     if (!meshList.count( meshNameInMap )){
         ERROR_OUT("Mesh with name: \"" + meshNameInMap + "\" does not exist : ");
         ERROR_OUT("Did nothing!");
-        return;
     } else {
         delete meshList[meshNameInMap];
     }

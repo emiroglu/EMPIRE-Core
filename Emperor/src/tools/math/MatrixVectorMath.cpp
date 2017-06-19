@@ -330,6 +330,59 @@ void computeMatrixProduct(int n, int m, const double *A, double *B) {
 }
 
 /***********************************************************************************************
+ * \brief Compute the matrix product between two matrices (general)
+ * \param[in] n The number of rows of matrix A
+ * \param[in] p The number of columns of matrix A and the number of rows of matrix B
+ * \param[in] m The number of columns of matrix B
+ * \param[in] A the matrix with size n*p
+ * \param[in] B the matrix with size p*m
+ * \param[out] B B is overwritten by A*B with size n*m
+ * \author Andreas Apostolatos
+ ***********/
+void computeMatrixProduct(int n, int p, int m, const double *A, double *B) {
+    assert(A != NULL);
+    assert(B != NULL);
+
+    double *C = new double[n * m];
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < m; j++){
+            double sum = 0.0;
+            for(int k = 0; k < p; k++){
+                sum += A[i * n + k] * B[j + k * m];
+            }
+            C[i*m + j] = sum;
+        }
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            B[i * m + j] = C[i * m + j];
+    delete[] C;
+}
+
+/***********************************************************************************************
+ * \brief Compute the transpose matrix product between two matrices (general)
+ * \param[in] p The number of rows of matrix A and B
+ * \param[in] n The number of columns of matrix A
+ * \param[in] m The number of columns of matrix B
+ * \param[in] A the matrix with size p*n
+ * \param[in] B the matrix with size p*m
+ * \param[out] C The transpose product with size n*m
+ * \author Andreas Apostolatos
+ ***********/
+void computeTransposeMatrixProduct(int p, int n, int m, const double *A, const double *B, double *C){
+    assert(A != NULL);
+    assert(B != NULL);
+
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < m; j++){
+            double sum = 0.0;
+            for(int k = 0; k < p; k++){
+                sum += A[k * n + i] * B[k * m + j];
+            }
+            C[i*m + j] = sum;
+        }
+}
+
+/***********************************************************************************************
  * \brief My own sparse matrix (csr format, non-symmetric) vector multiplication routine (A * x = y).
  *        The interface is simplified and compatible with mkl_dcsrmv.
  *        This routine supports only one-based indexing of the input arrays.

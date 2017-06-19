@@ -45,7 +45,11 @@ NurbsBasis1D::NurbsBasis1D(int _ID = 0, int _pDegree = 0, int _noKnots = 0, doub
     }
 
     assert(_controlPointWeights!=NULL);
-    ControlPointWeights = _controlPointWeights;
+
+    // copying the values of _controlPointWeights pointer to ControlPointWeights pointer
+    ControlPointWeights = new double[_noControlPoints];
+    for (int i = 0; i<_noControlPoints; i++) ControlPointWeights[i] = _controlPointWeights[i];
+
 }
 
 NurbsBasis1D::~NurbsBasis1D() {

@@ -56,7 +56,7 @@ void IGAMortarCouplingMatrices::setIsIGAPatchCoupling(bool _isIGAPatchCoupling, 
     isIGAPatchCoupling = _isIGAPatchCoupling;
     isClampedDofs = _isClampedDofs;
 
-    if(isIGAPatchCoupling || isClampedDofs) {		
+    if(isIGAPatchCoupling || isClampedDofs) {
         C_NN_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , false);
         C_NR_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , 3*size_R);
 

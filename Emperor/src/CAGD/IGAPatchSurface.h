@@ -113,6 +113,10 @@ public:
     void addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                       int _uNoControlPoints, double* _controlPointNet);
 
+    /***********************************************************************************************
+     * \brief Linearize all the trimming loops and curves of the given mesh and patch
+     * \author Altug Emiroglu
+     ***********/
     void linearizeTrimming(){Trimming.linearizeLoops();};
 
     /// Basis related functions
@@ -205,6 +209,15 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void computeBaseVectorsAndDerivatives(double*, double*, int, int, int);
+
+    /***********************************************************************************************
+     * \brief Returns the Cartesian Coordinates of the surface normal vector and its first derivatives at a given pair of surface parameters given the surface base vectors
+     * \param[in]  _baseVctU The Cartesian components of the base vector along u parametric coordinates
+     * \param[in]  _baseVctV The Cartesian components of the base vector along v parametric coordinates
+     * \param[out] _surfNormalVctAndDervs The surface normal vector and its derivatives
+     * \author Andreas Apostolatos
+     ***********/
+//    void computeSurfaceNormalVectorAndDerivatives(double*, double*, double*);
 
     /***********************************************************************************************
     * \brief Returns the Surface normals and its 1st derivatives, given the base vectors and their derivatives

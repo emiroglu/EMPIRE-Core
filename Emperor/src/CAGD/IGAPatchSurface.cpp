@@ -195,6 +195,7 @@ void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, d
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
         int _uKnotSpanIndex, double _vPrm, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  The coordinates of the point are assumed on the 3D space that is _cartesianCoordinates = [X Y Z]
@@ -251,6 +252,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFunctions, int _uKnotSpanIndex, int _vKnotSpanIndex) const{
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -302,6 +304,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localCoordinates) const {
+
     int _uKnotSpanIndex = IGABasis->getUBSplineBasis1D()->findKnotSpan(_localCoordinates[0]);
     int _vKnotSpanIndex = IGABasis->getVBSplineBasis1D()->findKnotSpan(_localCoordinates[1]);
     IGAPatchSurface::computeCartesianCoordinates(_cartesianCoordinates, _localCoordinates[0],
@@ -311,6 +314,7 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
         double* _localBasisFctsAndDerivs, int _derivDegree, int _uKnotSpanIndex,
         int _vKnotSpanIndex) const {
+
     /*
      *  Returns the Cartesian coordinates of a point on the 2D IGA patch whose surface parameters are _uPrm and _vPrm.
      *  It is also expected that the local basis functions have been precomputed outside the scope of this function and are given as arguments.
@@ -523,7 +527,6 @@ int IGAPatchSurface::indexDerivativeBaseVector(int _derivDegree, int _uDerivInde
 void IGAPatchSurface::computeBaseVectorsAndDerivatives(double* _baseVectorsAndDerivatives,
         double*_localBasisFunctionsAndDerivatives, int _derivDegree, int _uKnotSpanIndex,
         int _vKnotSpanIndex) {
-
     /*
      * Returns the base vectors and their j-th derivative w.r.t. v-parametric line and i-th derivative w.r.t. u-parametric line partial derivatives.
      * On the input arrays the following rules must be fulfiled:
@@ -629,6 +632,30 @@ void IGAPatchSurface::computeBaseVectorsAndDerivatives(double* _baseVectorsAndDe
     }
 }
 
+//void IGAPatchSurface::computeSurfaceNormalVectorAndDerivatives(double* _baseVctU, double* _baseVctV, double* _surfNormalVctAndDervs){
+//    /*
+//     * Returns the surface normal base vector and its first order parametric derivatives given the surface base vectors. The output array is
+//     * filled up the components of the surface normal base vector and its derivatives as follows:
+//     *
+//     * · The array _surfNormalVctAndDervs = double[9] with
+//     *   _surfNormalVctAndDervs = [surfNormalVct[0] surfNormalVct[1] surfNormalVct[2] …
+//     *                             dSurfNormalVctdU[0] dSurfNormalVctdU[1] dSurfNormalVctdU[2] …
+//     *                             dSurfNormalVctdV[0] dSurfNormalVctdV[1] dSurfNormalVctdV[2]]
+//     */
+
+//    // Number of Cartesian coodinates
+//    int noCoord = 3;
+
+//    // Compute the not normalized surface normal vector
+//    double* surfNormalVctTilde[3];
+//    MathLibrary::crossProduct(normalVector,baseVectors[0],baseVectors[1]);
+
+//    // Initialize output array
+//    double* _surfNormalVctAndDervs[9];
+
+
+//}
+
 void IGAPatchSurface::computeSurfaceNormalAndDerivatives(std::vector<double>& _normalAndDerivatives, double* _baseVectorsAndDerivatives) {
 
     int uDrv=1;
@@ -684,7 +711,7 @@ void IGAPatchSurface::computeSurfaceNormalAndDerivatives(std::vector<double>& _n
         _normalAndDerivatives.at(i) = normalVector[i]/normalVecNorm;
     }
 
-    std::vector<double> aTilda3commaR[noBaseVct];           // eq 5.24 Johannes Kiendl Isogeometric page 46
+    std::vector<double> aTilda3commaR[noBaseVct];           // eq 5.24 Joseph Kiendl Isogeometric page 46
     for(int i = 0 ; i < noBaseVct ; i++) {
         aTilda3commaR[i].resize(noCoordinates);
     }
@@ -1009,8 +1036,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
 
     const double epsJ = 1e-6;
     const double epsDuv = 1e-10;
-    bool fixU = false;
-    bool fixV = false;
+    //bool fixU = false;
+    //bool fixV = false;
 
     // Initialize number of spatial dimensions
     int noSpatialDimensions = 3;
@@ -1029,7 +1056,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     int indexDGuDu = 0;
     int indexDGvDv = 0;
     int indexDGuDv = 0;
-    int indexDGvDu = indexDGuDv;
+    //int indexDGvDu = indexDGuDv;
 
     // Initialize the base vectors and their derivatives
     double Gu[3];
@@ -1037,7 +1064,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     double DGuDu[3];
     double DGvDv[3];
     double DGuDv[3];
-    double* DGvDu=DGuDv;
+    //double* DGvDu=DGuDv;
 
     // Initialize the dot products
     double distanceVector2norm = 0.0;
@@ -1070,8 +1097,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
 
     // The lengths of the knot vectors to the NURBS patch
-    int lengthUKnotVct = IGABasis->getUBSplineBasis1D()->getNoKnots();
-    int lengthVKnotVct = IGABasis->getVBSplineBasis1D()->getNoKnots();
+    //int lengthUKnotVct = IGABasis->getUBSplineBasis1D()->getNoKnots();
+    //int lengthVKnotVct = IGABasis->getVBSplineBasis1D()->getNoKnots();
 
     // Local number of basis functions
     int noLocalBasisFcts = (pDegree + 1) * (qDegree + 1);
