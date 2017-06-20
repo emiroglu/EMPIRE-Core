@@ -819,6 +819,55 @@ void IGAPatchSurface::computeContravariantBaseVectors(double* _contravariantBase
     }
 }
 
+void IGAPatchSurface::computeContravariantCurvatureTensor(double* _contravariantCurvatureTensor, double* _surfNormalVctAndDervs, double* _baseVctsAndDerivs, int _derivDegreeBaseVec){
+    /*
+     * Returns the components of the curvature tensor in the contravariant basis in an array of constant size 4
+     *
+     * · The array _contravariantCurvatureTensor = double[6] is sorted as
+     *   _contravariantCurvatureTensor = [dbaseVctContraUdU dbaseVctContraUdV dbaseVctContraVdU dbaseVctContraVdV]*_surfNormalVctAndDervs
+     */
+
+    // Initialize auxiliary variables
+    int indexBaseVct;
+
+    // Number of Cartesian coodinates
+    int noCoord = 3;
+
+    // Get the derivative of base vector along u with respect to u parametric direction
+    double dBaseVctUdU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 1, 0, i, 0);
+        dBaseVctUdU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along u with respect to v parametric direction
+    double dBaseVctUdV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 1, i, 0);
+        dBaseVctUdV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along v with respect to u parametric direction
+    double dBaseVctVdU[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 1, 0, i, 1);
+        dBaseVctVdU[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Get the derivative of base vector along v with respect to v parametric direction
+    double dBaseVctVdV[noCoord];
+    for(int i = 0; i < noCoord; i++){
+        indexBaseVct = this->indexDerivativeBaseVector(_derivDegreeBaseVec, 0, 1, i, 1);
+        dBaseVctVdV[i] = _baseVctsAndDerivs[indexBaseVct];
+    }
+
+    // Compute the components of the curvature tensor in the contravariant basis
+    _contravariantCurvatureTensor[0] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,dBaseVctUdU,_surfNormalVctAndDervs);
+    _contravariantCurvatureTensor[1] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,dBaseVctUdV,_surfNormalVctAndDervs);
+    _contravariantCurvatureTensor[2] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,dBaseVctVdU,_surfNormalVctAndDervs);
+    _contravariantCurvatureTensor[3] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,dBaseVctVdV,_surfNormalVctAndDervs);
+}
+
 //void IGAPatchSurface::computeSurfaceNormalAndDerivatives(std::vector<double>& _normalAndDerivatives, double* _baseVectorsAndDerivatives) {
 
 //    int uDrv=1;

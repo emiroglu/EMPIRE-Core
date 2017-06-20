@@ -336,14 +336,13 @@ void computeMatrixProduct(int n, int m, const double *A, double *B) {
  * \param[in] m The number of columns of matrix B
  * \param[in] A the matrix with size n*p
  * \param[in] B the matrix with size p*m
- * \param[out] B B is overwritten by A*B with size n*m
+ * \param[in/out] C The product matrix of size n*m
  * \author Andreas Apostolatos
  ***********/
-void computeMatrixProduct(int n, int p, int m, const double *A, double *B) {
+void computeMatrixProduct(int n, int p, int m, const double *A, double *B, double *C) {
     assert(A != NULL);
     assert(B != NULL);
 
-    double *C = new double[n * m];
     for(int i = 0; i < n; i++)
         for(int j = 0; j < m; j++){
             double sum = 0.0;
@@ -352,10 +351,6 @@ void computeMatrixProduct(int n, int p, int m, const double *A, double *B) {
             }
             C[i*m + j] = sum;
         }
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < m; j++)
-            B[i * m + j] = C[i * m + j];
-    delete[] C;
 }
 
 /***********************************************************************************************

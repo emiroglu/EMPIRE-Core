@@ -625,7 +625,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
     // Initialize constant array sizes
     const int noCoord = 3;
-    const int numParametricDim = 2;
+    const int noParametricCoord = 2;
 
     // Initialize varying array sizes
     int indexMaster;
@@ -636,18 +636,36 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double vGPSlave;
     double condTangentTrCurveVct;
     double condNormalTrCurveVct;
+    double normTangentTrCurveVctMaster;
+    double normTangentTrCurveVctSlave;
+    double normNormalTrCurveVctMaster;
+    double normNormalTrCurveVctSlave;
+    double factorTangent = 1.0;
+    double factorNormal = 1.0;
     double surfaceNormalVctMaster[noCoord];
     double surfaceNormalVctSlave[noCoord];
     double tangentTrCurveVctMaster[noCoord];
     double tangentTrCurveVctSlave[noCoord];
     double normalTrCurveVctMaster[noCoord];
     double normalTrCurveVctSlave[noCoord];
+    double tangentTrCurveVctCovMaster[noCoord];
+    double tangentTrCurveVctCovSlave[noCoord];
+    double normalTrCurveVctCovMaster[noCoord];
+    double normalTrCurveVctCovSlave[noCoord];
     double surfNormalVctAndDervsMaster[3*noCoord];
     double surfNormalVctAndDervsSlave[3*noCoord];
     double covariantMetricTensorMaster[4];
     double covariantMetricTensorSlave[4];
+    double contravariantCurvatureTensorMaster[4];
+    double contravariantCurvatureTensorSlave[4];
     double contravariantBaseVctsMaster[6];
+    double contravariantBaseVctMaster[3];
     double contravariantBaseVctsSlave[6];
+    double contravariantBaseVctSlave[3];
+    double dT3Cov2GCMaster[noParametricCoord*noCoord];
+    double dT3Cov2GCSlave[noParametricCoord*noCoord];
+    double BabTimesContravariantBaseVctMaster[noParametricCoord*noCoord];
+    double BabTimesContravariantBaseVctSlave[noParametricCoord*noCoord];
     int uKnotSpanMaster;
     int vKnotSpanMaster;
     int uKnotSpanSlave;
@@ -663,17 +681,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     int indexBasis;
     int indexBasisDerivU;
     int indexBasisDerivV;
-    int indexCPI;
-    int indexCPJ;
     int indexCP;
-    int indexDOFLocI;
-    int indexDOFLocJ;
-    int indexDOFI;
-    int indexDOFJ;
     int counter;
-    int factorTangent = 1;
-    int factorNormal = 1;
-    bool isLinearSystemConvergent;
 
     // Initialize pointers
     double* trCurveMasterGPs;
@@ -741,6 +750,31 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
         double* BdDisplacementsdVGCMaster = new double[noCoord*noDOFsLocMaster];
         double* BdDisplacementsdUGCSlave = new double[noCoord*noDOFsLocMaster];
         double* BdDisplacementsdVGCSlave = new double[noCoord*noDOFsLocMaster];
+        double* commonBOperator1Master = new double[noParametricCoord*noDOFsLocMaster];
+        double* commonBOperator2Part1Master = new double[noDOFsLocMaster];
+        double* commonBOperator2Part2Master = new double[noDOFsLocMaster];
+        double* commonBOperator2Master = new double[noParametricCoord*noDOFsLocMaster];
+        double* commonBOperator3Master = new double[noParametricCoord*noDOFsLocMaster];
+        double* commonBOperatorMaster = new double[noParametricCoord*noDOFsLocMaster];
+        double* BOperatorOmegaTMaster = new double[noDOFsLocMaster];
+        double* BOperatorOmegaNMaster = new double[noDOFsLocMaster];
+        double* commonBOperator1Slave = new double[noParametricCoord*noDOFsLocSlave];
+        double* commonBOperator2Part1Slave = new double[noDOFsLocSlave];
+        double* commonBOperator2Part2Slave = new double[noDOFsLocSlave];
+        double* commonBOperator2Slave = new double[noParametricCoord*noDOFsLocSlave];
+        double* commonBOperator3Slave = new double[noParametricCoord*noDOFsLocSlave];
+        double* commonBOperatorSlave = new double[noParametricCoord*noDOFsLocSlave];
+        double* BOperatorOmegaTSlave = new double[noDOFsLocSlave];
+        double* BOperatorOmegaNSlave = new double[noDOFsLocSlave];
+        double* KPenaltyDisplacementMaster = new double[noDOFsLocMaster*noDOFsLocMaster];
+        double* KPenaltyDisplacementSlave = new double[noDOFsLocSlave*noDOFsLocSlave];
+        double* CPenaltyDisplacement = new double[noDOFsLocMaster*noDOFsLocSlave];
+        double* KPenaltyBendingRotationMaster = new double[noDOFsLocMaster*noDOFsLocMaster];
+        double* KPenaltyBendingRotationSlave = new double[noDOFsLocSlave*noDOFsLocSlave];
+        double* CPenaltyBendingRotation = new double[noDOFsLocMaster*noDOFsLocSlave];
+        double* KPenaltyTwistingRotationMaster = new double[noDOFsLocMaster*noDOFsLocMaster];
+        double* KPenaltyTwistingRotationSlave = new double[noDOFsLocSlave*noDOFsLocSlave];
+        double* CPenaltyTwistingRotation = new double[noDOFsLocMaster*noDOFsLocSlave];
 
         // Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
@@ -809,7 +843,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 surfaceNormalVctMaster[i] = surfNormalVctAndDervsMaster[i];
 //                std::cout << tangentTrCurveVctMaster[i] << " , ";
             }
-            std::cout << " )" << endl;
+//            std::cout << " )" << endl;
             EMPIRE::MathLibrary::computeVectorCrossProduct(surfaceNormalVctMaster,tangentTrCurveVctMaster,normalTrCurveVctMaster);
 //            std::cout << "normalVctMaster = ( " << std::endl;
 //            for(int i = 0; i < noCoord; i++){
@@ -834,14 +868,24 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
             // Determine the alignment of the tangent and the normal vectors from both patches at their common interface
             condTangentTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
+            normTangentTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctMaster);
+            normTangentTrCurveVctMaster = sqrt(normTangentTrCurveVctMaster);
+            normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
+            normTangentTrCurveVctSlave = sqrt(normTangentTrCurveVctSlave);
+            condTangentTrCurveVct = condTangentTrCurveVct/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
             assert(abs(condTangentTrCurveVct) > tolAngle);
             if(condTangentTrCurveVct > tolAngle){
-                factorTangent = -1;
+                factorTangent = -1.0*factorTangent;
             }
             condNormalTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
+            normNormalTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctMaster);
+            normNormalTrCurveVctMaster = sqrt(normNormalTrCurveVctMaster);
+            normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
+            normNormalTrCurveVctSlave = sqrt(normNormalTrCurveVctSlave);
+            condNormalTrCurveVct = condNormalTrCurveVct/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
             assert(abs(condNormalTrCurveVct) > tolAngle);
             if(condNormalTrCurveVct > tolAngle){
-                factorNormal = -1;
+                factorNormal = -1.0*factorNormal;
             }
 
             // Compute the covariant metric tensor of the master patch
@@ -888,9 +932,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 //                std::cout << contravariantBaseVctsSlave[noCoord + i] << " , ";
 //            }
 //            std::cout << " )" << endl;
-
-
-
 
 
             // Andreas :: DEBUG
@@ -1002,9 +1043,9 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             // Compute the B-operator matrix for the displacement field of the slave patch
             for(int iBF = 0; iBF < noLocalBasisFctsSlave; iBF++){
                 indexBasis = patchSlave->getIGABasis()->indexDerivativeBasisFunction(derivDegreeBasis,0,0,iBF);
-                BDisplacementsGCSlave[0*noDOFsLocSlave + 3*iBF + 0] = (-basisFctsAndDerivsSlave[indexBasis]);
-                BDisplacementsGCSlave[1*noDOFsLocSlave + 3*iBF + 1] = (-basisFctsAndDerivsSlave[indexBasis]);
-                BDisplacementsGCSlave[2*noDOFsLocSlave + 3*iBF + 2] = (-basisFctsAndDerivsSlave[indexBasis]);
+                BDisplacementsGCSlave[0*noDOFsLocSlave + 3*iBF + 0] = basisFctsAndDerivsSlave[indexBasis];
+                BDisplacementsGCSlave[1*noDOFsLocSlave + 3*iBF + 1] = basisFctsAndDerivsSlave[indexBasis];
+                BDisplacementsGCSlave[2*noDOFsLocSlave + 3*iBF + 2] = basisFctsAndDerivsSlave[indexBasis];
                 indexBasisDerivU = patchSlave->getIGABasis()->indexDerivativeBasisFunction(derivDegreeBasis,1,0,iBF);
                 BdDisplacementsdUGCSlave[0*noDOFsLocSlave + 3*iBF + 0] = basisFctsAndDerivsSlave[indexBasisDerivU];
                 BdDisplacementsdUGCSlave[1*noDOFsLocSlave + 3*iBF + 1] = basisFctsAndDerivsSlave[indexBasisDerivU];
@@ -1015,24 +1056,134 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 BdDisplacementsdVGCSlave[2*noDOFsLocSlave + 3*iBF + 2] = basisFctsAndDerivsSlave[indexBasisDerivV];
             }
 
+            // Transform the normal and the tangent vectors to the covariant base for the master patch
+            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+                for (int iCoord = 0; iCoord < noCoord; iCoord++)
+                    contravariantBaseVctMaster[iCoord] = contravariantBaseVctsMaster[noCoord*iCov + iCoord];
+                tangentTrCurveVctCovMaster[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctMaster,tangentTrCurveVctMaster);
+                normalTrCurveVctCovMaster[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctMaster,normalTrCurveVctMaster);
+            }
+//            std::cout << "tangentTrCurveVctCovMaster = ( ";
+//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+//                std::cout << tangentTrCurveVctCovMaster[iCov] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+//            std::cout << "normalTrCurveVctCovMaster = ( ";
+//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+//                std::cout << normalTrCurveVctCovMaster[iCov] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+
+            // Transform the normal and the tangent vectors to the covariant base for the slave patch
+            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+                for (int iCoord = 0; iCoord < noCoord; iCoord++)
+                    contravariantBaseVctSlave[iCoord] = contravariantBaseVctsSlave[noCoord*iCov + iCoord];
+                tangentTrCurveVctCovSlave[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctSlave,tangentTrCurveVctSlave);
+                normalTrCurveVctCovSlave[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctSlave,normalTrCurveVctSlave);
+            }
+//            std::cout << "tangentTrCurveVctCovSlave = ( ";
+//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+//                std::cout << tangentTrCurveVctCovSlave[iCov] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+//            std::cout << "normalTrCurveVctCovSlave = ( ";
+//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
+//                std::cout << normalTrCurveVctCovSlave[iCov] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+
+            // Compute the curvature tensor in the contravariant basis for the master patch
+            patchMaster->computeContravariantCurvatureTensor(contravariantCurvatureTensorMaster, surfaceNormalVctMaster, baseVctsAndDerivsMaster, derivDegreeBaseVec);
+//            std::cout << "contravariantCurvatureTensorMaster = ( ";
+//            for(int i = 0; i < 4; i++){
+//                std::cout << contravariantCurvatureTensorMaster[i] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+
+            // Compute the curvature tensor in the contravariant basis for the slave patch
+            patchSlave->computeContravariantCurvatureTensor(contravariantCurvatureTensorSlave, surfaceNormalVctSlave, baseVctsAndDerivsSlave, derivDegreeBaseVec);
+//            std::cout << "contravariantCurvatureTensorSlave = ( ";
+//            for(int i = 0; i < 4; i++){
+//                std::cout << contravariantCurvatureTensorSlave[i] << " ";
+//            }
+//            std::cout << " )" << std::endl;
+//            exit(-1);
+
+            // Compute the B-operator matrices for the rotation vector for the master patch
+            for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
+                for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                    dT3Cov2GCMaster[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervsMaster[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
+//            EMPIRE::MathLibrary::printGeneralMatrix(dT3Cov2GCMaster, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord,noCoord,noDOFsLocMaster,dT3Cov2GCMaster,BDisplacementsGCMaster,commonBOperator1Master);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator1Master, noParametricCoord, noDOFsLocMaster);
+            EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocMaster,surfaceNormalVctMaster,BdDisplacementsdUGCMaster,commonBOperator2Part1Master);
+            EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocMaster,surfaceNormalVctMaster,BdDisplacementsdVGCMaster,commonBOperator2Part2Master);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Part2Master, 1, noDOFsLocMaster);
+            for (int iDOFs = 0; iDOFs < noDOFsLocMaster; iDOFs++){
+                commonBOperator2Master[0*noDOFsLocMaster + iDOFs] = commonBOperator2Part1Master[iDOFs];
+                commonBOperator2Master[1*noDOFsLocMaster + iDOFs] = commonBOperator2Part2Master[iDOFs];
+            }
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Master, noParametricCoord, noDOFsLocMaster);
+//            EMPIRE::MathLibrary::printGeneralMatrix(contravariantBaseVctsMaster, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, noParametricCoord, noCoord, contravariantCurvatureTensorMaster, contravariantBaseVctsMaster, BabTimesContravariantBaseVctMaster);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BabTimesContravariantBaseVctMaster, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord, noCoord, noDOFsLocMaster, BabTimesContravariantBaseVctMaster, BDisplacementsGCMaster, commonBOperator3Master);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator3Master, noParametricCoord, noDOFsLocMaster);
+            for(int i = 0; i < noParametricCoord*noDOFsLocMaster; i++)
+                commonBOperatorMaster[i] = commonBOperator1Master[i] + commonBOperator2Master[i] + commonBOperator3Master[i];
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperatorMaster, noParametricCoord, noDOFsLocMaster);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(normalTrCurveVctCovMaster,-1.0,noCoord);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocMaster,normalTrCurveVctCovMaster,commonBOperatorMaster,BOperatorOmegaTMaster);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaTMaster, 1, noDOFsLocMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocMaster,tangentTrCurveVctCovMaster,commonBOperatorMaster,BOperatorOmegaNMaster);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaNMaster, 1, noDOFsLocMaster);
+
+            // Compute the B-operator matrices for the rotation vector for the slave patch
+            for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
+                for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                    dT3Cov2GCSlave[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervsSlave[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
+//            EMPIRE::MathLibrary::printGeneralMatrix(dT3Cov2GCSlave, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord,noCoord,noDOFsLocSlave,dT3Cov2GCSlave,BDisplacementsGCSlave,commonBOperator1Slave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator1Slave, noParametricCoord, noDOFsLocSlave);
+            EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocSlave,surfaceNormalVctSlave,BdDisplacementsdUGCSlave,commonBOperator2Part1Slave);
+            EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocSlave,surfaceNormalVctSlave,BdDisplacementsdVGCSlave,commonBOperator2Part2Slave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Part2Slave, 1, noDOFsLocSlave);
+            for (int iDOFs = 0; iDOFs < noDOFsLocSlave; iDOFs++){
+                commonBOperator2Slave[0*noDOFsLocSlave + iDOFs] = commonBOperator2Part1Slave[iDOFs];
+                commonBOperator2Slave[1*noDOFsLocSlave + iDOFs] = commonBOperator2Part2Slave[iDOFs];
+            }
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Slave, noParametricCoord, noDOFsLocSlave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(contravariantBaseVctsSlave, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, noParametricCoord, noCoord, contravariantCurvatureTensorSlave, contravariantBaseVctsSlave, BabTimesContravariantBaseVctSlave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BabTimesContravariantBaseVctSlave, noParametricCoord, noCoord);
+            EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord, noCoord, noDOFsLocSlave, BabTimesContravariantBaseVctSlave, BDisplacementsGCSlave, commonBOperator3Slave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator3Slave, noParametricCoord, noDOFsLocSlave);
+            for(int i = 0; i < noParametricCoord*noDOFsLocSlave; i++)
+                commonBOperatorSlave[i] = commonBOperator1Slave[i] + commonBOperator2Slave[i] + commonBOperator3Slave[i];
+//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperatorSlave, noParametricCoord, noDOFsLocSlave);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(normalTrCurveVctCovSlave,-1.0,noCoord);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocSlave,normalTrCurveVctCovSlave,commonBOperatorSlave,BOperatorOmegaTSlave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaTSlave, 1, noDOFsLocSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocSlave,tangentTrCurveVctCovSlave,commonBOperatorSlave,BOperatorOmegaNSlave);
+//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaNSlave, 1, noDOFsLocSlave);
+
+            // Compute the dual product matrices for the displacements
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
+
+            // Compute the dual product matrices for the bending rotations
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
+
+            // Compute the dual product matrices for the twisting rotations
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
+
             // calculate elementLength on GP (mapping from unit space to physical times the gpWeight)
             double elementLengthOnGP = trCurveGPJacobianProducts[iGP]*trCurveGPWeights[iGP];
-
-            // Initialize dual product matrices
-            double* KPenaltyMaster = new double[noDOFsLocMaster*noDOFsLocMaster];
-            double* KPenaltySlave = new double[noDOFsLocSlave*noDOFsLocSlave];
-            double* CPenalty = new double[noDOFsLocMaster*noDOFsLocSlave];
-            for(int i = 0; i < noDOFsLocMaster*noDOFsLocMaster; i++)
-                KPenaltyMaster[i] = 0.0;
-            for(int i = 0; i < noDOFsLocSlave*noDOFsLocSlave; i++)
-                KPenaltySlave[i] = 0.0;
-            for(int i = 0; i < noDOFsLocMaster*noDOFsLocSlave; i++)
-                CPenalty[i] = 0.0;
-
-            // Compute the dual product matrices
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyMaster);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltySlave);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenalty);
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -1061,32 +1212,50 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 }
             }
 
-            // Assemble KPenaltyMaster to the global coupling matrix CNN
+            // Assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocMaster; j++){
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaPrim*KPenaltyMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    // Assemble the displacement coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaPrim*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+
+                    // Assemble the bending rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSec*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+
+                    // Assemble the twisting rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSec*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
-            // Assemble KPenaltySlave to the global coupling matrix CNN
+            // Assemble KPenaltyDisplacementSlave to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocSlave; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++) {
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaPrim*KPenaltySlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    // Assemble the displacement coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaPrim*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+
+                    // Assemble the bending rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSec*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+
+                    // Assemble the twisting rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSec*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
-            // Assemble CPenaltyMaster to the global coupling matrix CNN
+            // Assemble CPenaltyDisplacement to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++){
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaPrim*CPenalty[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaPrim*CPenalty[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    // Assemble the displacement coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaPrim*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaPrim*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+
+                    // Assemble the bending rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSec*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSec*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+
+                    // Assemble the twisting rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSec*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSec*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
-
-            // Delete pointers
-            delete[] KPenaltyMaster;
-            delete[] KPenaltySlave;
-            delete[] CPenalty;
         } // End of Gauss Point loop
 
         // Delete pointers
@@ -1100,6 +1269,31 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
         delete[] BDisplacementsGCSlave;
         delete[] BdDisplacementsdUGCSlave;
         delete[] BdDisplacementsdVGCSlave;
+        delete[] commonBOperator1Master;
+        delete[] commonBOperator2Part1Master;
+        delete[] commonBOperator2Part2Master;
+        delete[] commonBOperator2Master;
+        delete[] commonBOperator3Master;
+        delete[] commonBOperatorMaster;
+        delete[] BOperatorOmegaTMaster;
+        delete[] BOperatorOmegaNMaster;
+        delete[] commonBOperator1Slave;
+        delete[] commonBOperator2Part1Slave;
+        delete[] commonBOperator2Part2Slave;
+        delete[] commonBOperator2Slave;
+        delete[] commonBOperator3Slave;
+        delete[] commonBOperatorSlave;
+        delete[] BOperatorOmegaTSlave;
+        delete[] BOperatorOmegaNSlave;
+        delete[] KPenaltyDisplacementMaster;
+        delete[] KPenaltyDisplacementSlave;
+        delete[] CPenaltyDisplacement;
+        delete[] KPenaltyBendingRotationMaster;
+        delete[] KPenaltyBendingRotationSlave;
+        delete[] CPenaltyBendingRotation;
+        delete[] KPenaltyTwistingRotationMaster;
+        delete[] KPenaltyTwistingRotationSlave;
+        delete[] CPenaltyTwistingRotation;
     } // End of weak continuity condition loop
 
     INFO_OUT()<<"Application of weak patch continuity conditions finished"<<std::endl;

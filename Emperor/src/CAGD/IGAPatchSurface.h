@@ -239,6 +239,16 @@ public:
     void computeContravariantBaseVectors(double*, double*, double*, int);
 
     /***********************************************************************************************
+     * \brief Returns the coefficients of the curvature tensor in the contravariant basis
+     * \param[in/out] _contravariantCurvatureTensor The components of the curvature tensor in the contravariant basis
+     * \param[in] _surfNormalVctAndDervs
+     * \param[in] _baseVctsAndDerivs The base vectors and their first order parametric derivatives
+     * \param[in] _derivDegreeBaseVec The derivative order up to which the base vectors have been computed
+     * \author Andreas Apostolatos
+     ***********/
+    void computeContravariantCurvatureTensor(double*, double*, double*, int);
+
+    /***********************************************************************************************
     * \brief Returns the Surface normals and its 1st derivatives, given the base vectors and their derivatives
     * \param[out]  surface normal and derivatives
     * \param[in] _baseVectorsAndDerivatives

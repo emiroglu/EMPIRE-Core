@@ -161,10 +161,10 @@ void computeMatrixProduct(int n, int m, const double *A, double *B);
  * \param[in] m The number of columns of matrix B
  * \param[in] A the matrix with size n*p
  * \param[in] B the matrix with size p*m
- * \param[out] B B is overwritten by A*B with size n*m
+ * \param[out] C the product matrix with size n*p
  * \author Andreas Apostolatos
  ***********/
-void computeMatrixProduct(int n, int p, int m, const double *A, double *B);
+void computeMatrixProduct(int n, int p, int m, const double *A, double *B, double *C);
 
 /***********************************************************************************************
  * \brief Compute the transpose matrix product between two matrices (general)
