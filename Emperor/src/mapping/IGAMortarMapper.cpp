@@ -200,7 +200,6 @@ void IGAMortarMapper::buildCouplingMatrices() {
     couplingMatrices->setIsIGAPatchCoupling(useIGAPatchCouplingPenalties , isClampedDofs);
 
     if (useIGAPatchCouplingPenalties) {
-        INFO_OUT()<<"Compute Penalty Patch Coupling"<<endl;
         computeIGAPatchWeakContinuityConditionMatrices();
     }
     else
@@ -208,7 +207,6 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     if(isClampedDofs)                           // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
         useIGAPatchCouplingPenalties=true;      // if it is not always clamped in all three dircetions
-
 
     couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
 
@@ -225,7 +223,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeCouplingMatricesToFile();
 
     couplingMatrices->factorizeCorrectCNN();
-    INFO_OUT()<<"Factorize was successful"<<std::endl;
+    INFO_OUT() << "Factorize was successful" << std::endl;
 
     if(dirichletBCs.isDirichletBCs==0)
         checkConsistency();
@@ -622,6 +620,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
     // Define tolerances
     const double tolAngle = 1e-1;
+    const double tolVct = 1e-4;
 
     // Initialize constant array sizes
     const int noCoord = 3;
@@ -781,14 +780,10 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             // Get the parametric coordinates of the Gauss Point on the master patch
             uGPMaster = trCurveMasterGPs[2*iGP];
             vGPMaster = trCurveMasterGPs[2*iGP + 1];
-//            cout << "uGPMaster = " << uGPMaster << endl;
-//            cout << "vGPMaster = " << vGPMaster << endl;
 
             // Get the parametric coordinates of the Gauss Point on the slave patch
             uGPSlave = trCurveSlaveGPs[2*iGP];
             vGPSlave = trCurveSlaveGPs[2*iGP + 1];
-//            cout << "uGPSlave = " << uGPSlave << endl;
-//            cout << "vGPSlave = " << vGPSlave << endl;
 
             // Find the knot span indices on the master patch
             uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
@@ -806,11 +801,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             patchSlave->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(basisFctsAndDerivsSlave, derivDegreeBasis, uGPSlave,
                                                                                  uKnotSpanSlave, vGPSlave, vKnotSpanSlave);
 
-//            for(int iTest=0;iTest<(pSlave+1)*(qSlave+1);iTest++){
-//                int indexBasis = patchSlave->getIGABasis()->indexDerivativeBasisFunction(derivDegreeBasis,0,0,iTest);
-//                INFO_OUT()<<"RSlave[i] = "<< basisFctsAndDerivsSlave[indexBasis] <<std::endl;
-//            }
-
             // Compute the base vectors and their derivatives on the master patch
             patchMaster->computeBaseVectorsAndDerivatives(baseVctsAndDerivsMaster, basisFctsAndDerivsMaster, derivDegreeBaseVec,
                                                           uKnotSpanMaster, vKnotSpanMaster);
@@ -821,50 +811,20 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
             // Compute the derivatives of the surface normal base vector for the master patch
             patchMaster->computeSurfaceNormalVectorAndDerivatives(surfNormalVctAndDervsMaster,baseVctsAndDerivsMaster,derivDegreeBaseVec);
-//            std::cout << "surfNormalVctAndDervsMaster = ( " << std::endl;
-//            for(int i = 0; i < 9; i++){
-//                std::cout << surfNormalVctAndDervsMaster[i] << " , ";
-//            }
-//            std::cout << std::endl;
 
             // Compute the derivatives of the surface normal base vector for the master patch
             patchSlave->computeSurfaceNormalVectorAndDerivatives(surfNormalVctAndDervsSlave,baseVctsAndDerivsSlave,derivDegreeBaseVec);
-//            std::cout << "surfNormalVctAndDervsSlave = ( " << std::endl;
-//            for(int i = 0; i < 9; i++){
-//                std::cout << surfNormalVctAndDervsSlave[i] << " , ";
-//            }
-//            std::cout << std::endl;
-//            exit(-1);
-
-            // Compute the normal and the tangent to the trimming curves vectors for the master patch
-//            std::cout << "tangentVctMaster = ( " << std::endl;
             for(int i = 0; i < noCoord; i++){
                 tangentTrCurveVctMaster[i] = trCurveMasterGPTangents[3*iGP + i];
                 surfaceNormalVctMaster[i] = surfNormalVctAndDervsMaster[i];
-//                std::cout << tangentTrCurveVctMaster[i] << " , ";
             }
-//            std::cout << " )" << endl;
             EMPIRE::MathLibrary::computeVectorCrossProduct(surfaceNormalVctMaster,tangentTrCurveVctMaster,normalTrCurveVctMaster);
-//            std::cout << "normalVctMaster = ( " << std::endl;
-//            for(int i = 0; i < noCoord; i++){
-//                std::cout << normalTrCurveVctMaster[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
 
-            // Compute the normal and the tangent to the trimming curves vectors for the slave patch
-//            std::cout << "tangentVctSlave = ( " << std::endl;
             for(int i = 0; i < noCoord; i++){
                 tangentTrCurveVctSlave[i] = trCurveSlaveGPTangents[3*iGP + i];
                 surfaceNormalVctSlave[i] = surfNormalVctAndDervsSlave[i];
-//                std::cout << tangentTrCurveVctSlave[i] << " , ";
             }
-//            std::cout << " )" << endl;
             EMPIRE::MathLibrary::computeVectorCrossProduct(surfaceNormalVctSlave,tangentTrCurveVctSlave,normalTrCurveVctSlave);
-//            std::cout << "normalVctSlave = ( " << std::endl;
-//            for(int i = 0; i < noCoord; i++){
-//                std::cout << normalTrCurveVctSlave[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
 
             // Determine the alignment of the tangent and the normal vectors from both patches at their common interface
             condTangentTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
@@ -873,6 +833,11 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
             normTangentTrCurveVctSlave = sqrt(normTangentTrCurveVctSlave);
             condTangentTrCurveVct = condTangentTrCurveVct/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
+            if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct) {
+                continue;
+            }else if((normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave > tolVct) || (normTangentTrCurveVctMaster > tolVct && normTangentTrCurveVctSlave < tolVct)) {
+                assert(false);
+            }
             assert(abs(condTangentTrCurveVct) > tolAngle);
             if(condTangentTrCurveVct > tolAngle){
                 factorTangent = -1.0*factorTangent;
@@ -883,6 +848,11 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
             normNormalTrCurveVctSlave = sqrt(normNormalTrCurveVctSlave);
             condNormalTrCurveVct = condNormalTrCurveVct/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
+            if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct) {
+                continue;
+            }else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct)) {
+                assert(false);
+            }
             assert(abs(condNormalTrCurveVct) > tolAngle);
             if(condNormalTrCurveVct > tolAngle){
                 factorNormal = -1.0*factorNormal;
@@ -890,123 +860,15 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
             // Compute the covariant metric tensor of the master patch
             patchMaster->computeCovariantMetricTensor(covariantMetricTensorMaster,baseVctsAndDerivsMaster,derivDegreeBaseVec);
-//            std::cout << "covariantMetricTensorMaster = ( " << std::endl;
-//            for(int i = 0; i < 4; i++){
-//                std::cout << covariantMetricTensorMaster[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
 
             // Compute the covariant metric tensor of the slave patch
             patchSlave->computeCovariantMetricTensor(covariantMetricTensorSlave,baseVctsAndDerivsSlave,derivDegreeBaseVec);
-//            std::cout << "covariantMetricTensorSlave = ( " << std::endl;
-//            for(int i = 0; i < 4; i++){
-//                std::cout << covariantMetricTensorSlave[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
-
-            // Compute the contravariant base vectors
-            // isLinearSystemConvergent = EMPIRE::MathLibrary::solve2x2LinearSystem(dR, R, EMPIRE::MathLibrary::EPS );
 
             // Compute the contravariant base vectors of the master patch
             patchMaster->computeContravariantBaseVectors(contravariantBaseVctsMaster, covariantMetricTensorMaster, baseVctsAndDerivsMaster, derivDegreeBaseVec);
-//            std::cout << "contraBaseVctUMaster = ( ";
-//            for(int i = 0; i < 3; i++){
-//                std::cout << contravariantBaseVctsMaster[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
-//            std::cout << "contraBaseVctVMaster = ( ";
-//            for(int i = 0; i < 3; i++){
-//                std::cout << contravariantBaseVctsMaster[noCoord + i] << " , ";
-//            }
-//            std::cout << " )" << endl;
 
             // Compute the contravariant base vectors of the slave patch
             patchSlave->computeContravariantBaseVectors(contravariantBaseVctsSlave, covariantMetricTensorSlave, baseVctsAndDerivsSlave, derivDegreeBaseVec);
-//            std::cout << "contraBaseVctUSlave = ( ";
-//            for(int i = 0; i < 3; i++){
-//                std::cout << contravariantBaseVctsSlave[i] << " , ";
-//            }
-//            std::cout << " )" << endl;
-//            std::cout << "contraBaseVctVSlave = ( ";
-//            for(int i = 0; i < 3; i++){
-//                std::cout << contravariantBaseVctsSlave[noCoord + i] << " , ";
-//            }
-//            std::cout << " )" << endl;
-
-
-            // Andreas :: DEBUG
-//            double G1Slave[3];
-//            cout << "G1Slave = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 0;
-//                int j = 0;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 0);
-//                G1Slave[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G1Slave[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-
-//            double G1SlaveKommaXi[3];
-//            cout << "G1SlaveKommaXi = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 1;
-//                int j = 0;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 0);
-//                G1SlaveKommaXi[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G1SlaveKommaXi[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-
-//            double G1SlaveKommaEta[3];
-//            cout << "G1SlaveKommaEta = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 0;
-//                int j = 1;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 0);
-//                G1SlaveKommaEta[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G1SlaveKommaEta[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-
-//            double G2Slave[3];
-//            cout << "G2Slave = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 0;
-//                int j = 0;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 1);
-//                G2Slave[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G2Slave[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-
-//            double G2SlaveKommaXi[3];
-//            cout << "G2SlaveKommaXi = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 1;
-//                int j = 0;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 1);
-//                G2SlaveKommaXi[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G2SlaveKommaXi[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-
-//            double G2SlaveKommaEta[3];
-//            cout << "G2SlaveKommaEta = (";
-//            for(int iBV = 0; iBV < 3; iBV++){
-//                int indexBaseVct;
-//                int i = 0;
-//                int j = 1;
-//                indexBaseVct = patchSlave->indexDerivativeBaseVector(derivDegreeBaseVec, i, j, iBV, 1);
-//                G2SlaveKommaEta[iBV] = baseVctsAndDerivsSlave[indexBaseVct];
-//                cout << G2SlaveKommaEta[iBV] << ", ";
-//            }
-//            cout << ")" << endl;
-//            exit(-1);
 
             // Initialize the B-operator matrix for the displacement field of the master patch
             for(int iBF = 0; iBF < noCoord*noDOFsLocMaster; iBF++){
@@ -1030,8 +892,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 BdDisplacementsdVGCMaster[1*noDOFsLocMaster + 3*iBF + 1] = basisFctsAndDerivsMaster[indexBasisDerivV];
                 BdDisplacementsdVGCMaster[2*noDOFsLocMaster + 3*iBF + 2] = basisFctsAndDerivsMaster[indexBasisDerivV];
             }
-//            EMPIRE::MathLibrary::printGeneralMatrix(BdDisplacementsdUGCMaster,noCoord,noDOFsLocMaster);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BdDisplacementsdVGCMaster,noCoord,noDOFsLocMaster);
 
             // Initialize the B-operator matrix for the displacement field of the slave patch
             for(int iBF = 0; iBF < noCoord*noDOFsLocSlave; iBF++){
@@ -1063,16 +923,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 tangentTrCurveVctCovMaster[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctMaster,tangentTrCurveVctMaster);
                 normalTrCurveVctCovMaster[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctMaster,normalTrCurveVctMaster);
             }
-//            std::cout << "tangentTrCurveVctCovMaster = ( ";
-//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
-//                std::cout << tangentTrCurveVctCovMaster[iCov] << " ";
-//            }
-//            std::cout << " )" << std::endl;
-//            std::cout << "normalTrCurveVctCovMaster = ( ";
-//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
-//                std::cout << normalTrCurveVctCovMaster[iCov] << " ";
-//            }
-//            std::cout << " )" << std::endl;
 
             // Transform the normal and the tangent vectors to the covariant base for the slave patch
             for(int iCov = 0; iCov < noParametricCoord; iCov++){
@@ -1081,91 +931,50 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 tangentTrCurveVctCovSlave[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctSlave,tangentTrCurveVctSlave);
                 normalTrCurveVctCovSlave[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVctSlave,normalTrCurveVctSlave);
             }
-//            std::cout << "tangentTrCurveVctCovSlave = ( ";
-//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
-//                std::cout << tangentTrCurveVctCovSlave[iCov] << " ";
-//            }
-//            std::cout << " )" << std::endl;
-//            std::cout << "normalTrCurveVctCovSlave = ( ";
-//            for(int iCov = 0; iCov < noParametricCoord; iCov++){
-//                std::cout << normalTrCurveVctCovSlave[iCov] << " ";
-//            }
-//            std::cout << " )" << std::endl;
 
             // Compute the curvature tensor in the contravariant basis for the master patch
             patchMaster->computeContravariantCurvatureTensor(contravariantCurvatureTensorMaster, surfaceNormalVctMaster, baseVctsAndDerivsMaster, derivDegreeBaseVec);
-//            std::cout << "contravariantCurvatureTensorMaster = ( ";
-//            for(int i = 0; i < 4; i++){
-//                std::cout << contravariantCurvatureTensorMaster[i] << " ";
-//            }
-//            std::cout << " )" << std::endl;
 
             // Compute the curvature tensor in the contravariant basis for the slave patch
             patchSlave->computeContravariantCurvatureTensor(contravariantCurvatureTensorSlave, surfaceNormalVctSlave, baseVctsAndDerivsSlave, derivDegreeBaseVec);
-//            std::cout << "contravariantCurvatureTensorSlave = ( ";
-//            for(int i = 0; i < 4; i++){
-//                std::cout << contravariantCurvatureTensorSlave[i] << " ";
-//            }
-//            std::cout << " )" << std::endl;
-//            exit(-1);
 
             // Compute the B-operator matrices for the rotation vector for the master patch
             for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
                 for(int iCoord = 0; iCoord < noCoord; iCoord++)
                     dT3Cov2GCMaster[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervsMaster[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
-//            EMPIRE::MathLibrary::printGeneralMatrix(dT3Cov2GCMaster, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord,noCoord,noDOFsLocMaster,dT3Cov2GCMaster,BDisplacementsGCMaster,commonBOperator1Master);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator1Master, noParametricCoord, noDOFsLocMaster);
             EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocMaster,surfaceNormalVctMaster,BdDisplacementsdUGCMaster,commonBOperator2Part1Master);
             EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocMaster,surfaceNormalVctMaster,BdDisplacementsdVGCMaster,commonBOperator2Part2Master);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Part2Master, 1, noDOFsLocMaster);
             for (int iDOFs = 0; iDOFs < noDOFsLocMaster; iDOFs++){
                 commonBOperator2Master[0*noDOFsLocMaster + iDOFs] = commonBOperator2Part1Master[iDOFs];
                 commonBOperator2Master[1*noDOFsLocMaster + iDOFs] = commonBOperator2Part2Master[iDOFs];
             }
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Master, noParametricCoord, noDOFsLocMaster);
-//            EMPIRE::MathLibrary::printGeneralMatrix(contravariantBaseVctsMaster, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, noParametricCoord, noCoord, contravariantCurvatureTensorMaster, contravariantBaseVctsMaster, BabTimesContravariantBaseVctMaster);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BabTimesContravariantBaseVctMaster, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord, noCoord, noDOFsLocMaster, BabTimesContravariantBaseVctMaster, BDisplacementsGCMaster, commonBOperator3Master);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator3Master, noParametricCoord, noDOFsLocMaster);
             for(int i = 0; i < noParametricCoord*noDOFsLocMaster; i++)
                 commonBOperatorMaster[i] = commonBOperator1Master[i] + commonBOperator2Master[i] + commonBOperator3Master[i];
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperatorMaster, noParametricCoord, noDOFsLocMaster);
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(normalTrCurveVctCovMaster,-1.0,noCoord);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocMaster,normalTrCurveVctCovMaster,commonBOperatorMaster,BOperatorOmegaTMaster);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaTMaster, 1, noDOFsLocMaster);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocMaster,tangentTrCurveVctCovMaster,commonBOperatorMaster,BOperatorOmegaNMaster);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaNMaster, 1, noDOFsLocMaster);
 
             // Compute the B-operator matrices for the rotation vector for the slave patch
             for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
                 for(int iCoord = 0; iCoord < noCoord; iCoord++)
                     dT3Cov2GCSlave[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervsSlave[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
-//            EMPIRE::MathLibrary::printGeneralMatrix(dT3Cov2GCSlave, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord,noCoord,noDOFsLocSlave,dT3Cov2GCSlave,BDisplacementsGCSlave,commonBOperator1Slave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator1Slave, noParametricCoord, noDOFsLocSlave);
             EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocSlave,surfaceNormalVctSlave,BdDisplacementsdUGCSlave,commonBOperator2Part1Slave);
             EMPIRE::MathLibrary::computeMatrixProduct(1,noCoord,noDOFsLocSlave,surfaceNormalVctSlave,BdDisplacementsdVGCSlave,commonBOperator2Part2Slave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Part2Slave, 1, noDOFsLocSlave);
             for (int iDOFs = 0; iDOFs < noDOFsLocSlave; iDOFs++){
                 commonBOperator2Slave[0*noDOFsLocSlave + iDOFs] = commonBOperator2Part1Slave[iDOFs];
                 commonBOperator2Slave[1*noDOFsLocSlave + iDOFs] = commonBOperator2Part2Slave[iDOFs];
             }
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator2Slave, noParametricCoord, noDOFsLocSlave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(contravariantBaseVctsSlave, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, noParametricCoord, noCoord, contravariantCurvatureTensorSlave, contravariantBaseVctsSlave, BabTimesContravariantBaseVctSlave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BabTimesContravariantBaseVctSlave, noParametricCoord, noCoord);
             EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord, noCoord, noDOFsLocSlave, BabTimesContravariantBaseVctSlave, BDisplacementsGCSlave, commonBOperator3Slave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperator3Slave, noParametricCoord, noDOFsLocSlave);
             for(int i = 0; i < noParametricCoord*noDOFsLocSlave; i++)
                 commonBOperatorSlave[i] = commonBOperator1Slave[i] + commonBOperator2Slave[i] + commonBOperator3Slave[i];
-//            EMPIRE::MathLibrary::printGeneralMatrix(commonBOperatorSlave, noParametricCoord, noDOFsLocSlave);
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(normalTrCurveVctCovSlave,-1.0,noCoord);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocSlave,normalTrCurveVctCovSlave,commonBOperatorSlave,BOperatorOmegaTSlave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaTSlave, 1, noDOFsLocSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord,1,noDOFsLocSlave,tangentTrCurveVctCovSlave,commonBOperatorSlave,BOperatorOmegaNSlave);
-//            EMPIRE::MathLibrary::printGeneralMatrix(BOperatorOmegaNSlave, 1, noDOFsLocSlave);
 
             // Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
@@ -1182,8 +991,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
 
-            // calculate elementLength on GP (mapping from unit space to physical times the gpWeight)
-            double elementLengthOnGP = trCurveGPJacobianProducts[iGP]*trCurveGPWeights[iGP];
+            // calculate elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            double elementLengthOnGP = trCurveGPJacobianProducts[iGP];
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -1296,7 +1105,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
         delete[] CPenaltyTwistingRotation;
     } // End of weak continuity condition loop
 
-    INFO_OUT()<<"Application of weak patch continuity conditions finished"<<std::endl;
+    INFO_OUT() << "Application of weak patch continuity conditions finished" << std::endl;
 }
 
 void IGAMortarMapper::computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,

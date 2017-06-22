@@ -248,37 +248,6 @@ public:
      ***********/
     void computeContravariantCurvatureTensor(double*, double*, double*, int);
 
-    /***********************************************************************************************
-    * \brief Returns the Surface normals and its 1st derivatives, given the base vectors and their derivatives
-    * \param[out]  surface normal and derivatives
-    * \param[in] _baseVectorsAndDerivatives
-    * \author Ragnar Björnsson
-    ***********/
-//    void computeSurfaceNormalAndDerivatives(std::vector<double>&, double*);
-
-    /***********************************************************************************************
-    * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
-    * \param[out]  covariant metric tensor
-    * \param[in] _baseVectors
-    * \author Ragnar Björnsson
-    ***********/
-//    void computeContravariantBaseVectors(std::vector<double>& _baseVecContra, std::vector<double> baseVecCov);
-
-    /***********************************************************************************************
-    * \brief Returns the Cartesian Coordinates of the base vectors and their derivatives at a given pair of surface parameters given the basis functions and their derivatives
-    * \param[out]  B_rot curvature terms at _u, _v
-    * \param[out]  B_disp displacement terms at _u, _v
-    * \param[out]  normalAndDerivatives at _u, _v (will be used later to check orientation)
-    * \param[in] _u The parameter on the u-coordinate line
-    * \param[in] _uKnotSpanIndex The index of the knot span where the parametric coordinates _uPrm lives in
-    * \param[in] _v The parameter on the v-coordinate line
-    * \param[in] _vKnotSpanIndex The index of the knot span where the parametric coordinates _vPrm lives in
-    * \param[in] tangent at _u, _v
-    * \author Ragnar Björnsson
-    ***********/
-//    void computeCurvatureAtPoint(std::vector<std::vector<double> >& B_rot, double* B_disp, std::vector<double>& normalAndDerivatives,
-//            double _u, int _uKnotSpanIndex, double _v, int _vKnotSpanIndex, double* tangent);
-
     /// Projection related functions
 public:
     /***********************************************************************************************

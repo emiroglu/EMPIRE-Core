@@ -80,7 +80,6 @@ IGAMortarCouplingMatrices::~IGAMortarCouplingMatrices() {
 }
 
 void IGAMortarCouplingMatrices::expandMatrices() {
-
     double tmp;
     for(int i = 0 ; i < size_N ; i ++) {
         for(int j = 0 ; j < size_N ; j++) {
