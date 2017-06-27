@@ -25,6 +25,7 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <iomanip>
 
 // Inclusion of user-defined libraries
 #include "IGAPatchSurface.h"
@@ -109,6 +110,10 @@ public:
      ***********/
     void testProjectionOnIGAPatch() {
 
+        // Define projection properties
+        int maxIt = 40;
+        double tol = 1e-9;
+
         // Initial guesses for the Newton-Rapson iteration
         double u = 0.8;
         double v = 0.8;
@@ -120,7 +125,7 @@ public:
         bool flag = 0;
 
         // Compute the orthogonal projection of the point on the NURBS patch
-        flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex);
+        flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex, maxIt, tol);
 
         // Compare the values with the ones from MATLAB
         CPPUNIT_ASSERT(flag);
@@ -140,4 +145,3 @@ public:
 } /* namespace EMPIRE */
 
 CPPUNIT_TEST_SUITE_REGISTRATION (EMPIRE::TestProjectionSemiSphere);
-

@@ -164,6 +164,7 @@ public:
      ***********/
     void setParametersProjection(double _maxProjectionDistance = 1e-2, int _numRefinementForIntialGuess = 10,
                                  double _maxDistanceForProjectedPointsOnDifferentPatches = 1e-3);
+
     /***********************************************************************************************
      * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
      * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
@@ -171,6 +172,7 @@ public:
      * \author Fabien Pean
      ***********/
     void setParametersNewtonRaphson(int _maxNumOfIterations = 20, double _tolerance = 1e-6);
+
     /***********************************************************************************************
      * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
      * \param[in] _newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
@@ -178,6 +180,7 @@ public:
      * \author Fabien Pean
      ***********/
     void setParametersNewtonRaphsonBoundary(int _maxNumOfIterations = 20, double _tolerance = 1e-6);
+
     /***********************************************************************************************
      * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
      * \param[in] _bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
@@ -185,6 +188,7 @@ public:
      * \author Fabien Pean
      ***********/
     void setParametersBisection(int _maxNumOfIterations = 40, double _tolerance = 1e-6);
+
     /***********************************************************************************************
      * \brief Set parameter for integration
      * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
@@ -283,10 +287,29 @@ private:
 public:
 
     /***********************************************************************************************
-     * \brief Compute  IGA Patch weak continuity condition matrices
-     * \author Andreas Apostolatos, Altug Emiroglu, Ragnar Björnsson
+     * \brief Compute and assemble the IGA Patch weak continuity condition matrices
+     * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     void computeIGAPatchWeakContinuityConditionMatrices();
+
+    /***********************************************************************************************
+     * \brief Compute the B-operator matrices for continuity condition enforcement on a patch
+     * \param[in/out] _BDisplacementsGC Pointer to the B-operator matrix for the displacement field in the global Cartesian space
+     * \param[in/out] _BOperatorOmegaT Pointer to the B-operator matrix for the bending rotational field in the global Cartesian space
+     * \param[in/out] _BOperatorOmegaN Pointer to the B-operator matrix for the twisting rotational field in the global Cartesian space
+     * \param[in/out] _normalTrCurveVct Pointer to the normal to the trimming curve vector which is also tangent to the surface patch
+     * \param[in] _patch Pointer to the patch for which the B-operator matrices are computed
+     * \param[in] _tangentTrCurveVct Pointer to the tangent along the trimming curve vector
+     * \param[in] _u The u parametric coordinate of the curve in the surface parameter space
+     * \param[in] _v The v parametric coordinate of the curve in the surface parameter space
+     * \param[in] _uKnotSpan The knot span index in the u-parametric direction
+     * \param[in] _vKnotSpan The knot span index in the v-parametric direction
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void computeIGAPatchContinuityConditionBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
+                                                             double* _BOperatorOmegaN, double* _normalTrCurveVct,
+                                                             IGAPatchSurface* _patch, double* _tangentTrCurveVct,
+                                                             double _u, double _v, int _uKnotSpan, int _vKnotSpan);
 
     /***********************************************************************************************
      * \brief Compute  the penalty factors of the IGA Patch coupling by using the smallest element length of the patches at the interface

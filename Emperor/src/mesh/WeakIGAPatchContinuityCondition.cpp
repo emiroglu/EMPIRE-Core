@@ -62,8 +62,8 @@ void WeakIGAPatchContinuityCondition::addWeakContinuityConditionGPData(int _trCu
         }
         trCurveGPWeights[i] = _trCurveGPWeights[i];
         for (int j = 0; j < 3; j++){
-            trCurveMasterGPTangents[3*i+j]=_trCurveMasterGPTangents[2*i+j];
-            trCurveSlaveGPTangents[3*i+j]=_trCurveSlaveGPTangents[2*i+j];
+            trCurveMasterGPTangents[3*i+j]=_trCurveMasterGPTangents[3*i+j];
+            trCurveSlaveGPTangents[3*i+j]=_trCurveSlaveGPTangents[3*i+j];
         }
         trCurveGPJacobianProducts[i] = _trCurveGPJacobianProducts[i];
     }
