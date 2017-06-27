@@ -76,13 +76,24 @@ private:
 
     /// The element freedom table for the fluid mesh
     int **meshFEDirectElemTable;
-    /// The reverse element freedom table for the fluid mesh
+
+    /// The reverse element freedom table for the finite element mesh
     std::map<int, std::vector<int> > meshFENodeToElementTable;
 
+    /// Indices for rows which are identically zero in the mass matrix
     std::vector<int> indexEmptyRowCnn;
 
+    /// The isogeometric coupling matrices
     IGAMortarCouplingMatrices *couplingMatrices;
-    bool useIGAPatchCouplingPenalties;
+
+    /// Flag on the application of patch continuity conditions using Penalty
+    bool isIGAPatchContinuityConditions;
+
+    /// Penalty factors for the primary field to the application of weak patch continuity conditions
+    double* alphaPrimaryIJ;
+
+    /// Penalty factors for the secondary field to the application of weak patch continuity conditions
+    double* alphaSecondaryIJ;
 
     /// Quadrature rule over the triangulated subdomains
     EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
@@ -96,42 +107,56 @@ private:
 
     /// Polygon reconstructed in 2D parametric space stored for each patch
     std::map<int,ListPolygon2D> trimmedProjectedPolygons;
+
     /// Triangulated polygon in 2D parametric space stored for each patch
     std::map<int,ListPolygon2D> triangulatedProjectedPolygons2;
 
+    /// List of all the projected polygons
     std::vector<std::map<int,Polygon2D> > projectedPolygons;
+
+    /// List of all the triangulated polygons
     std::vector<std::map<int,ListPolygon2D> > triangulatedProjectedPolygons;
 
     /// Stream of gauss points stored in line with format
     /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
     std::vector<std::vector<double> > streamGP;
 
-
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
 
+    /// Number of nodes for the slave side
     size_t numNodesSlave;
+
+    /// Number of nodes for the master side
     size_t numNodesMaster;
 
+    /// Number of Gauss Points for the integration over a triangle or a quadrilateral
     struct integration {
         int numGPTriangle;
         int numGPQuad;
     } integration;
+
+    /// Properties for the nonlinear solution schemes
     struct nonlinearSchemeProperties {
         int maxNumOfIterations;
         double tolerance;
     } newtonRaphson, newtonRaphsonBoundary, bisection;
+
+    /// Properties for the projection schemes
     struct projectionProperties {
         double maxProjectionDistance;
         int numRefinementForIntialGuess;
         double maxDistanceForProjectedPointsOnDifferentPatches;
     } projectionProperties;
+
+    /// Properties for the application of weak patch continuity conditions with Penalty
     struct IgaPatchCoupling {
             double dispPenalty;
             double rotPenalty;
             int isAutomaticPenaltyFactors;
     } IgaPatchCoupling;
 
+    /// On the strong application of Dirichlet boundary conditions
     struct dirichletBCs {
         int isDirichletBCs;
     }dirichletBCs;
@@ -151,7 +176,7 @@ public:
 
     /***********************************************************************************************
      * \brief Destructor
-     * \author Fabien Pean, Chenshen Wu
+     * \author Fabien Pean
      ***********/
     virtual ~IGAMortarMapper();
 
@@ -256,6 +281,7 @@ private:
      * \param[out] _v The output guess in v direction
      * \author Fabien Pean
      ***********/
+
     void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using Newton-Raphson
@@ -267,6 +293,7 @@ private:
      * \param[out] _minProjectionPoint The previous point computed
      * \author Fabien Pean
      ***********/
+
     bool projectPointOnPatch(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using a brute force method
@@ -312,23 +339,10 @@ public:
                                                              double _u, double _v, int _uKnotSpan, int _vKnotSpan);
 
     /***********************************************************************************************
-     * \brief Compute  the penalty factors of the IGA Patch coupling by using the smallest element length of the patches at the interface
-     * \param[in/out] alphaPrim the primary penalty factor
-     * \param[in/out] alphaSec the secondary penalty factor
-     * \param[in] masterPatch the master patch
-     * \param[in] slavePatch the slave patch
-     * \param[in] gausspoints_master the gauss points on the master side
-     * \param[in] gausspoints_slave the gauss points on the slave side
-     * \param[in] gausspoints_weight the gauss point weights
-     * \param[in] mappings the mapping of the gausspoints from the parent element space to the physical space
-     * \param[in] numElemsPerBRep number of elements on the current BReP
-     * \param[in] numGPsPerElem number of gauss points on each element (they are of uniform length)
-     * \author Ragnar Björnsson
+     * \brief Compute the penalty factors for the primary and the secondary field for each interface
+     * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-
-    void computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,
-            IGAPatchSurface* slavePatch, double* gausspoints_master, double* gausspoints_slave, double* gausspoints_weight,
-            double* mappings, int numElemsPerBRep, int numGPsPerElem);
+    void computePenaltyFactorsForPatchContinuityConditions();
 
 private:
     /***********************************************************************************************
@@ -470,6 +484,7 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void writeProjectedNodesOntoIGAMesh();
+
     /***********************************************************************************************
      * \brief Writes the back projection of projected FE element in a Paraview (polydata vtk) format
      * 		Opens a file filename.csv, process it and write filename.vtk
@@ -477,16 +492,19 @@ public:
      * \author Fabien Pean
      ***********/
      void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
+
     /***********************************************************************************************
      * \brief Writes all FE mesh in parametric coordinates
      * \author Fabien Pean
      ***********/
      void writeParametricProjectedPolygons(std::string _filename);
+
     /***********************************************************************************************
      * \brief Writes all triangulated polygons to be integrated
      * \author Fabien Pean
      ***********/
      void writeTriangulatedParametricPolygon(std::string _filename);
+
     /***********************************************************************************************
      * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
      * \author Fabien Pean
@@ -500,6 +518,7 @@ public:
      * \author Fabien Pean
      ***********/
     void debugPolygon(const Polygon2D& _polygon, std::string _name="");
+
     /***********************************************************************************************
      * \brief Print a set of polygon
      * \author Fabien Pean
@@ -524,7 +543,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     bool getUseIGAPatchCouplingPenalties() {
-        return useIGAPatchCouplingPenalties;
+        return isIGAPatchContinuityConditions;
     }
 
     /***********************************************************************************************

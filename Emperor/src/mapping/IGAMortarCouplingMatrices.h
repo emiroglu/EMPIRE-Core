@@ -60,7 +60,7 @@ private:
     size_t size_N;
     size_t size_R;
 
-    bool isIGAPatchCoupling;
+    bool isIGAPatchContinuityConditions;
     bool isDirichletBCs;
     bool isClampedDofs;
 
@@ -117,11 +117,11 @@ public:
 
     /***********************************************************************************************
      * \brief set isIGAPatchCoupling and isClampedDofs and expand if any of them is true
-     * \param[in] _isIGAPatchCoupling will IGA patch coupling be used
+     * \param[in] _isIGAPatchContinuityConditions Flag on whether weak patch continuity conditions are applied
      * \param[in] _isClampedDofs are any clamped nodes where not all directions are clamped
      * \author Ragnar Björnsson
      ***********/
-    void setIsIGAPatchCoupling(bool _isIGAPatchCoupling , bool _isClampedDofs);
+    void setIsIGAPatchCoupling(bool _isIGAPatchContinuityConditions, bool _isClampedDofs);
 
     /***********************************************************************************************
      * \brief expand CNN and CNR matrices to account for all 3 directions
@@ -139,7 +139,7 @@ public:
     void setValue(int _row , int _column , double value) {
         if(isDirichletBCs)
             (*C_NN_BCs)(_row,_column) = value;
-        else if(isIGAPatchCoupling)
+        else if(isIGAPatchContinuityConditions)
             (*C_NN_expanded)(_row,_column) = value;
         else
             (*C_NN)(_row,_column) = value;
@@ -164,7 +164,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     int getCorrectSizeN() {
-        if(isIGAPatchCoupling || isClampedDofs)
+        if(isIGAPatchContinuityConditions || isClampedDofs)
             return 3*size_N;
         else
             return size_N;
@@ -175,7 +175,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     int getCorrectSizeR() {
-        if(isIGAPatchCoupling || isClampedDofs)
+        if(isIGAPatchContinuityConditions || isClampedDofs)
             return 3*size_R;
         else
             return size_R;
@@ -188,7 +188,7 @@ public:
     MathLibrary::SparseMatrix<double>* getCorrectCNN() {
         if(isDirichletBCs)
             return C_NN_BCs;
-        else if(isIGAPatchCoupling)
+        else if(isIGAPatchContinuityConditions)
                 return C_NN_expanded;
         else
             return C_NN;
@@ -201,7 +201,7 @@ public:
     MathLibrary::SparseMatrix<double>* getCorrectCNR() {
         if(isDirichletBCs)
             return C_NR_BCs;
-        else if(isIGAPatchCoupling)
+        else if(isIGAPatchContinuityConditions)
             return C_NR_expanded;
         else
             return C_NR;
@@ -212,7 +212,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     MathLibrary::SparseMatrix<double>* getCorrectCNN_conservative() {
-        if(isIGAPatchCoupling)
+        if(isIGAPatchContinuityConditions)
                 return C_NN_expanded;
         else {
             return C_NN;
@@ -224,7 +224,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     MathLibrary::SparseMatrix<double>* getCorrectCNR_conservative() {
-        if(isIGAPatchCoupling)
+        if(isIGAPatchContinuityConditions)
             return C_NR_expanded;
         else
             return C_NR;
@@ -257,7 +257,7 @@ public:
     void deleterow(int row) {
         if(isDirichletBCs)
             C_NN_BCs->deleteRow(row);
-        else if(isIGAPatchCoupling)
+        else if(isIGAPatchContinuityConditions)
             C_NN_expanded->deleteRow(row);
         else
             C_NN->deleteRow(row);

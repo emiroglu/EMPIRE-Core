@@ -74,7 +74,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     }
 
     // Initialize flag for the case that coupling between the patches is enables and when Dirichlet boundary conditions are applied in not all directions
-    useIGAPatchCouplingPenalties = false;
+    isIGAPatchContinuityConditions = false;
     
     // Initialize coupling matrices
     couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
@@ -88,41 +88,31 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     setParametersDirichletBCs();
 }
 
-IGAMortarMapper::~IGAMortarMapper() {
-
-    for (int i = 0; i < meshFE->numElems; i++)
-        delete[] meshFEDirectElemTable[i];
-    delete[] meshFEDirectElemTable;
-    delete gaussTriangle;
-    delete gaussQuad;
-    delete couplingMatrices;
-}
-
 void IGAMortarMapper::setParametersIntegration(int _numGPTriangle, int _numGPQuad) {
-    integration.numGPTriangle=_numGPTriangle;
-    integration.numGPQuad=_numGPQuad;
+    integration.numGPTriangle = _numGPTriangle;
+    integration.numGPQuad = _numGPQuad;
 }
 
 void IGAMortarMapper::setParametersNewtonRaphson(int _maxNumOfIterations, double _tolerance) {
-    newtonRaphson.maxNumOfIterations=_maxNumOfIterations;
-    newtonRaphson.tolerance=_tolerance;
+    newtonRaphson.maxNumOfIterations = _maxNumOfIterations;
+    newtonRaphson.tolerance = _tolerance;
 }
 
 void IGAMortarMapper::setParametersNewtonRaphsonBoundary(int _maxNumOfIterations, double _tolerance) {
-    newtonRaphsonBoundary.maxNumOfIterations=_maxNumOfIterations;
-    newtonRaphsonBoundary.tolerance=_tolerance;
+    newtonRaphsonBoundary.maxNumOfIterations = _maxNumOfIterations;
+    newtonRaphsonBoundary.tolerance = _tolerance;
 }
 
 void IGAMortarMapper::setParametersBisection(int _maxNumOfIterations, double _tolerance) {
-    bisection.maxNumOfIterations=_maxNumOfIterations;
-    bisection.tolerance=_tolerance;
+    bisection.maxNumOfIterations = _maxNumOfIterations;
+    bisection.tolerance = _tolerance;
 }
 
 void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess,
                                               double _maxDistanceForProjectedPointsOnDifferentPatches) {
-    projectionProperties.maxProjectionDistance=_maxProjectionDistance;
-    projectionProperties.numRefinementForIntialGuess=_numRefinementForIntialGuess;
-    projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches=_maxDistanceForProjectedPointsOnDifferentPatches;
+    projectionProperties.maxProjectionDistance = _maxProjectionDistance;
+    projectionProperties.numRefinementForIntialGuess = _numRefinementForIntialGuess;
+    projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = _maxDistanceForProjectedPointsOnDifferentPatches;
 }
 
 void IGAMortarMapper::setParametersIgaPatchCoupling(double _dispPenalty, double _rotPenalty, int isAutomaticPenaltyFactors) {
@@ -182,10 +172,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
-    
-    if(IgaPatchCoupling.dispPenalty>0 || IgaPatchCoupling.rotPenalty>0)
-        useIGAPatchCouplingPenalties = true;
 
+    // On the application of strong Dirichlet boundary conditions
     bool _isdirichletBCs = false;
     bool isClampedDofs = false;
     std::vector<int> clampedIDs;
@@ -198,19 +186,35 @@ void IGAMortarMapper::buildCouplingMatrices() {
             isClampedDofs = true;
     }
 
-    couplingMatrices->setIsIGAPatchCoupling(useIGAPatchCouplingPenalties , isClampedDofs);
+    // Initialize the penalty factors for the application of weak patch continuity conditions
+    alphaPrimaryIJ = new double[meshIGA->getWeakIGAPatchContinuityConditions().size()];
+    alphaSecondaryIJ = new double[meshIGA->getWeakIGAPatchContinuityConditions().size()];
 
-    if (useIGAPatchCouplingPenalties) {
+    // Flag on whether weak patch continuity conditions are to be applied
+    if(IgaPatchCoupling.isAutomaticPenaltyFactors || (IgaPatchCoupling.dispPenalty > 0 || IgaPatchCoupling.rotPenalty > 0 ))
+        isIGAPatchContinuityConditions = true;
+
+    // Check if weak patch continuity conditions are applied and expand the matrices accordingly
+    couplingMatrices->setIsIGAPatchCoupling(isIGAPatchContinuityConditions, isClampedDofs);
+
+    // Compute the penalty factors for the application of weak patch continuity conditions
+    if(isIGAPatchContinuityConditions)
+        computePenaltyFactorsForPatchContinuityConditions();
+
+    if (isIGAPatchContinuityConditions) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
-        INFO_OUT() << "Manual patch coupling penalties: alphaPrim = "<< IgaPatchCoupling.dispPenalty <<" alphaSec = "<< IgaPatchCoupling.rotPenalty <<endl;
+        if(!IgaPatchCoupling.isAutomaticPenaltyFactors){
+            INFO_OUT() << "Manual patch coupling penalties: alphaPrim = "<< IgaPatchCoupling.dispPenalty <<" alphaSec = " <<  IgaPatchCoupling.rotPenalty << endl;
+        }else{
+            INFO_OUT() << "Automatic patch coupling penalties, use DEBUG mode to see the computed values" << endl;
+        }
         computeIGAPatchWeakContinuityConditionMatrices();
         INFO_OUT() << "Application of weak patch continuity conditions finished" << std::endl;
-    }
-    else
-        INFO_OUT()<<"No Penalty Patch Coupling"<<std::endl;
+    }else
+        INFO_OUT() << "No application of weak patch continuity conditions are assumed" << std::endl;
 
     if(isClampedDofs)                           // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
-        useIGAPatchCouplingPenalties=true;      // if it is not always clamped in all three dircetions
+        isIGAPatchContinuityConditions = true;      // if it is not always clamped in all three dircetions
 
     couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
 
@@ -231,6 +235,18 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     if(dirichletBCs.isDirichletBCs==0)
         checkConsistency();
+}
+
+IGAMortarMapper::~IGAMortarMapper() {
+
+    for (int i = 0; i < meshFE->numElems; i++)
+        delete[] meshFEDirectElemTable[i];
+    delete[] meshFEDirectElemTable;
+    delete gaussTriangle;
+    delete gaussQuad;
+    delete couplingMatrices;
+    delete[] alphaPrimaryIJ;
+    delete[] alphaSecondaryIJ;
 }
 
 void IGAMortarMapper::initTables() {
@@ -611,8 +627,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
         WARNING_BLOCK_OUT("IGAMortarMapper","ComputeCouplingMatrices","Not all element in FE mesh integrated ! Coupling matrices invalid");
     }
 }
-
-
 
 void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchWithFullElt, set<int>& patchWithSplitElt) {
     // Initialize the flag whether the projected FE element is located on one patch
@@ -1325,10 +1339,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
      * Computes and assembles the patch weak continuity conditions.
      */
 
-    // Get the penalty parameters from the xml file
-    double alphaPrim = IgaPatchCoupling.dispPenalty;
-    double alphaSec = IgaPatchCoupling.rotPenalty;
-
     // Get the weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
 
@@ -1373,6 +1383,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double normTangentTrCurveVctSlave;
     double normNormalTrCurveVctMaster;
     double normNormalTrCurveVctSlave;
+    double alphaPrimary;
+    double alphaSecondary;
 
     // Initialize pointers
     double* trCurveMasterGPs;
@@ -1386,6 +1398,10 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
     // Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
+        // Get the penalty factors for the primary and the secondary field
+        alphaPrimary = alphaPrimaryIJ[iWCC];
+        alphaSecondary = alphaSecondaryIJ[iWCC];
+
         // Get the index of the master and slave patches
         indexMaster = weakIGAPatchContinuityConditions[iWCC]->getMasterPatchIndex();
         indexSlave = weakIGAPatchContinuityConditions[iWCC]->getSlavePatchIndex();
@@ -1555,13 +1571,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocMaster; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaPrim*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSec*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondary*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSec*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondary*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
@@ -1569,13 +1585,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocSlave; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++) {
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaPrim*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSec*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondary*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSec*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondary*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
@@ -1583,16 +1599,16 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaPrim*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaPrim*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSec*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSec*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondary*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSec*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSec*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
         } // End of Gauss Point loop
@@ -1767,69 +1783,181 @@ void IGAMortarMapper::computeIGAPatchContinuityConditionBOperatorMatrices(double
     delete[] commonBOperator;
 }
 
-void IGAMortarMapper::computePenaltyFactorsForPatchCoupling(double& alphaPrim, double& alphaSec, IGAPatchSurface* masterPatch,
-                                                            IGAPatchSurface* slavePatch, double* gausspoints_master, double* gausspoints_slave, double* gausspoints_weight,
-                                                            double* mappings, int numElemsPerBRep, int numGPsPerElem) {
+void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
 
-    std::vector<double> allElementLengths;
+    // Get the weak patch continuity conditions
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
 
-    int uNoKnots_master = masterPatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
-    int vNoKnots_master = masterPatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
-    int p_master = masterPatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int q_master = masterPatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+    // Initialize constant array sizes
+    const int noCoord = 3;
 
-    // loop through all nonzero knotspans
-    for(int uKnotCounter = p_master ; uKnotCounter < uNoKnots_master - p_master - 1 ; uKnotCounter++) {
-        for(int vKnotCounter = q_master ; vKnotCounter < vNoKnots_master - q_master - 1 ; vKnotCounter++) {
-            double elementLength_master = 0;
+    // Initialize varying array sizes
+    bool isElementMasterChanged;
+    bool isElementSlaveChanged;
+    int indexMaster;
+    int indexSlave;
+    int pMaster;
+    int qMaster;
+    int pSlave;
+    int qSlave;
+    int noLocalBasisFctsMaster;
+    int noLocalBasisFctsSlave;
+    int noDOFsLocMaster;
+    int noDOFsLocSlave;
+    int noGPsOnContCond;
+    int uKnotSpanMaster;
+    int uKnotSpanSlave;
+    int vKnotSpanMaster;
+    int vKnotSpanSlave;
+    int uKnotSpanMasterSaved;
+    int uKnotSpanSlaveSaved;
+    int vKnotSpanMasterSaved;
+    int vKnotSpanSlaveSaved;
+    double uGPMaster;
+    double vGPMaster;
+    double uGPSlave;
+    double vGPSlave;
+    double elEdgeSizeMaster;
+    double elEdgeSizeSlave;
+    double minElEdgeSizeMaster = std::numeric_limits<double>::max();
+    double minElEdgeSizeSlave = std::numeric_limits<double>::max();
+    double minElEdgeSize;
 
-            // loop through all gausspoints of the current BReP
-            for(int gpCounter = 0 ; gpCounter < numElemsPerBRep*numGPsPerElem ; gpCounter++) {
-                int uKnotSpanGP_m = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_master[2*gpCounter]);
-                int vKnotSpanGP_m = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_master[2*gpCounter+1]);
-                if(uKnotCounter == uKnotSpanGP_m && vKnotCounter == vKnotSpanGP_m) {
-                    elementLength_master += mappings[gpCounter] * gausspoints_weight[gpCounter];
-                }
-            }
-            if(elementLength_master > 0) {
-                allElementLengths.push_back(elementLength_master);
-            }
+    // Initialize pointers
+    double* trCurveMasterGPs;
+    double* trCurveSlaveGPs;
+    double* trCurveGPWeights;
+    double* trCurveMasterGPTangents;
+    double* trCurveSlaveGPTangents;
+    double* trCurveGPJacobianProducts;
+    IGAPatchSurface* patchMaster;
+    IGAPatchSurface* patchSlave;
+
+    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
+        // Check if penalty factors are to be assigned manually in the xml file
+        if(!IgaPatchCoupling.isAutomaticPenaltyFactors){
+            alphaPrimaryIJ[iWCC] = IgaPatchCoupling.dispPenalty;
+            alphaSecondaryIJ[iWCC] = IgaPatchCoupling.rotPenalty;
+            continue;
         }
-    }
 
-    int uNoKnots_slave = slavePatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
-    int vNoKnots_slave = slavePatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
-    int p_slave = slavePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int q_slave = slavePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        // Get the index of the master and slave patches
+        indexMaster = weakIGAPatchContinuityConditions[iWCC]->getMasterPatchIndex();
+        indexSlave = weakIGAPatchContinuityConditions[iWCC]->getSlavePatchIndex();
 
-    // loop through all nonzero knotspans
-    for(int uKnotCounter = p_slave ; uKnotCounter < uNoKnots_slave - p_slave - 1 ; uKnotCounter++) {
-        for(int vKnotCounter = q_slave ; vKnotCounter < vNoKnots_slave - q_slave - 1 ; vKnotCounter++) {
-            double elementLength_slave = 0;
+        // Get the number of Gauss Points for the given condition
+        noGPsOnContCond = weakIGAPatchContinuityConditions[iWCC]->getTrCurveNumGP();
 
-            // loop through all gausspoints of the current BReP
-            for(int gpCounter = 0 ; gpCounter < numElemsPerBRep*numGPsPerElem ; gpCounter++) {
-                int uKnotSpanGP_s = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*gpCounter]);
-                int vKnotSpanGP_s = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(gausspoints_slave[2*gpCounter+1]);
-                if(uKnotCounter == uKnotSpanGP_s && vKnotCounter == vKnotSpanGP_s) {
-                    elementLength_slave += mappings[gpCounter] * gausspoints_weight[gpCounter];
-                }
+        // Get the parametric coordinates of the Gauss Points
+        trCurveMasterGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPs();
+        trCurveSlaveGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPs();
+
+        // Get the corresponding Gauss weights
+        trCurveGPWeights = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPWeights();
+
+        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        trCurveMasterGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPTangents();
+        trCurveSlaveGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPTangents();
+
+        // Get the product of the Jacobian transformations
+        trCurveGPJacobianProducts = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPJacobianProducts();
+
+        // Get the master and the slave patch
+        patchMaster = meshIGA->getSurfacePatch(indexMaster);
+        patchSlave = meshIGA->getSurfacePatch(indexSlave);
+
+        // Get the polynomial orders of the master and the slave patch
+        pMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        pSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // get the number of local basis functions for master and slave patch
+        noLocalBasisFctsMaster = (pMaster + 1)*(qMaster + 1);
+        noLocalBasisFctsSlave = (pSlave + 1)*(qSlave + 1);
+
+        // get the number of the local DOFs for the master and slave patch
+        noDOFsLocMaster = noCoord*noLocalBasisFctsMaster;
+        noDOFsLocSlave = noCoord*noLocalBasisFctsSlave;
+
+        // Initialize flags on whether an element has been changed while looping over the Gauss Points
+        isElementMasterChanged = false;
+        isElementSlaveChanged = false;
+
+        // Initialize the element edge sizes
+        elEdgeSizeMaster = 0.0;
+        elEdgeSizeSlave = 0.0;
+
+        // Loop over all the Gauss Points of the given condition
+        for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
+
+            // Get the parametric coordinates of the Gauss Point on the master patch
+            uGPMaster = trCurveMasterGPs[2*iGP];
+            vGPMaster = trCurveMasterGPs[2*iGP + 1];
+
+            // Get the parametric coordinates of the Gauss Point on the slave patch
+            uGPSlave = trCurveSlaveGPs[2*iGP];
+            vGPSlave = trCurveSlaveGPs[2*iGP + 1];
+
+            // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+            uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
+            vKnotSpanMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPMaster);
+
+            // Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+            uKnotSpanSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPSlave);
+            vKnotSpanSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPSlave);
+
+            // Initialize the saved knot span indices
+            if(iGP == 0){
+                uKnotSpanMasterSaved = uKnotSpanMaster;
+                vKnotSpanMasterSaved = vKnotSpanMaster;
+                uKnotSpanSlaveSaved = uKnotSpanSlave;
+                vKnotSpanSlaveSaved = vKnotSpanSlave;
             }
-            if(elementLength_slave > 0) {
-                allElementLengths.push_back(elementLength_slave);
+
+            // Initialize element edge sizes if an element has been crossed
+            if(uKnotSpanMaster != uKnotSpanMasterSaved || vKnotSpanMaster != vKnotSpanMasterSaved){
+                if(elEdgeSizeMaster < minElEdgeSizeMaster)
+                    minElEdgeSizeMaster = elEdgeSizeMaster;
+                elEdgeSizeMaster = 0.0;
             }
+            if(uKnotSpanSlave != uKnotSpanSlaveSaved || vKnotSpanSlave != vKnotSpanSlaveSaved){
+                if(elEdgeSizeSlave < minElEdgeSizeSlave)
+                    minElEdgeSizeSlave = elEdgeSizeSlave;
+                elEdgeSizeSlave = 0.0;
+            }
+
+            // Add the contribution from the Gauss Point to the element edge sizes
+            elEdgeSizeMaster += trCurveGPJacobianProducts[iGP];
+            elEdgeSizeSlave += trCurveGPJacobianProducts[iGP];
+
+            // Save the knot span indices
+            uKnotSpanMasterSaved = uKnotSpanMaster;
+            vKnotSpanMasterSaved = vKnotSpanMaster;
+            uKnotSpanSlaveSaved = uKnotSpanSlave;
+            vKnotSpanSlaveSaved = vKnotSpanSlave;
+        } // End of Gauss Point loop
+
+        // Check the element sizes for the last elements
+        if(elEdgeSizeMaster < minElEdgeSizeMaster)
+            minElEdgeSizeMaster = elEdgeSizeMaster;
+        if(elEdgeSizeSlave < minElEdgeSizeSlave)
+            minElEdgeSizeSlave = elEdgeSizeSlave;
+
+        // Get the minimum of the minimum element edge sizes between both patches
+        minElEdgeSize = minElEdgeSizeMaster;
+        if(minElEdgeSizeSlave < minElEdgeSize){
+            minElEdgeSize = minElEdgeSizeSlave;
         }
-    }
 
-    // find the smallest element length
-    double smallestElementLength = allElementLengths[0];
-    for(int elementCounter = 1 ; elementCounter < allElementLengths.size() ; elementCounter++) {
-        if(allElementLengths[elementCounter] < smallestElementLength)
-            smallestElementLength = allElementLengths[elementCounter];
-    }
+        // Compute correspondingly the penalty factors
+        alphaPrimaryIJ[iWCC] = 1.0/minElEdgeSize;
+        alphaSecondaryIJ[iWCC] = 1.0/sqrt(minElEdgeSize);
+        DEBUG_OUT() << "alphaPrimaryIJ[" << iWCC << "] = " << alphaPrimaryIJ[iWCC] << std::endl;
+        DEBUG_OUT() << "alphaSecondaryIJ[" << iWCC << "] = " << alphaSecondaryIJ[iWCC] << std::endl;
 
-    alphaPrim = 1/smallestElementLength;
-    alphaSec = 1/(sqrt(smallestElementLength));
+    } // End of weak continuity condition loop
 }
 
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
@@ -2100,7 +2228,7 @@ void IGAMortarMapper::checkConsistency() {
     if(!inconsistentDoF.empty()) {
         INFO_OUT()<<"inconsistendDOF size = "<<inconsistentDoF.size()<<std::endl;
         for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
-            if(!useIGAPatchCouplingPenalties) {
+            if(!isIGAPatchContinuityConditions) {
                 couplingMatrices->deleterow(*it);       // deleterow might not be working for the new coupling matrix datastructure
                 couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
             }
