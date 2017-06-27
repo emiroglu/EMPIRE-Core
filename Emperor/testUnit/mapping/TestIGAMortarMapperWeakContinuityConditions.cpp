@@ -756,17 +756,12 @@ public:
         // Get the weak patch continuity conditions
         std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = theIGAMesh->getWeakIGAPatchContinuityConditions();
 
-        // Define tolerances
-        const double tolAngle = 1e-1;
-        const double tolVct = 1e-4;
-
         // Initialize constant array sizes
         const int noCoord = 3;
 
         // Initialize varying array sizes
         int indexMaster;
         int indexSlave;
-        int counter;
         int pMaster;
         int qMaster;
         int pSlave;
@@ -1008,19 +1003,9 @@ public:
         uGPMaster = trCurveMasterGPs[2*iGP];
         vGPMaster = trCurveMasterGPs[2*iGP + 1];
 
-        std::cout << std::endl;
-        std::cout << "uGPMaster = " << trCurveMasterGPs[2*iGP] << std::endl;
-        std::cout << "vGPMaster = " << trCurveMasterGPs[2*iGP + 1] << std::endl;
-        std::cout << std::endl;
-
         // Get the parametric coordinates of the Gauss Point on the slave patch
         uGPSlave = trCurveSlaveGPs[2*iGP];
         vGPSlave = trCurveSlaveGPs[2*iGP + 1];
-
-        std::cout << std::endl;
-        std::cout << "uGPSlave = " << trCurveSlaveGPs[2*iGP] << std::endl;
-        std::cout << "vGPSlave = " << trCurveSlaveGPs[2*iGP + 1] << std::endl;
-        std::cout << std::endl;
 
         // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
         uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
@@ -1248,6 +1233,26 @@ public:
         // Compare the computed values against the expected ones
         for(int i = 0; i < noDOFsLocSlave; i++)
             CPPUNIT_ASSERT(fabs( BOperatorOmegaNSlave3[i] - CorrectBOperatorTwistingRotationMatrixSlave3[i]) <= TolRel100);
+
+        // Delete pointers
+        delete[] BDisplacementsGCMaster1;
+        delete[] BDisplacementsGCSlave1;
+        delete[] BOperatorOmegaTMaster1;
+        delete[] BOperatorOmegaTSlave1;
+        delete[] BOperatorOmegaNMaster1;
+        delete[] BOperatorOmegaNSlave1;
+        delete[] BDisplacementsGCMaster2;
+        delete[] BDisplacementsGCSlave2;
+        delete[] BOperatorOmegaTMaster2;
+        delete[] BOperatorOmegaTSlave2;
+        delete[] BOperatorOmegaNMaster2;
+        delete[] BOperatorOmegaNSlave2;
+        delete[] BDisplacementsGCMaster3;
+        delete[] BDisplacementsGCSlave3;
+        delete[] BOperatorOmegaTMaster3;
+        delete[] BOperatorOmegaTSlave3;
+        delete[] BOperatorOmegaNMaster3;
+        delete[] BOperatorOmegaNSlave3;
     }
 
     void testComputePenaltyFactors() {
@@ -1302,10 +1307,144 @@ public:
 //        }
     }
 
+    void testIGAPatchContinuityConditions4Leakage(){
+        // Get the weak patch continuity conditions
+        std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = theIGAMesh->getWeakIGAPatchContinuityConditions();
+
+        // Initialize constant array sizes
+        const int noCoord = 3;
+
+        // Initialize varying array sizes
+        int indexMaster;
+        int indexSlave;
+        int pMaster;
+        int qMaster;
+        int pSlave;
+        int qSlave;
+        int noLocalBasisFctsMaster;
+        int noLocalBasisFctsSlave;
+        int noDOFsLocMaster;
+        int noDOFsLocSlave;
+        int noGPsOnContCond;
+        int uKnotSpanMaster;
+        int uKnotSpanSlave;
+        int vKnotSpanMaster;
+        int vKnotSpanSlave;
+        double uGPMaster;
+        double vGPMaster;
+        double uGPSlave;
+        double vGPSlave;
+        double tangentTrCurveVctMaster[noCoord];
+        double tangentTrCurveVctSlave[noCoord];
+        double normalTrCurveVctMaster[noCoord];
+        double normalTrCurveVctSlave[noCoord];
+
+        // Initialize pointers
+        double* trCurveMasterGPs;
+        double* trCurveSlaveGPs;
+        double* trCurveGPWeights;
+        double* trCurveMasterGPTangents;
+        double* trCurveSlaveGPTangents;
+        double* trCurveGPJacobianProducts;
+        IGAPatchSurface* patchMaster;
+        IGAPatchSurface* patchSlave;
+
+        // Get the index of the master and slave patches
+        indexMaster = weakIGAPatchContinuityConditions[0]->getMasterPatchIndex();
+        indexSlave = weakIGAPatchContinuityConditions[0]->getSlavePatchIndex();
+
+        // Get the number of Gauss Points for the given condition
+        noGPsOnContCond = weakIGAPatchContinuityConditions[0]->getTrCurveNumGP();
+
+        // Get the parametric coordinates of the Gauss Points
+        trCurveMasterGPs = weakIGAPatchContinuityConditions[0]->getTrCurveMasterGPs();
+        trCurveSlaveGPs = weakIGAPatchContinuityConditions[0]->getTrCurveSlaveGPs();
+
+        // Get the corresponding Gauss weights
+        trCurveGPWeights = weakIGAPatchContinuityConditions[0]->getTrCurveGPWeights();
+
+        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        trCurveMasterGPTangents = weakIGAPatchContinuityConditions[0]->getTrCurveMasterGPTangents();
+        trCurveSlaveGPTangents = weakIGAPatchContinuityConditions[0]->getTrCurveSlaveGPTangents();
+
+        // Get the product of the Jacobian transformations
+        trCurveGPJacobianProducts = weakIGAPatchContinuityConditions[0]->getTrCurveGPJacobianProducts();
+
+        // Get the master and the slave patch
+        patchMaster = theIGAMesh->getSurfacePatch(indexMaster);
+        patchSlave = theIGAMesh->getSurfacePatch(indexSlave);
+
+        // Get the polynomial orders of the master and the slave patch
+        pMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        pSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // get the number of local basis functions for master and slave patch
+        noLocalBasisFctsMaster = (pMaster + 1)*(qMaster + 1);
+        noLocalBasisFctsSlave = (pSlave + 1)*(qSlave + 1);
+
+        // get the number of the local DOFs for the master and slave patch
+        noDOFsLocMaster = noCoord*noLocalBasisFctsMaster;
+        noDOFsLocSlave = noCoord*noLocalBasisFctsSlave;
+
+        // Initialize pointers
+        double* BDisplacementsGCMaster = new double[noCoord*noDOFsLocMaster];
+        double* BDisplacementsGCSlave = new double[noCoord*noDOFsLocSlave];
+        double* BOperatorOmegaTMaster = new double[noDOFsLocMaster];
+        double* BOperatorOmegaTSlave = new double[noDOFsLocSlave];
+        double* BOperatorOmegaNMaster = new double[noDOFsLocMaster];
+        double* BOperatorOmegaNSlave = new double[noDOFsLocSlave];
+
+        // Loop over all the Gauss points
+        for(int i = 0; i < 1e10; i++)
+            for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
+
+                // Get the parametric coordinates of the Gauss Point on the master patch
+                uGPMaster = trCurveMasterGPs[2*iGP];
+                vGPMaster = trCurveMasterGPs[2*iGP + 1];
+
+                // Get the parametric coordinates of the Gauss Point on the slave patch
+                uGPSlave = trCurveSlaveGPs[2*iGP];
+                vGPSlave = trCurveSlaveGPs[2*iGP + 1];
+
+                // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+                uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
+                vKnotSpanMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPMaster);
+
+                // Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+                uKnotSpanSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPSlave);
+                vKnotSpanSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPSlave);
+
+                // Get the tangent to the boundary vector on the master and the slave patch
+                for(int iCoord = 0; iCoord < noCoord; iCoord++){
+                    tangentTrCurveVctMaster[iCoord] = trCurveMasterGPTangents[3*iGP + iCoord];
+                    tangentTrCurveVctSlave[iCoord] = trCurveSlaveGPTangents[3*iGP + iCoord];
+                }
+
+                // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
+                theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
+                                                                               patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
+
+                // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
+                theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
+                                                                               patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
+            }
+
+        // Delete pointers
+        delete[] BDisplacementsGCMaster;
+        delete[] BDisplacementsGCSlave;
+        delete[] BOperatorOmegaTMaster;
+        delete[] BOperatorOmegaTSlave;
+        delete[] BOperatorOmegaNMaster;
+        delete[] BOperatorOmegaNSlave;
+    }
+
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperWeakContinuityConditions);
     CPPUNIT_TEST (testIGAPatchContinuityConditions);
 //    CPPUNIT_TEST (testComputePenaltyFactors);
+//    CPPUNIT_TEST (testIGAPatchContinuityConditions4Leakage);
     CPPUNIT_TEST_SUITE_END();
 }
 ;

@@ -115,14 +115,6 @@ double computeDenseDotProduct(int, double*, double*);
 void crossProduct(double* _product, double* _v1, double* _v2);
 
 /***********************************************************************************************
-* \brief Compute the cross product between two vectors in the 3-D space
-* \param[in/out] _product The product of vector1 and vector2 using vector<>
-* \param[in] _vectors has x,y,z of both vectors in order [1x,2x,1y,2y,1z,2z]
-* \author Ragnar Björnsson
-***********/
-//void crossProduct(std::vector<double>& _product , std::vector<double>& _vector1 , std::vector<double>& _vector2);
-
-/***********************************************************************************************
  * \brief Solve a 2x2 linear system by close form formula
  * \param[in] A the left hand side matrix
  * \param[in] b the right hand side vector
