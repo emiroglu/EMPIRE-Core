@@ -1305,7 +1305,7 @@ public:
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperWeakContinuityConditions);
     CPPUNIT_TEST (testIGAPatchContinuityConditions);
-    CPPUNIT_TEST (testComputePenaltyFactors);
+//    CPPUNIT_TEST (testComputePenaltyFactors);
     CPPUNIT_TEST_SUITE_END();
 }
 ;
