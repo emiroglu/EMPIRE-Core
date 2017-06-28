@@ -67,8 +67,12 @@ private:
     /// Fluid Mesh
     FEMesh *meshFE;
 
+    /// Flag on whether the meshFEDirectElemTable was created
+    bool isMeshFEDirectElemTable;
+
     /// The element freedom table for the fluid mesh
     int **meshFEDirectElemTable;
+
     /// The reverse element freedom table for the fluid mesh
     std::map<int, std::vector<int> > meshFENodeToElementTable;
 

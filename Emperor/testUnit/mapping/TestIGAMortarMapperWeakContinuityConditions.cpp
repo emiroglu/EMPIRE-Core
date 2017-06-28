@@ -44,7 +44,7 @@ class TestIGAMortarMapperWeakContinuityConditions: public CppUnit::TestFixture {
 
 private:
     IGAMortarMapper* theMapper;
-    IGAMesh* theIGAMesh;
+    IGAMesh* theIGAMesh;   
     FEMesh* theFEMesh;
     bool isMappingIGA2FEM;
     double Tol;
@@ -738,13 +738,14 @@ public:
         theMapper->setParametersNewtonRaphson(10, 1e-6);
         theMapper->setParametersNewtonRaphsonBoundary(0, 1e-6);
         theMapper->setParametersBisection(100, 1e-6);
+
     }
 
     void tearDown() {
 
+        delete theMapper;
         delete theFEMesh;
         delete theIGAMesh;
-//        delete theMapper;
 
     }
     /***********************************************************************************************

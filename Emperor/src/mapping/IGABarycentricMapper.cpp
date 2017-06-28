@@ -63,6 +63,9 @@ IGABarycentricMapper::IGABarycentricMapper(std::string _name, IGAMesh *_meshIGA,
     else
         meshFE = _meshFE->triangulate();
 
+    // Initialize flag on whether the meshFEDirectElemTable was created
+    isMeshFEDirectElemTable = false;
+
     projectedCoords.resize(meshFE->numNodes);
     projectedCPs.resize(meshIGA->getNumNodes());
     projectedCPsOnFEMesh.resize(meshIGA->getNumNodes());
@@ -87,9 +90,11 @@ IGABarycentricMapper::IGABarycentricMapper(std::string _name, IGAMesh *_meshIGA,
 
 IGABarycentricMapper::~IGABarycentricMapper() {
 
-    for (int i = 0; i < meshFE->numElems; i++)
-        delete[] meshFEDirectElemTable[i];
-    delete[] meshFEDirectElemTable;
+    if(isMeshFEDirectElemTable){
+        for (int i = 0; i < meshFE->numElems; i++)
+            delete[] meshFEDirectElemTable[i];
+        delete[] meshFEDirectElemTable;
+    }
 
     if (isMappingIGA2FEM) {
         delete C_M;
@@ -102,8 +107,8 @@ IGABarycentricMapper::~IGABarycentricMapper() {
 }
 
 void IGABarycentricMapper::setParametersNewtonRaphson(int _maxNumOfIterations, double _tolerance) {
-    newtonRaphson.maxNumOfIterations=_maxNumOfIterations;
-    newtonRaphson.tolerance=_tolerance;
+    newtonRaphson.maxNumOfIterations = _maxNumOfIterations;
+    newtonRaphson.tolerance = _tolerance;
 }
 
 void IGABarycentricMapper::setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches) {
@@ -130,7 +135,9 @@ void IGABarycentricMapper::buildCouplingMatrices() {
     IGAPatchSurface::MAX_NUM_ITERATIONS = newtonRaphson.maxNumOfIterations;
     IGAPatchSurface::TOL_ORTHOGONALITY = newtonRaphson.tolerance;
 
+    // Compute the EFT for the FE mesh
     initTables();
+    isMeshFEDirectElemTable = true;
 
     if (isMappingIGA2FEM) {
         projectPointsToSurface();
@@ -200,10 +207,13 @@ void IGABarycentricMapper::projectCPsToSurface() {
     // Array of booleans containing flags on the projection of the FE nodes onto the NURBS patch
     // A CP needs to be projected at least once
     vector<bool> isProjected(meshIGA->getNumNodes(), false);
+
     // Keep track of the minimum distance found between a CP and a patch
     vector<double> minProjectionDistance(meshIGA->getNumNodes(), 1e9);
+
     // Keep track of the point on patch related to minimum distance
     vector<vector<double> > minProjectionPoint(meshIGA->getNumNodes());
+
     // List of patch to try a projection for every control point
     vector<set<int> > patchToProcessPerCP(meshIGA->getNumNodes());
 

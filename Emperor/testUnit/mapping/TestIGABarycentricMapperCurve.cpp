@@ -292,8 +292,8 @@ public:
     void tearDown() {
 
         delete theMapper;
- 	// delete theIGAMesh;
- 	delete theFEMesh;
+//        delete theIGAMesh;
+        delete theFEMesh;
 
     }
     /***********************************************************************************************

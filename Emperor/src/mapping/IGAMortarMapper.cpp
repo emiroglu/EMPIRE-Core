@@ -75,6 +75,9 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
 
     // Initialize flag for the case that coupling between the patches is enables and when Dirichlet boundary conditions are applied in not all directions
     isIGAPatchContinuityConditions = false;
+
+    // Initialize flag on whether the meshFEDirectElemTable was created
+    isMeshFEDirectElemTable = false;
     
     // Initialize coupling matrices
     couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
@@ -146,12 +149,10 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Compute the EFT for the FE mesh
     initTables();
+    isMeshFEDirectElemTable = true;
 
     // Project the FE nodes onto the multipatch trimmed geometry
     projectPointsToSurface();
-
-    //    // Initialize coupling matrices
-    //    couplingMatrices = new IgaMortarCouplingMatrices(numNodesMaster , numNodesSlave);
 
     // Write the projected points on to a file to be used in MATLAB
     writeProjectedNodesOntoIGAMesh();
@@ -239,14 +240,20 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
 IGAMortarMapper::~IGAMortarMapper() {
 
-    for (int i = 0; i < meshFE->numElems; i++)
-        delete[] meshFEDirectElemTable[i];
-    delete[] meshFEDirectElemTable;
+    if(isMeshFEDirectElemTable){
+        for (int i = 0; i < meshFE->numElems; i++)
+            delete[] meshFEDirectElemTable[i];
+        delete[] meshFEDirectElemTable;
+    }
+
     delete gaussTriangle;
     delete gaussQuad;
     delete couplingMatrices;
-    delete[] alphaPrimaryIJ;
-    delete[] alphaSecondaryIJ;
+
+    if(isIGAPatchContinuityConditions){
+        delete[] alphaPrimaryIJ;
+        delete[] alphaSecondaryIJ;
+    }
 }
 
 void IGAMortarMapper::initTables() {
