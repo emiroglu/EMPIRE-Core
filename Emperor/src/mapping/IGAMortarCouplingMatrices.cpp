@@ -54,6 +54,9 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
 
     // Initialize flag on the whether patch continuity conditions are applied
     isIGAPatchContinuityConditions = false;
+
+    // Initialize flag on the whether strong Dirichlet boundary conditions are applied
+    isDirichletBCs = false;
 }
 
 void IGAMortarCouplingMatrices::setIsIGAPatchCoupling(bool _isIGAPatchContinuityConditions, bool _isClampedDofs) {
@@ -69,6 +72,7 @@ void IGAMortarCouplingMatrices::setIsIGAPatchCoupling(bool _isIGAPatchContinuity
 }
 
 IGAMortarCouplingMatrices::~IGAMortarCouplingMatrices() {
+
     delete C_NN;
     delete C_NR;
 
@@ -81,6 +85,7 @@ IGAMortarCouplingMatrices::~IGAMortarCouplingMatrices() {
         delete C_NN_BCs;
         delete C_NR_BCs;
     }
+
 }
 
 void IGAMortarCouplingMatrices::expandMatrices() {

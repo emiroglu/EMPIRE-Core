@@ -92,11 +92,17 @@ private:
     /// Flag on the application of patch continuity conditions using Penalty
     bool isIGAPatchContinuityConditions;
 
+    /// Number of weak IGA patch continuity conditions
+    int noWeakIGAPatchContinuityConditions;
+
     /// Penalty factors for the primary field to the application of weak patch continuity conditions
     double* alphaPrimaryIJ;
 
     /// Penalty factors for the secondary field to the application of weak patch continuity conditions
     double* alphaSecondaryIJ;
+
+    /// Flag on the initialization of the quadrature
+    bool isGaussQuadrature;
 
     /// Quadrature rule over the triangulated subdomains
     EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
@@ -237,6 +243,14 @@ public:
      * \param[in] _isDirichletBCs flag if dirichlet boundary conditions are used or not
      ***********/
     void setParametersDirichletBCs(int _isDirichletBCs = 0);
+
+    /***********************************************************************************************
+     * \brief Set the flag regarding the computation of weak continuity conditions
+     * \author Ragnar Björnsson
+     ***********/
+    bool setUseIGAPatchCouplingPenalties(bool _isIGAPatchContinuityConditions) {
+        isIGAPatchContinuityConditions = _isIGAPatchContinuityConditions;
+    }
 
     /***********************************************************************************************
      * \brief Build the coupling matrcies C_NN and C_NR
@@ -542,7 +556,7 @@ public:
 
 public:
     /***********************************************************************************************
-     * \brief get boolean whether the IGA patch coupling was used or not
+     * \brief Get boolean whether the IGA patch coupling was used or not
      * \author Ragnar Björnsson
      ***********/
     bool getUseIGAPatchCouplingPenalties() {
@@ -550,12 +564,34 @@ public:
     }
 
     /***********************************************************************************************
-     * \brief get couplingMatrices object
+     * \brief Get couplingMatrices object
      * \author Ragnar Björnsson
      ***********/
     IGAMortarCouplingMatrices* getCouplingMatrices() {
         return couplingMatrices;
     }
+
+    /***********************************************************************************************
+     * \brief Get the number of the weak patch continuity conditions
+     * \author Andreas Apostolatos
+     ***********/
+    int getNoWeakIGAPatchContinuityConditions(){
+        return noWeakIGAPatchContinuityConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the penalty parameters of the primary field
+     * \param[in/out] The vector of the penalty factors for the primary field
+     * \author Andreas Apostolatos
+     ***********/
+    void getPenaltyParameterForPrimaryField(double* _alphaPrim);
+
+    /***********************************************************************************************
+     * \brief Get the penalty parameters of the secondary field
+     * \param[in/out] The vector of the penalty factors for the secondary field
+     * \author Andreas Apostolatos
+     ***********/
+    void getPenaltyParameterForSecondaryField(double* _alphaSec);
 
     /// unit test class
     friend class TestIGAMortarMapperTube;

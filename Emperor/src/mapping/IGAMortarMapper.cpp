@@ -78,9 +78,19 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
 
     // Initialize flag on whether the meshFEDirectElemTable was created
     isMeshFEDirectElemTable = false;
+
+    // Initialize flag on whether the Gauss quadrature has been defined
+    isGaussQuadrature = false;
     
     // Initialize coupling matrices
     couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
+
+    // Get the number of weak continuity conditions
+    noWeakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions().size();
+
+    // Initialize the penalty factors for the application of weak patch continuity conditions
+    alphaPrimaryIJ = new double[noWeakIGAPatchContinuityConditions];
+    alphaSecondaryIJ = new double[noWeakIGAPatchContinuityConditions];
 
     setParametersProjection();
     setParametersNewtonRaphson();
@@ -140,6 +150,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     }
 
     //Instantiate quadrature rules
+    isGaussQuadrature = true;
     gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(integration.numGPTriangle);
     gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(integration.numGPQuad);
 
@@ -186,10 +197,6 @@ void IGAMortarMapper::buildCouplingMatrices() {
         if(clampedDirections == 1 || clampedDirections == 2)
             isClampedDofs = true;
     }
-
-    // Initialize the penalty factors for the application of weak patch continuity conditions
-    alphaPrimaryIJ = new double[meshIGA->getWeakIGAPatchContinuityConditions().size()];
-    alphaSecondaryIJ = new double[meshIGA->getWeakIGAPatchContinuityConditions().size()];
 
     // Flag on whether weak patch continuity conditions are to be applied
     if(IgaPatchCoupling.isAutomaticPenaltyFactors || (IgaPatchCoupling.dispPenalty > 0 || IgaPatchCoupling.rotPenalty > 0 ))
@@ -246,8 +253,11 @@ IGAMortarMapper::~IGAMortarMapper() {
         delete[] meshFEDirectElemTable;
     }
 
-    delete gaussTriangle;
-    delete gaussQuad;
+    if(isGaussQuadrature){
+        delete gaussTriangle;
+        delete gaussQuad;
+    }
+
     delete couplingMatrices;
 
     if(isIGAPatchContinuityConditions){
@@ -1961,8 +1971,8 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
         // Compute correspondingly the penalty factors
         alphaPrimaryIJ[iWCC] = 1.0/minElEdgeSize;
         alphaSecondaryIJ[iWCC] = 1.0/sqrt(minElEdgeSize);
-        DEBUG_OUT() << "alphaPrimaryIJ[" << iWCC << "] = " << alphaPrimaryIJ[iWCC] << std::endl;
-        DEBUG_OUT() << "alphaSecondaryIJ[" << iWCC << "] = " << alphaSecondaryIJ[iWCC] << std::endl;
+        DEBUG_OUT() << "alphaPrimaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaPrimaryIJ[iWCC] << std::endl;
+        DEBUG_OUT() << "alphaSecondaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaSecondaryIJ[iWCC] << std::endl;
 
     } // End of weak continuity condition loop
 }
@@ -2263,6 +2273,26 @@ void IGAMortarMapper::checkConsistency() {
     if(fabs(norm-1.0)>1e-6) {
         ERROR_OUT()<<"Coupling not consistent !"<<endl;
         ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
+        exit(-1);
+    }
+}
+
+void IGAMortarMapper::getPenaltyParameterForPrimaryField(double* _alphaPrim){
+    if(isIGAPatchContinuityConditions){
+        for(int i = 0; i < noWeakIGAPatchContinuityConditions; i++)
+            _alphaPrim[i] = alphaPrimaryIJ[i];
+    }else{
+        ERROR_OUT() << "Penalty parameters were not computed" << std::endl;
+        exit(-1);
+    }
+}
+
+void IGAMortarMapper::getPenaltyParameterForSecondaryField(double* _alphaSec){
+    if(isIGAPatchContinuityConditions){
+        for(int i = 0; i < noWeakIGAPatchContinuityConditions; i++)
+            _alphaSec[i] = alphaSecondaryIJ[i];
+    }else{
+        ERROR_OUT() << "Penalty parameters were not computed" << std::endl;
         exit(-1);
     }
 }
