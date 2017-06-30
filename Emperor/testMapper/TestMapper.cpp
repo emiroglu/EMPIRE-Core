@@ -439,7 +439,7 @@ void TestMapper::doMapping() {
                         "\"consistentMappingDataFieldBErr\"", "\"testMapper\"", 1, "Vector",
                         numNodesB, nodeIDsB, dataFieldBErr);
 
-                // comoute L2 norm of error
+                // compute L2 norm of error
                 double vecL2Norm[3] = { 0.0, 0.0, 0.0 };
                 for (int j = 0; j < 3; j++) {
                     for (int k = 0; k < numNodesB; k++) {

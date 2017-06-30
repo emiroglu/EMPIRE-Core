@@ -174,10 +174,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
     // Compute CNN and CNR
     computeCouplingMatrices();
 
-    if(Message::isDebugMode()) {
+    if(Message::isDebugMode())
         writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
-    }
-    streamGP.clear();
 
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
@@ -206,7 +204,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     couplingMatrices->setIsIGAPatchCoupling(isIGAPatchContinuityConditions, isClampedDofs);
 
     // Compute the penalty factors for the application of weak patch continuity conditions
-    if(isIGAPatchContinuityConditions)
+    if(isIGAPatchContinuityConditions && !isMappingIGA2FEM)
         computePenaltyFactorsForPatchContinuityConditions();
 
     if (isIGAPatchContinuityConditions) {
@@ -232,17 +230,22 @@ void IGAMortarMapper::buildCouplingMatrices() {
         INFO_OUT()<<"No Diriclet Boundary Conditions"<<std::endl;
 
     //    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
-    if(!isMappingIGA2FEM) {
+    if(!isMappingIGA2FEM)
         couplingMatrices->enforceCnn();
-    }
 
-    writeCouplingMatricesToFile();
+    // Write the coupling matrices in files
+    if(Message::isDebugMode())
+        writeCouplingMatricesToFile();
 
     couplingMatrices->factorizeCorrectCNN();
     INFO_OUT() << "Factorize was successful" << std::endl;
 
     if(dirichletBCs.isDirichletBCs==0)
         checkConsistency();
+
+    // Clear GP data
+//    if(!Message::isDebugMode())
+//        streamGP.clear();
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
@@ -1402,6 +1405,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double normNormalTrCurveVctSlave;
     double alphaPrimary;
     double alphaSecondary;
+    double elementLengthOnGP;
 
     // Initialize pointers
     double* trCurveMasterGPs;
@@ -1555,7 +1559,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
 
             // calculate elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
-            double elementLengthOnGP = trCurveGPJacobianProducts[iGP];
+            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -1817,6 +1821,9 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
     int qMaster;
     int pSlave;
     int qSlave;
+    int pMaxMaster;
+    int pMaxSlave;
+    int pMax;
     int noLocalBasisFctsMaster;
     int noLocalBasisFctsSlave;
     int noDOFsLocMaster;
@@ -1836,8 +1843,8 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
     double vGPSlave;
     double elEdgeSizeMaster;
     double elEdgeSizeSlave;
-    double minElEdgeSizeMaster = std::numeric_limits<double>::max();
-    double minElEdgeSizeSlave = std::numeric_limits<double>::max();
+    double minElEdgeSizeMaster;
+    double minElEdgeSizeSlave;
     double minElEdgeSize;
 
     // Initialize pointers
@@ -1889,6 +1896,15 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
         qMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
         pSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         qSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        pMaxMaster = pMaster;
+        if(pMaxMaster < qMaster)
+            pMaxMaster = qMaster;
+        pMaxSlave = pSlave;
+        if(pMaxSlave < qSlave)
+            pMaxSlave = qSlave;
+        pMax = pMaxMaster;
+        if(pMaxMaster < pMaxSlave)
+            pMax = pMaxSlave;
 
         // get the number of local basis functions for master and slave patch
         noLocalBasisFctsMaster = (pMaster + 1)*(qMaster + 1);
@@ -1905,6 +1921,8 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
         // Initialize the element edge sizes
         elEdgeSizeMaster = 0.0;
         elEdgeSizeSlave = 0.0;
+        minElEdgeSizeMaster = std::numeric_limits<double>::max();
+        minElEdgeSizeSlave = std::numeric_limits<double>::max();
 
         // Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
@@ -1969,10 +1987,15 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
         }
 
         // Compute correspondingly the penalty factors
-        alphaPrimaryIJ[iWCC] = 1.0/minElEdgeSize;
-        alphaSecondaryIJ[iWCC] = 1.0/sqrt(minElEdgeSize);
-        DEBUG_OUT() << "alphaPrimaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaPrimaryIJ[iWCC] << std::endl;
-        DEBUG_OUT() << "alphaSecondaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaSecondaryIJ[iWCC] << std::endl;
+        alphaPrimaryIJ[iWCC] = pMax/minElEdgeSize;
+        alphaSecondaryIJ[iWCC] = pMax/sqrt(minElEdgeSize);
+        if (Message::isDebugMode()){
+            DEBUG_OUT() << std::endl;
+            DEBUG_OUT() << "Coupling between patch[" << indexMaster << "] and patch[" << indexSlave << "]:" << std::endl;
+            DEBUG_OUT() << "alphaPrimaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaPrimaryIJ[iWCC] << std::endl;
+            DEBUG_OUT() << "alphaSecondaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaSecondaryIJ[iWCC] << std::endl;
+            DEBUG_OUT() << std::endl;
+        }
 
     } // End of weak continuity condition loop
 }
@@ -1982,14 +2005,31 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
      * Mapping of the
      * C_NN * x_master = C_NR * x_slave
      */
+
+    // Get the appropriate sizes of the matrices
     int size_N = couplingMatrices->getCorrectSizeN();
     int size_R = couplingMatrices->getCorrectSizeR();
 
+    // Initialize right hand side vector
     double* tmpVec = new double[size_N]();
+
+    // C_NR * x_slave = tmpVec
     couplingMatrices->getCorrectCNR()->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, size_N);
 
+    // Solve for the master field C_NN * x_master = tmpVec
     couplingMatrices->getCorrectCNN()->solve(_masterField, tmpVec);
 
+    // Compute the error in the relative L2-norm
+//    if (Message::isDebugMode()){
+        double errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
+        INFO_OUT() << std::endl;
+        INFO_OUT() << "+++++++++++++++++++++++++++" << std::endl;
+        INFO_OUT() << "Mapping error = " << errorL2Domain << std::endl;
+        INFO_OUT() << "+++++++++++++++++++++++++++" << std::endl;
+        INFO_OUT() << std::endl;
+//    }
+
+    // Delete pointers
     delete[] tmpVec;
 }
 
@@ -2008,6 +2048,112 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
     couplingMatrices->getCorrectCNR_conservative()->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
 
     delete[] tmpVec;
+}
+
+double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField){
+    // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+
+    // Initialize output array
+    double errorL2Domain = 0.0;
+
+    // Initialize auxiliary arrays
+    double slaveFieldL2Domain = 0.0;
+    double slaveFieldNorm;
+    double JacobianProducts;
+    double GW;
+    double basisFctFEM;
+    double basisFctIGA;
+    double errorGPSquare;
+    double fieldFEM[3];
+    double fieldIGA[3];
+    double errorVct[3];
+    int noNodesFE;
+    int noCPsIGA;
+    int indexNode;
+    int indexCP;
+    int noCoord = 3;
+
+    // Define tolerance
+    double tolNormSlaveField = 1e-6;
+
+    // Loop over all the Gauss Points
+    for(int iGP = 0; iGP < streamGP.size(); iGP++){
+        // Get the Gauss Point Weight
+        GW = streamGP[iGP][0];
+
+        // Get the product of the Jacobian transformations at the Gauss point
+        JacobianProducts = streamGP[iGP][1];
+
+        // Get the number of the basis functions of the finite element
+        noNodesFE = streamGP[iGP][2];
+
+        // Initialize the field on the finite element mesh at the Gauss point
+        for(int iCoord = 0; iCoord < noCoord; iCoord++)
+            fieldFEM[iCoord] = 0.0;
+
+        // Loop over the nodes of the finite element
+        for(int iNodesFE = 0; iNodesFE < noNodesFE; iNodesFE++){
+            // Get the value of the basis function
+            basisFctFEM = streamGP[iGP][3 + 2*iNodesFE + 1];
+
+            // Get the index of the node
+            indexNode = streamGP[iGP][3 + 2*iNodesFE];
+            for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                if(!isMappingIGA2FEM)
+                    fieldFEM[iCoord] += basisFctFEM*_slaveField[noCoord*indexNode + iCoord];
+                else
+                    fieldFEM[iCoord] += basisFctFEM*_masterField[noCoord*indexNode + iCoord];
+        }
+
+        // Get the number of basis functions of the isogeometric discretization
+        noCPsIGA = streamGP[iGP][3 + 2*noNodesFE];
+
+        // Initialize the field on the isogeometric discretization at the Gauss point
+        for(int iCoord = 0; iCoord < noCoord; iCoord++)
+            fieldIGA[iCoord] = 0.0;
+
+        // Loop over the Control Points of the isogeometric discretization
+        for(int iCPsIGA = 0; iCPsIGA < noCPsIGA; iCPsIGA++){
+            // Get the value of the basis function
+            basisFctIGA = streamGP[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 2];
+
+            // Get the index of the CP
+            indexCP = streamGP[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 1];
+            for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                if(!isMappingIGA2FEM)
+                    fieldIGA[iCoord] += basisFctIGA*_masterField[noCoord*indexCP + iCoord];
+                else
+                    fieldIGA[iCoord] += basisFctIGA*_slaveField[noCoord*indexCP + iCoord];
+        }
+
+        // Compute the difference of the vectors on the Gauss Point
+        for(int iCoord = 0; iCoord < noCoord; iCoord++)
+            errorVct[iCoord] = fieldFEM[iCoord] - fieldIGA[iCoord];
+
+        // Compute the norm of the difference of the fields at the Gauss Point
+        errorGPSquare = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, errorVct, errorVct);
+
+        // Compute the norm of the reference field at the Gauss Point
+        if(!isMappingIGA2FEM)
+            slaveFieldNorm = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, fieldFEM, fieldFEM);
+        else
+            slaveFieldNorm = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, fieldIGA, fieldIGA);
+
+        // Add the contributions from the Gauss Point
+        errorL2Domain += errorGPSquare*JacobianProducts*GW;
+        slaveFieldL2Domain += slaveFieldNorm*JacobianProducts*GW;
+    }
+
+    // Compute the relative L2 norm of the mapping error
+    errorL2Domain = sqrt(errorL2Domain);
+    slaveFieldL2Domain = sqrt(slaveFieldL2Domain);
+    if (slaveFieldL2Domain > tolNormSlaveField)
+        errorL2Domain /= slaveFieldL2Domain;
+    else
+        WARNING_OUT() << "The norm of the slave field is smaller than the tolerance, no division of the mapping error is made" << std::endl;
+
+    // Return the relative L2 norm of the mapping error
+    return errorL2Domain;
 }
 
 void IGAMortarMapper::writeGaussPointData() {

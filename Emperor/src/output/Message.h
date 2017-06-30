@@ -149,7 +149,7 @@ public:
     	return userSetOutputLevel >= DEBUG ? true : false;
     }
     /***********************************************************************************************
-     * \brief To know if Empire is run in debug
+     * \brief To know if Empire is run in info
      * \author Fabien Pean
      ***********/
     static bool isInfoMode() {

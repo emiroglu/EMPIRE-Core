@@ -1220,8 +1220,8 @@ public:
         theMapper->getPenaltyParameterForSecondaryField(alphaSecondaryIJ);
 
         // Define the expected solution in terms of the Penalty parameters
-        double expectedAlphaPrimaryIJ = 2.763699519592982e+01;
-        double expectedAlphaSecondaryIJ = 5.257089993135920e+00;
+        double expectedAlphaPrimaryIJ = 5.527399039185964e+01;
+        double expectedAlphaSecondaryIJ = 1.051417998627184e+01;
 
         // Check if the computed Penalty parameters match the expected ones
         CPPUNIT_ASSERT(fabs( alphaPrimaryIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);

@@ -261,7 +261,7 @@ public:
     /***********************************************************************************************
      * \brief Perform consistent mapping from IGA to FE (map displacements)
      * \param[in] fieldIGA is the input data
-     * \param[out] fieldFE is the output data
+     * \param[in/out] fieldFE is the output data
      * \author Chenshen Wu
      ***********/
     void consistentMapping(const double *fieldIGA, double *fieldFE);
@@ -269,11 +269,19 @@ public:
     /***********************************************************************************************
      * \brief Perform conservative mapping from FE to IGA (map forces)
      * \param[in] fieldFE is the input data
-     * \param[out] fieldIGA is the output data
+     * \param[in/out] fieldIGA is the output data
      * \author Chenshen Wu
      ***********/
     void conservativeMapping(const double *fieldFE, double *fieldIGA);
 
+    /***********************************************************************************************
+     * \brief Compute the relative error in the L2 norm for the consistent mapping
+     * \param[in] fieldFE The field on the Finite Element mesh
+     * \param[in] fieldIGA The field on the isogeometric discretization
+     * \param[out] The relative error in the L2 norm for the consistent mapping
+     * \author Andreas Apostolatos
+     ***********/
+    double computeDomainErrorInL2Norm4ConsistentMapping(const double *fieldIGA, const double *fieldFE);
 
     /// intern function used for mapping
 private:
