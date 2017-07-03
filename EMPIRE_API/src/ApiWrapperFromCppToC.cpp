@@ -92,6 +92,26 @@ void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnot
             _cpNet);
 }
 
+void EMPIRE_API_sendIGANumDirichletConditions(int _numDirichletConditions){
+    empire->sendIGANumDirichletConditions(_numDirichletConditions);
+}
+
+void EMPIRE_API_sendIGADirichletConditionInfo(int _patchCtr, int _patchBLCtr, int _patchBLTrCurveCtr,
+                                           int _isGPProvided) {
+    empire->sendIGADirichletConditionInfo(_patchCtr, _patchBLCtr, _patchBLTrCurveCtr,
+                                       _isGPProvided);
+}
+
+void EMPIRE_API_sendIGADirichletConditionData(int _trCurveNumGP,
+                                           double *_trCurveGPs, double *_trCurveGPWeights,
+                                           double *_trCurveGPTangents,
+                                           double *_trCurveGPJacobianProducts) {
+    empire->sendIGADirichletConditionData(_trCurveNumGP,
+                                       _trCurveGPs, _trCurveGPWeights,
+                                       _trCurveGPTangents,
+                                       _trCurveGPJacobianProducts);
+}
+
 void EMPIRE_API_sendIGANumPatchConnections(int _numConnections){
     empire->sendIGANumPatchConnections(_numConnections);
 }

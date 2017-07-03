@@ -34,6 +34,7 @@
 #include "AbstractMesh.h"
 #include "IGAPatchCouplingCaratData.h"
 #include "WeakIGAPatchContinuityCondition.h"
+#include "WeakIGADirichletCondition.h"
 
 namespace EMPIRE {
 class DataField;
@@ -50,11 +51,9 @@ class IGAPatchCouplingCaratData;
 class IGAMesh: public AbstractMesh {
 
 protected:
+
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
-// 	std::map<int,IGAPatchSurface*> surfacePatches;
-
-    std::vector<IGAPatchSurface*>* surfacePatchesPointer;
 
     /// Vector of all clampedDofs
     std::vector<int> clampedDofs;
@@ -65,11 +64,11 @@ protected:
     /// Object which has all the patch coupling data
     IGAPatchCouplingCaratData* couplingData;
 
-    /// Vector of all weak conditions
-    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
+    /// Vector of all weak Dirichlet conditions
+    std::vector<WeakIGADirichletCondition*> weakIGADirichletConditions;
 
-    /// Vector of all strong conditions
-//    std::vector<AbstractCondition*> strongConditions;
+    /// Vector of all weak patch continuity conditions
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;
@@ -127,6 +126,26 @@ public:
      * \author Chenshen Wu
      ***********/
     void computeBoundingBox();
+
+    /***********************************************************************************************
+     * brief Add a new weak condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
+     * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _isGPprovided Flag if the GP data is provided
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+     WeakIGADirichletCondition* addWeakDirichletCondition(int _connectionID,
+                          int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
+                          bool _isGPProvided);
+
+     /***********************************************************************************************
+      * brief Create the GP data for the weak dirichlet condition if not provided
+      * \author Andreas Apostolatos, Altug Emiroglu
+      ***********/
+     void createWeakDirichletConditionGPData();
 
     /***********************************************************************************************
      * brief Add a new weak condition to the IGA mesh

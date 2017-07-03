@@ -153,6 +153,32 @@ void Empire::sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
             _cpNet);
 }
 
+void Empire::sendIGANumDirichletConditions(int _numDirichletConditions){
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_numDirichletConditions);
+}
+
+void Empire::sendIGADirichletConditionInfo(int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
+                                        int _isGPProvided){
+    const int BUFFER_SIZE = 3;
+    int conditionInfo[BUFFER_SIZE] = { _patchIndex, _patchBLIndex, _patchBLTrCurveIndex };
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(BUFFER_SIZE,conditionInfo);
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_isGPProvided);
+
+}
+
+void Empire::sendIGADirichletConditionData(int _trCurveNumGP,
+                                        double *_trCurveGPs, double *_trCurveGPWeights,
+                                        double *_trCurveGPTangents,
+                                        double *_trCurveGPJacobianProducts){
+
+    ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_trCurveNumGP);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*2,_trCurveGPs);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP,_trCurveGPWeights);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP*3,_trCurveGPTangents);
+    ClientCommunication::getSingleton()->sendToServerBlocking<double>(_trCurveNumGP,_trCurveGPJacobianProducts);
+
+}
+
 void Empire::sendIGANumPatchConnections(int _numConnections){
     ClientCommunication::getSingleton()->sendToServerBlocking<int>(1,&_numConnections);
 }

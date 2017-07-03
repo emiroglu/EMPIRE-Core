@@ -133,6 +133,23 @@ void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _loc
 
 }
 
+WeakIGADirichletCondition* IGAMesh::addWeakDirichletCondition(int _connectionID,
+                                                             int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
+                                                             bool _isGPProvided){
+
+    weakIGADirichletConditions.push_back(new WeakIGADirichletCondition(_connectionID,
+                                                                _patchIndex, _patchBLIndex, _patchBLTrCurveIndex,
+                                                                _isGPProvided));
+    return weakIGADirichletConditions.back();
+
+}
+
+void IGAMesh::createWeakDirichletConditionGPData(){
+    ERROR_OUT("Weak Dirichlet condition GP data cannot be created!!");
+    ERROR_OUT("GP data must be provided!!");
+    exit(-1);
+}
+
 WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
                                                              int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
                                                              int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
