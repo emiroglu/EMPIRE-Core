@@ -130,6 +130,10 @@ private:
     /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
     std::vector<std::vector<double> > streamGP;
 
+    /// Stream of interface gauss points stored in line with format
+    /// elementLengthOnGP / NumOfCPsI / CPIndex1I / ShapeFct1I / CPIndex2I / ShapeFct2I ... NumOfCPsJ / CPIndex1J / ShapeFct1J / CPIndex2J / ShapeFct2J
+    std::vector<std::vector<double> > streamInterfaceGP;
+
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
 

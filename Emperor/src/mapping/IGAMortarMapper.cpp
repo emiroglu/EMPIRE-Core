@@ -171,6 +171,14 @@ void IGAMortarMapper::buildCouplingMatrices() {
     // Reserve some space for gauss point values
     streamGP.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
 
+    // Reserve some space for the interface gauss point values
+    int noInterfaceGPs = 0;
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
+    for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
+        noInterfaceGPs += weakIGAPatchContinuityConditions[iWCC]->getTrCurveNumGP();
+    }
+    streamInterfaceGP.reserve(noInterfaceGPs);
+
     // Compute CNN and CNR
     computeCouplingMatrices();
 
@@ -990,10 +998,10 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
                 if (knotVectorU[spanU] != knotVectorU[spanU + 1]
                         && knotVectorV[spanV] != knotVectorV[spanV + 1]) {
                     Polygon2D knotSpanWindow(4);
-                    knotSpanWindow[0]=make_pair(knotVectorU[spanU],knotVectorV[spanV]);
-                    knotSpanWindow[1]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
-                    knotSpanWindow[2]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
-                    knotSpanWindow[3]=make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
+                    knotSpanWindow[0] = make_pair(knotVectorU[spanU],knotVectorV[spanV]);
+                    knotSpanWindow[1] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
+                    knotSpanWindow[2] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
+                    knotSpanWindow[3] = make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
                     /// WARNING design. Here we assume to get only a single output polygon from the clipping !
                     Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
 
@@ -1074,14 +1082,13 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 
     int numNodesUV=_polygonUV.size();
     int numNodesWZ=_polygonWZ.size();
-    assert(numNodesUV>2);
-    assert(numNodesUV<5);
-    assert(numNodesWZ>2);
-    assert(numNodesWZ<5);
-
+    assert(numNodesUV > 2);
+    assert(numNodesUV < 5);
+    assert(numNodesWZ > 2);
+    assert(numNodesWZ < 5);
 
     // Definitions
-    int numNodesElementFE=meshFE->numNodesPerElem[_elementIndex];
+    int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
     int numNodesElMaster = 0;
     int numNodesElSlave = 0;
 
@@ -1199,6 +1206,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
         }
         double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
+
         /// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
         int count = 0;
         for (int i = 0; i < numNodesElMaster; i++) {
@@ -1218,6 +1226,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 }
             }
         }
+
         /// Save GP data
         std::vector<double> streamGP;
         // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
@@ -1238,6 +1247,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             streamGP.push_back(IGABasisFctsI);
         }
         this->streamGP.push_back(streamGP);
+
         /// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
         count = 0;
         for (int i = 0; i < numNodesElMaster; i++) {
@@ -1260,6 +1270,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             }
         }
     }
+
     /// 3.Assemble the element coupling matrix to the global coupling matrix.
     ///Create new scope
     {
@@ -1805,6 +1816,10 @@ void IGAMortarMapper::computeIGAPatchContinuityConditionBOperatorMatrices(double
 }
 
 void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
+    /*
+     * Compute the penalty factors related to the application of weak patch continuity conditions
+     * as a function of the minimum element edge size across each interface.
+     */
 
     // Get the weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
@@ -2051,7 +2066,15 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
 }
 
 double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField){
-    // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+    /*
+     * Returns the relative error in the L2 norm in the domain using the isogeometric mortar-based mapping.
+     *
+     * The values of the basis functions and other consituents necessary for the integration are provided in the array streamGP
+     * in the following sequence,
+     *
+     * weight + jacobian + nShapeFuncsFE + (#dof, shapefuncValue,...) + nShapeFuncsIGA + (#dof, shapefuncValue,...)
+     *
+     */
 
     // Initialize output array
     double errorL2Domain = 0.0;

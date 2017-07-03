@@ -49,8 +49,8 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
     size_R = _size_R;
 
     // Initialize coupling matrices
-    C_NN = new MathLibrary::SparseMatrix<double>(size_N , false);
-    C_NR = new MathLibrary::SparseMatrix<double>(size_N , size_R);
+    C_NN = new MathLibrary::SparseMatrix<double>(size_N, false);
+    C_NR = new MathLibrary::SparseMatrix<double>(size_N, size_R);
 
     // Initialize flag on the whether patch continuity conditions are applied
     isIGAPatchContinuityConditions = false;
