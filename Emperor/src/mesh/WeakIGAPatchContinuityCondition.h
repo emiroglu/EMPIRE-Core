@@ -31,7 +31,7 @@ namespace EMPIRE {
 
 class Message;
 /********//**
- * \brief Class WeakContinuityCondition is the class that holds and applies the weak continuity conditions for IGA
+ * \brief Class WeakIGAPatchContinuityCondition is the class that holds and applies the weak continuity conditions for IGA
  ***********/
 class WeakIGAPatchContinuityCondition: public AbstractCondition {
 
@@ -96,8 +96,8 @@ public:
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     WeakIGAPatchContinuityCondition(int _ID, 
-				    int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
-				    int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
+                    int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                    int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
                     int _isGPProvided);
     
     /***********************************************************************************************
@@ -106,8 +106,8 @@ public:
      * \param[in] _trCurveMasterGPs The parametric coordinates of the GPs on the master trimming curve in the master patch parameter space
      * \param[in] _trCurveSlaveGPs The parametric coordinates of the GPs on the slave trimming curve in the slave patch parameter space
      * \param[in] _trCurveGPWeights The GP weights
-     * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch (third coordinate is 0 or unused)
-     * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch (third coordinate is 0 or unused)
+     * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch
+     * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch
      * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
@@ -198,4 +198,4 @@ public:
 
 } /* namespace EMPIRE */
 
-#endif /* ABSTRACTCONDITION_H_ */
+#endif /* WEAKIGAPATCHCONTINUITYCONDITION_H_ */

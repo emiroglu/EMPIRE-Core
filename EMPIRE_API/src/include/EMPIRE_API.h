@@ -175,6 +175,38 @@ void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnot
         double* _uKnotVector, int _uNumControlPoints, double* _cpNet);
 
 /***********************************************************************************************
+ * \brief Send the information of the current Dirichlet condition to the server
+ * \param[in] _numDirichletConditions Number of connections between patches in the multipatch geometry
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ************/
+void EMPIRE_API_sendIGANumDirichletConditions(int _numDirichletConditions);
+
+/***********************************************************************************************
+ * \brief Send the coupling information of the current connection to the server
+ * \param[in] _patchCtr The index of the patch in the EMPIRE data structure
+ * \param[in] _patchBLCtr The index of the patch boundary loop in the EMPIRE data structure
+ * \param[in] _patchBLTrCurveCtr The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \param[in] _isGPprovided Flag if the GP data is provided
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ***********/
+void EMPIRE_API_sendIGADirichletConditionInfo(int _patchCtr, int _patchBLCtr, int _patchBLTrCurveCtr,
+                                           int _isGPProvided);
+
+/***********************************************************************************************
+ * \brief Send the coupling information of the current connection to the server
+ * \param[in] _trCurveNumGP The total number of GPs on the trimming curve
+ * \param[in] _trCurveGPs The parametric coordinates of the GPs on the master trimming curve in the patch parameter space
+ * \param[in] _trCurveGPWeights The GP weights
+ * \param[in] _trCurveGPTangents The tangent to the trimming curve vector in the parameter space of the patch
+ * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ***********/
+void EMPIRE_API_sendIGADirichletConditionData(int _trCurveNumGP,
+                                           double* _trCurveGPs, double* _trCurveGPWeights,
+                                           double* _trCurveGPTangents,
+                                           double* _trCurveGPJacobianProducts);
+
+/***********************************************************************************************
  * \brief Send the coupling information of the current connection to the server
  * \param[in] _numConnections Number of connections between patches in the multipatch geometry
  * \author Andreas Apostolatos, Altug Emiroglu
@@ -202,8 +234,8 @@ void EMPIRE_API_sendIGAPatchConnectionInfo(int _masterPatchCtr, int _masterPatch
  * \param[in] _trCurveMasterGPs The parametric coordinates of the GPs on the master trimming curve in the master patch parameter space
  * \param[in] _trCurveSlaveGPs The parametric coordinates of the GPs on the slave trimming curve in the slave patch parameter space
  * \param[in] _trCurveGPWeights The GP weights
- * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch (third coordinate is 0 or unused)
- * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch (third coordinate is 0 or unused)
+ * \param[in] _trCurveMasterGPTangents The tangent to the trimming curve vector in the parameter space of the master patch
+ * \param[in] _trCurveSlaveGPTangents The tangent to the trimming curve vector in the parameter space of the slave patch
  * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
  * \author Andreas Apostolatos, Altug Emiroglu
  ***********/
