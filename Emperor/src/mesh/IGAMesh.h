@@ -51,6 +51,7 @@ class IGAPatchCouplingCaratData;
 class IGAMesh: public AbstractMesh {
 
 protected:
+
     /// Array of IGA Surface Patches
     std::vector<IGAPatchSurface*> surfacePatches;
 
@@ -68,9 +69,6 @@ protected:
 
     /// Vector of all weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
-
-    /// Vector of all strong conditions
-//    std::vector<AbstractCondition*> strongConditions;
 
     /// The number of the Control Points in the IGAMesh
     int numNodes;
@@ -132,9 +130,9 @@ public:
     /***********************************************************************************************
      * brief Add a new weak condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
-     * \param[in] _patchIndex The index of the master patch in the EMPIRE data structure
-     * \param[in] _patchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
-     * \param[in] _patchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
+     * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
      * \param[in] _isGPprovided Flag if the GP data is provided
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
