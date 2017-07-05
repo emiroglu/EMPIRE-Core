@@ -164,6 +164,7 @@ WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connec
 }
 
 void IGAMesh::createWeakContinuityConditionGPData(){
+
     ERROR_OUT("Weak continuity condition GP data cannot be created!!");
     ERROR_OUT("GP data must be provided!!");
     exit(-1);

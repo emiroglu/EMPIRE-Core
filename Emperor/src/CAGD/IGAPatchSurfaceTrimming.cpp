@@ -71,12 +71,12 @@ void IGAPatchSurfaceTrimming::addTrimCurve(int _direction,int _IDBasis, int _pDe
     // Get the loop currently worked on
     IGAPatchSurfaceTrimmingLoop& loop=*loops.back();
     // Check that size is not going over allocated space made during instantiation
-    assert(loop.IGACurve.size()<loop.IGACurve.capacity());
+    assert(loop.IGACurves.size()<loop.IGACurves.capacity());
     assert(loop.direction.size()<loop.direction.capacity());
     // Add direction of the curve
     loop.direction.push_back(_direction);
     // Create the NURBS or the B-Spline underlying basis
-    loop.IGACurve.push_back(new IGAPatchCurve(_IDBasis, _pDegree, _uNoKnots, _uKnotVector,_uNoControlPoints,_controlPointNet));
+    loop.IGACurves.push_back(new IGAPatchCurve(_IDBasis, _pDegree, _uNoKnots, _uKnotVector,_uNoControlPoints,_controlPointNet));
 }
 
 void IGAPatchSurfaceTrimming::linearizeLoops() {
@@ -87,15 +87,15 @@ void IGAPatchSurfaceTrimming::linearizeLoops() {
 
 IGAPatchSurfaceTrimmingLoop::IGAPatchSurfaceTrimmingLoop(int _numCurves) {
 	 // Reserve the place for the vectors
-	 IGACurve.reserve(_numCurves);
+     IGACurves.reserve(_numCurves);
 	 direction.reserve(_numCurves);
-	 assert(IGACurve.size()==0);
-	 assert(IGACurve.capacity()!=0);
+     assert(IGACurves.size()==0);
+     assert(IGACurves.capacity()!=0);
 }
 
 IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
 	for(int i=0;i<getNoCurves();i++)
-		delete IGACurve[i];
+        delete IGACurves[i];
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
@@ -115,7 +115,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
      * 1.1.3. Store point in data structure of polylines
      * 2. Clean output polygon
      */
-	for(int j=0;j<IGACurve.size();j++) {
+    for(int j=0;j<IGACurves.size();j++) {
 		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner)
 		if(direction[j]) {
 			for(int cpIndex=0;cpIndex<getIGACurve(j).getNoControlPoints();cpIndex++) {
@@ -124,6 +124,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
+                IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knotGreville);
 			}
 		} else {
 			for(int cpIndex=getIGACurve(j).getNoControlPoints()-1;cpIndex>=0;cpIndex--) {
@@ -132,6 +133,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
+                IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knotGreville);
 			}
 		}
 	}
@@ -153,7 +155,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
      * 1.1.3. Store point in data structure of polylines
      * 2. Clean the output polygon
      */
-	for(int j=0;j<IGACurve.size();j++) {
+    for(int j=0;j<IGACurves.size();j++) {
 		int nCP = getIGACurve(j).getNoControlPoints();
 		int p = getIGACurve(j).getIGABasis()->getPolynomialDegree();
 		double u0 = getIGACurve(j).getIGABasis()->getFirstKnot();
@@ -167,6 +169,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knot);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
+                IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knot);
 			}
 		} else {
 			for(int i=nCP*p-1;i>=0;i--) {
@@ -175,6 +178,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knot);
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
+                IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knot);
 			}
 		}
 	}
@@ -201,7 +205,7 @@ Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
 
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimmingLoop &trim) {
     /// output loop
-    for(int i=0;i<trim.getIGACurve().size();++i) {
+    for(int i=0;i<trim.getIGACurves().size();++i) {
         message << "\t" << "Curve["<<i<<"]"<< endl;
         message << "\t\tpDegree:  " << trim.getIGACurve(i).getIGABasis()->getPolynomialDegree()<< endl;
 

@@ -173,7 +173,7 @@
 		 ~IGAPatchSurfaceTrimmingLoop();
 	 private:
          /// The basis functions of the curves
-         std::vector<IGAPatchCurve*> IGACurve;
+         std::vector<IGAPatchCurve*> IGACurves;
          /// Direction = if curve is in the correct orientation C1(1)=C2(0) or not C1(1)=C2(1)
          ///	WARNING : this has not been tested, so code may break if it is used
          std::vector<bool> direction;
@@ -206,31 +206,31 @@
           * \author Fabien Pean
           ***********/
          inline const IGAPatchCurve& operator[](int i) const {
-        	 return (const IGAPatchCurve&)*IGACurve.at(i);
+             return (const IGAPatchCurve&)*IGACurves.at(i);
          }
          inline IGAPatchCurve& operator[](int i) {
-        	 return *IGACurve.at(i);
+             return *IGACurves.at(i);
          }
          /***********************************************************************************************
           * \brief Get the underlying IsoGeometric curve of index i of the loop
           * \author Fabien Pean
           ***********/
          inline const IGAPatchCurve& getIGACurve(int i) const {
-             return (const IGAPatchCurve&)*IGACurve.at(i);
+             return (const IGAPatchCurve&)*IGACurves.at(i);
          }
          /***********************************************************************************************
           * \brief Get the underlying IsoGeometric curve of the loop
           * \author Fabien Pean
           ***********/
-         inline const std::vector<IGAPatchCurve*>& getIGACurve() const {
-             return IGACurve;
+         inline const std::vector<IGAPatchCurve*>& getIGACurves() const {
+             return IGACurves;
          }
          /***********************************************************************************************
           * \brief Get the number of curves in this loop
           * \author Fabien Pean
           ***********/
          inline int getNoCurves() const  {
-        	 return IGACurve.size();
+             return IGACurves.size();
          }
          /***********************************************************************************************
           * \brief 	Get the direction for curve i
@@ -244,14 +244,14 @@
           * \author Fabien Pean
           ***********/
          inline int getNoControlPoints(int i) const {
-             return IGACurve.at(i)->getNoControlPoints();
+             return IGACurves.at(i)->getNoControlPoints();
          }
          /***********************************************************************************************
           * \brief Get the Control Points of the curve i
           * \author Andreas Apostolatos
           ***********/
          inline const std::vector<IGAControlPoint>& getControlPointNet(int i) const {
-             return IGACurve.at(i)->getControlPointNet();
+             return IGACurves.at(i)->getControlPointNet();
          }
          /***********************************************************************************************
           * \brief Get the linearized version of the curve

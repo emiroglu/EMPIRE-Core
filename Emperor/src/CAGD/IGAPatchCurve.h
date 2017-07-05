@@ -46,6 +46,9 @@ protected:
     /// The set of the Control Points of the patch
     std::vector<IGAControlPoint> ControlPointNet;
 
+    // List of points making up the linearized version of the curve (u,v,uTilde)
+    std::vector<double> polyline;
+
 public:
     /***********************************************************************************************
      * \brief Constructor
@@ -83,6 +86,22 @@ public:
      * \author Fabien Pean, Chenshen Wu
      ***********/
     void computeCartesianCoordinates(double*, double) const;
+
+    /// Geometric operation functions
+public:
+    /***********************************************************************************************
+     * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
+     * \param[in/out] _uvSurface Coordinates of the intersection in the patch parameter space
+     * \param[in/out] _uTilde Coordinate of the intersection in the curve parameter space
+     * \param[in] _dir Flag to indicate if knot is along u(True) or v(False)
+     * \param[in] _knot Knot to intersect
+     * \return The flag on whether or not the iterations have converged
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    bool computeIntersectionsWithKnotBisection(std::vector<double>& _uvSurface , std::vector<double>& _uTilde, unsigned int _dir, double _knot) const;
+
+    bool solveIntersectionWithKnotBisection(double* _uvP, double& _uTildeP, double _uTildeP1, double _uTildeP2, unsigned int _dir, double _knot) const;
+
     /// get functions
 public:
     /***********************************************************************************************
@@ -123,6 +142,25 @@ public:
     inline int findKnotSpan(double _u) const {
         return getIGABasis()->findKnotSpan(_u);
     }
+
+    /// set functions
+public:
+
+    /***********************************************************************************************
+     * \brief Add a vertex to the linearization of the trimming curve
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    inline void addPolylineVertex(double _u, double _v, double _knot){
+        polyline.push_back(_u);
+        polyline.push_back(_v);
+        polyline.push_back(_knot);
+    }
+
+    /// The maximum number of iterations for the computation of the intersection with a line
+    static int MAX_NUM_ITERATIONS;
+    /// The tolerance for the iterations for the computation of the intersection with a line
+    static double TOL_CONVERGENCE;
+
 };
 
 } /* namespace EMPIRE */
