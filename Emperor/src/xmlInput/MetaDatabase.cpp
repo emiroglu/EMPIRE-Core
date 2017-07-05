@@ -405,6 +405,18 @@ void MetaDatabase::fillSettingMapperVec() {
             } else {
                 mapper.igaMortarMapper.dirichletBCs.isDirichletBCs = 0;
             }
+
+            ticpp::Element *xmlErrorComputation = xmlIGAMortar->FirstChildElement("errorComputation", false);
+            if (xmlErrorComputation != NULL) {
+                mapper.igaMortarMapper.errorComputation.isDomainError =
+                        xmlErrorComputation->GetAttribute<double>("isDomainError");
+                mapper.igaMortarMapper.errorComputation.isInterfaceError =
+                        xmlErrorComputation->GetAttribute<double>("isInterfaceError");
+            } else {
+                mapper.igaMortarMapper.errorComputation.isDomainError = false;
+                mapper.igaMortarMapper.errorComputation.isInterfaceError = false;
+            }
+
 	} else if (xmlMapper->GetAttribute<string>("type") == "IGABarycentricMapper") {
             mapper.type = EMPIRE_IGABarycentricMapper;
             ticpp::Element *xmlIGABarycentric = xmlMapper->FirstChildElement("IGABarycentricMapper");

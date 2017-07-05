@@ -93,7 +93,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
         double _newtonRaphsonBoundaryTol, int _bisectionMaxIt, double _bisectionTol,
         int _numGPTriangle, int _numGPQuad,
 	double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
-        int _isDirichletBCs) {
+        int _isDirichletBCs, bool _isDomainError, bool _isInterfaceError) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
@@ -119,6 +119,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
     mapper->setParametersIgaPatchCoupling(_dispPenalty, _rotPenalty, _isPenaltyPatchCoupling);
     mapper->setParametersDirichletBCs(_isDirichletBCs);
+    mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
     mapper->buildCouplingMatrices();
 }
 

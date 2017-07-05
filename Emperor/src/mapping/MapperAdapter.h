@@ -71,7 +71,9 @@ public:
      * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
      * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
      * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
-     * \author Fabien Pean, Chenshen Wu
+     * \param[in] _isDomainError Flag on the computation of the domain error from the mapping
+     * \param[in] _isInterfaceError Flag on the computation of the interface error from the mapping
+     * \author Andreas Apostolatos, Fabien Pean, Chenshen Wu
      ***********/
     void initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
                              int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
@@ -79,7 +81,7 @@ public:
                              int _bisectionMaxIt, double _bisectionTol,
                              int _numGPTriangle, int _numGPQuad,
                              double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
-                             int _isDirichletBCs);
+                             int _isDirichletBCs, bool _isDomainError, bool _isInterfaceError);
     /***********************************************************************************************
      * \brief Initialize IGA Barycentric Mapper
      * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface

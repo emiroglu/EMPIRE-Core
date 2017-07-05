@@ -127,7 +127,7 @@ struct structMapper {
             int numGPTriangle;
             int numGPQuad;
         } integration;
-	struct IgaPatchCoupling {
+        struct IgaPatchCoupling {
                 double dispPenalty;
                 double rotPenalty;
                 int isAutomaticPenaltyFactors;
@@ -135,6 +135,10 @@ struct structMapper {
         struct dirichletBCs {
             int isDirichletBCs;
         }dirichletBCs;
+        struct errorComputation {
+            bool isDomainError;
+            bool isInterfaceError;
+        }errorComputation;
     };
     struct structIGABarycentricMapper {
         struct projectionProperties {
