@@ -199,6 +199,10 @@
           * \author Fabien Pean
           ***********/
          void linearizeUsingNCPxP();
+
+         void linearizeCombined();
+
+
          /// get functions
 	 public:
          /***********************************************************************************************

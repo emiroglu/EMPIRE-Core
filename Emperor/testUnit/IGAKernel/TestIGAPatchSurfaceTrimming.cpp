@@ -37,7 +37,7 @@ namespace EMPIRE {
  * \brief Test the class IGAPatchSurface
  ***********/
 
-class TestIGAPatchCurve: public CppUnit::TestFixture {
+class TestIGAPatchSurfaceTrimming: public CppUnit::TestFixture {
 
 private:
   
@@ -59,70 +59,48 @@ public:
 		TolDeriv = 1e-13;
 		
 		// Curve direction
-		int direction = 0;
+		const int direction = 0;
 
 		// Provide an id for the basis
-		int IDBasis = 1;
+		const int IDBasis = 1;
 
 		// The polynomial degree
-		int pDegree = 3;
+		const int pDegree = 3;
 
 		// Number of knots
-		const int uNoKnots = 50;
+		const int uNoKnots = 27;
 
 		// The knot vectors
-		double uKnotVector[uNoKnots] = { -23.20663072597694, -23.20663072597694, -23.20663072597694, -23.20663072597694, -21.659522010911811, -21.659522010911811, -21.659522010911811, -20.112413295846682, -20.112413295846682, -20.112413295846682, -18.56530458078155, -18.56530458078155, -18.56530458078155, -17.018195865716422, -17.018195865716422, -17.018195865716422, -15.471087150651293, -15.471087150651293, -15.471087150651293, -13.923978435586164, -13.923978435586164, -13.923978435586164, -12.376869720521034, -12.376869720521034, -12.376869720521034, -10.829761005455905, -10.829761005455905, -10.829761005455905, -9.2826522903907751, -9.2826522903907751, -9.2826522903907751, -7.7355435753256465, -7.7355435753256465, -7.7355435753256465, -6.188434860260517, -6.188434860260517, -6.188434860260517, -4.6413261451953876, -4.6413261451953876, -4.6413261451953876, -3.0942174301302585, -3.0942174301302585, -3.0942174301302585, -1.5471087150651293, -1.5471087150651293, -1.5471087150651293, 0, 0, 0, 0};
+		double uKnotVector[uNoKnots] = { 0.0, 0.0, 0.0, 0.0, 0.008673617703141023, 0.022387811450882932, 0.039735046857164974, 0.06184851981804492, 0.08786937292746798, 0.1185352424040215, 0.15322971321658557, 0.19250118763803997, 0.23586927615374506, 0.2837708955818746, 0.33581260180072076, 0.3923576711928459, 0.45307299511483307, 0.5182695279168437, 0.5876584695419718, 0.6615116630705355, 0.7395742223988048, 0.8220876382016415, 0.9088238152330518, 1.0, 1.0, 1.0, 1.0};
 		
 		// The Control Point net
 		const int uNoControlPoints = uNoKnots - pDegree - 1;
 		
 		// Control Points for a NURBS
-		double controlPointNet[46*4] = { 10.0, 3.0, 0.0, 1.0,
-						 9.0, 4.0, 0.0, 1.0,
-						 8.5, 3.5, 0.0, 1.0,
-						 8.0833333333333339, 3.0833333333333335, 0.0, 1.0,
-						 7.666666666666667, 2.666666666666667, 0.0, 1.0,
-						 7.3333333333333339, 2.3333333333333339, 0.0, 1.0,
-						 7.0000000000000018, 2.0000000000000009, 0.0, 1.0,
-						 6.666666666666667, 1.666666666666667, 0.0, 1.0,
-						 6.333333333333333, 1.333333333333333, 0.0, 1.0,
-						 5.9999999999999991, 1.3333333333333335, 0.0, 1.0,
-						 5.6666666666666661, 1.3333333333333339, 0.0, 1.0,
-						 5.333333333333333, 1.666666666666667, 0.0, 1.0,
-						 5.3333333333333339, 1.8333333333333335, 0.0, 1.0,
-						 5.3333333333333339, 2.0, 0.0, 1.0,
-						 5.666666666666667, 2.0, 0.0, 1.0,
-						 6.0, 2.1666666666666665, 0.0, 1.0,
-						 6.3333333333333339, 2.333333333333333, 0.0, 1.0,
-						 6.666666666666667, 2.6666666666666661, 0.0, 1.0,
-						 6.6666666666666661, 2.9999999999999991, 0.0, 1.0,
-						 6.6666666666666661, 3.333333333333333, 0.0, 1.0,
-						 6.333333333333333, 3.666666666666667, 0.0, 1.0,
-						 5.9999999999999991, 3.6666666666666665, 0.0, 1.0,
-						 5.6666666666666661, 3.6666666666666661, 0.0, 1.0,
-						 5.3333333333333339, 3.3333333333333335, 0.0, 1.0,
-						 5.0, 3.333333333333333, 0.0, 1.0,
-						 4.666666666666667, 3.333333333333333, 0.0, 1.0,
-						 4.333333333333333, 3.666666666666667, 0.0, 1.0,
-						 4.0, 3.666666666666667, 0.0, 1.0,
-						 3.6666666666666661, 3.6666666666666661, 0.0, 1.0,
-						 3.3333333333333335, 3.3333333333333335, 0.0, 1.0,
-						 3.166666666666667, 3.0, 0.0, 1.0,
-						 3.0, 2.666666666666667, 0.0, 1.0,
-						 3.0, 2.333333333333333, 0.0, 1.0,
-						 2.8333333333333335, 1.9999999999999998, 0.0, 1.0,
-						 2.6666666666666665, 1.6666666666666665, 0.0, 1.0,
-						 2.333333333333333, 1.3333333333333333, 0.0, 1.0,
-						 1.9999999999999998, 1.3333333333333335, 0.0, 1.0,
-						 1.6666666666666665, 1.3333333333333333, 0.0, 1.0,
-						 1.3333333333333333, 1.6666666666666667, 0.0, 1.0,
-						 1.3333333333333335, 1.8333333333333335, 0.0, 1.0,
-						 1.333333333333333, 2.0, 0.0, 1.0,
-						 1.6666666666666665, 2.0, 0.0, 1.0,
-						 1.8333333333333333, 2.25, 0.0, 1.0,
-						 2.0, 2.5, 0.0, 1.0,
-						 2.0, 3.0, 0.0, 1.0,
-						 0.0, 4.0, 0.0, 1.0};
+		double controlPointNet[uNoControlPoints*4] = 
+					       { 0.0,			 0.0,			0.0,	1.0,
+						 0.03711725733156428,	 0.042688513773407946,	0.0,	1.0,
+						 0.18128490012859777,	 0.2015404446885209,	0.0,	1.0,
+						-0.14018240692059364,	-0.29428358253262943,	0.0,	1.0,
+						 0.4025638661429545,	 0.35024387491125203,	0.0,	1.0,
+						-0.2506977318483484,	-0.5087560176292382,	0.0,	1.0,
+						 0.6053600837771562,	 0.45482419877466773,	0.0,	1.0,
+						-0.352029338412692,	-0.7078157439904523,	0.0,	1.0,
+						 0.8048537252505352,	 0.5539426255559453,	0.0,	1.0,
+						-0.4519405440215286,	-0.9060985482545199,	0.0,	1.0,
+						 1.0041413411962206,	 0.6530513405768528,	0.0,	1.0,
+						-0.5517187135874752,	-1.1049102552107424,	0.0,	1.0,
+						 1.2035698332094393,	 0.7524572591630635,	0.0,	1.0,
+						-0.6515148911699897,	-1.3040934520772662,	0.0,	1.0,
+						 1.4030950325255178,	 0.8520183481137549,	0.0,	1.0,
+						-0.7512083064268196,	-1.5033630672439289,	0.0,	1.0,
+						 1.602148870014657,	 0.9511105698078708,	0.0,	1.0,
+						-0.8486228325121628,	-1.7004019069582168,	0.0,	1.0,
+						 1.7919217828929315,	 1.0406544585008441,	0.0,	1.0,
+						-0.9082676483904522,	-1.8586489184805504,	0.0,	1.0,
+						 1.8298779316639826,	 0.9739756886167465,	0.0,	1.0,
+						 0.40526878743025746,	-0.5648480610926698,	0.0,	1.0,
+						 0.0,			-1.0,			0.0,	1.0};
 		
 
 		// Test just one object of the class (that works pretty also)
@@ -138,29 +116,41 @@ public:
 	}
 
 	/***********************************************************************************************
-	 * \brief Test case: Test the constructor
+	 * \brief Test case: Test computeIntersectionsWithKnotBisection
 	 ***********/
-	void testComputeIntersectionsWithKnotBisection() {
+	void testComputeTrimmingCurveIntersectionsWithKnotBisection() {
 		const IGAPatchSurfaceTrimmingLoop* theIGAPatchSurfaceTrimmingLoop = &theIGAPatchSurfaceTrimming->getFirstLoop();
 		const IGAPatchCurve* theIGAPatchCurve = &theIGAPatchSurfaceTrimmingLoop->getIGACurve(0);
 		
 		std::vector<double> uvSurface;
 		std::vector<double> uTilde;
-		unsigned int dir=0;
-		double knot = 2.5;
+		unsigned int dir_u=0;
+		unsigned int dir_v=1;
 		
-		theIGAPatchCurve->computeIntersectionsWithKnotBisection(uvSurface,uTilde,dir,knot);
+		double knot_u1 = 0;
+		double knot_u2 = 0.05;
+		double knot_v1 = 0.1;
+		double knot_v2 = 0.05;
+		
+		// Intersect the trimming curve with the parameter line v=0.1 in u direction
+		theIGAPatchCurve->computeIntersectionsWithKnotBisection(uvSurface,uTilde,dir_u,knot_v1);
+		// Intersect the trimming curve with the parameter line v=0.05 in u direction
+		theIGAPatchCurve->computeIntersectionsWithKnotBisection(uvSurface,uTilde,dir_u,knot_v2);
+		// Intersect the trimming curve with the parameter line u=0.0 in v direction
+		theIGAPatchCurve->computeIntersectionsWithKnotBisection(uvSurface,uTilde,dir_v,knot_u1);
+		// Intersect the trimming curve with the parameter line v=0.05 in v direction
+		theIGAPatchCurve->computeIntersectionsWithKnotBisection(uvSurface,uTilde,dir_v,knot_u2);
 		
 	}
 
 	// Make the tests
-	CPPUNIT_TEST_SUITE(TestIGAPatchCurve);
-	CPPUNIT_TEST(testComputeIntersectionsWithKnotBisection);
+	CPPUNIT_TEST_SUITE(TestIGAPatchSurfaceTrimming);
+	CPPUNIT_TEST(testComputeTrimmingCurveIntersectionsWithKnotBisection);
 	CPPUNIT_TEST_SUITE_END();
 }
 ;
 
 } /* namespace EMPIRE */
 
-CPPUNIT_TEST_SUITE_REGISTRATION(EMPIRE::TestIGAPatchCurve);
+CPPUNIT_TEST_SUITE_REGISTRATION(EMPIRE::TestIGAPatchSurfaceTrimming);
 

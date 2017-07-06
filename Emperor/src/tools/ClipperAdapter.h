@@ -137,7 +137,7 @@ public:
      * \author Fabien Pean
      ***********/
 	static void cleanPolygon(std::vector<std::pair<double,double> >& _path, double _accuracy=1e-9);
-	static void cleanPolygon(std::vector<double>& _path, double _accuracy=1e-9);
+    static void cleanPolygon(std::vector<double>& _path, double _accuracy=1e-9);
     /***********************************************************************************************
      * \brief Static call to the function PointInpolygon in clipper library
      * 			Returns 0 if false, -1 if pt is on poly and +1 if pt is in poly.

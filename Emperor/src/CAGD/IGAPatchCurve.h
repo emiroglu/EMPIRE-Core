@@ -46,8 +46,11 @@ protected:
     /// The set of the Control Points of the patch
     std::vector<IGAControlPoint> ControlPointNet;
 
-    // List of points making up the linearized version of the curve (u,v,uTilde)
+    // List of points making up the linearized version of the curve (u,v)
     std::vector<double> polyline;
+
+    // List of points making up the linearized version of the curve (uTilde)
+    std::vector<double> polylineKnots;
 
 public:
     /***********************************************************************************************
@@ -153,7 +156,7 @@ public:
     inline void addPolylineVertex(double _u, double _v, double _knot){
         polyline.push_back(_u);
         polyline.push_back(_v);
-        polyline.push_back(_knot);
+        polylineKnots.push_back(_knot);
     }
 
     /// The maximum number of iterations for the computation of the intersection with a line

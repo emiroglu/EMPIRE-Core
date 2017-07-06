@@ -99,7 +99,8 @@ IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
-	linearizeUsingNCPxP();
+    linearizeCombined();
+
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
@@ -118,16 +119,16 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
     for(int j=0;j<IGACurves.size();j++) {
 		/// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner)
 		if(direction[j]) {
-			for(int cpIndex=0;cpIndex<getIGACurve(j).getNoControlPoints();cpIndex++) {
+            for(int cpIndex=0;cpIndex<getIGACurve(j).getNoControlPoints();cpIndex++) {
 				double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
-				polylines.push_back(parametricCoordinates[0]);
+                polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
                 IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knotGreville);
 			}
 		} else {
-			for(int cpIndex=getIGACurve(j).getNoControlPoints()-1;cpIndex>=0;cpIndex--) {
+            for(int cpIndex=getIGACurve(j).getNoControlPoints()-1;cpIndex>=0;cpIndex--) {
 				double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
 				double parametricCoordinates[2] = {0};
 				getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,knotGreville);
@@ -184,6 +185,96 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
 	}
 	ClipperAdapter::cleanPolygon(polylines);
 }
+
+void IGAPatchSurfaceTrimmingLoop::linearizeCombined() {
+    /*
+     * Linear approximation of the nurbs curves
+     *
+     * Function layout :
+     *
+     * 1. For every NURBS curve
+     * 1.1. Prepare data for NCPxP method
+     * 1.2. Compute knot delta
+     * 1.3. For every control points of the curve
+     * 1.3.1. Compute and store Greville abscissae
+     * 1.4. For (nCP * p) nodes
+     * 1.4.1 Compute knot
+     * 1.4.2 Find the position in the stored knots where the value is in correct order
+     * 1.4.3 Insert the knot if it is not lying in the vicinity of an existing knot with a tolerance=1e-6
+     * 1.1.1. Compute knot
+     * 1.5. For every computed knot
+     * 1.5.1 Store knot in uTildeCurve
+     * 1.5.2 Compute position in parametric space
+     * 1.5.3 Store point in data structure of polylines and in data structure of polyline inside IGAPatchCurve
+     * 2. Clean the output polygon of trimming loop
+     */
+
+    for(int j=0;j<IGACurves.size();j++) {
+        // NCPxP variables
+        int nCP = getIGACurve(j).getNoControlPoints();
+        int p = getIGACurve(j).getIGABasis()->getPolynomialDegree();
+        double u0 = getIGACurve(j).getIGABasis()->getFirstKnot();
+        double u1 = getIGACurve(j).getIGABasis()->getLastKnot();
+        double du = (u1-u0)/(nCP*p-1);
+        std::vector<double> uTildeCurve;
+        /// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
+        if(direction[j]) {
+
+            // Create the linearization with Greville Abscissae and store the corresponding curve parameters
+            for(int cpIndex=0;cpIndex<getIGACurve(j).getNoControlPoints();cpIndex++) {
+                double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
+                uTildeCurve.push_back(knotGreville);
+            }
+
+            // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
+            // NCPxP
+            std::vector<double>::iterator iUTildeCurve;
+            for(int i=0;i<nCP*p;i++) {
+                iUTildeCurve = uTildeCurve.begin();
+                double knot = u0 + i*du;
+
+                while (knot>*iUTildeCurve) iUTildeCurve++;
+
+                if (fabs(*iUTildeCurve-knot)>1e-6){
+                    uTildeCurve.insert(iUTildeCurve,knot);
+                    iUTildeCurve++;
+                }
+             }
+        } else {
+
+            // Create the linearization with Greville Abscissae and store the corresponding curve parameters
+            for(int cpIndex=getIGACurve(j).getNoControlPoints()-1;cpIndex>=0;cpIndex--) {
+                double knotGreville=getIGACurve(j).getIGABasis()->computeGrevilleAbscissae(cpIndex);
+                uTildeCurve.push_back(knotGreville);
+            }
+
+            // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
+            // NCPxP
+            std::vector<double>::iterator iUTildeCurve;
+            for(int i=nCP*p-1;i>=0;i--) {
+                iUTildeCurve = uTildeCurve.begin();
+                double knot = u0 + i*du;
+
+                while (knot<*iUTildeCurve)  iUTildeCurve++;
+
+                if (fabs(*iUTildeCurve-knot)>1e-6){
+                    uTildeCurve.insert(iUTildeCurve,knot);
+                    iUTildeCurve++;
+                }
+             }
+        }
+
+        double parametricCoordinates[2] = {0};
+        for (int knotCtr=0; knotCtr<uTildeCurve.size(); knotCtr++){
+            getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,uTildeCurve[knotCtr]);
+            polylines.push_back(parametricCoordinates[0]);
+            polylines.push_back(parametricCoordinates[1]);
+            IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],uTildeCurve[knotCtr]);
+        }
+    }
+    ClipperAdapter::cleanPolygon(polylines);
+}
+
 Message &operator<<(Message &message, const IGAPatchSurfaceTrimming &trim) {
     message << "\t" << "---------------------------------Start Trimming" << endl;
     message << "\t" << "Trimming Info"<< endl;
