@@ -129,11 +129,10 @@ private:
 
     /// Stream of gauss points stored in line with format
     /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
-    std::vector<std::vector<double> > streamGP;
+    std::vector<std::vector<double> > streamGPs;
 
     /// Stream of interface gauss points stored in line with format
-    /// elementLengthOnGP / NumOfCPsI / CPIndex1I / ShapeFct1I / CPIndex2I / ShapeFct2I ... NumOfCPsJ / CPIndex1J / ShapeFct1J / CPIndex2J / ShapeFct2J
-    std::vector<std::vector<double> > streamInterfaceGP;
+    std::vector<std::vector<double> > streamInterfaceGPs;
 
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
@@ -294,12 +293,20 @@ public:
 
     /***********************************************************************************************
      * \brief Compute the relative error in the L2 norm for the consistent mapping
-     * \param[in] fieldFE The field on the Finite Element mesh
-     * \param[in] fieldIGA The field on the isogeometric discretization
+     * \param[in] _slaveField The field to be mapped
+     * \param[in] _masterField The mapped field
      * \param[out] The relative error in the L2 norm for the consistent mapping
      * \author Andreas Apostolatos
      ***********/
-    double computeDomainErrorInL2Norm4ConsistentMapping(const double *fieldIGA, const double *fieldFE);
+    double computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField);
+
+    /***********************************************************************************************
+     * \brief Compute the relative error in the L2 norm of the interface error in terms of the displacements and the rotations across the patch interfaces
+     * \param[in/out] _errorL2Interface Double array of constant size 2 containing the L2 norm of the patch interface error in terms of the displacements and the rotations
+     * \param[in] _fieldIGA The field on the isogeometric discretization
+     * \author Andreas Apostolatos
+     ***********/
+    void computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Interface, const double *_fieldIGA);
 
     /// intern function used for mapping
 private:
@@ -631,10 +638,11 @@ public:
     /***********************************************************************************************
      * \brief Print the domain and the interface error from the mapping
      * \param[in] message Reference to the message
-     * \param[in] domainError The computed error from the mapping in the domain
+     * \param[in] _domainError The computed error from the mapping in the domain
+     * \param[in] _errorL2Interface The computed interface errors accross the patch interfaces from the mapped field
      * \author Andreas Apostolatos
      ***********/
-    void printErrorMessage(Message &message, double errorL2Domain);
+    void printErrorMessage(Message &message, double _errorL2Domain, double *_errorL2Interface);
 
     /// unit test class
     friend class TestIGAMortarMapperTube;
