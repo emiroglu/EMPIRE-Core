@@ -329,65 +329,65 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         }
     }*/
 
-    // patch coupling data
-    int numWeakContCond;
-    serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakContCond);
+//    // patch coupling data
+//    int numWeakContCond;
+//    serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakContCond);
 
-    for(int connectionCtr = 0; connectionCtr<numWeakContCond; connectionCtr++){
-        const int BUFFER_SIZE_CONNECTION_INFO = 6;
-        int connectionInfo[BUFFER_SIZE_CONNECTION_INFO];
-        serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_CONNECTION_INFO, connectionInfo);
+//    for(int connectionCtr = 0; connectionCtr<numWeakContCond; connectionCtr++){
+//        const int BUFFER_SIZE_CONNECTION_INFO = 6;
+//        int connectionInfo[BUFFER_SIZE_CONNECTION_INFO];
+//        serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_CONNECTION_INFO, connectionInfo);
 
-        int masterPatchIndex = connectionInfo[0];
-        int masterPatchBLIndex = connectionInfo[1];
-        int masterPatchBLTrCurveIndex = connectionInfo[2];
-        int slavePatchIndex = connectionInfo[3];
-        int slavePatchBLIndex = connectionInfo[4];
-        int slavePatchBLTrCurveIndex = connectionInfo[5];
-        int isGPProvided = 0;
+//        int masterPatchIndex = connectionInfo[0];
+//        int masterPatchBLIndex = connectionInfo[1];
+//        int masterPatchBLTrCurveIndex = connectionInfo[2];
+//        int slavePatchIndex = connectionInfo[3];
+//        int slavePatchBLIndex = connectionInfo[4];
+//        int slavePatchBLTrCurveIndex = connectionInfo[5];
+//        int isGPProvided = 0;
 
-        serverComm->receiveFromClientBlocking<int>(name, 1, &isGPProvided);
-        if (isGPProvided != 1 && isGPProvided != 0) assert(false);
+//        serverComm->receiveFromClientBlocking<int>(name, 1, &isGPProvided);
+//        if (isGPProvided != 1 && isGPProvided != 0) assert(false);
 
-        WeakIGAPatchContinuityCondition* theWeakContCond = theIGAMesh->addWeakContinuityCondition(connectionCtr,
-                                                            masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
-                                                            slavePatchIndex,  slavePatchBLIndex,  slavePatchBLTrCurveIndex,
-                                                            isGPProvided);
-        if(isGPProvided){
-            int trCurveNumGP;
-            serverComm->receiveFromClientBlocking<int>(name, 1, &trCurveNumGP);
+//        WeakIGAPatchContinuityCondition* theWeakContCond = theIGAMesh->addWeakContinuityCondition(connectionCtr,
+//                                                            masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
+//                                                            slavePatchIndex,  slavePatchBLIndex,  slavePatchBLTrCurveIndex,
+//                                                            isGPProvided);
+//        if(isGPProvided){
+//            int trCurveNumGP;
+//            serverComm->receiveFromClientBlocking<int>(name, 1, &trCurveNumGP);
 
-            double* trCurveMasterGPs = new double[trCurveNumGP*2];
-            double* trCurveSlaveGPs = new double[trCurveNumGP*2];
-            double* trCurveGPWeights = new double[trCurveNumGP];
-            double* trCurveMasterGPTangents = new double[trCurveNumGP*3];
-            double* trCurveSlaveGPTangents = new double[trCurveNumGP*3];
-            double* trCurveGPJacobianProducts = new double[trCurveNumGP];
+//            double* trCurveMasterGPs = new double[trCurveNumGP*2];
+//            double* trCurveSlaveGPs = new double[trCurveNumGP*2];
+//            double* trCurveGPWeights = new double[trCurveNumGP];
+//            double* trCurveMasterGPTangents = new double[trCurveNumGP*3];
+//            double* trCurveSlaveGPTangents = new double[trCurveNumGP*3];
+//            double* trCurveGPJacobianProducts = new double[trCurveNumGP];
 
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*2, trCurveMasterGPs);
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*2, trCurveSlaveGPs);
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPWeights);
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveMasterGPTangents);
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveSlaveGPTangents);
-            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPJacobianProducts);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*2, trCurveMasterGPs);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*2, trCurveSlaveGPs);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPWeights);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveMasterGPTangents);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveSlaveGPTangents);
+//            serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPJacobianProducts);
 
-            theWeakContCond->addWeakContinuityConditionGPData(trCurveNumGP,
-                                               trCurveMasterGPs, trCurveSlaveGPs, trCurveGPWeights,
-                                               trCurveMasterGPTangents, trCurveSlaveGPTangents,
-                                               trCurveGPJacobianProducts);
+//            theWeakContCond->addWeakContinuityConditionGPData(trCurveNumGP,
+//                                               trCurveMasterGPs, trCurveSlaveGPs, trCurveGPWeights,
+//                                               trCurveMasterGPTangents, trCurveSlaveGPTangents,
+//                                               trCurveGPJacobianProducts);
 
-            // deleting the pointers after object creation
-            delete trCurveMasterGPs;
-            delete trCurveSlaveGPs;
-            delete trCurveGPWeights;
-            delete trCurveMasterGPTangents;
-            delete trCurveSlaveGPTangents;
-            delete trCurveGPJacobianProducts;
+//            // deleting the pointers after object creation
+//            delete trCurveMasterGPs;
+//            delete trCurveSlaveGPs;
+//            delete trCurveGPWeights;
+//            delete trCurveMasterGPTangents;
+//            delete trCurveSlaveGPTangents;
+//            delete trCurveGPJacobianProducts;
 
-        } else {
-            theIGAMesh->createWeakContinuityConditionGPData();
-        }
-    }
+//        } else {
+//            theIGAMesh->createWeakContinuityConditionGPData();
+//        }
+//    }
 
 //    // get the dirichlet boundary conditions
 //    int dirichletBCInfo[2];
