@@ -279,7 +279,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
     } // end patch
 
     // weak dirichlet condition data
-    int numWeakDirichletCond;
+    /*int numWeakDirichletCond;
     serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakDirichletCond);
 
     for(int wDBCCtr = 0; wDBCCtr<numWeakDirichletCond; wDBCCtr++){
@@ -327,7 +327,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         } else {
             theIGAMesh->createWeakDirichletConditionGPData();
         }
-    }
+    }*/
 
     // patch coupling data
     int numWeakContCond;

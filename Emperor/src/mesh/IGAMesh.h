@@ -239,6 +239,20 @@ public:
         return numNodes;
     }
 
+    /***********************************************************************************************
+     * \brief Returns the array of all weak IGA Dirichlet conditions
+     * \param[out] The array of all weak IGA Dirichlet conditions
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    std::vector<WeakIGADirichletCondition*> getWeakIGADirichletConditions() const{
+        return weakIGADirichletConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Returns the array of all weak IGA patch continuity conditions
+     * \param[out] The array of all weak IGA patch continuity conditions
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
     std::vector<WeakIGAPatchContinuityCondition*> getWeakIGAPatchContinuityConditions() const{
         return weakIGAPatchContinuityConditions;
     }

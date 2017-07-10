@@ -1170,7 +1170,7 @@ public:
             }
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
-            theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
+            theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
                                                                            patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
 
 
@@ -1184,7 +1184,7 @@ public:
             }
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
-            theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
+            theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
                                                                            patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
 
             // Compare the computed values against the expected ones for the slave patch
@@ -1349,11 +1349,11 @@ public:
                 }
 
                 // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
-                theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
+                theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
                                                                                patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
 
                 // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
-                theMapper->computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
+                theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
                                                                                patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
             }
 

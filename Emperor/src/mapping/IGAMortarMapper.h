@@ -44,6 +44,7 @@ template<class T> class SparseMatrix;
 
 class IGAPatchSurface;
 class IGAMesh;
+class Message;
 class FEMesh;
 class DataField;
 class IGAMortarCouplingMatrices;
@@ -128,7 +129,10 @@ private:
 
     /// Stream of gauss points stored in line with format
     /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
-    std::vector<std::vector<double> > streamGP;
+    std::vector<std::vector<double> > streamGPs;
+
+    /// Stream of interface gauss points stored in line with format
+    std::vector<std::vector<double> > streamInterfaceGPs;
 
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
@@ -169,6 +173,12 @@ private:
     struct dirichletBCs {
         int isDirichletBCs;
     }dirichletBCs;
+
+    /// On the error computation
+    struct errorComputation {
+        bool isDomainError;
+        bool isInterfaceError;
+    }errorComputation;
 
 public:
     /***********************************************************************************************
@@ -245,6 +255,13 @@ public:
     void setParametersDirichletBCs(int _isDirichletBCs = 0);
 
     /***********************************************************************************************
+     * \brief Set parameters for the error computation
+     * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
+     * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
+     ***********/
+    void setParametersErrorComputation(bool _isDomainError = 0, bool _isInterfaceError = 0);
+
+    /***********************************************************************************************
      * \brief Set the flag regarding the computation of weak continuity conditions
      * \author Ragnar Björnsson
      ***********/
@@ -276,12 +293,20 @@ public:
 
     /***********************************************************************************************
      * \brief Compute the relative error in the L2 norm for the consistent mapping
-     * \param[in] fieldFE The field on the Finite Element mesh
-     * \param[in] fieldIGA The field on the isogeometric discretization
+     * \param[in] _slaveField The field to be mapped
+     * \param[in] _masterField The mapped field
      * \param[out] The relative error in the L2 norm for the consistent mapping
      * \author Andreas Apostolatos
      ***********/
-    double computeDomainErrorInL2Norm4ConsistentMapping(const double *fieldIGA, const double *fieldFE);
+    double computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField);
+
+    /***********************************************************************************************
+     * \brief Compute the relative error in the L2 norm of the interface error in terms of the displacements and the rotations across the patch interfaces
+     * \param[in/out] _errorL2Interface Double array of constant size 2 containing the L2 norm of the patch interface error in terms of the displacements and the rotations
+     * \param[in] _fieldIGA The field on the isogeometric discretization
+     * \author Andreas Apostolatos
+     ***********/
+    void computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Interface, const double *_fieldIGA);
 
     /// intern function used for mapping
 private:
@@ -339,6 +364,12 @@ private:
 public:
 
     /***********************************************************************************************
+     * \brief Compute and assemble the IGA weak Dirichlet condition matrices
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void computeIGAWeakDirichletConditionMatrices();
+
+    /***********************************************************************************************
      * \brief Compute and assemble the IGA Patch weak continuity condition matrices
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
@@ -358,10 +389,10 @@ public:
      * \param[in] _vKnotSpan The knot span index in the v-parametric direction
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void computeIGAPatchContinuityConditionBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
-                                                             double* _BOperatorOmegaN, double* _normalTrCurveVct,
-                                                             IGAPatchSurface* _patch, double* _tangentTrCurveVct,
-                                                             double _u, double _v, int _uKnotSpan, int _vKnotSpan);
+    void computeDisplacementAndRotationBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
+                                                         double* _BOperatorOmegaN, double* _normalTrCurveVct,
+                                                         IGAPatchSurface* _patch, double* _tangentTrCurveVct,
+                                                         double _u, double _v, int _uKnotSpan, int _vKnotSpan);
 
     /***********************************************************************************************
      * \brief Compute the penalty factors for the primary and the secondary field for each interface
@@ -562,6 +593,7 @@ public:
      ***********/
     void checkConsistency();
 
+    /// Get functions
 public:
     /***********************************************************************************************
      * \brief Get boolean whether the IGA patch coupling was used or not
@@ -601,12 +633,26 @@ public:
      ***********/
     void getPenaltyParameterForSecondaryField(double* _alphaSec);
 
+    /// Print functions
+public:
+    /***********************************************************************************************
+     * \brief Print the domain and the interface error from the mapping
+     * \param[in] message Reference to the message
+     * \param[in] _domainError The computed error from the mapping in the domain
+     * \param[in] _errorL2Interface The computed interface errors accross the patch interfaces from the mapped field
+     * \author Andreas Apostolatos
+     ***********/
+    void printErrorMessage(Message &message, double _errorL2Domain, double *_errorL2Interface);
+
     /// unit test class
     friend class TestIGAMortarMapperTube;
     friend class TestIGAMortarMapperMultiPatchPlanarSurface;
     friend class TestIGAMortarMapperCylinder;
 
 };
+
+extern Message infoOut;
+
 }
 
 #endif /* IGAMORTARMAPPER_H_ */

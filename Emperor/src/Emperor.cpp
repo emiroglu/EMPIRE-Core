@@ -337,7 +337,9 @@ void Emperor::initMappers() {
                     settingMapper.igaMortarMapper.IgaPatchCoupling.dispPenalty,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.rotPenalty,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors,
-                    settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs);
+                    settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs,
+                    settingMapper.igaMortarMapper.errorComputation.isDomainError,
+                    settingMapper.igaMortarMapper.errorComputation.isInterfaceError);
 	} else if (settingMapper.type == EMPIRE_IGABarycentricMapper) {
             mapper->initIGABarycentricMapper(
                     settingMapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance,

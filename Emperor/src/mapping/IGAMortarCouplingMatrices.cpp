@@ -49,8 +49,8 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
     size_R = _size_R;
 
     // Initialize coupling matrices
-    C_NN = new MathLibrary::SparseMatrix<double>(size_N , false);
-    C_NR = new MathLibrary::SparseMatrix<double>(size_N , size_R);
+    C_NN = new MathLibrary::SparseMatrix<double>(size_N, false);
+    C_NR = new MathLibrary::SparseMatrix<double>(size_N, size_R);
 
     // Initialize flag on the whether patch continuity conditions are applied
     isIGAPatchContinuityConditions = false;
@@ -127,8 +127,6 @@ void IGAMortarCouplingMatrices::setIsDirichletBCs(bool _isDirichletBCs) {
 
 void IGAMortarCouplingMatrices::applyDirichletBCs(std::vector<int> clampedIds) {
 
-    INFO_OUT()<<"Applying Dirichlet BCs"<<std::endl;
-
     if(clampedIds.size() > 0) {
         if(isClampedDofs || isIGAPatchContinuityConditions) {
             for(int i = 0 ; i < 3*size_N ; i++) {
@@ -194,9 +192,12 @@ void IGAMortarCouplingMatrices::factorizeCorrectCNN() {
 }
 
 void IGAMortarCouplingMatrices::enforceCnn() {
+    /*
+     * Checks if a row if empty and if yes adds 1.0 in the diagonal
+     */
     if(isIGAPatchContinuityConditions) {
         indexEmptyRowCnn.reserve(3*size_N);
-        for(int i=0;i<3*size_N;i++) {
+        for(int i = 0; i < 3*size_N; i++) {
             if(C_NN_expanded->isRowEmpty(i)) {
                 (*C_NN_expanded)(i,i) = 1;
                 indexEmptyRowCnn.push_back(i);
@@ -205,15 +206,13 @@ void IGAMortarCouplingMatrices::enforceCnn() {
     }
     else {
         indexEmptyRowCnn.reserve(size_N);
-        for(int i=0;i<size_N;i++) {
+        for(int i = 0; i < size_N; i++) {
             if(C_NN->isRowEmpty(i)) {
                 (*C_NN)(i,i) = 1;
                 indexEmptyRowCnn.push_back(i);
             }
         }
     }
-
-    INFO_OUT()<<"Enforce CNN completed"<<std::endl;
 }
 
 }

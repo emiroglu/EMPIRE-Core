@@ -65,6 +65,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     projectedPolygons.resize(meshFE->numElems);
     triangulatedProjectedPolygons.resize(meshFE->numElems);
 
+    // Find the mapping direction (meshIGA -> meshFEM or meshFEM -> meshIGA)
     if (isMappingIGA2FEM) {
         numNodesSlave = meshIGA->getNumNodes();
         numNodesMaster = meshFE->numNodes;
@@ -99,6 +100,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     setParametersIntegration();
     setParametersIgaPatchCoupling();
     setParametersDirichletBCs();
+    setParametersErrorComputation();
 }
 
 void IGAMortarMapper::setParametersIntegration(int _numGPTriangle, int _numGPQuad) {
@@ -138,6 +140,11 @@ void IGAMortarMapper::setParametersDirichletBCs(int _isDirichletBCs) {
     dirichletBCs.isDirichletBCs = _isDirichletBCs;
 }
 
+void IGAMortarMapper::setParametersErrorComputation(bool _isDomainError, bool _isInterfaceError){
+    errorComputation.isDomainError = _isDomainError;
+    errorComputation.isInterfaceError = _isInterfaceError;
+}
+
 void IGAMortarMapper::buildCouplingMatrices() {
     HEADING_OUT(3, "IGAMortarMapper", "Building coupling matrices for ("+ name +")...", infoOut);
     {
@@ -169,13 +176,24 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeProjectedNodesOntoIGAMesh();
 
     // Reserve some space for gauss point values
-    streamGP.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+    streamGPs.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+
+    // Reserve some space for the interface gauss point values
+    if(errorComputation.isInterfaceError){
+        int noInterfaceGPs = 0;
+        std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
+        for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
+            noInterfaceGPs += weakIGAPatchContinuityConditions[iWCC]->getTrCurveNumGP();
+        }
+        streamInterfaceGPs.reserve(noInterfaceGPs);
+    }
 
     // Compute CNN and CNR
     computeCouplingMatrices();
 
+    // Write the gauss point data into an csl file
     if(Message::isDebugMode())
-        writeGaussPointData(); // ONLY FOR L2 NORM COMPUTATION PURPOSE. TO ACTIVATE WITH CAUTION.
+        writeGaussPointData();
 
     // Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
@@ -197,8 +215,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
     }
 
     // Flag on whether weak patch continuity conditions are to be applied
-    if(IgaPatchCoupling.isAutomaticPenaltyFactors || (IgaPatchCoupling.dispPenalty > 0 || IgaPatchCoupling.rotPenalty > 0 ))
+    if(IgaPatchCoupling.isAutomaticPenaltyFactors || (IgaPatchCoupling.dispPenalty > 0 || IgaPatchCoupling.rotPenalty > 0 )){
         isIGAPatchContinuityConditions = true;
+    }
 
     // Check if weak patch continuity conditions are applied and expand the matrices accordingly
     couplingMatrices->setIsIGAPatchCoupling(isIGAPatchContinuityConditions, isClampedDofs);
@@ -219,19 +238,34 @@ void IGAMortarMapper::buildCouplingMatrices() {
     }else
         INFO_OUT() << "No application of weak patch continuity conditions are assumed" << std::endl;
 
-    if(isClampedDofs)                           // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
-        isIGAPatchContinuityConditions = true;      // if it is not always clamped in all three dircetions
+    // NEEDS TO BE CLEANLY DONE!!!
+//    if (isIGAPatchContinuityConditions) {
+//        INFO_OUT() << "Application of weak Dirichlet conditions started" << endl;
+//        computeIGAWeakDirichletConditionMatrices();
+//        INFO_OUT() << "Application of weak Dirichlet conditions finished" << endl;
+//    }
+
+    // Check input
+    if(!isIGAPatchContinuityConditions && (errorComputation.isDomainError || errorComputation.isInterfaceError))
+        assert(false);
+
+    // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
+    // if it is not always clamped in all three dircetions
+    if(isClampedDofs)
+        isIGAPatchContinuityConditions = true;
 
     couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
 
-    if(dirichletBCs.isDirichletBCs==1)
+    if(dirichletBCs.isDirichletBCs == 1){
+        INFO_OUT() << "Applying strong Dirichlet boundary conditions" << std::endl;
         couplingMatrices->applyDirichletBCs(clampedIDs);
-    else
-        INFO_OUT()<<"No Diriclet Boundary Conditions"<<std::endl;
+    }
 
-    //    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
-    if(!isMappingIGA2FEM)
+    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
+    if(!isMappingIGA2FEM){
+        INFO_OUT()<<"Enforcing CNN"<<std::endl;
         couplingMatrices->enforceCnn();
+    }
 
     // Write the coupling matrices in files
     if(Message::isDebugMode())
@@ -990,10 +1024,10 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
                 if (knotVectorU[spanU] != knotVectorU[spanU + 1]
                         && knotVectorV[spanV] != knotVectorV[spanV + 1]) {
                     Polygon2D knotSpanWindow(4);
-                    knotSpanWindow[0]=make_pair(knotVectorU[spanU],knotVectorV[spanV]);
-                    knotSpanWindow[1]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
-                    knotSpanWindow[2]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
-                    knotSpanWindow[3]=make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
+                    knotSpanWindow[0] = make_pair(knotVectorU[spanU],knotVectorV[spanV]);
+                    knotSpanWindow[1] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
+                    knotSpanWindow[2] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
+                    knotSpanWindow[3] = make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
                     /// WARNING design. Here we assume to get only a single output polygon from the clipping !
                     Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
 
@@ -1074,14 +1108,13 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
 
     int numNodesUV=_polygonUV.size();
     int numNodesWZ=_polygonWZ.size();
-    assert(numNodesUV>2);
-    assert(numNodesUV<5);
-    assert(numNodesWZ>2);
-    assert(numNodesWZ<5);
-
+    assert(numNodesUV > 2);
+    assert(numNodesUV < 5);
+    assert(numNodesWZ > 2);
+    assert(numNodesWZ < 5);
 
     // Definitions
-    int numNodesElementFE=meshFE->numNodesPerElem[_elementIndex];
+    int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
     int numNodesElMaster = 0;
     int numNodesElSlave = 0;
 
@@ -1199,6 +1232,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
         }
         double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
+
         /// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
         int count = 0;
         for (int i = 0; i < numNodesElMaster; i++) {
@@ -1218,26 +1252,30 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                 }
             }
         }
+
         /// Save GP data
-        std::vector<double> streamGP;
-        // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
-        streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*nShapeFuncsIGA);
-        streamGP.push_back(theGaussQuadrature->weights[GPCount]);
-        streamGP.push_back(Jacobian);
-        streamGP.push_back(numNodesElementFE);
-        for (int i = 0; i < numNodesElementFE; i++) {
-            streamGP.push_back(meshFEDirectElemTable[_elementIndex][i]);
-            streamGP.push_back(shapeFuncsFE[i]);
+        if(errorComputation.isDomainError){
+            std::vector<double> streamGP;
+            // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+            streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*nShapeFuncsIGA);
+            streamGP.push_back(theGaussQuadrature->weights[GPCount]);
+            streamGP.push_back(Jacobian);
+            streamGP.push_back(numNodesElementFE);
+            for (int i = 0; i < numNodesElementFE; i++) {
+                streamGP.push_back(meshFEDirectElemTable[_elementIndex][i]);
+                streamGP.push_back(shapeFuncsFE[i]);
+            }
+            streamGP.push_back(nShapeFuncsIGA);
+            for (int i = 0; i < nShapeFuncsIGA; i++) {
+                double IGABasisFctsI =
+                        localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
+                            1, 0, 0, i)];
+                streamGP.push_back(dofIGA[i]);
+                streamGP.push_back(IGABasisFctsI);
+            }
+            streamGPs.push_back(streamGP);
         }
-        streamGP.push_back(nShapeFuncsIGA);
-        for (int i = 0; i < nShapeFuncsIGA; i++) {
-            double IGABasisFctsI =
-                    localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                        1, 0, 0, i)];
-            streamGP.push_back(dofIGA[i]);
-            streamGP.push_back(IGABasisFctsI);
-        }
-        this->streamGP.push_back(streamGP);
+
         /// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
         count = 0;
         for (int i = 0; i < numNodesElMaster; i++) {
@@ -1260,6 +1298,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
             }
         }
     }
+
     /// 3.Assemble the element coupling matrix to the global coupling matrix.
     ///Create new scope
     {
@@ -1352,6 +1391,157 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
     }
     // If polygon is on boundary of mesh, can occur
     return -1;
+}
+
+void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
+
+    // Get the weak patch continuity conditions
+    std::vector<WeakIGADirichletCondition*> weakIGADirichletConditions = meshIGA->getWeakIGADirichletConditions();
+
+    // Initialize constant array sizes
+    const int noCoord = 3;
+
+    // Initialize varying array sizes
+    int index;
+    int counter;
+    int p;
+    int q;
+    int noLocalBasisFcts;
+    int noDOFsLoc;
+    int noGPsOnDirichletCond;
+    int uKnotSpan;
+    int vKnotSpan;
+    int indexCP;
+    double uGP;
+    double vGP;
+    double tangentTrCurveVct[noCoord];
+    double normalTrCurveVct[noCoord];
+    double alphaPrimary;
+    double alphaSecondary;
+    double elementLengthOnGP;
+
+    // Initialize pointers
+    double* trCurveGPs;
+    double* trCurveGPWeights;
+    double* trCurveGPTangents;
+    double* trCurveGPJacobianProducts;
+    IGAPatchSurface* thePatch;
+
+    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    for (int iDC = 0; iDC < weakIGADirichletConditions.size(); iDC++){
+        // Get the penalty factors for the primary and the secondary field
+        alphaPrimary = 1e-4;
+        alphaSecondary = 0.0;
+
+        // Get the index of the patch
+        index = weakIGADirichletConditions[iDC]->getPatchIndex();
+
+        // Get the number of Gauss Points for the given condition
+        noGPsOnDirichletCond = weakIGADirichletConditions[iDC]->getTrCurveNumGP();
+
+        // Get the parametric coordinates of the Gauss Points
+        trCurveGPs = weakIGADirichletConditions[iDC]->getTrCurveGPs();
+
+        // Get the corresponding Gauss weights
+        trCurveGPWeights = weakIGADirichletConditions[iDC]->getTrCurveGPWeights();
+
+        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        trCurveGPTangents = weakIGADirichletConditions[iDC]->getTrCurveGPTangents();
+
+        // Get the product of the Jacobian transformations
+        trCurveGPJacobianProducts = weakIGADirichletConditions[iDC]->getTrCurveGPJacobianProducts();
+
+        // Get the patch
+        thePatch = meshIGA->getSurfacePatch(index);
+
+        // Get the polynomial orders of the patch
+        p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // get the number of local basis functions
+        noLocalBasisFcts = (p + 1)*(q + 1);
+
+        // get the number of the local DOFs of the patch
+        noDOFsLoc = noCoord*noLocalBasisFcts;
+
+        // Initialize pointers
+        double* BDisplacementsGC = new double[noCoord*noDOFsLoc];
+        double* BOperatorOmegaT = new double[noDOFsLoc];
+        double* BOperatorOmegaN = new double[noDOFsLoc];
+        double* KPenaltyDisplacement = new double[noDOFsLoc*noDOFsLoc];
+        double* KPenaltyBendingRotation = new double[noDOFsLoc*noDOFsLoc];
+        double* KPenaltyTwistingRotation = new double[noDOFsLoc*noDOFsLoc];
+
+        // Loop over all the Gauss Points of the given condition
+        for(int iGP = 0; iGP < noGPsOnDirichletCond; iGP++){
+            // Get the parametric coordinates of the Gauss Point on the patch
+            uGP = trCurveGPs[2*iGP];
+            vGP = trCurveGPs[2*iGP + 1];
+
+            // Find the knot span indices of the Gauss point locations in the parameter space of the patch
+            uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
+            vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
+
+            // Get the tangent to the boundary vector on the patch
+            for(int iCoord = 0; iCoord < noCoord; iCoord++){
+                tangentTrCurveVct[iCoord] = trCurveGPTangents[3*iGP + iCoord];
+            }
+
+            // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions of the patch at the Gauss point
+            computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalTrCurveVct,
+                                                            thePatch, tangentTrCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+
+            // Compute the dual product matrix for the displacements
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc, noDOFsLoc, BDisplacementsGC, BDisplacementsGC, KPenaltyDisplacement);
+
+            // Compute the dual product matrices for the bending rotations
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
+
+            // Compute the dual product matrices for the twisting rotations
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
+
+            // Compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
+
+            // Compute the element index tables for the patch
+            int CPIndex[noLocalBasisFcts];
+            thePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan, vKnotSpan, CPIndex);
+
+            // Compute the element freedom tables for the patch
+            int EFT[noDOFsLoc];
+            counter = 0;
+            for (int i = 0; i < noLocalBasisFcts; i++){
+                indexCP = thePatch->getControlPointNet()[CPIndex[i]]->getDofIndex();
+                for (int j = 0; j < noCoord; j++){
+                    EFT[counter] = noCoord*indexCP + j;
+                    counter++;
+                }
+            }
+
+            // Assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
+            for(int i = 0; i < noDOFsLoc; i++){
+                for(int j = 0; j < noDOFsLoc; j++){
+                    // Assemble the displacement coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + j]*elementLengthOnGP);
+
+                    // Assemble the bending rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+
+                    // Assemble the twisting rotation coupling entries
+                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                }
+            }
+
+        } // End of Gauss Point loop
+
+        // Delete pointers
+        delete[] BDisplacementsGC;
+        delete[] BOperatorOmegaT;
+        delete[] BOperatorOmegaN;
+        delete[] KPenaltyDisplacement;
+        delete[] KPenaltyBendingRotation;
+        delete[] KPenaltyTwistingRotation;
+    } // End of weak continuity condition loop
 }
 
 void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
@@ -1503,12 +1693,15 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 tangentTrCurveVctSlave[iCoord] = trCurveSlaveGPTangents[3*iGP + iCoord];
             }
 
+            // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
+
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
-            computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
+            computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
                                                                 patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
-            computeIGAPatchContinuityConditionBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
+            computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
                                                                 patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
 
             // Determine the alignment of the tangent and the normal vectors from both patches at their common interface
@@ -1557,9 +1750,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
-
-            // calculate elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
-            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -1632,6 +1822,59 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                     couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
+
+
+            if(errorComputation.isInterfaceError){
+                // Initialize variable storing the Gauss Point data
+                std::vector<double> streamInterfaceGP;
+
+                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...)
+                streamInterfaceGP.reserve(1 + 1 + 2*noLocalBasisFctsMaster + 3*noDOFsLocMaster + 1 + 2*noLocalBasisFctsSlave + 3*noDOFsLocSlave + 1 + 1);
+
+                // Save the element length on the Gauss Point
+                streamInterfaceGP.push_back(elementLengthOnGP);
+
+                // Save the number of basis functions of the master patch
+                streamInterfaceGP.push_back(noLocalBasisFctsMaster);
+
+                // Save the Control Point index and the basis function's values of the master patch
+                for(int iBFs = 0; iBFs < noLocalBasisFctsMaster; iBFs++){
+                    indexCP = patchMaster->getControlPointNet()[CPIndexMaster[iBFs]]->getDofIndex();
+                    streamInterfaceGP.push_back(indexCP);
+                    streamInterfaceGP.push_back(BDisplacementsGCMaster[0*noLocalBasisFctsMaster + 3*iBFs]);
+                }
+
+                // Save the DOF index and the bending and twisting B-operator values of the master patch
+                for(int iDOFs = 0; iDOFs < noDOFsLocMaster; iDOFs++){
+                    streamInterfaceGP.push_back(EFTMaster[iDOFs]);
+                    streamInterfaceGP.push_back(BOperatorOmegaTMaster[iDOFs]);
+                    streamInterfaceGP.push_back(BOperatorOmegaNMaster[iDOFs]);
+                }
+
+                // Save the number of basis functions of the slave patch
+                streamInterfaceGP.push_back(noLocalBasisFctsSlave);
+
+                // Save the Control Point index and the basis function's values of the slave patch
+                for(int iBFs = 0; iBFs < noLocalBasisFctsSlave; iBFs++){
+                    indexCP = patchSlave->getControlPointNet()[CPIndexSlave[iBFs]]->getDofIndex();
+                    streamInterfaceGP.push_back(indexCP);
+                    streamInterfaceGP.push_back(BDisplacementsGCSlave[0*noLocalBasisFctsSlave + 3*iBFs]);
+                }
+
+                // Save the DOF index and the bending and twisting B-operator values of the slave patch
+                for(int iDOFs = 0; iDOFs < noDOFsLocSlave; iDOFs++){
+                    streamInterfaceGP.push_back(EFTSlave[iDOFs]);
+                    streamInterfaceGP.push_back(BOperatorOmegaTSlave[iDOFs]);
+                    streamInterfaceGP.push_back(BOperatorOmegaNSlave[iDOFs]);
+                }
+
+                // Save the factors
+                streamInterfaceGP.push_back(factorTangent);
+                streamInterfaceGP.push_back(factorNormal);
+
+                // Push back the Gauss Point values into the member variable
+                streamInterfaceGPs.push_back(streamInterfaceGP);
+            }
         } // End of Gauss Point loop
 
         // Delete pointers
@@ -1653,10 +1896,10 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     } // End of weak continuity condition loop
 }
 
-void IGAMortarMapper::computeIGAPatchContinuityConditionBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
-                                                                          double* _BOperatorOmegaN, double* _normalTrCurveVct,
-                                                                          IGAPatchSurface* _patch, double* _tangentTrCurveVct,
-                                                                          double _u, double _v, int _uKnotSpan, int _vKnotSpan) {
+void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
+                                                                      double* _BOperatorOmegaN, double* _normalTrCurveVct,
+                                                                      IGAPatchSurface* _patch, double* _tangentTrCurveVct,
+                                                                      double _u, double _v, int _uKnotSpan, int _vKnotSpan) {
     /*
      * Returns the B-operator matrix for the displacement field, the bending and the twisting rotations in the global Cartesian space.
      * Additionally the normal to the boundary vector which is tangent to the surface patch is returned.
@@ -1805,6 +2048,10 @@ void IGAMortarMapper::computeIGAPatchContinuityConditionBOperatorMatrices(double
 }
 
 void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
+    /*
+     * Compute the penalty factors related to the application of weak patch continuity conditions
+     * as a function of the minimum element edge size across each interface.
+     */
 
     // Get the weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
@@ -2020,14 +2267,19 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
     couplingMatrices->getCorrectCNN()->solve(_masterField, tmpVec);
 
     // Compute the error in the relative L2-norm
-//    if (Message::isDebugMode()){
-        double errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
-        INFO_OUT() << std::endl;
-        INFO_OUT() << "+++++++++++++++++++++++++++" << std::endl;
-        INFO_OUT() << "Mapping error = " << errorL2Domain << std::endl;
-        INFO_OUT() << "+++++++++++++++++++++++++++" << std::endl;
-        INFO_OUT() << std::endl;
-//    }
+    if (errorComputation.isDomainError || errorComputation.isInterfaceError){
+        double errorL2Domain;
+        double errorL2Interface[2];
+        if(errorComputation.isDomainError)
+            errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
+        if(errorComputation.isInterfaceError)
+            if(isMappingIGA2FEM){
+                computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _slaveField);
+            }else{
+                computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _masterField);
+            }
+        printErrorMessage(infoOut, errorL2Domain, errorL2Interface);
+    }
 
     // Delete pointers
     delete[] tmpVec;
@@ -2051,7 +2303,15 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
 }
 
 double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField){
-    // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+    /*
+     * Returns the relative error in the L2 norm in the domain using the isogeometric mortar-based mapping.
+     *
+     * The values of the basis functions and other consituents necessary for the integration are provided in the array streamGPs
+     * in the following sequence,
+     *
+     * weight + jacobian + nShapeFuncsFE + (#dof, shapefuncValue,...) + nShapeFuncsIGA + (#dof, shapefuncValue,...)
+     *
+     */
 
     // Initialize output array
     double errorL2Domain = 0.0;
@@ -2077,15 +2337,15 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     double tolNormSlaveField = 1e-6;
 
     // Loop over all the Gauss Points
-    for(int iGP = 0; iGP < streamGP.size(); iGP++){
+    for(int iGP = 0; iGP < streamGPs.size(); iGP++){
         // Get the Gauss Point Weight
-        GW = streamGP[iGP][0];
+        GW = streamGPs[iGP][0];
 
         // Get the product of the Jacobian transformations at the Gauss point
-        JacobianProducts = streamGP[iGP][1];
+        JacobianProducts = streamGPs[iGP][1];
 
         // Get the number of the basis functions of the finite element
-        noNodesFE = streamGP[iGP][2];
+        noNodesFE = streamGPs[iGP][2];
 
         // Initialize the field on the finite element mesh at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
@@ -2094,10 +2354,10 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
         // Loop over the nodes of the finite element
         for(int iNodesFE = 0; iNodesFE < noNodesFE; iNodesFE++){
             // Get the value of the basis function
-            basisFctFEM = streamGP[iGP][3 + 2*iNodesFE + 1];
+            basisFctFEM = streamGPs[iGP][3 + 2*iNodesFE + 1];
 
             // Get the index of the node
-            indexNode = streamGP[iGP][3 + 2*iNodesFE];
+            indexNode = streamGPs[iGP][3 + 2*iNodesFE];
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 if(!isMappingIGA2FEM)
                     fieldFEM[iCoord] += basisFctFEM*_slaveField[noCoord*indexNode + iCoord];
@@ -2106,7 +2366,7 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
         }
 
         // Get the number of basis functions of the isogeometric discretization
-        noCPsIGA = streamGP[iGP][3 + 2*noNodesFE];
+        noCPsIGA = streamGPs[iGP][3 + 2*noNodesFE];
 
         // Initialize the field on the isogeometric discretization at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
@@ -2115,10 +2375,10 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
         // Loop over the Control Points of the isogeometric discretization
         for(int iCPsIGA = 0; iCPsIGA < noCPsIGA; iCPsIGA++){
             // Get the value of the basis function
-            basisFctIGA = streamGP[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 2];
+            basisFctIGA = streamGPs[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 2];
 
             // Get the index of the CP
-            indexCP = streamGP[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 1];
+            indexCP = streamGPs[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 1];
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 if(!isMappingIGA2FEM)
                     fieldIGA[iCoord] += basisFctIGA*_masterField[noCoord*indexCP + iCoord];
@@ -2156,13 +2416,158 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     return errorL2Domain;
 }
 
+void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Interface, const double *_fieldIGA){
+    /*
+     * Returns the error in the L2 norm across the patch interfaces in terms of the displacements and the rotations in a double array of constant size 2
+     *
+     * The values of the basis functions and other consituents necessary for the integration are provided in the array streamGPs
+     * in the following sequence,
+     *
+     * elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...)
+     */
+
+    // Initialize output array
+    for(int i = 0; i < 2; i++){
+        _errorL2Interface[i] = 0.0;
+    }
+
+    // Initialize auxiliary arrays
+    int noCPsI;
+    int noCPsJ;
+    int noDOFsI;
+    int noDOFsJ;
+    int indexCP;
+    int indexDOF;
+    int facTangent;
+    int facNormal;
+    int noCoord = 3;
+    double elementLengthOnGP;
+    double basisFct;
+    double BoperatorT;
+    double BoperatorN;
+    double fieldI[3];
+    double fieldJ[3];
+    double omegaTI;
+    double omegaTJ;
+    double omegaNI;
+    double omegaNJ;
+    double errorBendingRotation;
+    double errorTwistingRotation;
+    double normRotationSquare;
+    double normErrorFieldSquare;
+    double errorField[3];
+
+    // Loop over all the Gauss Points
+    for(int iGP = 0; iGP < streamInterfaceGPs.size(); iGP++){
+        // Get the element length on the Gauss Point
+        elementLengthOnGP = streamInterfaceGPs[iGP][0];
+
+        // Get the number of basis functions of patch I
+        noCPsI = streamInterfaceGPs[iGP][1];
+        noDOFsI = 3*noCPsI;
+
+        // Initialize the field and its rotations on the isogeometric discretization at the Gauss point
+        for(int iCoord = 0; iCoord < noCoord; iCoord++){
+            fieldI[iCoord] = 0.0;
+            fieldJ[iCoord] = 0.0;
+        }
+        omegaTI = 0.0;
+        omegaTJ = 0.0;
+        omegaNI = 0.0;
+        omegaNJ = 0.0;
+
+        // Loop over all basis functions of patch I and compute the field at the Gauss Point
+        for(int iBFs = 0; iBFs < noCPsI; iBFs++){
+            // Get the index of the Control Point
+            indexCP = streamInterfaceGPs[iGP][1 + 1 + 2*iBFs];
+
+            // Get the value of the basis function
+            basisFct = streamInterfaceGPs[iGP][1 + 1 + 2*iBFs + 1];
+
+            // Loop over all the Cartesian coordinates
+            for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                fieldI[iCoord] += basisFct*_fieldIGA[noCoord*indexCP + iCoord];
+        }
+
+        // Loop over all the DOFs of patch I and compute the rotations of the field at the Gauss point
+        for(int iDOFs = 0; iDOFs < noDOFsI; iDOFs++){
+            // Get the index of the DOF
+            indexDOF = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs];
+
+            // Get the value of the B-operator for the bending rotation
+            BoperatorT = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs + 1];
+
+            // Get the value of the B-operator for the twisting rotation
+            BoperatorN = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs + 2];
+
+            // Compute the tangent and the bending rotations
+            omegaTI += BoperatorT*_fieldIGA[indexDOF];
+            omegaNI += BoperatorN*_fieldIGA[indexDOF];
+        }
+
+        // Get the number of basis functions of patch J
+        noCPsJ = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI];
+        noDOFsJ = 3*noCPsJ;
+
+        // Loop over all basis functions of patch J and compute the field at the Gauss Point
+        for(int iBFs = 0; iBFs < noCPsJ; iBFs++){
+            // Get the index of the Control Point
+            indexCP = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*iBFs];
+
+            // Get the value of the basis function
+            basisFct = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*iBFs + 1];
+
+            // Loop over all the Cartesian coordinates
+            for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                fieldJ[iCoord] += basisFct*_fieldIGA[noCoord*indexCP + iCoord];
+        }
+
+        // Loop over all the DOFs of patch J and compute the rotations of the field at the Gauss point
+        for(int iDOFs = 0; iDOFs < noDOFsJ; iDOFs++){
+            // Get the index of the DOF
+            indexDOF = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs];
+
+            // Get the value of the B-operator for the bending rotation
+            BoperatorT = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs + 1];
+
+            // Get the value of the B-operator for the twisting rotation
+            BoperatorN = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs + 2];
+
+            // Compute the tangent and the bending rotations
+            omegaTJ += BoperatorT*_fieldIGA[indexDOF];
+            omegaNJ += BoperatorN*_fieldIGA[indexDOF];
+        }
+
+        // Get the factors for the bending and the twisting rotation
+        facTangent = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ];
+        facNormal = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 1];
+
+        // Compute the error vector for the displacements
+        for(int iCoord = 0; iCoord < noCoord; iCoord++){
+            errorField[iCoord] = fieldI[iCoord] - fieldJ[iCoord];
+        }
+        normErrorFieldSquare = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, errorField, errorField);
+        _errorL2Interface[0] += normErrorFieldSquare*elementLengthOnGP;
+
+        // Compute the error in terms of the rotations
+        errorBendingRotation = omegaTI + facTangent*omegaTJ;
+        errorTwistingRotation = omegaNI + facNormal*omegaNJ;
+        normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
+        _errorL2Interface[1] += normRotationSquare*elementLengthOnGP;
+    }
+
+    // Take the necessary for the norm square roots
+    for(int i = 0; i < 2; i++)
+        _errorL2Interface[i] = sqrt(_errorL2Interface[i]);
+}
+
 void IGAMortarMapper::writeGaussPointData() {
     string filename = name + "_GaussPointData.csv";
     ofstream filestream;
     filestream.open(filename.c_str());
     filestream.precision(12);
     filestream << std::dec;
-    for(std::vector<std::vector<double> >::iterator it1 = streamGP.begin(); it1!=streamGP.end(); it1++) {
+    for(std::vector<std::vector<double> >::iterator it1 = streamGPs.begin(); it1!=streamGPs.end(); it1++) {
         for(std::vector<double>::iterator it2=it1->begin(); it2!=it1->end(); it2++) {
             filestream << *it2 << " ";
         }
@@ -2371,20 +2776,20 @@ void IGAMortarMapper::checkConsistency() {
     int size_R = couplingMatrices->getCorrectSizeR();
 
     double ones[size_R];
-    for(int i=0;i<size_R;i++) {
+    for(int i = 0; i < size_R; i++) {
         ones[i]=1.0;
     }
 
     double output[size_N];
     this->consistentMapping(ones,output);
 
-    double norm=0;
+    double norm = 0;
     vector<int> inconsistentDoF;
 
-    for(int i=0;i<size_N;i++) {
-        if(fabs(output[i]-1) > 1e-6 && output[i] != 0)
+    for(int i = 0; i < size_N; i++) {
+        if(fabs(output[i] - 1) > 1e-6 && output[i] != 0)
             inconsistentDoF.push_back(i);
-        norm+=output[i]*output[i];
+        norm += output[i]*output[i];
     }
 
     // Replace badly conditioned row of Cnn by sum value of Cnr
@@ -2403,7 +2808,7 @@ void IGAMortarMapper::checkConsistency() {
 
         couplingMatrices->factorizeCorrectCNN();
         this->consistentMapping(ones,output);
-        norm=0;
+        norm = 0;
 
         for(int i=0;i<size_N;i++) {
             norm += output[i]*output[i];
@@ -2412,13 +2817,13 @@ void IGAMortarMapper::checkConsistency() {
 
     int denom = size_N - couplingMatrices->getIndexEmptyRowCnn().size();
 
-    norm=sqrt(norm/denom);
+    norm = sqrt(norm/denom);
 
-    DEBUG_OUT()<<"### Check consistency ###"<<endl;
-    DEBUG_OUT()<<"Norm of output field = "<<norm<<endl;
-    if(fabs(norm-1.0)>1e-6) {
-        ERROR_OUT()<<"Coupling not consistent !"<<endl;
-        ERROR_OUT()<<"Coupling of unit field deviating from 1 of "<<fabs(norm-1.0)<<endl;
+    DEBUG_OUT() << "### Check consistency ###"<<endl;
+    DEBUG_OUT() << "Norm of output field = "<< norm << endl;
+    if(fabs(norm - 1.0) > 1e-6) {
+        ERROR_OUT() << "Coupling not consistent !"<<endl;
+        ERROR_OUT() << "Coupling of unit field deviating from 1 of " << fabs(norm-1.0)<<endl;
         exit(-1);
     }
 }
@@ -2441,6 +2846,19 @@ void IGAMortarMapper::getPenaltyParameterForSecondaryField(double* _alphaSec){
         ERROR_OUT() << "Penalty parameters were not computed" << std::endl;
         exit(-1);
     }
+}
+
+void IGAMortarMapper::printErrorMessage(Message &message, double _errorL2Domain, double* _errorL2Interface){
+    message << std::endl;
+    message() << "\t+" << "Mapping error: " << std::endl;
+    if(errorComputation.isDomainError)
+        message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << std::endl;
+    if(errorComputation.isInterfaceError){
+        message << "\t\t+" << '\t' << "L2 norm of the field interface jump: " << _errorL2Interface[0] << std::endl;
+        message << "\t\t+" << '\t' << "L2 norm of the field rotation interface jump: " << _errorL2Interface[1] << std::endl;
+    }
+    message() << "\t+" << "---------------------------------" << endl;
+    message << std::endl;
 }
 
 }
