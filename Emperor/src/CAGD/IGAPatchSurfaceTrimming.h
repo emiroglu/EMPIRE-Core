@@ -269,6 +269,9 @@
         		 *size=polylines.size();
         	 return &polylines[0];
          }
+
+         /// The tolerance in the curve parameter space for the linearization of the trimming loops
+         static double TOL_LINEARIZATION;
 	 };
      
      /***********************************************************************************************

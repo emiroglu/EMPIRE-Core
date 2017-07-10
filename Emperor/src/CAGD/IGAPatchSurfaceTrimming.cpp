@@ -37,6 +37,8 @@ using namespace std;
 
 namespace EMPIRE {
 
+double IGAPatchSurfaceTrimmingLoop::TOL_LINEARIZATION = 1E-6;
+
 IGAPatchSurfaceTrimming::IGAPatchSurfaceTrimming():outter() {
 }
 
@@ -99,8 +101,9 @@ IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
+    //linearizeUsingGreville();
+    //linearizeUsingNCPxP();
     linearizeCombined();
-
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearizeUsingGreville() {
@@ -229,13 +232,13 @@ void IGAPatchSurfaceTrimmingLoop::linearizeCombined() {
             // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
             // NCPxP
             std::vector<double>::iterator iUTildeCurve;
-            for(int i=0;i<nCP*p;i++) {
+            for(int i=1;i<nCP*p-1;i++) {    // loop excludes the start and the end points
                 iUTildeCurve = uTildeCurve.begin();
                 double knot = u0 + i*du;
 
-                while (knot>*iUTildeCurve) iUTildeCurve++;
+                while (knot>*iUTildeCurve)  iUTildeCurve++;
 
-                if (fabs(*iUTildeCurve-knot)>1e-6){
+                if (fabs(*iUTildeCurve-knot)>TOL_LINEARIZATION){
                     uTildeCurve.insert(iUTildeCurve,knot);
                     iUTildeCurve++;
                 }
@@ -251,13 +254,13 @@ void IGAPatchSurfaceTrimmingLoop::linearizeCombined() {
             // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
             // NCPxP
             std::vector<double>::iterator iUTildeCurve;
-            for(int i=nCP*p-1;i>=0;i--) {
+            for(int i=nCP*p-2;i>0;i--) {    // loop excludes the start and the end points
                 iUTildeCurve = uTildeCurve.begin();
                 double knot = u0 + i*du;
 
                 while (knot<*iUTildeCurve)  iUTildeCurve++;
 
-                if (fabs(*iUTildeCurve-knot)>1e-6){
+                if (fabs(*iUTildeCurve-knot)>TOL_LINEARIZATION){
                     uTildeCurve.insert(iUTildeCurve,knot);
                     iUTildeCurve++;
                 }
