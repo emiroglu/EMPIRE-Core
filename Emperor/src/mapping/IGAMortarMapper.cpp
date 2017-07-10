@@ -408,8 +408,6 @@ void IGAMortarMapper::projectPointsToSurface() {
                     }
                     bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
                     isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
-                    if(isProjected[nodeIndex])
-                        std::cout << "Node [" << nodeIndex << "] has been projected" << std::endl;
                 }
             }
         }
