@@ -33,8 +33,6 @@
 #include <vector>
 #include "EMPEROR_Enum.h"
 
-#include "IGAPatchCouplingCaratData.h"
-
 namespace EMPIRE {
 
 class ServerCommunication;

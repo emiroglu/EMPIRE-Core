@@ -101,8 +101,8 @@ IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearize() {
-    //linearizeUsingGreville();
-    //linearizeUsingNCPxP();
+//    linearizeUsingGreville();
+//    linearizeUsingNCPxP();
     linearizeCombined();
 }
 

@@ -43,6 +43,9 @@ protected:
     /// If the GP for coupling are provided
     bool isGPProvided;
 
+    /// If the GP data for coupling is initialized
+    bool isGPDataInitialized = false;
+
     /// Number of GPs on the coupled trimming curve
     int trCurveNumGP;
 
@@ -136,6 +139,38 @@ public:
      ***********/
     int getSlavePatchIndex() const {
         return slavePatchIndex;
+    }
+
+    /***********************************************************************************************
+     * \brief get masterPatchBLIndex
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    int getMasterPatchBLIndex() const {
+        return masterPatchBLIndex;
+    }
+
+    /***********************************************************************************************
+     * \brief get slavePatchBLIndex
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    int getSlavePatchBLIndex() const {
+        return slavePatchBLIndex;
+    }
+
+    /***********************************************************************************************
+     * \brief get masterPatchBLTrCurveIndex
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    int getMasterPatchBLTrCurveIndex() const {
+        return masterPatchBLTrCurveIndex;
+    }
+
+    /***********************************************************************************************
+     * \brief get slavePatchBLTrCurveIndex
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    int getSlavePatchBLTrCurveIndex() const {
+        return slavePatchBLTrCurveIndex;
     }
 
     /***********************************************************************************************

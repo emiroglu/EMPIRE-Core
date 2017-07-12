@@ -115,9 +115,11 @@ public:
 
     /***********************************************************************************************
      * \brief Linearize all the trimming loops and curves of the given mesh and patch
-     * \author Altug Emiroglu
+     * \author Fabien Pean
      ***********/
-    void linearizeTrimming(){Trimming.linearizeLoops();};
+    inline void linearizeTrimming() {
+        Trimming.linearizeLoops();
+    }
 
     /// Basis related functions
 public:
@@ -276,6 +278,20 @@ public:
     bool computePointProjectionOnPatch(double&, double&, double*, const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
 
     /***********************************************************************************************
+     * \brief Computes the orthogonal projection of point of the 3D Euclidean space onto the trimming curve
+     * \param[in/out] _projectedUTilde Curve parameter of the projected point on the trimming curve
+     * \param[in/out] _projectedUV Patch parameter of the projected point on the patch
+     * \param[in/out] _projectedXYZ Cartesian coordinates of the projected point
+     * \param[in/out] _coordsXYZ Cartesian coordinates of the points to be projected
+     * \param[in]	  _patchBLIndex The index of the boundary loop which contains the trimming curve
+     * \param[in]	  _patchBLTrCurveIndex The index of the trimming curve in the boundary loop
+     * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    bool computePointProjectionOnTrimmingCurve(std::vector<double>& _projectedUTilde, std::vector<double>& _projectedUV, std::vector<double>& _projectedXYZ,
+                                               std::vector<double>& _coordsXYZ, int _patchBLIndex, int _patchBLTrCurveIndex);
+
+    /***********************************************************************************************
      * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary
      * \param[in/out] _t The running parameter on the given NURBS patch boundary
      * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
@@ -356,6 +372,17 @@ public:
             int _vDiv = 5);
 
     /***********************************************************************************************
+     * \brief Find the nearest vertex from the linearization of the trimming curve as an initial guess for the projection
+     * \param[in/out] _u Given is the u-surface parameter of the nearest linearization vertex.
+     * \param[in/out] _v Given is the v-surface parameter of the nearest linearization vertex.
+     * \param[in] _P Given the Cartesian components of the point to be projected on the trimming curve
+     * \param[in] _patchBLIndex The index of the boundary loop which contains the trimming curve
+     * \param[in] _patchBLTrCurveIndex The index of the trimming curve in the boundary loop
+     * \author Altug Emiroglu
+     ***********/
+    void findInitialGuess4PointProjectionOnTrimmingCurve(double& _u, double& _v, double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
+
+    /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection
      * \param[in/out] _coords The Cartesian coordinates of the point on the patch
      * \param[in/out] _normal The normal to the patch vector
@@ -367,6 +394,22 @@ public:
             double _v)const;
     void computeCartesianCoordinatesAndNormalVector(double* _coords, double* _normal,
             double _u, double _v, int _spanU, int _spanV)const;
+
+    /// Intersection related functions
+public:
+    /***********************************************************************************************
+     * \brief Find the nearest knot intersections of a trimming curve and return the coordinates
+     * in the patch parameter space as well as the curve parameter space
+     * \param[in/out] _uTilde The curve parameters of the intersections
+     * \param[in/out] _uvSurface The patch parameters of the intersections
+     * \param[in/out] _xyzCoords The global cartesian coordinates of the intersections
+     * \param[in] _patchBLIndex Given is the u-surface parameter
+     * \param[in] _patchBLTrCurveIndex Given is the v-surface parameter
+     * \author Altug Emiroglu
+     ***********/
+    void computeKnotIntersectionsWithTrimmingCurve(std::vector<double> _uTilde, std::vector<double> _uvSurface, std::vector<double>& _xyzCoords,
+                                                   int _patchBLIndex, int _patchBLTrCurveIndex);
+
 
     /// Postprocessing functions
 public:

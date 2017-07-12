@@ -385,7 +385,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             delete trCurveGPJacobianProducts;
 
         } else {
-            theIGAMesh->createWeakContinuityConditionGPData();
+            theIGAMesh->createWeakContinuityConditionGPData(connectionCtr);
         }
     }
 

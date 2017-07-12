@@ -107,83 +107,13 @@ void IGAPatchCurve::computeCartesianCoordinates(double* _cartesianCoordinates, d
     computeCartesianCoordinates(_cartesianCoordinates, _localCoordinates, _uKnotSpanIndex);
 }
 
-//bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _uvSurface , std::vector<double>& _uTilde, unsigned int _dir, double _knot) const{
+bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _uTilde, std::vector<double>& _uvSurface, unsigned int _dir, double _knot) const{
 
-//    // This bisection algorithm checks only one of the coordinates for convergence
-
-//    // Initiate a single corresponding coordinate for both points
-//    double coordP1;
-//    double coordP2;
-
-//    // Check if the direction of the parameter curve is given correctly
-//    if (_dir<2)
-//        coordP1 = polyline.at(0+(_dir+1)%2);
-//    else
-//        ERROR_BLOCK_OUT("IGAPatchCurve","computeIntersectionWithKnotBisection","input variable \"dir\" can only be 0 for u or 1 for v direction!");
-
-//    double uvP[2];
-//    double uTilde = 0.0;
-//    bool isIntersecting;
-//    double uTildeP1 = 0.0;
-//    double uTildeP2 = 0.0;
-
-//    for (int iVertexCtr=1; iVertexCtr<polyline.size()/3; iVertexCtr++) {
-//        // Reset intersection flag at each iteration
-//        isIntersecting = false;
-
-//        // Get the corresponding coordinate of the P2
-//        coordP2 = polyline.at((iVertexCtr*3)+(_dir+1)%2);
-
-//        // Check if the knot is coinciding with P1 within given tolerance
-//        if (fabs(coordP1-_knot)<TOL_CONVERGENCE) {
-//            // Get the curve parameter and compute the coordinates
-//            uTilde = polyline.at((iVertexCtr-1)*3+2);
-//            computeCartesianCoordinates(uvP, uTilde);
-//            isIntersecting = true;
-//        }
-//        // Check if the knot is coinciding with P2 within given tolerance
-//        else if (fabs(coordP2-_knot)<TOL_CONVERGENCE) {
-//            // Get the corresponding curve parameter and compute the coordinates
-//            uTilde = polyline.at(iVertexCtr*3+2);
-//            computeCartesianCoordinates(uvP, uTilde);
-//            isIntersecting = true;
-//        }
-//        // Check if the knot is between the two considered vertices on P1->P2 direction
-//        else if (coordP1>_knot && coordP2<_knot) {
-//            // Get the curve parameters of P1 and P2 in forward sense
-//            uTildeP1 = polyline.at((iVertexCtr-1)*3+2);
-//            uTildeP2 = polyline.at(iVertexCtr*3+2);
-//            isIntersecting = solveIntersectionWithKnotBisection(uvP,uTilde,uTildeP1,uTildeP2,_dir,_knot);
-//        }
-//        // Check if the knot is between the two considered vertices on P2->P1 direction
-//        else if (coordP2>_knot && coordP1<_knot){
-//            // Get the curve parameters of P1 and P2 in backward sense
-//            uTildeP1 = polyline.at(iVertexCtr*3+2);
-//            uTildeP2 = polyline.at((iVertexCtr-1)*3+2);
-//            isIntersecting = solveIntersectionWithKnotBisection(uvP,uTilde,uTildeP1,uTildeP2,_dir,_knot);
-//        }
-//        // If none of the cases holds then switch to the next vertex pair
-//        else {
-//            isIntersecting = false;
-//        }
-
-//        coordP1 = coordP2;
-
-//        // If intersection found then add it to the list
-//        if (isIntersecting) {
-//            _uvSurface.push_back(uvP[0]);
-//            _uvSurface.push_back(uvP[1]);
-//            _uTilde.push_back(uTilde);
-//        }
-//    }
-
-//    if (_uvSurface.size()>0)    return true;
-//    else                        return false;
-//}
-
-bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _uvSurface , std::vector<double>& _uTilde, unsigned int _dir, double _knot) const{
-
-    // This bisection algorithm checks only one of the coordinates for convergence
+    /*
+     * Found intersections are appended to the given _uvSurface and _uTilde vectors
+     * Patch parameters of the intersections should be computed outside this function.
+     * The bisection algorithm assumes one of the coordinates is constant and considers only one of the coordinates for convergence
+     */
 
     // Initiate a single corresponding coordinate for both points
     double coordP1;
@@ -207,6 +137,12 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
 
         // Get the corresponding coordinate of the P2
         coordP2 = polyline.at((iVertexCtr*2)+(_dir+1)%2);
+
+        // Check if both points are aligned with a parameter line, if so skip this curve section
+        if (fabs(coordP1-coordP2)<TOL_CONVERGENCE){
+            coordP1 = coordP2;
+            continue;
+        }
 
         // Check if the knot is coinciding with P1 within given tolerance
         if (fabs(coordP1-_knot)<TOL_CONVERGENCE) {
@@ -241,9 +177,10 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
             isIntersecting = false;
         }
 
+        // Advance the first point
         coordP1 = coordP2;
 
-        // If intersection found then add it to the list
+        // If intersection found then add it to the list considering the ordering
         if (isIntersecting) {
             _uvSurface.push_back(uvP[0]);
             _uvSurface.push_back(uvP[1]);
@@ -255,33 +192,131 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
     else                        return false;
 }
 
+bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _uTilde, unsigned int _dir, double _knot) const{
+
+    /*
+     * This function expects either an empty vector of curve parameters or a nonempty but sorted vector of curve parameters.
+     * Found intersections are inserted into their corresponding positions in order to keep an ascending order.
+     * Patch parameters of the intersections should be computed outside this function.
+     * The bisection algorithm assumes one of the coordinates is constant and considers only the varying coordinate for convergence.
+     */
+
+    // Initiate a single corresponding coordinate for both points
+    double coordP1;
+    double coordP2;
+
+    int noCoordParam = 2;
+
+    // Check if the direction of the parameter curve is given correctly
+    if (_dir<2)
+        coordP1 = polyline.at(0+(_dir+1)%noCoordParam);
+    else
+        ERROR_BLOCK_OUT("IGAPatchCurve","computeIntersectionWithKnotBisection","input variable \"dir\" can only be 0 for u or 1 for v direction!");
+
+    double uvP[2];
+    double uTilde = 0.0;
+    bool isIntersecting;
+    double uTildeP1 = 0.0;
+    double uTildeP2 = 0.0;
+
+    for (int iVertexCtr=1; iVertexCtr<polyline.size()/noCoordParam; iVertexCtr++) {
+        // Reset intersection flag at each iteration
+        isIntersecting = false;
+
+        // Get the corresponding coordinate of the P2
+        coordP2 = polyline.at((iVertexCtr*noCoordParam)+(_dir+1)%noCoordParam);
+
+        // Check if both points are aligned with a parameter line, if so skip this curve section
+        if ( fabs(coordP1 - coordP2) < TOL_CONVERGENCE ) {
+            coordP1 = coordP2;
+            continue;
+        }
+
+        // Check if the knot is coinciding with P1 within given tolerance
+        if ( fabs(coordP1 - _knot) < TOL_CONVERGENCE ) {
+            // Get the curve parameter and compute the coordinates
+            uTilde = polylineKnots.at(iVertexCtr-1);
+            computeCartesianCoordinates(uvP, uTilde);
+            isIntersecting = true;
+        }
+        // Check if the knot is coinciding with P2 within given tolerance
+        else if ( fabs(coordP2 - _knot) < TOL_CONVERGENCE ) {
+            // Get the corresponding curve parameter and compute the coordinates
+            uTilde = polylineKnots.at(iVertexCtr);
+            computeCartesianCoordinates(uvP, uTilde);
+            isIntersecting = true;
+        }
+        // Check if the knot is between the two considered vertices on P1->P2 direction
+        else if (coordP1 > _knot && coordP2 < _knot) {
+            // Get the curve parameters of P1 and P2 in forward sense
+            uTildeP1 = polylineKnots.at(iVertexCtr-1);
+            uTildeP2 = polylineKnots.at(iVertexCtr);
+            isIntersecting = solveIntersectionWithKnotBisection(uvP, uTilde, uTildeP1, uTildeP2, _dir, _knot);
+        }
+        // Check if the knot is between the two considered vertices on P2->P1 direction
+        else if (coordP2 > _knot && coordP1 < _knot){
+            // Get the curve parameters of P1 and P2 in backward sense
+            uTildeP1 = polylineKnots.at(iVertexCtr);
+            uTildeP2 = polylineKnots.at(iVertexCtr-1);
+            isIntersecting = solveIntersectionWithKnotBisection(uvP, uTilde, uTildeP1, uTildeP2, _dir, _knot);
+        }
+        // If none of the cases holds then switch to the next vertex pair
+        else {
+            isIntersecting = false;
+        }
+
+        // Advance the first point
+        coordP1 = coordP2;
+
+        // If intersection found then add it to the list considering the ordering in the given _uTilde variable
+        if (isIntersecting) {
+            std::vector<double>::iterator iUTilde = _uTilde.begin();
+            if (_uTilde.size()>0){
+                while(uTilde > *iUTilde && iUTilde != _uTilde.end() )   iUTilde++;
+
+                if (iUTilde == _uTilde.end())   _uTilde.push_back(uTilde);
+                else    _uTilde.insert(iUTilde, uTilde);
+            } else _uTilde.push_back(uTilde);
+        }
+    }
+
+    if (_uTilde.size()>0)    return true;
+    else                     return false;
+}
+
 bool IGAPatchCurve::solveIntersectionWithKnotBisection(double* _uvP, double& _uTildeP, double _uTildeP1, double _uTildeP2, unsigned int _dir, double _knot) const{
 
-    // This bisection algorithm runs only on one coordinate to check the convergence
+    /*
+     * The bisection algorithm assumes one of the coordinates is constant and considers only the varying coordinate for convergence.
+     */
+
+    int noCoordParam = 2;
     double distance = 1.0;
     unsigned int iteration = 0;
 
-    while (fabs(distance) > TOL_CONVERGENCE && iteration < MAX_NUM_ITERATIONS){
+    while (true){
         // Bisection point coordinate in curve parameter space
-        _uTildeP = 0.5*(_uTildeP1+_uTildeP2);
+        _uTildeP = 0.5*(_uTildeP1 + _uTildeP2);
 
         // Bisection point coordinate in patch parameter space
         computeCartesianCoordinates(_uvP, _uTildeP);
 
         // Distance of the bisection point to the knot (checks the distance in v when dir is u(0) and vice versa)
-        distance = _uvP[(_dir+1)%2]-_knot;
+        distance = _uvP[(_dir+1)%noCoordParam]-_knot;
 
-        // If the distance is greater than 0 then the intersection is between P and P1
+        // If the distance is within a tolerance the intersection is found at the P
+        if (fabs(distance) < TOL_CONVERGENCE){
+            return true;
+        } // If the distance is greater than 0 then the intersection is between P and P1
         if (distance > 0.0){
             _uTildeP1 = _uTildeP;
         } // If the distance is less than 0 then the intersection is between P and P2
         else if (distance < 0.0) {
             _uTildeP2 = _uTildeP;
-        } // If the distance is 0 the intersection is found at the P
-        else if (distance == 0.0)
-            return true;
+        }
 
         iteration++;
+        if (iteration > MAX_NUM_ITERATIONS)     return false;
     }
 }
 

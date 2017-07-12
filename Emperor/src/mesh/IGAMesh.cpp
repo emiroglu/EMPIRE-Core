@@ -38,16 +38,13 @@ namespace EMPIRE {
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
         AbstractMesh(_name), numNodes(_numNodes) {
     type = EMPIRE_Mesh_IGAMesh;
-	
-	// Initialize the coupling data
-	couplingData = NULL;
+
 }
 
 IGAMesh::~IGAMesh() {
+
     for (int i = 0; i < surfacePatches.size(); i++)
         delete surfacePatches[i];
-//    if (couplingData != NULL)
-//	delete couplingData;
 
     for (int i = 0; i < weakIGAPatchContinuityConditions.size(); i++)
         delete weakIGAPatchContinuityConditions[i];
@@ -163,19 +160,52 @@ WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connec
 
 }
 
-void IGAMesh::createWeakContinuityConditionGPData(){
+void IGAMesh::createWeakContinuityConditionGPData(int _connectionIndex){
+
+    /*
+     * This function creates GP data for the weak continuity conditions
+     * 1. Compute knot intersections with the trimming curve on the master patch and return their uTilde,UV and XYZ coordinates
+     * 2. Compute projection of the knot intersections of the master trimming curve onto the slave trimming curve
+     * 3.
+     */
+
+    // Patch indices to retrieve from the list
+    int masterPatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchIndex();
+    int slavePatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchIndex();
+
+    // Boundary loop indices to retrieve from the list
+    int masterPatchBLIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchBLIndex();
+    int slavePatchBLIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchBLIndex();
+
+    // Trimming curve indices to retrieve from the list
+    int masterPatchBLTrCurveIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchBLTrCurveIndex();
+    int slavePatchBLTrCurveIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchBLTrCurveIndex();
+
+    // Get the master and slave patches
+    IGAPatchSurface* masterPatch = getSurfacePatch(masterPatchIndex);
+    IGAPatchSurface* slavePatch = getSurfacePatch(slavePatchIndex);
+
+    // Parameter and coordinate sets to store the intersections and transfer them
+    std::vector<double> masterUTilde;
+    std::vector<double> masterUVParams;
+    std::vector<double> masterXYZCoords;
+    std::vector<double> slaveUTilde;
+    std::vector<double> slaveUVParams;
+    std::vector<double> slaveXYZCoords;
+
+    // Compute the knot intersections on the trimming curve and their respective parameters/coordinates on the master patch
+    masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTilde,masterUVParams,masterXYZCoords,
+                                                           masterPatchBLIndex,masterPatchBLTrCurveIndex);
+
+    // Compute the knot intersections on the trimming curve and their respective parameters/coordinates on the slave patch
+    slavePatch->computePointProjectionOnTrimmingCurve(slaveUTilde,slaveUVParams,slaveXYZCoords,
+                                                      masterXYZCoords,slavePatchBLIndex,slavePatchBLTrCurveIndex);
+
+//    masterPatch->createGPOnTrimmingCurve();
 
     ERROR_OUT("Weak continuity condition GP data cannot be created!!");
     ERROR_OUT("GP data must be provided!!");
-    exit(-1);
-}
-
-void IGAMesh::addCouplingData(int _patchCounter, int _BRepCounter, double* _GP_m, double* _GP_s, double* _GP_w,
-                              double* _tang_m, double* _tang_s, double* _map,
-                              int _ID_s, int _NumElemsOfBRep, int _NumGPsOfElem) {
-    couplingData->addBRePCouplingData(_patchCounter, _BRepCounter, _GP_m, _GP_s, _GP_w,
-                                      _tang_m, _tang_s, _map,
-                                      _ID_s, _NumElemsOfBRep, _NumGPsOfElem);
+//    exit(-1);
 }
 
 Message &operator<<(Message & _message, const IGAMesh & _mesh) {

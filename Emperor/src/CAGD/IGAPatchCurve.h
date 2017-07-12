@@ -93,16 +93,38 @@ public:
     /// Geometric operation functions
 public:
     /***********************************************************************************************
-     * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters and the local basis functions are given
+     * \brief Returns the Cartesian Coordinates and the Curve Parameters of intersections with a parameter line in an ascending order with respect to their curve parameters
      * \param[in/out] _uvSurface Coordinates of the intersection in the patch parameter space
      * \param[in/out] _uTilde Coordinate of the intersection in the curve parameter space
      * \param[in] _dir Flag to indicate if knot is along u(True) or v(False)
      * \param[in] _knot Knot to intersect
      * \return The flag on whether or not the iterations have converged
-     * \author Andreas Apostolatos, Altug Emiroglu
+     * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
-    bool computeIntersectionsWithKnotBisection(std::vector<double>& _uvSurface , std::vector<double>& _uTilde, unsigned int _dir, double _knot) const;
+    bool computeIntersectionsWithKnotBisection(std::vector<double>& _uTilde, std::vector<double>& _uvSurface, unsigned int _dir, double _knot) const;
 
+    /***********************************************************************************************
+     * \brief Returns the curve parameters of the intersections with a parameter line in an ascending order with respect to their curve parameters
+     * This functions expects either a sorted or a zero sized _uTilde
+     * \param[in/out] _uTilde Coordinate of the intersection in the curve parameter space
+     * \param[in] _dir Flag to indicate if knot is along u(True) or v(False)
+     * \param[in] _knot Knot to intersect
+     * \return The flag on whether or not the iterations have converged
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    bool computeIntersectionsWithKnotBisection(std::vector<double>& _uTilde, unsigned int _dir, double _knot) const;
+
+    /***********************************************************************************************
+     * \brief Solves the bisection problem for computing the intersection of a parameter line with a trimming curve
+     * \param[in/out] _uvP Coordinates of the intersection in the patch parameter space
+     * \param[in/out] _uTildeP Coordinate of the intersection in the curve parameter space
+     * \param[in] _uTildeP1 Curve parameter of the first point to use for bracketing
+     * \param[in] _uTildeP2 Curve parameter of the second point to use for bracketing
+     * \param[in] _dir Direction of the parameter line
+     * \param[in] _knot Knot to intersect
+     * \return The flag on whether or not the iterations have converged
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
     bool solveIntersectionWithKnotBisection(double* _uvP, double& _uTildeP, double _uTildeP1, double _uTildeP2, unsigned int _dir, double _knot) const;
 
     /// get functions
@@ -144,6 +166,14 @@ public:
      ***********/
     inline int findKnotSpan(double _u) const {
         return getIGABasis()->findKnotSpan(_u);
+    }
+
+    /***********************************************************************************************
+     * \brief Get the linearization of the trimming curve
+     * \author Altug Emiroglu
+     ***********/
+    inline std::vector<double> getPolyline() const {
+        return polyline;
     }
 
     /// set functions

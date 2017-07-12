@@ -32,7 +32,6 @@
 #include <cfloat>
 // Inclusion of user defined libraries
 #include "AbstractMesh.h"
-#include "IGAPatchCouplingCaratData.h"
 #include "WeakIGAPatchContinuityCondition.h"
 #include "WeakIGADirichletCondition.h"
 
@@ -41,8 +40,6 @@ class DataField;
 class Message;
 class IGAPatchSurface;
 class IGAControlPoint;
-
-class IGAPatchCouplingCaratData;
 
 /********//**
  * \brief class IGAMesh is a specialization of the class AbstractMesh used for IGA Mesh containing number of IGA surface patches
@@ -60,9 +57,6 @@ protected:
 
     /// the lowest number of clamped directions
     int clampedDirections;
-
-    /// Object which has all the patch coupling data
-    IGAPatchCouplingCaratData* couplingData;
 
     /// Vector of all weak Dirichlet conditions
     std::vector<WeakIGADirichletCondition*> weakIGADirichletConditions;
@@ -166,29 +160,11 @@ public:
                           bool _isGPProvided);
 
      /***********************************************************************************************
-      * brief Create the GP data for the weak continuity condition if not provided
+      * brief Create the GP data for a weak continuity condition with the given index if not provided
+      * \param[in] _connectionIndex Weak continuity condition index
       * \author Andreas Apostolatos, Altug Emiroglu
       ***********/
-     void createWeakContinuityConditionGPData();
-
-    /***********************************************************************************************
-     * \brief Add coupling data of a patch
-     * \param[in] _patchCounter number of the patch
-     * \param[in] _BRepCounter number of the BReP
-     * \param[in] _GP_m gauss point coordinates on master side
-     * \param[in] _GP_s gauss point coordinates on slave side
-     * \param[in] _GP_w gauss point weights
-     * \param[in] _tang_m tangent on master side
-     * \param[in] _tang_s tangent on slave side
-     * \param[in] _map mapping from element space to physical space
-     * \param[in] _ID_s ID of slave patch
-     * \param[in] _NumElemsOfBRep number of linear elements on the BReP
-     * \param[in] _NumGPsOfElem number of gauss points on each linear element
-     * \author Ragnar Björnsson
-     ***********/
-    void addCouplingData(int _patchCounter, int _BRepCounter, double* _GP_m, double* _GP_s, double* _GP_w,
-                         double* _tang_m, double* _tang_s, double* _map,
-                         int _ID_s, int _NumElemsOfBRep, int _NumGPsOfElem);
+     void createWeakContinuityConditionGPData(int _connectionIndex);
 
     /// Get and set functions
 public:
@@ -255,24 +231,6 @@ public:
      ***********/
     std::vector<WeakIGAPatchContinuityCondition*> getWeakIGAPatchContinuityConditions() const{
         return weakIGAPatchContinuityConditions;
-    }
-
-    /***********************************************************************************************
-     * \brief Initilize a object of IGAPatchCouplingCaratData
-     * \param[in] numPatches the number of patches
-     * \param[in] numBrepsPerPatch number of couplings for each patch
-     * \author Ragnar Björnsson
-     ***********/
-    void initializePatchCouplingData(int numPatches, int* numBrepsPerPatch) {
-        couplingData = new IGAPatchCouplingCaratData(numPatches,numBrepsPerPatch);
-    }
-
-    /***********************************************************************************************
-     * \brief get IGAPatchCouplingCaratData object
-     * \author Ragnar Björnsson
-     ***********/
-    IGAPatchCouplingCaratData* getIGAPatchCouplingData() {
-        return couplingData;
     }
 
     /***********************************************************************************************

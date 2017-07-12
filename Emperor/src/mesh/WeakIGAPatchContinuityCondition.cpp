@@ -39,6 +39,7 @@ WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID,
 
     type = EMPIRE_WeakIGAPatchContinuityCondition;
 
+    isGPDataInitialized = false;
 }
 
 void WeakIGAPatchContinuityCondition::addWeakContinuityConditionGPData(int _trCurveNumGP,
@@ -67,15 +68,19 @@ void WeakIGAPatchContinuityCondition::addWeakContinuityConditionGPData(int _trCu
         }
         trCurveGPJacobianProducts[i] = _trCurveGPJacobianProducts[i];
     }
+
+    isGPDataInitialized = true;
 }
 
 WeakIGAPatchContinuityCondition::~WeakIGAPatchContinuityCondition() {
-    delete trCurveMasterGPs;
-    delete trCurveSlaveGPs;
-    delete trCurveGPWeights;
-    delete trCurveMasterGPTangents;
-    delete trCurveSlaveGPTangents;
-    delete trCurveGPJacobianProducts;
+    if (isGPDataInitialized) {
+        delete trCurveMasterGPs;
+        delete trCurveSlaveGPs;
+        delete trCurveGPWeights;
+        delete trCurveMasterGPTangents;
+        delete trCurveSlaveGPTangents;
+        delete trCurveGPJacobianProducts;
+    }
 }
 
 
