@@ -46,6 +46,7 @@ private:
 	double Tol;
 	double relTol;
 	double TolDeriv;
+    int maxIter;
 
 public:
 	void setUp() {
@@ -57,6 +58,9 @@ public:
 
 		// Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB) for the derivative functional values
         TolDeriv = relTol*10;
+
+        // Assign a maximum iteration number for the point projection on patch
+        maxIter = 100;
 
 		// Provide an id for the basis
 		int id_basis = 3;
@@ -987,7 +991,7 @@ public:
 		bool flag = 1;
 
 		// Compute the orthogonal projection of the point on the NURBS patch
-        flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex);
+        flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex, maxIter, TolDeriv);
 
 		// Compare the values with the ones from MATLAB
 
@@ -995,16 +999,16 @@ public:
         CPPUNIT_ASSERT(flag == 1);
 
 		// On the Cartesian components of the orthogonal projection
-        double orthogonalProjection[] = {1.337577535013243e-01,
-                                         6.359047538272620e-01,
-                                         4.525192863798665e+00};
-        
-	for (int i = 0; i < 3; i++)
-            CPPUNIT_ASSERT(fabs(orthogonalProjection[i] - vertex[i]) <= relTol);
+        double orthogonalProjection[] = {1.337577681495519e-01,
+                                         6.359047435590517e-01,
+                                         4.525192874644042e+00};
 
-	// On the surface parametric values of the orthogonal projection
-        CPPUNIT_ASSERT(fabs(u - 1.638675138407125e+01) <= TolDeriv);
-        CPPUNIT_ASSERT(fabs(v + 9.976275205718462e+00) <= TolDeriv);
+		for (int i = 0; i < 3; i++)
+            CPPUNIT_ASSERT(fabs(orthogonalProjection[i] - vertex[i]) <= Tol*1e8);
+
+        // On the surface parametric values of the orthogonal projection
+        CPPUNIT_ASSERT(fabs(u - 1.638675122207825e+01) <= Tol*1e9);
+        CPPUNIT_ASSERT(fabs(v + 9.976275088960751e+00) <= Tol*1e9);
 	}
 
 	/***********************************************************************************************
@@ -1187,8 +1191,7 @@ public:
 		// Compute the orthogonal projection of the point on the NURBS patch iteratively
 		int noIterations = 1e9;
 		for (int i = 0; i < noIterations; i++) {
-			flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v,
-					vertex);
+            flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex, maxIter, TolDeriv);
 		}
 	}
 
