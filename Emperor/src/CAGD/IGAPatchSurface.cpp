@@ -29,9 +29,9 @@
 // Inclusion of user defined libraries
 #include "IGAPatchSurface.h"
 #include "MathLibrary.h"
+#include "MatrixVectorMath.h"
 #include "DataField.h"
 #include "Message.h"
-#include "MatrixVectorMath.h"
 
 using namespace std;
 
