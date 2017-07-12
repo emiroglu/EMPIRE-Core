@@ -1242,8 +1242,8 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>&
      * The minimum cartesian distance between the point and the linearization vertices is taken as an initial guess.
      */
 
-    int noCoordParam = 2;
-    int noCoord = 3;
+    const int noCoordParam = 2;
+    const int noCoord = 3;
 
     double uvParam[noCoordParam];
     double P[noCoord];
@@ -1267,8 +1267,17 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>&
             double tmpP[noCoord];
             computeCartesianCoordinates(tmpP, uvParam);
             std::cout << "Point to project is: " << P[0] << " " << P[1] << " " << P[2] << std::endl;
-            std::cout << "Projected point is: " << tmpP[0] << " " << tmpP[1] << " " << tmpP[2] << std::endl;
+            std::cout << "Projected point on patch is: " << tmpP[0] << " " << tmpP[1] << " " << tmpP[2] << std::endl;
             std::cout << "Projecting point onto the trimming curve" << std::endl;
+            double tmpUTilde;
+            bool isProjectedOntoCurve;
+            std::cout << "Initial guess U: " << uvParam[0] << "V: " << uvParam[1] << std::endl;
+            isProjectedOntoCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(tmpUTilde,uvParam,noCoordParam);
+            std::cout << "Projected UTilde: " << tmpUTilde << std::endl;
+            std::cout << "Projected U: " << uvParam[0] << "V: " << uvParam[1] << std::endl;
+            computeCartesianCoordinates(tmpP, uvParam);
+            std::cout << "Projected point on curve is: " << tmpP[0] << " " << tmpP[1] << " " << tmpP[2] << std::endl;
+
         } else assert(false);
     }
 }

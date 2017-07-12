@@ -134,6 +134,9 @@
          inline const IGAPatchSurfaceTrimmingLoop& getLoop(int i) const {
              return *(loops.at(i));
          }
+         inline IGAPatchSurfaceTrimmingLoop& getLoop(int i) {
+             return *(loops.at(i));
+         }
          inline const IGAPatchSurfaceTrimmingLoop& getLastLoop() const {
              return *(loops.back());
          }
@@ -221,6 +224,9 @@
           ***********/
          inline const IGAPatchCurve& getIGACurve(int i) const {
              return (const IGAPatchCurve&)*IGACurves.at(i);
+         }
+         inline IGAPatchCurve& getIGACurve(int i) {
+             return (IGAPatchCurve&)*IGACurves.at(i);
          }
          /***********************************************************************************************
           * \brief Get the underlying IsoGeometric curve of the loop
