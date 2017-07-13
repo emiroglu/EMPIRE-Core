@@ -698,9 +698,6 @@ bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNo
     return true;
 }
 
-
-
-
 // IGA Integration
 
 /***********************************************************************************************
@@ -784,7 +781,219 @@ IGAGaussQuadratureOnQuad::IGAGaussQuadratureOnQuad(int _numGaussPoints) :
     }
 }
 
-
+/***********************************************************************************************
+ * \brief Constructor
+ * param[in] _numGaussPoints, number of Gauss points
+ * \author Andreas Apostolatos, Altug
+ ***********/
+IGAGaussQuadratureOnBiunitInterval::IGAGaussQuadratureOnBiunitInterval(int _numGaussPoints) :
+    IGAGaussQuadrature(_numGaussPoints) {
+    switch (_numGaussPoints) {
+    case 1:
+        gaussPoints = IGABiunitIntervalGaussPoints1;
+        weights = IGABiunitIntervalGaussWeights1;
+        break;
+    case 2:
+        gaussPoints = IGABiunitIntervalGaussPoints2;
+        weights = IGABiunitIntervalGaussWeights2;
+        break;
+    case 3:
+        gaussPoints = IGABiunitIntervalGaussPoints3;
+        weights = IGABiunitIntervalGaussWeights3;
+        break;
+    case 4:
+        gaussPoints = IGABiunitIntervalGaussPoints4;
+        weights = IGABiunitIntervalGaussWeights4;
+        break;
+    case 5:
+        gaussPoints = IGABiunitIntervalGaussPoints5;
+        weights = IGABiunitIntervalGaussWeights5;
+        break;
+    case 6:
+        gaussPoints = IGABiunitIntervalGaussPoints6;
+        weights = IGABiunitIntervalGaussWeights6;
+        break;
+    case 7:
+        gaussPoints = IGABiunitIntervalGaussPoints7;
+        weights = IGABiunitIntervalGaussWeights7;
+        break;
+    case 8:
+        gaussPoints = IGABiunitIntervalGaussPoints8;
+        weights = IGABiunitIntervalGaussWeights8;
+        break;
+    case 9:
+        gaussPoints = IGABiunitIntervalGaussPoints9;
+        weights = IGABiunitIntervalGaussWeights9;
+        break;
+    case 10:
+        gaussPoints = IGABiunitIntervalGaussPoints10;
+        weights = IGABiunitIntervalGaussWeights10;
+        break;
+    case 11:
+        gaussPoints = IGABiunitIntervalGaussPoints11;
+        weights = IGABiunitIntervalGaussWeights11;
+        break;
+    case 12:
+        gaussPoints = IGABiunitIntervalGaussPoints12;
+        weights = IGABiunitIntervalGaussWeights12;
+        break;
+    case 13:
+        gaussPoints = IGABiunitIntervalGaussPoints13;
+        weights = IGABiunitIntervalGaussWeights13;
+        break;
+    case 14:
+        gaussPoints = IGABiunitIntervalGaussPoints14;
+        weights = IGABiunitIntervalGaussWeights14;
+        break;
+    case 15:
+        gaussPoints = IGABiunitIntervalGaussPoints15;
+        weights = IGABiunitIntervalGaussWeights15;
+        break;
+    case 16:
+        gaussPoints = IGABiunitIntervalGaussPoints16;
+        weights = IGABiunitIntervalGaussWeights16;
+        break;
+    case 17:
+        gaussPoints = IGABiunitIntervalGaussPoints17;
+        weights = IGABiunitIntervalGaussWeights17;
+        break;
+    case 18:
+        gaussPoints = IGABiunitIntervalGaussPoints18;
+        weights = IGABiunitIntervalGaussWeights18;
+        break;
+    case 19:
+        gaussPoints = IGABiunitIntervalGaussPoints19;
+        weights = IGABiunitIntervalGaussWeights19;
+        break;
+    case 20:
+        gaussPoints = IGABiunitIntervalGaussPoints20;
+        weights = IGABiunitIntervalGaussWeights20;
+        break;
+    case 21:
+        gaussPoints = IGABiunitIntervalGaussPoints21;
+        weights = IGABiunitIntervalGaussWeights21;
+        break;
+    case 22:
+        gaussPoints = IGABiunitIntervalGaussPoints22;
+        weights = IGABiunitIntervalGaussWeights22;
+        break;
+    case 23:
+        gaussPoints = IGABiunitIntervalGaussPoints23;
+        weights = IGABiunitIntervalGaussWeights23;
+        break;
+    case 24:
+        gaussPoints = IGABiunitIntervalGaussPoints24;
+        weights = IGABiunitIntervalGaussWeights24;
+        break;
+    case 25:
+        gaussPoints = IGABiunitIntervalGaussPoints25;
+        weights = IGABiunitIntervalGaussWeights25;
+        break;
+    case 26:
+        gaussPoints = IGABiunitIntervalGaussPoints26;
+        weights = IGABiunitIntervalGaussWeights26;
+        break;
+    case 27:
+        gaussPoints = IGABiunitIntervalGaussPoints27;
+        weights = IGABiunitIntervalGaussWeights27;
+        break;
+    case 28:
+        gaussPoints = IGABiunitIntervalGaussPoints28;
+        weights = IGABiunitIntervalGaussWeights28;
+        break;
+    case 29:
+        gaussPoints = IGABiunitIntervalGaussPoints29;
+        weights = IGABiunitIntervalGaussWeights29;
+        break;
+    case 30:
+        gaussPoints = IGABiunitIntervalGaussPoints30;
+        weights = IGABiunitIntervalGaussWeights30;
+        break;
+    case 31:
+        gaussPoints = IGABiunitIntervalGaussPoints31;
+        weights = IGABiunitIntervalGaussWeights31;
+        break;
+    case 32:
+        gaussPoints = IGABiunitIntervalGaussPoints32;
+        weights = IGABiunitIntervalGaussWeights32;
+        break;
+    case 33:
+        gaussPoints = IGABiunitIntervalGaussPoints33;
+        weights = IGABiunitIntervalGaussWeights33;
+        break;
+    case 34:
+        gaussPoints = IGABiunitIntervalGaussPoints34;
+        weights = IGABiunitIntervalGaussWeights34;
+        break;
+    case 35:
+        gaussPoints = IGABiunitIntervalGaussPoints35;
+        weights = IGABiunitIntervalGaussWeights35;
+        break;
+    case 36:
+        gaussPoints = IGABiunitIntervalGaussPoints36;
+        weights = IGABiunitIntervalGaussWeights36;
+        break;
+    case 37:
+        gaussPoints = IGABiunitIntervalGaussPoints37;
+        weights = IGABiunitIntervalGaussWeights37;
+        break;
+    case 38:
+        gaussPoints = IGABiunitIntervalGaussPoints38;
+        weights = IGABiunitIntervalGaussWeights38;
+        break;
+    case 39:
+        gaussPoints = IGABiunitIntervalGaussPoints39;
+        weights = IGABiunitIntervalGaussWeights39;
+        break;
+    case 40:
+        gaussPoints = IGABiunitIntervalGaussPoints40;
+        weights = IGABiunitIntervalGaussWeights40;
+        break;
+    case 41:
+        gaussPoints = IGABiunitIntervalGaussPoints41;
+        weights = IGABiunitIntervalGaussWeights41;
+        break;
+    case 42:
+        gaussPoints = IGABiunitIntervalGaussPoints42;
+        weights = IGABiunitIntervalGaussWeights42;
+        break;
+    case 43:
+        gaussPoints = IGABiunitIntervalGaussPoints43;
+        weights = IGABiunitIntervalGaussWeights43;
+        break;
+    case 44:
+        gaussPoints = IGABiunitIntervalGaussPoints44;
+        weights = IGABiunitIntervalGaussWeights44;
+        break;
+    case 45:
+        gaussPoints = IGABiunitIntervalGaussPoints45;
+        weights = IGABiunitIntervalGaussWeights45;
+        break;
+    case 46:
+        gaussPoints = IGABiunitIntervalGaussPoints46;
+        weights = IGABiunitIntervalGaussWeights46;
+        break;
+    case 47:
+        gaussPoints = IGABiunitIntervalGaussPoints47;
+        weights = IGABiunitIntervalGaussWeights47;
+        break;
+    case 48:
+        gaussPoints = IGABiunitIntervalGaussPoints48;
+        weights = IGABiunitIntervalGaussWeights48;
+        break;
+    case 49:
+        gaussPoints = IGABiunitIntervalGaussPoints49;
+        weights = IGABiunitIntervalGaussWeights49;
+        break;
+    case 50:
+        gaussPoints = IGABiunitIntervalGaussPoints50;
+        weights = IGABiunitIntervalGaussWeights50;
+        break;
+    default:
+        ERROR_OUT()<<"Number of Gauss Points for biunit interval = " << numGaussPoints << "doesn't exist! Please choose from 1,...,50." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
 }
 }
