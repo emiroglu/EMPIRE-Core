@@ -327,7 +327,32 @@ public:
     }
 };
 
+/**********
+ * \brief Class GaussQuadratureOnQuad performs Gauss quadrature on quad
+ * \author Andreas Apostolatos, Altug Emiroglu
+ ***********/
+class IGAGaussQuadratureOnBiunitInterval: public IGAGaussQuadrature {
+public:
+    /***********************************************************************************************
+     * \brief Constructor
+     * param[in] _numGaussPoints, number of Gauss points
+     * \author Chenshen Wu
+     ***********/
+    IGAGaussQuadratureOnBiunitInterval(int _numGaussPoints);
 
+    virtual ~IGAGaussQuadratureOnBiunitInterval() {
+    }
+    ;
+
+    /***********************************************************************************************
+     * \brief Returns the coordinates of the Gauss point
+     * \param[in] _index the Gauss point to be returned
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    const double* getGaussPoint(int _index) {
+        return &gaussPoints[_index * 2];
+    }
+};
 
 
 }

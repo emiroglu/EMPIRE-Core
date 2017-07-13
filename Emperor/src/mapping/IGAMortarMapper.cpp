@@ -637,7 +637,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
             int patchIndex=*it;
             /// Get the projected coordinates for the current element
             Polygon2D polygonUV;
-            bool isProjectedOnPatchBoundary=true;
+            bool isProjectedOnPatchBoundary = true;
             /// 1.1 Get initial polygon from projection
             // For every point of polygon
             buildFullParametricElement(elemIndex, numNodesElementFE, patchIndex, polygonUV);

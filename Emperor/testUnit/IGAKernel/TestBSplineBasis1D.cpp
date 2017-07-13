@@ -79,38 +79,6 @@ public:
 
         // Test just one object of the class (that works pretty also)
         bSplineBasis1D = new BSplineBasis1D(id, p, noKnots, knotVector);
-        // bSplineBasis1D->printPolynomialDegree();
-        // bSplineBasis1D->printNoKnots();
-        // bSplineBasis1D->printKnotVector();
-        // bSplineBasis1D->printNoBasisFunctions();
-
-        // Make test on memory leakage (that works pretty fine)
-        /*for (int i = 1; i < 1e9; i++) {
-         // Create the knot vector
-         double* knotVector = new double[noKnots];
-
-         for (int i = 0; i < 4; i++) {
-         knotVector[i] = -1;
-         }
-         for (int i = 4; i < 5; i++) {
-         knotVector[i] = 2;
-         }
-         for (int i = 5; i < 7; i++) {
-         knotVector[i] = 3;
-         }
-         for (int i = 7; i < 10; i++) {
-         knotVector[i] = 5;
-         }
-         for (int i = 10; i < 14; i++) {
-         knotVector[i] = 10;
-         }
-
-         bSplineBasis1D = new BSplineBasis1D(id, p, noKnots, knotVector);
-
-         // free the memory
-         delete bSplineBasis1D;
-         }*/
-
     }
     void tearDown() {
         delete bSplineBasis1D;
@@ -164,14 +132,6 @@ public:
         double* localBasisFunctions = new double[bSplineBasis1D->getPolynomialDegree() + 1];
         bSplineBasis1D->computeLocalBasisFunctions(localBasisFunctions, u, knotSpan);
 
-        /*cout << endl;
-         cout << endl;
-         cout << "The non-zero basis functions at u = " << u << " :";
-         cout << endl;
-         for (int i=0; i<bSplineBasis1D->getPolynomialDegree()+1; i++) {
-         cout << localBasisFunctions[i] << " " ;
-         }*/
-
         // Value provided by MATLAB
         double CorrectlocalBasisFunctions[] = { 0.650962962962963, 0.300444444444445,
                 0.046222222222222, 0.002370370370370 };
@@ -193,34 +153,8 @@ public:
         int derivDegree = 2;
         double* localBasisFunctionsAndDerivatives = new double[(derivDegree + 1)
                 * (bSplineBasis1D->getPolynomialDegree() + 1)];
-
         bSplineBasis1D->computeLocalBasisFunctionsAndDerivatives(localBasisFunctionsAndDerivatives,
                 derivDegree, u, knotSpan);
-        /*cout << endl;
-         cout << endl;
-         cout << "The non-zero basis functions and their derivatives at u = " << u << " :";
-         cout << endl;
-
-         // Initialize counter
-         int counter = 0;
-
-         for (int i = 0; i <= derivDegree; i++) {
-         for (int j = 0; j <= bSplineBasis1D->getPolynomialDegree(); j++) {
-         cout << localBasisFunctionsAndDerivatives[counter] << " ";
-         counter += 1;
-         }
-         cout << endl;
-         }
-
-         cout << endl;
-         cout << endl;
-         cout << "The non-zero basis functions and their derivatives at u = " << u << " :";
-         cout << endl;
-         for (int i = 0; i < (derivDegree + 1) * (bSplineBasis1D->getPolynomialDegree() + 1); i++) {
-         cout << localBasisFunctionsAndDerivatives[i] << " ";
-         counter += 1;
-         }
-         cout << endl;*/
 
         // Values provided by MATLAB
         double CorrectlocalBasisFunctionsAndDerivatives[] = { 0.085184000000000, 0.325248000000000,

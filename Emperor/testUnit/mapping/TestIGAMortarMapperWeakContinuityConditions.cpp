@@ -1376,10 +1376,13 @@ public:
             theMapper->computePenaltyFactorsForPatchContinuityConditions();
     }
 
-// Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperWeakContinuityConditions);
+
+    // Make the tests
     CPPUNIT_TEST (testComputeBOperatorMatricesIGAPatchContinuityConditions);
     CPPUNIT_TEST (testComputePenaltyFactorsIGAPatchContinuityConditions);
+
+    // Make the tests for memory leakage
 //    CPPUNIT_TEST (testComputeBOperatorMatricesIGAPatchContinuityConditions4Leakage);
 //    CPPUNIT_TEST (testComputePenaltyFactorsIGAPatchContinuityConditions4Leakage);
     CPPUNIT_TEST_SUITE_END();
