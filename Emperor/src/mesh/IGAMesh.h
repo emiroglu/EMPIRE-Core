@@ -32,14 +32,14 @@
 #include <cfloat>
 // Inclusion of user defined libraries
 #include "AbstractMesh.h"
-#include "WeakIGAPatchContinuityCondition.h"
-#include "WeakIGADirichletCondition.h"
 
 namespace EMPIRE {
 class DataField;
 class Message;
 class IGAPatchSurface;
 class IGAControlPoint;
+class WeakIGADirichletCondition;
+class WeakIGAPatchContinuityCondition;
 
 /********//**
  * \brief class IGAMesh is a specialization of the class AbstractMesh used for IGA Mesh containing number of IGA surface patches

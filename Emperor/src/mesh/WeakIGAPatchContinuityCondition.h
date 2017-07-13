@@ -30,6 +30,8 @@
 namespace EMPIRE {
 
 class Message;
+class IGAPatchSurface;
+
 /********//**
  * \brief Class WeakIGAPatchContinuityCondition is the class that holds and applies the weak continuity conditions for IGA
  ***********/
@@ -119,6 +121,14 @@ public:
 			   double* _trCurveMasterGPTangents, double* _trCurveSlaveGPTangents,
 			   double* _trCurveGPJacobianProducts);
     
+    /***********************************************************************************************
+     * \brief Set the GP data for the coupling condition
+     * \param[in] _masterPatch The master patch
+     * \param[in] _slavePatch The slave patch
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void createGPData(IGAPatchSurface* _masterPatch, IGAPatchSurface* _slavePatch);
+
     /***********************************************************************************************
      * \brief Destructor
      * \author Andreas Apostolatos, Altug Emiroglu

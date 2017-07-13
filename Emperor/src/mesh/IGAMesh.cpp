@@ -25,6 +25,8 @@
 #include <assert.h>
 
 // Inclusion of user defined libraries
+#include "WeakIGAPatchContinuityCondition.h"
+#include "WeakIGADirichletCondition.h"
 #include "IGAPatchSurface.h"
 #include "IGAControlPoint.h"
 #include "IGAMesh.h"
@@ -163,49 +165,21 @@ WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connec
 void IGAMesh::createWeakContinuityConditionGPData(int _connectionIndex){
 
     /*
-     * This function creates GP data for the weak continuity conditions
-     * 1. Compute knot intersections with the trimming curve on the master patch and return their uTilde,UV and XYZ coordinates
-     * 2. Compute projection of the knot intersections of the master trimming curve onto the slave trimming curve
-     * 3.
      */
 
-    // Patch indices to retrieve from the list
     int masterPatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchIndex();
     int slavePatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchIndex();
-
-    // Boundary loop indices to retrieve from the list
-    int masterPatchBLIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchBLIndex();
-    int slavePatchBLIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchBLIndex();
-
-    // Trimming curve indices to retrieve from the list
-    int masterPatchBLTrCurveIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchBLTrCurveIndex();
-    int slavePatchBLTrCurveIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchBLTrCurveIndex();
 
     // Get the master and slave patches
     IGAPatchSurface* masterPatch = getSurfacePatch(masterPatchIndex);
     IGAPatchSurface* slavePatch = getSurfacePatch(slavePatchIndex);
 
-    // Parameter and coordinate sets to store the intersections and transfer them
-    std::vector<double> masterUTilde;
-    std::vector<double> masterUVParams;
-    std::vector<double> masterXYZCoords;
-    std::vector<double> slaveUTilde;
-    std::vector<double> slaveUVParams;
-    std::vector<double> slaveXYZCoords;
-
-    // Compute the knot intersections on the trimming curve and their respective parameters/coordinates on the master patch
-    masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTilde,masterUVParams,masterXYZCoords,
-                                                           masterPatchBLIndex,masterPatchBLTrCurveIndex);
-
-    // Compute the knot intersections on the trimming curve and their respective parameters/coordinates on the slave patch
-    slavePatch->computePointProjectionOnTrimmingCurve(slaveUTilde,slaveUVParams,slaveXYZCoords,
-                                                      masterXYZCoords,slavePatchBLIndex,slavePatchBLTrCurveIndex);
-
-//    masterPatch->createGPOnTrimmingCurve();
+    // Create GP Data for the patch pair
+    weakIGAPatchContinuityConditions[_connectionIndex]->createGPData(masterPatch, slavePatch);
 
     ERROR_OUT("Weak continuity condition GP data cannot be created!!");
     ERROR_OUT("GP data must be provided!!");
-//    exit(-1);
+
 }
 
 Message &operator<<(Message & _message, const IGAMesh & _mesh) {

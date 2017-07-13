@@ -407,7 +407,7 @@ public:
      * \param[in] _patchBLTrCurveIndex Given is the v-surface parameter
      * \author Altug Emiroglu
      ***********/
-    void computeKnotIntersectionsWithTrimmingCurve(std::vector<double> _uTilde, std::vector<double> _uvSurface, std::vector<double>& _xyzCoords,
+    void computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde, std::vector<double>& _uvSurface, std::vector<double>& _xyzCoords,
                                                    int _patchBLIndex, int _patchBLTrCurveIndex);
 
 

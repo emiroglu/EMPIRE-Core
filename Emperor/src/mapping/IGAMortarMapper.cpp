@@ -22,6 +22,8 @@
 
 #include "IGAMortarMapper.h"
 #include "IGAPatchSurface.h"
+#include "WeakIGAPatchContinuityCondition.h"
+#include "WeakIGADirichletCondition.h"
 #include "IGAMesh.h"
 #include "FEMesh.h"
 #include "ClipperAdapter.h"

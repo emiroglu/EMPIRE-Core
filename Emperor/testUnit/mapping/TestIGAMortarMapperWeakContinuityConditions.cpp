@@ -28,6 +28,7 @@
 #include "cppunit/TestFixture.h"
 #include "cppunit/TestAssert.h"
 #include "cppunit/extensions/HelperMacros.h"
+#include "WeakIGAPatchContinuityCondition.h"
 #include "IGAMortarMapper.h"
 #include "FEMesh.h"
 #include "IGAPatchSurface.h"

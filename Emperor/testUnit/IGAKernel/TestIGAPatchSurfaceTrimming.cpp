@@ -328,7 +328,7 @@ public:
 		
 		// Compute local Cartesian coordinates of the intersections
 		double uvParams[2];
-		for (int i = 0; i < uTilde1.size(); i++){
+		for (int i = 0; i < uTilde2.size(); i++){
 		    theIGAPatchCurve->computeCartesianCoordinates(uvParams, uTilde2[i]);
 		    uvSurface2.push_back(uvParams[0]);
 		    uvSurface2.push_back(uvParams[1]);
@@ -350,9 +350,16 @@ public:
 		
 	}
 
+    void test4Leakage() {
+        for (int i = 0; i < 100000000; i++) {
+            testComputeTrimmingCurveIntersectionsWithKnotBisection();
+        }
+    }
+
 	// Make the tests
 	CPPUNIT_TEST_SUITE(TestIGAPatchSurfaceTrimming);
 	CPPUNIT_TEST(testComputeTrimmingCurveIntersectionsWithKnotBisection);
+//    CPPUNIT_TEST(test4Leakage);
 	CPPUNIT_TEST_SUITE_END();
 }
 ;

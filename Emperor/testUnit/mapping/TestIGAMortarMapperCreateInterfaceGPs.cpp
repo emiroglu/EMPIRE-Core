@@ -453,14 +453,19 @@ public:
      ***********/
 
     void testCreateWeakContinuityConditionGPData() {
-      
-	theIGAMesh->createWeakContinuityConditionGPData(0);
-	
+        theIGAMesh->createWeakContinuityConditionGPData(0);
+    }
+
+    void test4Leakage() {
+        for (int i = 0; i < 100000000; i++) {
+            testCreateWeakContinuityConditionGPData();
+        }
     }
 
 // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperCreateInterfaceGPs);
     CPPUNIT_TEST (testCreateWeakContinuityConditionGPData);
+//    CPPUNIT_TEST (test4Leakage);
     CPPUNIT_TEST_SUITE_END();
 }
 ;

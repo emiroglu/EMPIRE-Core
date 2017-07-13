@@ -18,10 +18,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
-#include "WeakIGAPatchContinuityCondition.h"
-#include "Message.h"
+
+// Inclusion of standard libraries
 #include <iostream>
 #include <assert.h>
+#include <math.h>
+
+// Inclusion of user defined libraries
+#include "IGAPatchSurface.h"
+#include "WeakIGAPatchContinuityCondition.h"
+#include "Message.h"
 
 using namespace std;
 
@@ -70,6 +76,128 @@ void WeakIGAPatchContinuityCondition::addWeakContinuityConditionGPData(int _trCu
     }
 
     isGPDataInitialized = true;
+}
+
+void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch, IGAPatchSurface* _slavePatch) {
+
+        int noCoordParam = 2;
+        int noCoord = 3;
+
+        // Parameter and coordinate sets to store the intersections and transfer them
+        std::vector<double> masterUTilde;
+        std::vector<double> masterUV;
+        std::vector<double> masterXYZ;
+        std::vector<double> slaveUTilde;
+        std::vector<double> slaveUV;
+        std::vector<double> slaveXYZ;
+        std::vector<double> slaveUTildeFromMaster;
+        std::vector<double> slaveUVFromMaster;
+        std::vector<double> slaveXYZFromMaster;
+
+        // Compute the knot intersections of the master trimming curve and their respective parameters/coordinates on the master patch
+        _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTilde,masterUV,masterXYZ,
+                                                               masterPatchBLIndex,masterPatchBLTrCurveIndex);
+
+        // Compute the knot intersections of slave the trimming curve and their respective parameters/coordinates on the slave patch
+        _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTilde,slaveUV,slaveXYZ,
+                                                              slavePatchBLIndex,slavePatchBLTrCurveIndex);
+
+        // Compute the coordinates of the knot intersections of the master trimming curve on the slave trimming curve and slave patch
+        _slavePatch->computePointProjectionOnTrimmingCurve(slaveUTildeFromMaster,slaveUVFromMaster,slaveXYZFromMaster,
+                                                          masterXYZ,slavePatchBLIndex,slavePatchBLTrCurveIndex);
+
+//        std::cout << "initialSlaveUTilde" << std::endl;
+//        for (int i=0; i< slaveUTilde.size();i++)
+//            std::cout << slaveUTilde[i] << std::endl;
+
+//        std::cout << "initialslaveUV" << std::endl;
+//        for (int i=0; i< slaveUV.size()/2;i++)
+//            std::cout << slaveUV[i*2] << " " << slaveUV[i*2+1] << std::endl;
+
+//        std::cout << "initialXYZCoords" << std::endl;
+//        for (int i=0; i< slaveXYZ.size()/3;i++)
+//            std::cout << slaveXYZ[i*3] << " " << slaveXYZ[i*3+1] << " " << slaveXYZ[i*3+2] << std::endl;
+
+//        std::cout << "slaveUTildeFromMaster" << std::endl;
+//        for (int i=0; i< slaveUTildeFromMaster.size();i++)
+//            std::cout << slaveUTildeFromMaster[i] << std::endl;
+
+//        std::cout << "slaveUVFromMaster" << std::endl;
+//        for (int i=0; i< slaveUVFromMaster.size()/2;i++)
+//            std::cout << slaveUVFromMaster[i*2] << " " << slaveUVFromMaster[i*2+1] << std::endl;
+
+//        std::cout << "slaveXYZFromMaster" << std::endl;
+//        for (int i=0; i< slaveXYZFromMaster.size()/3;i++)
+//            std::cout << slaveXYZFromMaster[i*3] << " " << slaveXYZFromMaster[i*3+1] << " " << slaveXYZFromMaster[i*3+2] << std::endl;
+
+        // Sort the uTilde, uvParams and xyzCoords of both intersections in ascending order with respect to UTilde
+
+        // Initiate iterators
+        std::vector<double>::iterator iSlaveUTilde = slaveUTilde.begin();
+        std::vector<double>::iterator iSlaveUTildeFromMaster = slaveUTildeFromMaster.begin();
+
+        // Loop over each uTilde of master curve knot intersections on the slave curve
+        while (iSlaveUTildeFromMaster != slaveUTildeFromMaster.end()){
+
+            // Loop over each uTilde of slave curve knot intersections
+            while (iSlaveUTilde != slaveUTilde.end()) {
+
+                // If the slaveUTildeFromMaster is greater, advance the iterator on the slaveUTilde
+                if (*iSlaveUTildeFromMaster > *iSlaveUTilde)  iSlaveUTilde++;
+
+                // If the uTildes are equal break loop
+                if (*iSlaveUTildeFromMaster == *iSlaveUTilde)   break;
+
+                // If the slaveUTildeFromMaster is smaller than slaveUTilde, insert into place
+                else if (*iSlaveUTildeFromMaster < *iSlaveUTilde && fabs(*iSlaveUTildeFromMaster - *iSlaveUTilde) > 1e-6){
+
+                    // Compute index to insert uTilde as an integer
+                    int indexUTilde = std::distance(slaveUTilde.begin(),iSlaveUTilde);
+
+                    // Compute index to insert uvParam as an integer
+                    int indexUV = indexUTilde*noCoordParam;
+
+                    // Compute index to insert xyzCoords as an integer
+                    int indexXYZCoords = indexUTilde*noCoord;
+
+                    // Compute index to retrieve from slaveUVFromMaster as an integer
+                    int indexUVFromMaster = std::distance(slaveUTildeFromMaster.begin(),iSlaveUTildeFromMaster)*noCoordParam;
+
+                    // Compute index to retrieve from slaveXYZFromMaster as an integer
+                    int indexXYZFromMaster = std::distance(slaveUTildeFromMaster.begin(),iSlaveUTildeFromMaster)*noCoord;
+
+                    // Insert UTilde
+                    slaveUTilde.insert(iSlaveUTilde,*iSlaveUTildeFromMaster);
+
+                    // Insert UV
+                    slaveUV.insert(slaveUV.begin()+indexUV,*(slaveUVFromMaster.begin()+indexUVFromMaster+1));
+                    slaveUV.insert(slaveUV.begin()+indexUV,*(slaveUVFromMaster.begin()+indexUVFromMaster));
+
+                    // Insert XYZ
+                    slaveXYZ.insert(slaveXYZ.begin()+indexXYZCoords,*(slaveXYZFromMaster.begin()+indexXYZFromMaster+2));
+                    slaveXYZ.insert(slaveXYZ.begin()+indexXYZCoords,*(slaveXYZFromMaster.begin()+indexXYZFromMaster+1));
+                    slaveXYZ.insert(slaveXYZ.begin()+indexXYZCoords,*(slaveXYZFromMaster.begin()+indexXYZFromMaster));
+
+                    // Reset the iterator after each insert
+                    iSlaveUTilde = slaveUTilde.begin();
+                }
+                iSlaveUTilde++;
+            }
+            iSlaveUTildeFromMaster++;
+        }
+
+//        std::cout << "sortedSlaveUTilde" << std::endl;
+//        for (int i=0; i< slaveUTilde.size();i++)
+//            std::cout << slaveUTilde[i] << std::endl;
+
+//        std::cout << "sortedslaveUV" << std::endl;
+//        for (int i=0; i< slaveUV.size()/2;i++)
+//            std::cout << slaveUV[i*2] << " " << slaveUV[i*2+1] << std::endl;
+
+//        std::cout << "sortedslaveXYZ" << std::endl;
+//        for (int i=0; i< slaveXYZ.size()/3;i++)
+//            std::cout << slaveXYZ[i*3] << " " << slaveXYZ[i*3+1] << " " << slaveXYZ[i*3+2] << std::endl;
+
 }
 
 WeakIGAPatchContinuityCondition::~WeakIGAPatchContinuityCondition() {

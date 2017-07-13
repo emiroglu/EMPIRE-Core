@@ -351,15 +351,18 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
         // Advance the first point
         coordP1 = coordP2;
 
+        std::vector<double>::iterator iUTilde = _uTilde.begin();
         // If intersection found then add it to the list considering the ordering in the given _uTilde variable
         if (isIntersecting) {
-            std::vector<double>::iterator iUTilde = _uTilde.begin();
-            if (_uTilde.size()>0){
-                while(uTilde > *iUTilde && iUTilde != _uTilde.end() )   iUTilde++;
 
-                if (iUTilde == _uTilde.end())   _uTilde.push_back(uTilde);
-                else    _uTilde.insert(iUTilde, uTilde);
-            } else _uTilde.push_back(uTilde);
+            iUTilde = _uTilde.begin();
+
+            if (_uTilde.empty())    _uTilde.push_back(uTilde);
+            else {
+                while( (uTilde > *iUTilde) && (iUTilde != _uTilde.end()) )  iUTilde++;
+                if ( uTilde != *iUTilde )   _uTilde.insert(iUTilde, uTilde);
+                else if ( iUTilde == _uTilde.end())   _uTilde.push_back(uTilde);
+            }
         }
     }
 

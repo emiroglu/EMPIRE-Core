@@ -1247,8 +1247,12 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>&
 
     double uvParam[noCoordParam];
     double P[noCoord];
+    double tmpUTilde = 0.0;
+    double tmpP[3];
     int xyzCtr = 0;
     bool isProjectedOnPatch = false;
+    bool isProjectedOnCurve = false;
+
 
     // For each point
     for (int pCtr=0; pCtr<_coordsXYZ.size()/noCoord; pCtr++){
@@ -1263,21 +1267,18 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>&
         isProjectedOnPatch = computePointProjectionOnPatch(uvParam[0], uvParam[1], P);
 
         if (isProjectedOnPatch){
-            std::cout << " THIS IS A DEBUG OUTPUT IN: IGAPatchSurface::computePointProjectionOnTrimmingCurve" << std::endl;
-            double tmpP[noCoord];
-            computeCartesianCoordinates(tmpP, uvParam);
-            std::cout << "Point to project is: " << P[0] << " " << P[1] << " " << P[2] << std::endl;
-            std::cout << "Projected point on patch is: " << tmpP[0] << " " << tmpP[1] << " " << tmpP[2] << std::endl;
-            std::cout << "Projecting point onto the trimming curve" << std::endl;
-            double tmpUTilde;
-            bool isProjectedOntoCurve;
-            std::cout << "Initial guess U: " << uvParam[0] << "V: " << uvParam[1] << std::endl;
-            isProjectedOntoCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(tmpUTilde,uvParam,noCoordParam);
-            std::cout << "Projected UTilde: " << tmpUTilde << std::endl;
-            std::cout << "Projected U: " << uvParam[0] << "V: " << uvParam[1] << std::endl;
-            computeCartesianCoordinates(tmpP, uvParam);
-            std::cout << "Projected point on curve is: " << tmpP[0] << " " << tmpP[1] << " " << tmpP[2] << std::endl;
-
+            isProjectedOnCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(tmpUTilde,uvParam,noCoordParam);
+            if (isProjectedOnCurve) {
+                _projectedUTilde.push_back(tmpUTilde);
+                _projectedUV.push_back(uvParam[0]);
+                _projectedUV.push_back(uvParam[1]);
+                computeCartesianCoordinates(tmpP, uvParam);
+                _projectedXYZ.push_back(tmpP[0]);
+                _projectedXYZ.push_back(tmpP[1]);
+                _projectedXYZ.push_back(tmpP[2]);
+                isProjectedOnCurve = false;
+            }
+            isProjectedOnPatch = false;
         } else assert(false);
     }
 }
@@ -1852,8 +1853,8 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
     MathLibrary::computeVectorCrossProduct(&baseVec[0], &baseVec[3],_normal);
 }
 
-void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<double> _uTilde,
-                                                                std::vector<double> _uvSurface,
+void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde,
+                                                                std::vector<double>& _uvSurface,
                                                                 std::vector<double>& _xyzCoords,
                                                                 int _patchBLIndex, int _patchBLTrCurveIndex){
 
@@ -1880,7 +1881,6 @@ void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<doub
         if (knotCtr == 0) knot = patchUParamLine->getKnotVector()[knotCtr];
         else if (knot == patchUParamLine->getKnotVector()[knotCtr]) continue;
         else knot = patchUParamLine->getKnotVector()[knotCtr];
-
         trimmingCurve->computeIntersectionsWithKnotBisection(_uTilde, 1, knot);
     }
 
