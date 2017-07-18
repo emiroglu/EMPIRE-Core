@@ -28,11 +28,9 @@ using namespace std;
 namespace EMPIRE {
 
 WeakIGADirichletCondition::WeakIGADirichletCondition(int _ID,
-                                 int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
-                                 int _isGPProvided) :
+                                 int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex) :
         AbstractCondition(_ID),
-        patchIndex(_patchIndex), patchBLIndex(_patchBLIndex), patchBLTrCurveIndex(_patchBLTrCurveIndex),
-        isGPProvided(_isGPProvided)
+        patchIndex(_patchIndex), patchBLIndex(_patchBLIndex), patchBLTrCurveIndex(_patchBLTrCurveIndex)
         {
 
     type = EMPIRE_WeakIGADirichletCondition;

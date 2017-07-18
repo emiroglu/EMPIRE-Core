@@ -38,7 +38,7 @@ using namespace std;
 namespace EMPIRE {
 
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
-        AbstractMesh(_name), numNodes(_numNodes) {
+    AbstractMesh(_name), numNodes(_numNodes) {
     type = EMPIRE_Mesh_IGAMesh;
 
 }
@@ -53,8 +53,8 @@ IGAMesh::~IGAMesh() {
 }
 
 IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVector, int _qDegree,
-        int _vNoKnots, double* _vKnotVector, int _uNoControlPoints, int _vNoControlPoints,
-        double* _controlPointNet, int* _dofIndexNet) {
+                                   int _vNoKnots, double* _vKnotVector, int _uNoControlPoints, int _vNoControlPoints,
+                                   double* _controlPointNet, int* _dofIndexNet) {
 
     std::string patchName = name + " Patch";
     int IDBasis = 0;
@@ -73,8 +73,8 @@ IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVe
     }
 
     surfacePatches.push_back(
-            new IGAPatchSurface(IDBasis, _pDegree, _uNoKnots, _uKnotVector, _qDegree, _vNoKnots,
-                    _vKnotVector, _uNoControlPoints, _vNoControlPoints, cpNet));
+                new IGAPatchSurface(IDBasis, _pDegree, _uNoKnots, _uKnotVector, _qDegree, _vNoKnots,
+                                    _vKnotVector, _uNoControlPoints, _vNoControlPoints, cpNet));
     return surfacePatches.back();
 }
 
@@ -95,30 +95,30 @@ void IGAMesh::computeBoundingBox() {
     }
     for (int patchCount = 0; patchCount < surfacePatches.size(); patchCount++) {
         IGAPatchSurface* patch = surfacePatches[patchCount];
-		double xmin = patch->getBoundingBox(0);
-		double xmax = patch->getBoundingBox(1);
-		double ymin = patch->getBoundingBox(2);
-		double ymax = patch->getBoundingBox(3);
-		double zmin = patch->getBoundingBox(4);
-		double zmax = patch->getBoundingBox(5);
-		if (xmin < boundingBox[0])
-			boundingBox[0] = xmin;
-		else if ( xmax > boundingBox[1])
-			boundingBox[1] = xmax;
-		if (ymin < boundingBox[2])
-			boundingBox[2] = ymin;
-		else if (ymax > boundingBox[3])
-			boundingBox[3] = ymax;
-		if (zmin < boundingBox[4])
-			boundingBox[4] = zmin;
-		else if (zmax > boundingBox[5])
-			boundingBox[5] = zmax;
+        double xmin = patch->getBoundingBox(0);
+        double xmax = patch->getBoundingBox(1);
+        double ymin = patch->getBoundingBox(2);
+        double ymax = patch->getBoundingBox(3);
+        double zmin = patch->getBoundingBox(4);
+        double zmax = patch->getBoundingBox(5);
+        if (xmin < boundingBox[0])
+            boundingBox[0] = xmin;
+        else if ( xmax > boundingBox[1])
+            boundingBox[1] = xmax;
+        if (ymin < boundingBox[2])
+            boundingBox[2] = ymin;
+        else if (ymax > boundingBox[3])
+            boundingBox[3] = ymax;
+        if (zmin < boundingBox[4])
+            boundingBox[4] = zmin;
+        else if (zmax > boundingBox[5])
+            boundingBox[5] = zmax;
     }
     boundingBox.isComputed(true);
 }
 
 void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _location,
-        EMPIRE_DataField_dimension _dimension, EMPIRE_DataField_typeOfQuantity _typeOfQuantity) {
+                           EMPIRE_DataField_dimension _dimension, EMPIRE_DataField_typeOfQuantity _typeOfQuantity) {
     int numLocations = -1;
     if (_location == EMPIRE_DataField_atNode)
         numLocations = numNodes;
@@ -127,18 +127,16 @@ void IGAMesh::addDataField(string _dataFieldName, EMPIRE_DataField_location _loc
 
     assert(nameToDataFieldMap.find(_dataFieldName) == nameToDataFieldMap.end());
     DataField *dataField = new DataField(_dataFieldName, _location, numLocations, _dimension,
-            _typeOfQuantity);
+                                         _typeOfQuantity);
     nameToDataFieldMap.insert(pair<string, DataField*>(_dataFieldName, dataField));
 
 }
 
 WeakIGADirichletCondition* IGAMesh::addWeakDirichletCondition(int _connectionID,
-                                                             int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
-                                                             bool _isGPProvided){
+                                                              int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex){
 
     weakIGADirichletConditions.push_back(new WeakIGADirichletCondition(_connectionID,
-                                                                _patchIndex, _patchBLIndex, _patchBLTrCurveIndex,
-                                                                _isGPProvided));
+                                                                       _patchIndex, _patchBLIndex, _patchBLTrCurveIndex));
     return weakIGADirichletConditions.back();
 
 }
@@ -150,14 +148,12 @@ void IGAMesh::createWeakDirichletConditionGPData(){
 }
 
 WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
-                                                             int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
-                                                             int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
-                                                             bool _isGPProvided){
+                                                                     int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                                                                     int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex){
 
     weakIGAPatchContinuityConditions.push_back(new WeakIGAPatchContinuityCondition(_connectionID,
-                                                                _masterPatchIndex, _masterPatchBLIndex, _masterPatchBLTrCurveIndex,
-                                                                _slavePatchIndex, _slavePatchBLIndex, _slavePatchBLTrCurveIndex,
-                                                                _isGPProvided));
+                                                                                   _masterPatchIndex, _masterPatchBLIndex, _masterPatchBLTrCurveIndex,
+                                                                                   _slavePatchIndex, _slavePatchBLIndex, _slavePatchBLTrCurveIndex));
     return weakIGAPatchContinuityConditions.back();
 
 }
@@ -165,6 +161,7 @@ WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connec
 void IGAMesh::createWeakContinuityConditionGPData(int _connectionIndex){
 
     /*
+     * This function calls the corresponding function of the weak continuity condition
      */
 
     int masterPatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchIndex();
@@ -176,9 +173,6 @@ void IGAMesh::createWeakContinuityConditionGPData(int _connectionIndex){
 
     // Create GP Data for the patch pair
     weakIGAPatchContinuityConditions[_connectionIndex]->createGPData(masterPatch, slavePatch);
-
-    ERROR_OUT("Weak continuity condition GP data cannot be created!!");
-    ERROR_OUT("GP data must be provided!!");
 
 }
 

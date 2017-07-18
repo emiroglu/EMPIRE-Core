@@ -42,9 +42,6 @@ protected:
     /// ID of the condition
     int ID;
 
-    /// If the GP for coupling are provided
-    bool isGPProvided;
-
     /// If the GP data for coupling is initialized
     bool isGPDataInitialized = false;
 
@@ -97,13 +94,11 @@ public:
      * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
      * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
      * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \param[in] _isGPprovided Flag if the GP data is provided
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     WeakIGAPatchContinuityCondition(int _ID, 
                     int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
-                    int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex,
-                    int _isGPProvided);
+                    int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex);
     
     /***********************************************************************************************
      * \brief Set the GP data for the coupling condition

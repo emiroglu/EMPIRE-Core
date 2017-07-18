@@ -35,6 +35,13 @@
 namespace EMPIRE {
 namespace MathLibrary {
 
+/***********************************************************************************************
+ * \brief Receive the section mesh from a real client
+ * \param[in] _num The double to be rounded up to the next integer
+ * \return The rounded up value to the next integer
+ * \author Altug Emiroglu, Andreas Apostolatos
+ ***********/
+int ceil(double _num);
 
 } /* namespace Math */
 } /* namespace EMPIRE */

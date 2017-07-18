@@ -174,7 +174,7 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
 				polylines.push_back(parametricCoordinates[0]);
 				polylines.push_back(parametricCoordinates[1]);
                 IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knot);
-			}
+            }
 		} else {
 			for(int i=nCP*p-1;i>=0;i--) {
 				double knot = u0 + i*du;
@@ -267,12 +267,12 @@ void IGAPatchSurfaceTrimmingLoop::linearizeCombined() {
              }
         }
 
-        double parametricCoordinates[2] = {0};
+        double parametricCoordinates[2] = {0.0, 0.0};
         for (int knotCtr=0; knotCtr<uTildeCurve.size(); knotCtr++){
-            getIGACurve(j).computeCartesianCoordinates(parametricCoordinates,uTildeCurve[knotCtr]);
+            getIGACurve(j).computeCartesianCoordinates(parametricCoordinates, uTildeCurve[knotCtr]);
             polylines.push_back(parametricCoordinates[0]);
             polylines.push_back(parametricCoordinates[1]);
-            IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],uTildeCurve[knotCtr]);
+            IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0], parametricCoordinates[1], uTildeCurve[knotCtr]);
         }
     }
     ClipperAdapter::cleanPolygon(polylines);

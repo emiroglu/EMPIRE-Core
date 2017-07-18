@@ -287,7 +287,6 @@ public:
     IGAGaussQuadratureOnTriangle(int _numGaussPoints);
     virtual ~IGAGaussQuadratureOnTriangle() {
     }
-    ;
 
     /***********************************************************************************************
      * \brief Returns the coordinates of the Gauss point
@@ -315,7 +314,6 @@ public:
 
     virtual ~IGAGaussQuadratureOnQuad() {
     }
-    ;
 
     /***********************************************************************************************
      * \brief Returns the coordinates of the Gauss point
@@ -342,7 +340,6 @@ public:
 
     virtual ~IGAGaussQuadratureOnBiunitInterval() {
     }
-    ;
 
     /***********************************************************************************************
      * \brief Returns the coordinates of the Gauss point

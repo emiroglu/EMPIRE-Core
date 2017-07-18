@@ -25,6 +25,13 @@ namespace EMPIRE {
 namespace MathLibrary {
 
 // only very very important stuff goes here
+int ceil(double _num) {
+    int inum = (int)_num;
+    if (_num == (double)inum) {
+        return inum;
+    }
+    return inum + 1;
+}
 
 } /* namespace Math */
 } /* namespace EMPIRE */

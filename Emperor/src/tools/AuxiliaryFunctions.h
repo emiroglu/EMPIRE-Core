@@ -40,13 +40,13 @@ public:
      * \return true is the to strings match
      * \author Stefan Sicklinger
      ***********/
-static bool CompareStringInsensitive(std::string strFirst, std::string strSecond);
+    static bool CompareStringInsensitive(std::string strFirst, std::string strSecond);
     /***********************************************************************************************
      * \brief Prints number of threads currently used
      * \param[in] level the nested parallel level
      * \author Stefan Sicklinger
      ***********/
-static void report_num_threads(int level);
+    static void report_num_threads(int level);
 
 };
 

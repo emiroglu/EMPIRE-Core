@@ -127,13 +127,11 @@ public:
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
      * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \param[in] _isGPprovided Flag if the GP data is provided
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
      WeakIGADirichletCondition* addWeakDirichletCondition(int _connectionID,
-                          int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
-                          bool _isGPProvided);
+                          int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
      /***********************************************************************************************
       * brief Create the GP data for the weak dirichlet condition if not provided
@@ -150,14 +148,12 @@ public:
      * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
      * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
      * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \param[in] _isGPprovided Flag if the GP data is provided
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
      WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int _connectionID,
                           int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
-                          int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex,
-                          bool _isGPProvided);
+                          int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex);
 
      /***********************************************************************************************
       * brief Create the GP data for a weak continuity condition with the given index if not provided

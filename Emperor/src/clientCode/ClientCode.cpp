@@ -298,8 +298,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         if (isGPProvided != 1 && isGPProvided != 0) assert(false);
 
         WeakIGADirichletCondition* theWeakDirichletCond = theIGAMesh->addWeakDirichletCondition(wDBCCtr,
-                                                            patchIndex, patchBLIndex, patchBLTrCurveIndex,
-                                                            isGPProvided);
+                                                            patchIndex, patchBLIndex, patchBLTrCurveIndex);
 
         if(isGPProvided){
             int trCurveNumGP;
@@ -353,8 +352,8 @@ void ClientCode::recvIGAMesh(std::string meshName) {
 
         WeakIGAPatchContinuityCondition* theWeakContCond = theIGAMesh->addWeakContinuityCondition(connectionCtr,
                                                             masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
-                                                            slavePatchIndex,  slavePatchBLIndex,  slavePatchBLTrCurveIndex,
-                                                            isGPProvided);
+                                                            slavePatchIndex,  slavePatchBLIndex,  slavePatchBLTrCurveIndex);
+
         if(isGPProvided){
             int trCurveNumGP;
             serverComm->receiveFromClientBlocking<int>(name, 1, &trCurveNumGP);

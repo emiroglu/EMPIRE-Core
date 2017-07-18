@@ -228,6 +228,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if(isIGAPatchContinuityConditions && !isMappingIGA2FEM)
         computePenaltyFactorsForPatchContinuityConditions();
 
+//    for (int i=0; i<10; i++) {
+//        cout << i << endl;
+//        meshIGA->createWeakContinuityConditionGPData(i);
+//    }
+
     if (isIGAPatchContinuityConditions) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
         if(!IgaPatchCoupling.isAutomaticPenaltyFactors){

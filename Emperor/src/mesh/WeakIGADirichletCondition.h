@@ -40,9 +40,6 @@ protected:
     /// ID of the condition
     int ID;
 
-    /// If the GP for coupling are provided
-    bool isGPProvided;
-
     /// Number of GPs on the coupled trimming curve
     int trCurveNumGP;
 
@@ -74,12 +71,10 @@ public:
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
      * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \param[in] _isGPprovided Flag if the GP data is provided
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     WeakIGADirichletCondition(int _ID,
-                    int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex,
-                    int _isGPProvided);
+                    int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
      * \brief Set the GP data for the coupling condition

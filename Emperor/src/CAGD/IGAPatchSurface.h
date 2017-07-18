@@ -263,7 +263,7 @@ public:
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Andreas Apostolatos
      ***********/
-    bool computePointProjectionOnPatch(double&, double&, double*, bool&, const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
+    bool computePointProjectionOnPatch(double&, double&, double*, bool&, const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY, const double _distTol=TOL_DISTANCE);
 
     /***********************************************************************************************
      * \brief Computes the orthogonal projection of point of the 3D Euclidean space onto the NURBS pacth (overloaded)
@@ -275,7 +275,19 @@ public:
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Andreas Apostolatos
      ***********/
-    bool computePointProjectionOnPatch(double&, double&, double*, const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
+    bool computePointProjectionOnPatch(double&, double&, double*, const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY, const double _distTol=TOL_DISTANCE);
+
+    /***********************************************************************************************
+     * \brief Computes the forced orthogonal projection of point of the 3D Euclidean space onto the NURBS pacth
+     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
+     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
+     * \param[in/out] _P Given the Cartesian components of the point to be projected on the NURBS patch it is returned the Cartesian components of its orthogonal projection
+     * \param[in]	  _relMaxIt The relaxed number of iteration to do in the scheme
+     * \param[in]	  _relTol The relaxed tolerance for which the scheme stops
+     * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \author Altug Emiroglu
+     ***********/
+    bool computeForcedPointProjectionOnPatch(double& _u, double& _v, double* _P, const int _relMaxIt=REL_MAX_NUM_ITERATIONS, const double _relTol=REL_TOL_ORTHOGONALITY, const double _distTol=REL_TOL_DISTANCE);
 
     /***********************************************************************************************
      * \brief Computes the orthogonal projection of point of the 3D Euclidean space onto the trimming curve
@@ -289,7 +301,7 @@ public:
      * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
     bool computePointProjectionOnTrimmingCurve(std::vector<double>& _projectedUTilde, std::vector<double>& _projectedUV, std::vector<double>& _projectedXYZ,
-                                               std::vector<double>& _coordsXYZ, int _patchBLIndex, int _patchBLTrCurveIndex);
+                                               std::vector<double> _coordsXYZ, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
      * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary
@@ -380,7 +392,7 @@ public:
      * \param[in] _patchBLTrCurveIndex The index of the trimming curve in the boundary loop
      * \author Altug Emiroglu
      ***********/
-    void findInitialGuess4PointProjectionOnTrimmingCurve(double& _u, double& _v, double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
+    bool findInitialGuess4PointProjectionOnTrimmingCurve(double& _uTilde, double& _u, double& _v, double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection
@@ -532,8 +544,16 @@ public:
 
     /// The maximum number of Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
     static int MAX_NUM_ITERATIONS;
-    /// The tolerance for the Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
+    /// The maximum relaxed number of Newton-Raphson iterations for the computation of the forced orthogonal projection of point on the NURBS patch
+    static int REL_MAX_NUM_ITERATIONS;
+    /// The orthogonality tolerance for the Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
     static double TOL_ORTHOGONALITY;
+    /// The maximum relaxed orthogonality tolerance for the Newton-Raphson iterations for the computation of the forced orthogonal projection of point on the NURBS patch
+    static double REL_TOL_ORTHOGONALITY;
+    /// The distance tolerance for the Newton-Raphson iterations for the computation of the orthogonal projection of point on the NURBS patch
+    static double TOL_DISTANCE;
+    /// The maximum relaxed distance tolerance for the Newton-Raphson iterations for the computation of the forced orthogonal projection of point on the NURBS patch
+    static double REL_TOL_DISTANCE;
 
     static const char EDGE_U0;
     static const char EDGE_UN;

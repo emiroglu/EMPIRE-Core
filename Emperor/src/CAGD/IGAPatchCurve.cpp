@@ -105,6 +105,38 @@ void IGAPatchCurve::computeCartesianCoordinates(double* _cartesianCoordinates, i
     }
 }
 
+void IGAPatchCurve::computeCartesianCoordinates(double* _cartesianCoordinates, double* _locBasisFunctions, int _knotSpanIndex) {
+    /*
+     * Returns the Cartesian coordinates of the parametric location where the basis functions are computed.
+     */
+
+    // Initialize auxiliary variables
+    int indexCP;
+
+    // Number of Cartesian coordinates
+    int noCoordParam = 2;
+
+    // Initialize output array
+    for(int i = 0; i < noCoordParam; i++)
+        _cartesianCoordinates[i] = 0.0;
+
+    // Get the polynomial order of the basis
+    int p = this->getIGABasis()->getPolynomialDegree();
+
+    // Get the number of the basis functions at the parametric location
+    int noLocBasisFunctions = p + 1;
+
+    // Loop over all the local basis functions
+    for (int iBF = 0; iBF < noLocBasisFunctions; iBF++) {
+        // Get the index of the Control Point associated with the given basis function
+        indexCP = _knotSpanIndex - p + iBF;
+
+        // Compute the Cartesian coordinates of the point iteratively
+        _cartesianCoordinates[0] += _locBasisFunctions[iBF]*ControlPointNet[indexCP].getX();
+        _cartesianCoordinates[1] += _locBasisFunctions[iBF]*ControlPointNet[indexCP].getY();
+    }
+}
+
 void IGAPatchCurve::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm,
         int _uKnotSpanIndex) const {
     // Read input

@@ -74,12 +74,20 @@ public:
     /// Basis related functions
 public:
     /***********************************************************************************************
-     * \brief Returns the Cartesian Coordinates of a point on a B-Spline surface given the basis functions and the knot span index at the parametric location
+     * \brief Returns the Cartesian Coordinates in 3D of a point on a B-Spline surface given the basis functions and the knot span index at the parametric location
      * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the Patch whose basis functions are _locBasisFunctions
      * \param[in] _knotSpanIndex The knot span index of the knot span where the point lies
      * \param[in] _locBasisFunctions The non-zero basis functions at the parametric location where the point is
      ***********/
     void computeCartesianCoordinates(double* _cartesianCoordinates, int _knotSpanIndex, double* _locBasisFunctions);
+
+    /***********************************************************************************************
+     * \brief Returns the Cartesian Coordinates in 2D of a point on a B-Spline surface given the basis functions and the knot span index at the parametric location
+     * \param[in/out] _cartesianCoordinates The Cartesian coordinates of the point on the Patch whose basis functions are _locBasisFunctions
+     * \param[in] _knotSpanIndex The knot span index of the knot span where the point lies
+     * \param[in] _locBasisFunctions The non-zero basis functions at the parametric location where the point is
+     ***********/
+    void computeCartesianCoordinates(double* _cartesianCoordinates, double* _locBasisFunctions, int _knotSpanIndex);
 
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of a point on a NURBS surface whose surface parameters are known
@@ -199,11 +207,19 @@ public:
     }
 
     /***********************************************************************************************
-     * \brief Get the linearization of the trimming curve
+     * \brief Get the patch parameters of the linearization of the trimming curve
      * \author Altug Emiroglu
      ***********/
-    inline std::vector<double> getPolyline() const {
-        return polyline;
+    inline const std::vector<double>* getPolyline() const {
+        return &polyline;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the curve parameters of the linearization of the trimming curve
+     * \author Altug Emiroglu
+     ***********/
+    inline const std::vector<double>* getPolylineKnots() const {
+        return &polylineKnots;
     }
 
     /// set functions
