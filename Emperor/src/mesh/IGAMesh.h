@@ -38,7 +38,7 @@ class DataField;
 class Message;
 class IGAPatchSurface;
 class IGAControlPoint;
-class WeakIGADirichletCondition;
+class WeakIGADirichletBoundaryCondition;
 class WeakIGAPatchContinuityCondition;
 
 /********//**
@@ -59,7 +59,7 @@ protected:
     int clampedDirections;
 
     /// Vector of all weak Dirichlet conditions
-    std::vector<WeakIGADirichletCondition*> weakIGADirichletConditions;
+    std::vector<WeakIGADirichletBoundaryCondition*> weakIGADirichletBoundaryConditions;
 
     /// Vector of all weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
@@ -130,14 +130,15 @@ public:
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-     WeakIGADirichletCondition* addWeakDirichletCondition(int _connectionID,
+     WeakIGADirichletBoundaryCondition* addWeakDirichletBoundaryCondition(int _connectionID,
                           int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
      /***********************************************************************************************
-      * brief Create the GP data for the weak dirichlet condition if not provided
+      * brief Create the GP data for the weak Dirichlet boundary condition if not provided
+      * \param[in] _conditionIndex Weak condition index
       * \author Andreas Apostolatos, Altug Emiroglu
       ***********/
-     void createWeakDirichletConditionGPData();
+     void createWeakDirichletBoundaryConditionGPData(int _conditionIndex);
 
     /***********************************************************************************************
      * brief Add a new weak condition to the IGA mesh
@@ -212,12 +213,12 @@ public:
     }
 
     /***********************************************************************************************
-     * \brief Returns the array of all weak IGA Dirichlet conditions
-     * \param[out] The array of all weak IGA Dirichlet conditions
+     * \brief Returns the array of all weak IGA Dirichlet boundary conditions
+     * \param[out] The array of all weak IGA Dirichlet boundary conditions
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    std::vector<WeakIGADirichletCondition*> getWeakIGADirichletConditions() const{
-        return weakIGADirichletConditions;
+    std::vector<WeakIGADirichletBoundaryCondition*> getWeakIGADirichletBoundaryConditions() const{
+        return weakIGADirichletBoundaryConditions;
     }
 
     /***********************************************************************************************

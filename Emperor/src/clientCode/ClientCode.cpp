@@ -29,7 +29,7 @@
 #include "IGAMesh.h"	 	
 #include "IGAPatchSurface.h"
 #include "WeakIGAPatchContinuityCondition.h"
-#include "WeakIGADirichletCondition.h"
+#include "WeakIGADirichletBoundaryCondition.h"
 #include "Signal.h"
 #include "Message.h"
 #include <stdlib.h>

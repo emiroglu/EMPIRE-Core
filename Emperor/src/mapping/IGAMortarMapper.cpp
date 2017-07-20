@@ -23,7 +23,7 @@
 #include "IGAMortarMapper.h"
 #include "IGAPatchSurface.h"
 #include "WeakIGAPatchContinuityCondition.h"
-#include "WeakIGADirichletCondition.h"
+#include "WeakIGADirichletBoundaryCondition.h"
 #include "IGAMesh.h"
 #include "FEMesh.h"
 #include "ClipperAdapter.h"
@@ -1397,7 +1397,7 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
 void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
 
     // Get the weak patch continuity conditions
-    std::vector<WeakIGADirichletCondition*> weakIGADirichletConditions = meshIGA->getWeakIGADirichletConditions();
+    std::vector<WeakIGADirichletBoundaryCondition*> weakIGADirichletBoundaryConditions = meshIGA->getWeakIGADirichletBoundaryConditions();
 
     // Initialize constant array sizes
     const int noCoord = 3;
@@ -1429,28 +1429,28 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
     IGAPatchSurface* thePatch;
 
     // Loop over all the conditions for the application of weak continuity across patch interfaces
-    for (int iDC = 0; iDC < weakIGADirichletConditions.size(); iDC++){
+    for (int iDBC = 0; iDBC < weakIGADirichletBoundaryConditions.size(); iDBC++){
         // Get the penalty factors for the primary and the secondary field
         alphaPrimary = 1e-4;
         alphaSecondary = 0.0;
 
         // Get the index of the patch
-        index = weakIGADirichletConditions[iDC]->getPatchIndex();
+        index = weakIGADirichletBoundaryConditions[iDBC]->getPatchIndex();
 
         // Get the number of Gauss Points for the given condition
-        noGPsOnDirichletCond = weakIGADirichletConditions[iDC]->getTrCurveNumGP();
+        noGPsOnDirichletCond = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveNumGP();
 
         // Get the parametric coordinates of the Gauss Points
-        trCurveGPs = weakIGADirichletConditions[iDC]->getTrCurveGPs();
+        trCurveGPs = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPs();
 
         // Get the corresponding Gauss weights
-        trCurveGPWeights = weakIGADirichletConditions[iDC]->getTrCurveGPWeights();
+        trCurveGPWeights = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPWeights();
 
         // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
-        trCurveGPTangents = weakIGADirichletConditions[iDC]->getTrCurveGPTangents();
+        trCurveGPTangents = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPTangents();
 
         // Get the product of the Jacobian transformations
-        trCurveGPJacobianProducts = weakIGADirichletConditions[iDC]->getTrCurveGPJacobianProducts();
+        trCurveGPJacobianProducts = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPJacobianProducts();
 
         // Get the patch
         thePatch = meshIGA->getSurfacePatch(index);

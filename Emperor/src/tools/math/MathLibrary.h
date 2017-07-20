@@ -36,12 +36,38 @@ namespace EMPIRE {
 namespace MathLibrary {
 
 /***********************************************************************************************
- * \brief Receive the section mesh from a real client
+ * \brief Round up a double to the nearest integer
  * \param[in] _num The double to be rounded up to the next integer
  * \return The rounded up value to the next integer
  * \author Altug Emiroglu, Andreas Apostolatos
  ***********/
 int ceil(double _num);
+
+/***********************************************************************************************
+ * \brief Sort a given vector in ascending order and remove the duplicates. Input argument is modified.
+ * \param[in/out] _vec Vector to be operated on
+ * \author Altug Emiroglu
+ ***********/
+void sortRemoveDuplicates(std::vector<double>& _vec);
+
+/***********************************************************************************************
+ * \brief Sort given vectors in ascending order, remove the duplicates and merge them.
+ * \param[in/out] _vec0 Vector to return
+ * \param[in] _vec1 First vector
+ * \param[in] _vec2 Second vector
+ 
+ * \author Altug Emiroglu
+ ***********/
+void mergeSortRemoveDuplicates(std::vector<double>& _vec0, std::vector<double> _vec1, std::vector<double> _vec2);
+
+/***********************************************************************************************
+ * \brief Sort given vector in ascending order and remove the similar with a tolerance
+ * \param[in] _vec Vector to operate on
+ * \param[in] _tol Tolerance for similarity check
+
+ * \author Altug Emiroglu
+ ***********/
+void sortRemoveSimilar(std::vector<double>& _vec, double _tol = 1e-5);
 
 } /* namespace Math */
 } /* namespace EMPIRE */

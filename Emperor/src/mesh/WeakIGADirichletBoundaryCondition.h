@@ -18,8 +18,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
-#ifndef WEAKIGADIRICHLETCONDITION_H_
-#define WEAKIGADIRICHLETCONDITION_H_
+#ifndef WEAKIGADIRICHLETBOUNDARYCONDITION_H_
+#define WEAKIGADIRICHLETBOUNDARYCONDITION_H_
 
 #include <string>
 #include <map>
@@ -30,15 +30,17 @@
 namespace EMPIRE {
 
 class Message;
+class IGAPatchSurface;
+
 /********//**
- * \brief Class WeakIGADirichletCondition is the class that holds and applies the weak continuity conditions for IGA
+ * \brief Class WeakIGADirichletBoundaryCondition is the class that holds and applies the weak boundary conditions for IGA
  ***********/
-class WeakIGADirichletCondition: public AbstractCondition {
+class WeakIGADirichletBoundaryCondition: public AbstractCondition {
 
 protected:
 
-    /// ID of the condition
-    int ID;
+    /// If the GP data for the Dirichlet condition is initialized
+    bool isGPDataInitialized;
 
     /// Number of GPs on the coupled trimming curve
     int trCurveNumGP;
@@ -73,8 +75,8 @@ public:
      * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    WeakIGADirichletCondition(int _ID,
-                    int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
+    WeakIGADirichletBoundaryCondition(int _ID,
+                              int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
      * \brief Set the GP data for the coupling condition
@@ -85,15 +87,22 @@ public:
      * \param[in] _trCurveGPJacobianProducts The Jacobian products for the transformation of the integrals
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void addWeakDirichletConditionGPData(int _trCurveNumGP,
-               double* _trCurveGPs, double* _trCurveGPWeights, double* _trCurveGPTangents,
-               double* _trCurveGPJacobianProducts);
+    void addWeakDirichletBoundaryConditionGPData(int _trCurveNumGP,
+                                         double* _trCurveGPs, double* _trCurveGPWeights, double* _trCurveGPTangents,
+                                         double* _trCurveGPJacobianProducts);
+
+    /***********************************************************************************************
+     * \brief Set the GP data for the coupling condition
+     * \param[in] _patch The patch on which the trimming curve exists
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void createGPData(IGAPatchSurface* _patch);
 
     /***********************************************************************************************
      * \brief Destructor
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    ~WeakIGADirichletCondition();
+    ~WeakIGADirichletBoundaryCondition();
 
     /***********************************************************************************************
      * \brief get patchIndex
@@ -147,4 +156,4 @@ public:
 
 } /* namespace EMPIRE */
 
-#endif /* WEAKIGADIRICHLETCONDITION_H_ */
+#endif /* WEAKIGADIRICHLETBOUNDARYCONDITION_H_ */

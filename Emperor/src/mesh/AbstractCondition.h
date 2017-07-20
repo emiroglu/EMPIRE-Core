@@ -33,6 +33,12 @@ class Message;
  * \brief Class AbstractCondition is the superclass of all other conditions
  ***********/
 class AbstractCondition {
+
+protected:
+
+    /// ID of the condition
+    int ID;
+
 public:
     /***********************************************************************************************
      * \brief Constructor, allocating the storage of the mesh
@@ -45,9 +51,6 @@ public:
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     virtual ~AbstractCondition(){};
-
-    /// ID of the condition
-    int ID;
 
     /// type of the condition
     EMPIRE_Condition_type type;

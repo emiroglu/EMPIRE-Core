@@ -375,6 +375,26 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
     }
 }
 
+void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm, int _patchBLIndex, int _patchBLTrCurveIndex) const {
+
+    /*
+     * This function gets the curve parameter on a trimming curve and
+     * computes the physical coordinates of the point that lies on the designated
+     * trimming curve
+     */
+
+    const int noCoordParam = 2;
+
+    double uv[noCoordParam];
+
+    // Compute the patch parameters (u, v)
+    Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeCartesianCoordinates(uv, _uPrm);
+
+    // Compute the physical coordinates (x, y, z)
+    computeCartesianCoordinates(_cartesianCoordinates, uv);
+
+}
+
 void IGAPatchSurface::computeBaseVectors(double* _baseVectors,
         double* _localBasisFunctionsAndDerivatives, int _uKnotSpanIndex, int _vKnotSpanIndex) const {
     /*
@@ -1275,8 +1295,8 @@ bool IGAPatchSurface::computeForcedPointProjectionOnPatch(double& _u, double& _v
     return isProjected;
 }
 
-bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>& _projectedUTilde, std::vector<double>& _projectedUV, std::vector<double>& _projectedXYZ,
-                                           std::vector<double> _coordsXYZ, int _patchBLIndex, int _patchBLTrCurveIndex){
+bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUTilde,
+                                                            double* _P, int _patchBLIndex, int _patchBLTrCurveIndex){
 
     /*
      * This function receives a cartesian point for projection onto the trimming curve on this patch
@@ -1293,55 +1313,28 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(std::vector<double>&
     // Initialize variables and flags
     double uTilde = 0.0;
 
-    int xyzCtr = 0;
     bool isProjectedOnPatch = false;
     bool isProjectedOnCurve = false;
-    bool isProjectedAll = true;
 
-    // For each point
-    for (int pCtr = 0; pCtr < _coordsXYZ.size()/noCoord; pCtr++){
+    double uvParam[noCoordParam];
+    double P[noCoord];
 
-        // Reset the variables
-        isProjectedOnPatch = false;
+    // Find the initial guess for projection onto the patch for the first point
+    findInitialGuess4PointProjectionOnTrimmingCurve(_projectedUTilde, uvParam[0], uvParam[1], _P, _patchBLIndex, _patchBLTrCurveIndex);
+
+    // Force projection and return the patch parameters of the projection
+    isProjectedOnPatch = computeForcedPointProjectionOnPatch(uvParam[0], uvParam[1], _P);
+
+    if (isProjectedOnPatch) {
+        isProjectedOnCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(_projectedUTilde, uvParam, noCoordParam);
+        if (!isProjectedOnCurve)
+            WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point was not projected on curve and skipped!");
+    } else {
+        WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point was not projected on patch and skipped!");
         isProjectedOnCurve = false;
-        double uvParam[noCoordParam];
-        double P[noCoord];
-        double projectedP[noCoord];
-        double tmpP[3];
-
-        // Copy the point coordinates from the vector
-        for (xyzCtr = 0; xyzCtr<noCoord; xyzCtr++)
-            P[xyzCtr]=_coordsXYZ[pCtr*noCoord+xyzCtr];
-
-        // Find the initial guess for projection onto the patch for the first point
-        findInitialGuess4PointProjectionOnTrimmingCurve(uTilde, uvParam[0], uvParam[1], P, _patchBLIndex, _patchBLTrCurveIndex);
-        computeCartesianCoordinates(tmpP, uvParam);
-
-        // Force projection and return the patch parameters of the projection
-        isProjectedOnPatch = computeForcedPointProjectionOnPatch(uvParam[0], uvParam[1], P);
-        computeCartesianCoordinates(tmpP, uvParam);
-
-        if (isProjectedOnPatch){
-            isProjectedOnCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(uTilde, uvParam, noCoordParam);
-            if (isProjectedOnCurve) {
-                _projectedUTilde.push_back(uTilde);
-                _projectedUV.push_back(uvParam[0]);
-                _projectedUV.push_back(uvParam[1]);
-                computeCartesianCoordinates(projectedP, uvParam);
-                _projectedXYZ.push_back(projectedP[0]);
-                _projectedXYZ.push_back(projectedP[1]);
-                _projectedXYZ.push_back(projectedP[2]);
-            } else {
-                WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point is not projected on curve and skipped!");
-                isProjectedAll = false;
-            }
-        } else {
-            WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point is not projected on patch and skipped!");
-            isProjectedAll = false;
-        }
     }
 
-    return isProjectedAll;
+    return isProjectedOnCurve;
 }
 
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
@@ -1947,8 +1940,6 @@ void IGAPatchSurface::computeCartesianCoordinatesAndNormalVector(double* _coords
 }
 
 void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde,
-                                                                std::vector<double>& _uvSurface,
-                                                                std::vector<double>& _xyzCoords,
                                                                 int _patchBLIndex, int _patchBLTrCurveIndex){
 
     /*
@@ -1957,8 +1948,12 @@ void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<doub
      * 3. Given the curve parameters, compute UV parameters on the patch and the global Cartesian coordinates
      */
 
-    int noCoordParam = 2;
-    int noCoord = 3;
+    // Define an equality tolerance which is actually the tolerance of the bisection algorithm that is used here
+    double tol = 1e-6;
+
+    // Initialize parameter line direction
+    int dirU = 0;
+    int dirV = 1;
 
     // Compute knot intersections
     double knot;
@@ -1968,7 +1963,7 @@ void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<doub
         else if (knot == IGABasis->getUBSplineBasis1D()->getKnotVector()[knotCtr]) continue;
         else knot = IGABasis->getUBSplineBasis1D()->getKnotVector()[knotCtr];
 
-        Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeIntersectionsWithKnotBisection(_uTilde, 1, knot);
+        Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeIntersectionsWithKnotBisection(_uTilde, dirV, knot);
     }
 
     // Compute V knot intersections in U direction
@@ -1977,20 +1972,31 @@ void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<doub
         else if (knot == IGABasis->getVBSplineBasis1D()->getKnotVector()[knotCtr]) continue;
         else knot = IGABasis->getVBSplineBasis1D()->getKnotVector()[knotCtr];
 
-        Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeIntersectionsWithKnotBisection(_uTilde, 0, knot);
+        Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeIntersectionsWithKnotBisection(_uTilde, dirU, knot);
     }
 
-    // Compute point coordinates in the patch parameter space and in the global cartesian space
-    double uvParam[noCoordParam];
-    double xyzCoord[noCoord];
-    for (int interCtr = 0; interCtr < _uTilde.size(); interCtr++) {
-        Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computeCartesianCoordinates(uvParam, _uTilde[interCtr]);
-        _uvSurface.push_back(uvParam[0]);
-        _uvSurface.push_back(uvParam[1]);
-        computeCartesianCoordinates(xyzCoord, uvParam);
-        _xyzCoords.push_back(xyzCoord[0]);
-        _xyzCoords.push_back(xyzCoord[1]);
-        _xyzCoords.push_back(xyzCoord[2]);
+    // Check if intersections exist and the first/last knot is included
+    if (!_uTilde.empty()) {
+        EMPIRE::MathLibrary::sortRemoveDuplicates(_uTilde);
+        // Check for the first knot
+        if (fabs (*_uTilde.begin() - Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getFirstKnot())  > tol) {
+            _uTilde.insert(_uTilde.begin(), Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getFirstKnot());
+            DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": Intersections exist but the first knot is not found!");
+            DEBUG_OUT("Adding the first knot.");
+        }
+        // Check for the last knot
+        if (fabs (*(_uTilde.end()-1) - Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getLastKnot()) > tol) {
+            _uTilde.push_back(Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getLastKnot());
+            DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": Intersections exist but the last knot is not found!");
+            DEBUG_OUT("Adding the last knot.");
+        }
+    }
+    // Check if the trimming curve is not intersected by any knot then add the first and the last knots
+    else if (_uTilde.empty()) {
+        DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": No intersections found!");
+        DEBUG_OUT("Adding the first and the last knot.");
+        _uTilde.push_back(Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getFirstKnot());
+        _uTilde.push_back(Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getLastKnot());
     }
 }
 

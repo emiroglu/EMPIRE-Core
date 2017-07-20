@@ -39,11 +39,8 @@ class WeakIGAPatchContinuityCondition: public AbstractCondition {
 
 protected:
 
-    /// ID of the condition
-    int ID;
-
-    /// If the GP data for coupling is initialized
-    bool isGPDataInitialized = false;
+    /// If the GP data for the coupling condition is initialized
+    bool isGPDataInitialized;
 
     /// Number of GPs on the coupled trimming curve
     int trCurveNumGP;
@@ -112,9 +109,9 @@ public:
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     void addWeakContinuityConditionGPData(int _trCurveNumGP,
-			   double* _trCurveMasterGPs, double* _trCurveSlaveGPs, double* _trCurveGPWeights,
-			   double* _trCurveMasterGPTangents, double* _trCurveSlaveGPTangents,
-			   double* _trCurveGPJacobianProducts);
+                                          double* _trCurveMasterGPs, double* _trCurveSlaveGPs, double* _trCurveGPWeights,
+                                          double* _trCurveMasterGPTangents, double* _trCurveSlaveGPTangents,
+                                          double* _trCurveGPJacobianProducts);
     
     /***********************************************************************************************
      * \brief Set the GP data for the coupling condition

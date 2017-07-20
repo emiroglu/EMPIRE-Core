@@ -84,7 +84,7 @@ enum EMPIRE_Mesh_type {
 };
 
 enum EMPIRE_Condition_type{
-    EMPIRE_WeakIGADirichletCondition,
+    EMPIRE_WeakIGADirichletBoundaryCondition,
     EMPIRE_WeakIGAPatchContinuityCondition
 };
 

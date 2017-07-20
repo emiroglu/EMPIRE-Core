@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <math.h>
 #include <algorithm>
+#include <string>
 
 // Inclusion of user defined libraries
 #include "IGAPatchSurface.h"
@@ -87,106 +88,55 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
     if (isGPDataInitialized) assert(false);
 
+    // Initialize the coordinates
     const int noCoordParam = 2;
     const int noCoord = 3;
 
-    // Initialize parameter and coordinate sets to store the intersections and transfer them
-    std::vector<double> masterUTilde;
-    std::vector<double> masterUV;
-    std::vector<double> masterXYZ;
-    std::vector<double> slaveUTilde;
-    std::vector<double> slaveUV;
-    std::vector<double> slaveXYZ;
-    std::vector<double> masterUTildeFromSlave;
-    std::vector<double> masterUVFromSlave;
-    std::vector<double> masterXYZFromSlave;
+    // Initialize auxiliary variables
+    bool isProjectedOnSlave = false;
 
-    // Compute the knot intersections of the master trimming curve and their respective parameters/coordinates on the master patch
-    _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTilde, masterUV, masterXYZ,
+    // Initialize parameter and coordinate sets to store the intersections and transfer them
+    std::vector<double> masterUTildes;
+    std::vector<double> slaveUTildes;
+    std::vector<double> masterUTildesFromSlave;
+    std::vector<double> masterUTildesMerged;
+
+    // Initialize temporary variables to use recursively in the loops
+    double tmpUTilde;
+    double tmpUVMaster[noCoordParam];
+    double tmpUVSlave[noCoordParam];
+    double tmpXYZ[noCoord];
+
+    // Compute the knot intersections of the master trimming curve
+    _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes,
                                                             masterPatchBLIndex, masterPatchBLTrCurveIndex);
 
-    // Compute the knot intersections of slave the trimming curve and their respective parameters/coordinates on the slave patch
-    _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTilde, slaveUV, slaveXYZ,
+    // Compute the knot intersections of slave the trimming curve
+    _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes,
                                                            slavePatchBLIndex, slavePatchBLTrCurveIndex);
 
-    // Compute the coordinates of the knot intersections of the master trimming curve on the slave trimming curve and slave patch
-    _masterPatch->computePointProjectionOnTrimmingCurve(masterUTildeFromSlave, masterUVFromSlave, masterXYZFromSlave,
-                                                        slaveXYZ, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+    // Project the knot intersections onto the master curve
+    for (std::vector<double>::iterator iUTilde = slaveUTildes.begin(); iUTilde != slaveUTildes.end(); iUTilde++) {
 
-    // Sort the masterUTildeFromSlave, masterUVFromSlave and masterXYZFromSlave ascending order with respect to masterUTildeFromSlave
-    if ( *masterUTildeFromSlave.begin() > *masterUTildeFromSlave.end()){
-        std::sort(masterUTildeFromSlave.begin(),masterUTildeFromSlave.end());
-        masterUVFromSlave.clear();
-        masterXYZFromSlave.clear();
-        for (int iUTilde = 0; iUTilde < masterUTildeFromSlave.size(); iUTilde++) {
-            double uv[2];
-            double xyz[3];
-            _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).computeCartesianCoordinates(uv, masterUTildeFromSlave[iUTilde]);
-            masterUVFromSlave.push_back(uv[0]);
-            masterUVFromSlave.push_back(uv[1]);
-            _masterPatch->computeCartesianCoordinates(xyz, uv);
-            masterXYZFromSlave.push_back(xyz[0]);
-            masterXYZFromSlave.push_back(xyz[1]);
-            masterXYZFromSlave.push_back(xyz[2]);
-        }
+        // Compute the physical coordinates of the knot intersection
+        _slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+
+        // Compute the point projection of the slave knot intersection on the master trimming curve
+        isProjectedOnSlave = false;
+        isProjectedOnSlave = _masterPatch->computePointProjectionOnTrimmingCurve(tmpUTilde,
+                                                            tmpXYZ, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+
+        // Consider the intersection only if the projection is successful
+        if (isProjectedOnSlave)     masterUTildesFromSlave.push_back(tmpUTilde);
     }
 
-    // Sort the uTilde, uvParams and xyzCoords of both intersections in ascending order with respect to UTilde
+    // Merge the knot intersections. Here an assert for the vector sizes is not necessary since at least the beginning and the end knots are added
+    EMPIRE::MathLibrary::mergeSortRemoveDuplicates(masterUTildesMerged, masterUTildes, masterUTildesFromSlave);
 
-    // Initiate iterators
-    std::vector<double>::iterator iMasterUTilde = masterUTilde.begin();
-    std::vector<double>::iterator iMasterUTildeFromSlave = masterUTildeFromSlave.begin();
+    // Second check to kick out very close knots
+    EMPIRE::MathLibrary::sortRemoveSimilar(masterUTildesMerged, 1e-4);
 
-    // Loop over each uTilde of master curve knot intersections on the slave curve
-    while (iMasterUTildeFromSlave != masterUTildeFromSlave.end()){
-
-        // Loop over each uTilde of slave curve knot intersections
-        while (iMasterUTilde != masterUTilde.end()) {
-
-            // If the slaveUTildeFromMaster is greater, advance the iterator on the slaveUTilde
-            if (*iMasterUTildeFromSlave > *iMasterUTilde)  iMasterUTilde++;
-
-            // If the uTildes are equal break loop
-            if (fabs (*iMasterUTildeFromSlave - *iMasterUTilde) < 1e-2)   break;
-
-            // If the slaveUTildeFromMaster is smaller than slaveUTilde, insert into place
-            else if (*iMasterUTildeFromSlave < *iMasterUTilde && fabs(*iMasterUTildeFromSlave - *iMasterUTilde) > 1e-6){
-
-                // Compute index to insert uTilde as an integer
-                int indexUTilde = std::distance(masterUTilde.begin(),iMasterUTilde);
-
-                // Compute index to insert uvParam as an integer
-                int indexUV = indexUTilde*noCoordParam;
-
-                // Compute index to insert xyzCoords as an integer
-                int indexXYZCoords = indexUTilde*noCoord;
-
-                // Compute index to retrieve from slaveUVFromMaster as an integer
-                int indexUVFromSlave = std::distance(masterUTildeFromSlave.begin(),iMasterUTildeFromSlave)*noCoordParam;
-
-                // Compute index to retrieve from slaveXYZFromMaster as an integer
-                int indexXYZFromSlave = std::distance(masterUTildeFromSlave.begin(),iMasterUTildeFromSlave)*noCoord;
-
-                // Insert UTilde
-                masterUTilde.insert(iMasterUTilde,*iMasterUTildeFromSlave);
-
-                // Insert UV
-                masterUV.insert(masterUV.begin()+indexUV,*(masterUTildeFromSlave.begin()+indexUVFromSlave+1));
-                masterUV.insert(masterUV.begin()+indexUV,*(masterUTildeFromSlave.begin()+indexUVFromSlave));
-
-                // Insert XYZ
-                masterXYZ.insert(masterXYZ.begin()+indexXYZCoords,*(masterXYZFromSlave.begin()+indexXYZFromSlave+2));
-                masterXYZ.insert(masterXYZ.begin()+indexXYZCoords,*(masterXYZFromSlave.begin()+indexXYZFromSlave+1));
-                masterXYZ.insert(masterXYZ.begin()+indexXYZCoords,*(masterXYZFromSlave.begin()+indexXYZFromSlave));
-
-                // Reset the iterator after each insert
-                iMasterUTilde = masterUTilde.begin();
-            }
-            iMasterUTilde++;
-        }
-        iMasterUTildeFromSlave++;
-    }
-
+    /// Create the Gauss points on the master and the slave sides
     // Getting the polynomial orders
     int pMaster = _masterPatch->getIGABasis(0)->getPolynomialDegree();
     int qMaster = _masterPatch->getIGABasis(1)->getPolynomialDegree();
@@ -196,10 +146,69 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
     // Get the number of Gauss points
     int numGPPerSection = p+1;
-    trCurveNumGP = numGPPerSection * (masterUTilde.size()-1);
 
     // Create a Gauss quadrature rule
     MathLibrary::IGAGaussQuadratureOnBiunitInterval* theGPQuadrature = new MathLibrary::IGAGaussQuadratureOnBiunitInterval(numGPPerSection);
+
+    // Initialize auxiliary variables
+    double GP;
+    double GW;
+    double masterGPUTilde;
+    double slaveGPUTilde;
+    int counterValidGP = 0;
+
+    std::vector<double> masterValidGPUTildes;
+    std::vector<double> slaveValidGPUTildes;
+    std::vector<double> validGPWeights;
+    std::vector<int> validGPsPerSection;
+
+    // Initialize GP counter on the curve
+    trCurveNumGP = 0;
+
+    /// Define and count the valid GPs
+    // Loop over the sections of the trimming curve
+    for (int iSection = 0; iSection < masterUTildesMerged.size() - 1; iSection++) {
+
+        // Reset the valid GP per section
+        counterValidGP = 0;
+
+        // Loop over the GPs of the section
+        for (int iGP = 0; iGP < numGPPerSection; iGP++) {
+
+            // Get GP coordinates and weights
+            GP = theGPQuadrature->gaussPoints[iGP];
+            GW = theGPQuadrature->weights[iGP];
+
+            // Compute the image of the GP in the curve parameter space
+            masterGPUTilde = ((1.0 - GP)*masterUTildesMerged[iSection] + (1.0 + GP)*masterUTildesMerged[iSection + 1])/2.0;
+
+            // Compute the physical coordinates of the GP
+            _masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+
+            // Project the GP onto the slave side
+            isProjectedOnSlave = false;
+            isProjectedOnSlave = _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+
+            // If the GP is projected onto the slave side successfully then store the GP pair
+            if (isProjectedOnSlave) {
+
+                // Store the valid GP curve parameters
+                masterValidGPUTildes.push_back(masterGPUTilde);
+                slaveValidGPUTildes.push_back(slaveGPUTilde);
+
+                // Store the valid GP weights
+                validGPWeights.push_back(GW);
+
+                // Update Gauss point counters
+                counterValidGP++;
+                trCurveNumGP++;
+
+            } else WARNING_OUT("In \"WeakIGAPatchContinuityCondition::createGPData\"; an interface GP could not be projected and discarded!");
+        }
+
+        // Store number of valid GPs per section
+        validGPsPerSection.push_back(counterValidGP);
+    }
 
     // Initialize the GP data
     trCurveGPWeights = new double[trCurveNumGP];
@@ -209,209 +218,143 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
     trCurveSlaveGPs = new double[trCurveNumGP*noCoordParam];
     trCurveSlaveGPTangents = new double[trCurveNumGP*noCoord];
 
-    // Initialize auxiliary variables
-    double GP;
-    double GW;
-    double uTildeGP;
-    double detJ1;
-    double detJ2;
-    int pTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
-
-    // Initialize pointers
+    /// Compute the GP data for the valid GPs
+    // Initialize variables
     int noDeriv = 1;
     int noDerivBaseVct = 0;
     int derivDegree = 1;
-    int noLocalBasisFunctionsTrCurveMaster = pTrCurveMaster + 1;
-    int noLocalBasisFunctionsMaster = (pMaster + 1)*(qMaster + 1);
-    int knotSpanIndexTrCurveMaster;
     int uKnotSpanMaster;
     int vKnotSpanMaster;
-    int counterGP;
-    double* uv = new double[noCoordParam];
-    double* baseVectorTrCurveMaster = new double[(noDerivBaseVct + 1)*noCoord];
-    double* localBasisFunctionsAndDerivativesMaster = new double[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsMaster / 2];
-    double* localBasisFunctionsAndDerivativesTrCurveMaster = new double[noLocalBasisFunctionsTrCurveMaster*(noDeriv + 1)];
-    double* baseVectorsMaster = new double[6];
-    double* A1 = new double[3];
-    double* A2 = new double[3];
-    double* XYZ = new double[3];
-    std::vector<double> masterGPUTilde;
-    std::vector<double> masterGPXYZ;
+    int uKnotSpanSlave;
+    int vKnotSpanSlave;
+    int knotSpanIndexTrCurveMaster;
+    int knotSpanIndexTrCurveSlave;
+    int pTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
+    int pTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
+    int noLocalBasisFunctionsTrCurveMaster = pTrCurveMaster + 1;
+    int noLocalBasisFunctionsMaster = (pMaster + 1)*(qMaster + 1);
+    int noLocalBasisFunctionsTrCurveSlave = pTrCurveSlave + 1;
+    int noLocalBasisFunctionsSlave = (pSlave + 1)*(qSlave + 1);
 
-    // Initialize GP counter on the curve
-    counterGP = 0;
+    double detJ1Master;
+    double detJ2Master;
+    double detJ2Slave;
 
-    // Loop over the sections of the trimming curve
-    for (int iSection = 0; iSection < masterUTilde.size() - 1; iSection++) {
+    // Initialize pointers
+    double baseVectorTrCurveMaster[(noDerivBaseVct + 1)*noCoord];
+    double baseVectorTrCurveSlave[(noDerivBaseVct + 1)*noCoord];
+    double localBasisFunctionsAndDerivativesTrCurveMaster[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsTrCurveMaster / 2];
+    double localBasisFunctionsAndDerivativesTrCurveSlave[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsTrCurveSlave / 2];
+    double localBasisFunctionsAndDerivativesMaster[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsMaster / 2];
+    double localBasisFunctionsAndDerivativesSlave[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsSlave / 2];
+    double baseVectorsMaster[6];
+    double baseVectorsSlave[6];
+    double A1Master[3];
+    double A2Master[3];
+    double A1Slave[3];
+    double A2Slave[3];
+
+    int counterGP = 0;
+    // Loop over the sections
+    for (int iSection = 0; iSection < masterUTildesMerged.size() - 1; iSection++) {
 
         // Determinant of the Jacobian of the transformation from the parent space to the parameter space of the patch
-        detJ1 = (masterUTilde[iSection+1]-masterUTilde[iSection])/2.0;
+        detJ1Master = (masterUTildesMerged[iSection+1]-masterUTildesMerged[iSection])/2.0;
 
-        // Loop over the GPs of the section
-        for (int iGP = 0; iGP < numGPPerSection; iGP++) {
+        // Loop over the GPs in this section
+        for (int iGP = 0; iGP < validGPsPerSection[iSection]; iGP++) {
 
-            // Get GP coordinates and weights
-            GP = theGPQuadrature->gaussPoints[iGP];
-            GW = theGPQuadrature->weights[iGP];
-            trCurveGPWeights[counterGP] = GW;
+            // Get the curve parameters of the GPs
+            masterGPUTilde = masterValidGPUTildes[counterGP];
+            slaveGPUTilde = slaveValidGPUTildes[counterGP];
 
-            // Compute the image of the GP in the curve parameter space
-            uTildeGP = ((1.0 - GP)*masterUTilde[iSection] + (1.0 + GP)*masterUTilde[iSection + 1])/2.0;
-            masterGPUTilde.push_back(uTildeGP);
+            // Find the knot spans in the parameter space of the curves
+            knotSpanIndexTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->findKnotSpan(masterGPUTilde);
+            knotSpanIndexTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->findKnotSpan(slaveGPUTilde);
 
-            /// computeGPDataTangentVectorAndJacobianProducts
-
-            // Find the knot span in the parameter space of the curve
-            knotSpanIndexTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->findKnotSpan(uTildeGP);
-
-            // Compute the basis functions at the parametric location of the trimming curve
+            // Compute the basis functions at the parametric locations of the trimming curves
             _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
-                    (localBasisFunctionsAndDerivativesTrCurveMaster, noDeriv, uTildeGP, knotSpanIndexTrCurveMaster);
+                    (localBasisFunctionsAndDerivativesTrCurveMaster, noDeriv, masterGPUTilde, knotSpanIndexTrCurveMaster);
+            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+                    (localBasisFunctionsAndDerivativesTrCurveSlave, noDeriv, slaveGPUTilde, knotSpanIndexTrCurveSlave);
 
-            // Get the corresponding u,v parameters of the uTildeGP parametric location
+            // Get the corresponding u,v parameters of the parametric locations
             _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).computeCartesianCoordinates
-                    (uv, localBasisFunctionsAndDerivativesTrCurveMaster, knotSpanIndexTrCurveMaster);
-            trCurveMasterGPs[noCoordParam*counterGP] = uv[0];
-            trCurveMasterGPs[noCoordParam*counterGP + 1] = uv[1];
+                    (tmpUVMaster, localBasisFunctionsAndDerivativesTrCurveMaster, knotSpanIndexTrCurveMaster);
+            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeCartesianCoordinates
+                    (tmpUVSlave, localBasisFunctionsAndDerivativesTrCurveSlave, knotSpanIndexTrCurveSlave);
 
-            // Compute the base vector of the trimming curve in the master
+            for (int iCoord = 0; iCoord < noCoordParam; iCoord++) {
+                trCurveMasterGPs[noCoordParam*counterGP + iCoord] = tmpUVMaster[iCoord];
+                trCurveSlaveGPs[noCoordParam*counterGP + iCoord] = tmpUVSlave[iCoord];
+            }
+
+            // Compute the base vectors of the trimming curves
             _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).computeBaseVectorAndDerivatives
                     (baseVectorTrCurveMaster, knotSpanIndexTrCurveMaster, localBasisFunctionsAndDerivativesTrCurveMaster, noDerivBaseVct);
+            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeBaseVectorAndDerivatives
+                    (baseVectorTrCurveSlave, knotSpanIndexTrCurveSlave, localBasisFunctionsAndDerivativesTrCurveSlave, noDerivBaseVct);
 
-            // Find the knot span indices for on the master patch
-            uKnotSpanMaster = _masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uv[0]);
-            vKnotSpanMaster = _masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(uv[1]);
+            // Find the knot span indices on the patch
+            uKnotSpanMaster = _masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVMaster[0]);
+            vKnotSpanMaster = _masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVMaster[1]);
+            uKnotSpanSlave = _slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVSlave[0]);
+            vKnotSpanSlave = _slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVSlave[1]);
 
-            // Compute the basis functions of the master patch at the (u,v) parametric location
+            // Compute the basis functions of the patches at the (u,v) parametric locations
             _masterPatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
-                    (localBasisFunctionsAndDerivativesMaster, derivDegree, uv[0], uKnotSpanMaster, uv[1], vKnotSpanMaster);
+                    (localBasisFunctionsAndDerivativesMaster, derivDegree, tmpUVMaster[0], uKnotSpanMaster, tmpUVMaster[1], vKnotSpanMaster);
+            _slavePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+                    (localBasisFunctionsAndDerivativesSlave, derivDegree, tmpUVSlave[0], uKnotSpanSlave, tmpUVSlave[1], vKnotSpanSlave);
 
-            // Compute the base vectors on the master patch in the physical space
+            // Compute the base vectors on the patches in the physical space
             _masterPatch->computeBaseVectors(baseVectorsMaster, localBasisFunctionsAndDerivativesMaster, uKnotSpanMaster, vKnotSpanMaster);
-
-            // Compute the physical coordinates of the parametric location (u,v)
-            _masterPatch->computeCartesianCoordinates(XYZ, localBasisFunctionsAndDerivativesMaster, derivDegree, uKnotSpanMaster, vKnotSpanMaster);
-            for(int iCoord = 0; iCoord < noCoord; iCoord++)
-                masterGPXYZ.push_back(XYZ[iCoord]);
-
+            _slavePatch->computeBaseVectors(baseVectorsSlave, localBasisFunctionsAndDerivativesSlave, uKnotSpanSlave, vKnotSpanSlave);
             for(int iCoord = 0; iCoord < noCoord; iCoord++){
-                A1[iCoord] = baseVectorsMaster[iCoord];
-                A2[iCoord] = baseVectorsMaster[noCoord+iCoord];
+                A1Master[iCoord] = baseVectorsMaster[iCoord];
+                A2Master[iCoord] = baseVectorsMaster[noCoord+iCoord];
+                A1Slave[iCoord] = baseVectorsSlave[iCoord];
+                A2Slave[iCoord] = baseVectorsSlave[noCoord+iCoord];
             }
 
             // Compute the tangent vector on the physical space
-            MathLibrary::computeDenseVectorMultiplicationScalar(A1, baseVectorTrCurveMaster[0], noCoord);
-            MathLibrary::computeDenseVectorMultiplicationScalar(A2, baseVectorTrCurveMaster[1], noCoord);
-            MathLibrary::computeDenseVectorAddition(A1, A2, 1.0, noCoord);
+            MathLibrary::computeDenseVectorMultiplicationScalar(A1Master, baseVectorTrCurveMaster[0], noCoord);
+            MathLibrary::computeDenseVectorMultiplicationScalar(A2Master, baseVectorTrCurveMaster[1], noCoord);
+            MathLibrary::computeDenseVectorAddition(A1Master, A2Master, 1.0, noCoord);
+            MathLibrary::computeDenseVectorMultiplicationScalar(A1Slave, baseVectorTrCurveSlave[0], noCoord);
+            MathLibrary::computeDenseVectorMultiplicationScalar(A2Slave, baseVectorTrCurveSlave[1], noCoord);
+            MathLibrary::computeDenseVectorAddition(A1Slave, A2Slave, 1.0, noCoord);
 
             // Compute the determinant of the Jacobian of the transformation from the parameter space to the physical space
-            detJ2 = MathLibrary::vector2norm(A1, noCoord);
-            MathLibrary::computeDenseVectorMultiplicationScalar(A1, 1.0/detJ2, noCoord);
+            detJ2Master = MathLibrary::vector2norm(A1Master, noCoord);
+            detJ2Slave = MathLibrary::vector2norm(A1Slave, noCoord);
 
-            for(int iCoord = 0; iCoord < noCoord; iCoord++)
-                trCurveMasterGPTangents[noCoord*counterGP + iCoord] = A1[iCoord];
+            // Normalize the tangent vectors
+            MathLibrary::computeDenseVectorMultiplicationScalar(A1Master, 1.0/detJ2Master, noCoord);
+            MathLibrary::computeDenseVectorMultiplicationScalar(A1Slave, 1.0/detJ2Slave, noCoord);
 
-            // Compute the element length on the Gauss point
-            trCurveGPJacobianProducts[counterGP] = detJ1 * detJ2 * GW;
+            for(int iCoord = 0; iCoord < noCoord; iCoord++) {
+                trCurveMasterGPTangents[noCoord*counterGP + iCoord] = A1Master[iCoord];
+                trCurveSlaveGPTangents[noCoord*counterGP + iCoord] = A1Slave[iCoord];
+            }
 
-            // Update Gauss point counter
+            // Store the GP Weights
+            trCurveGPWeights[counterGP] = validGPWeights[counterGP];
+
+            // Store the Jacobian and Gauss weight products
+            trCurveGPJacobianProducts[counterGP] = detJ1Master * detJ2Master * trCurveGPWeights[counterGP];
+
+            // Update the GP counter
             counterGP++;
+
         }
-    }
-
-    // Initialize parameter and coordinate sets to store the GP coordinates
-    std::vector<double> slaveGPUTilde;
-    std::vector<double> slaveGPUV;
-    std::vector<double> slaveGPXYZ;
-
-    _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde,slaveGPUV,slaveGPXYZ,
-                                                       masterGPXYZ,slavePatchBLIndex,slavePatchBLTrCurveIndex);
-
-    int knotSpanIndexTrCurveSlave;
-    int uKnotSpanSlave;
-    int vKnotSpanSlave;
-
-    // Initialize auxiliary variables
-    int pTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
-    int noLocBasisFunctionsTrCurveSlave = pTrCurveSlave + 1;
-    int noLocalBasisFunctionsSlave = (pSlave + 1)*(qSlave + 1);
-
-    // Initialize pointers
-    double* localBasisFunctionsAndDerivativesTrCurveSlave = new double[noLocBasisFunctionsTrCurveSlave*(noDeriv + 1)];
-    double* localBasisFunctionsAndDerivativesSlave = new double[(derivDegree + 1) * (derivDegree + 2) * noLocalBasisFunctionsSlave / 2];
-    double* baseVectorTrCurveSlave = new double[noDeriv*noCoord];
-    double* baseVectorsSlave = new double[6];
-
-    // Loop over the GPs
-    for (int iSlaveGP = 0; iSlaveGP < slaveGPUTilde.size(); iSlaveGP++) {
-
-        // Uodate the curve parameter of the GP
-        uTildeGP = slaveGPUTilde[iSlaveGP];
-
-        // Find the knot span
-        knotSpanIndexTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->findKnotSpan(uTildeGP);
-
-        // Compute the basis functions at the parametric location
-        _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
-                (localBasisFunctionsAndDerivativesTrCurveSlave, noDeriv, uTildeGP, knotSpanIndexTrCurveSlave);
-
-        // Get the corresponding u,v parameters of the uTildeGP parametric location
-        _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeCartesianCoordinates
-                (uv, localBasisFunctionsAndDerivativesTrCurveSlave, knotSpanIndexTrCurveSlave);
-        trCurveSlaveGPs[noCoordParam*iSlaveGP] = uv[0];
-        trCurveSlaveGPs[noCoordParam*iSlaveGP + 1] = uv[1];
-
-        // Compute the base vector
-        _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeBaseVectorAndDerivatives
-                (baseVectorTrCurveSlave, knotSpanIndexTrCurveSlave, localBasisFunctionsAndDerivativesTrCurveSlave, noDerivBaseVct);
-
-        // Find the knot span indices for on the slave patch
-        uKnotSpanSlave = _slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uv[0]);
-        vKnotSpanSlave = _slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(uv[1]);
-
-        // Compute the basis functions of the slave patch at the (u,v) parametric location
-        _slavePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
-                    localBasisFunctionsAndDerivativesSlave, derivDegree, uv[0], uKnotSpanSlave, uv[1], vKnotSpanSlave);
-
-        // Compute the base vectors on the slave patch
-        _slavePatch->computeBaseVectors(baseVectorsSlave, localBasisFunctionsAndDerivativesSlave, uKnotSpanSlave, vKnotSpanSlave);
-        for(int iCoord = 0; iCoord < noCoord; iCoord++){
-            A1[iCoord] = baseVectorsSlave[iCoord];
-            A2[iCoord] = baseVectorsSlave[noCoord+iCoord];
-        }
-
-        // Compute the tangent vector on the physical space
-        MathLibrary::computeDenseVectorMultiplicationScalar(A1, baseVectorTrCurveSlave[0], noCoord);
-        MathLibrary::computeDenseVectorMultiplicationScalar(A2, baseVectorTrCurveSlave[1], noCoord);
-        MathLibrary::computeDenseVectorAddition(A1, A2, 1.0, noCoord);
-        // Compute the determinant of the Jacobian of the transformation from the parameter space to the physical space
-        detJ2 = MathLibrary::vector2norm(A1, noCoord);
-        MathLibrary::computeDenseVectorMultiplicationScalar(A1, 1.0/detJ2, noCoord);
-
-        for(int iCoord = 0; iCoord < noCoord; iCoord++)
-            trCurveSlaveGPTangents[noCoord*iSlaveGP + iCoord] = A1[iCoord];
-
     }
 
     // Set the initialized flag to true
     isGPDataInitialized = true;
 
-    // delete pointers
+    // Delete pointers
     delete theGPQuadrature;
-
-    delete uv;
-    delete XYZ;
-
-    delete baseVectorsMaster;   delete baseVectorsSlave;
-    delete A1;    delete A2;
-
-    delete localBasisFunctionsAndDerivativesTrCurveMaster;
-    delete localBasisFunctionsAndDerivativesMaster;
-    delete baseVectorTrCurveMaster;
-
-    delete localBasisFunctionsAndDerivativesTrCurveSlave;
-    delete localBasisFunctionsAndDerivativesSlave;
-    delete baseVectorTrCurveSlave;
 
 }
 

@@ -351,14 +351,12 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
         if ( fabs(coordP1 - _knot) < TOL_CONVERGENCE ) {
             // Get the curve parameter and compute the coordinates
             uTilde = polylineKnots.at(iVertexCtr-1);
-            computeCartesianCoordinates(uvP, uTilde);
             isIntersecting = true;
         }
         // Check if the knot is coinciding with P2 within given tolerance
         else if ( fabs(coordP2 - _knot) < TOL_CONVERGENCE ) {
             // Get the corresponding curve parameter and compute the coordinates
             uTilde = polylineKnots.at(iVertexCtr);
-            computeCartesianCoordinates(uvP, uTilde);
             isIntersecting = true;
         }
         // Check if the knot is between the two considered vertices on P1->P2 direction
