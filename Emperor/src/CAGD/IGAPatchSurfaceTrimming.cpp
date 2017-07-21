@@ -185,8 +185,8 @@ void IGAPatchSurfaceTrimmingLoop::linearizeUsingNCPxP() {
                 IGACurves.at(j)->addPolylineVertex(parametricCoordinates[0],parametricCoordinates[1],knot);
 			}
 		}
-	}
-	ClipperAdapter::cleanPolygon(polylines);
+    }
+    ClipperAdapter::cleanPolygon(polylines);
 }
 
 void IGAPatchSurfaceTrimmingLoop::linearizeCombined() {

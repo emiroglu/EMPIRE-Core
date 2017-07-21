@@ -55,15 +55,19 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
     // Initialize flag on the whether patch continuity conditions are applied
     isIGAPatchContinuityConditions = false;
 
+    // Initialize flag on the whether weak Dirichlet conditions are applied
+    isIGAWeakDirichletBoundaryConditions = false;
+
     // Initialize flag on the whether strong Dirichlet boundary conditions are applied
     isDirichletBCs = false;
 }
 
-void IGAMortarCouplingMatrices::setIsIGAPatchCoupling(bool _isIGAPatchContinuityConditions, bool _isClampedDofs) {
+void IGAMortarCouplingMatrices::setIsIGAPatchCoupling(bool _isIGAPatchContinuityConditions, bool _isIGAWeakDirichletBoundaryConditions, bool _isClampedDofs) {
     isClampedDofs = _isClampedDofs;
     isIGAPatchContinuityConditions = _isIGAPatchContinuityConditions;
+    isIGAWeakDirichletBoundaryConditions = _isIGAWeakDirichletBoundaryConditions;
 
-    if(isIGAPatchContinuityConditions || isClampedDofs) {
+    if(isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions || isClampedDofs) {
         C_NN_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , false);
         C_NR_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , 3*size_R);
 
@@ -76,7 +80,7 @@ IGAMortarCouplingMatrices::~IGAMortarCouplingMatrices() {
     delete C_NN;
     delete C_NR;
 
-    if(isIGAPatchContinuityConditions) {
+    if(isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions) {
         delete C_NN_expanded;
         delete C_NR_expanded;
     }
@@ -93,7 +97,7 @@ void IGAMortarCouplingMatrices::expandMatrices() {
     for(int i = 0 ; i < size_N ; i ++) {
         for(int j = 0 ; j < size_N ; j++) {
             tmp = (*C_NN)(i,j);
-            if(tmp != 0) {
+            if(tmp != 0.0) {
                 for(int r = 0 ; r < 3 ; r++) {      // 3 coordinates
                     (*C_NN_expanded)(3*i + r, 3*j + r) = tmp;
                 }
@@ -101,7 +105,7 @@ void IGAMortarCouplingMatrices::expandMatrices() {
         }
         for(int j = 0 ; j < size_R ; j++) {
             tmp = (*C_NR)(i,j);
-            if(tmp != 0) {
+            if(tmp != 0.0) {
                 for(int r = 0 ; r < 3 ; r++) {      // 3 coordinates
                     (*C_NR_expanded)(3*i + r, 3*j + r) = tmp;
                 }
@@ -114,7 +118,7 @@ void IGAMortarCouplingMatrices::setIsDirichletBCs(bool _isDirichletBCs) {
     isDirichletBCs = _isDirichletBCs;
 
     if(isDirichletBCs) {
-        if(isClampedDofs || isIGAPatchContinuityConditions) {
+        if(isClampedDofs || isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions) {
             C_NN_BCs = new MathLibrary::SparseMatrix<double>(3*size_N , false);
             C_NR_BCs = new MathLibrary::SparseMatrix<double>(3*size_N , 3*size_R);
         }
@@ -128,7 +132,7 @@ void IGAMortarCouplingMatrices::setIsDirichletBCs(bool _isDirichletBCs) {
 void IGAMortarCouplingMatrices::applyDirichletBCs(std::vector<int> clampedIds) {
 
     if(clampedIds.size() > 0) {
-        if(isClampedDofs || isIGAPatchContinuityConditions) {
+        if(isClampedDofs || isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions) {
             for(int i = 0 ; i < 3*size_N ; i++) {
                 if ( std::find(clampedIds.begin(), clampedIds.end(), i)!=clampedIds.end() ) {
                     for(int j = 0 ; j < i ; j++) {
@@ -185,7 +189,7 @@ void IGAMortarCouplingMatrices::applyDirichletBCs(std::vector<int> clampedIds) {
 void IGAMortarCouplingMatrices::factorizeCorrectCNN() {
     if(isDirichletBCs)
         C_NN_BCs->factorize();
-    else if(isIGAPatchContinuityConditions)
+    else if(isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions)
         C_NN_expanded->factorize();
     else
         C_NN->factorize();
@@ -195,7 +199,7 @@ void IGAMortarCouplingMatrices::enforceCnn() {
     /*
      * Checks if a row if empty and if yes adds 1.0 in the diagonal
      */
-    if(isIGAPatchContinuityConditions) {
+    if(isIGAPatchContinuityConditions || isIGAWeakDirichletBoundaryConditions) {
         indexEmptyRowCnn.reserve(3*size_N);
         for(int i = 0; i < 3*size_N; i++) {
             if(C_NN_expanded->isRowEmpty(i)) {

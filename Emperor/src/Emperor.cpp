@@ -337,6 +337,9 @@ void Emperor::initMappers() {
                     settingMapper.igaMortarMapper.IgaPatchCoupling.dispPenalty,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.rotPenalty,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors,
                     settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs,
                     settingMapper.igaMortarMapper.errorComputation.isDomainError,
                     settingMapper.igaMortarMapper.errorComputation.isInterfaceError);

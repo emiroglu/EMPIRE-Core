@@ -116,12 +116,6 @@ void WeakIGADirichletBoundaryCondition::createGPData(IGAPatchSurface* _patch) {
     // Create a Gauss quadrature rule
     MathLibrary::IGAGaussQuadratureOnBiunitInterval* theGPQuadrature = new MathLibrary::IGAGaussQuadratureOnBiunitInterval(numGPPerSection);
 
-    // Initialize auxiliary variables
-    double GP;
-    double GW;
-    double GPUTilde;
-
-
     // Initialize variables
     int noDeriv = 1;
     int noDerivBaseVct = 0;
@@ -132,6 +126,9 @@ void WeakIGADirichletBoundaryCondition::createGPData(IGAPatchSurface* _patch) {
     int pTrCurve = _patch->getTrimming().getLoop(patchBLIndex).getIGACurve(patchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
     int noLocalBasisFunctionsTrCurve = pTrCurve + 1;
     int noLocalBasisFunctions = (p + 1)*(q + 1);
+    double GP;
+    double GW;
+    double GPUTilde;
     double detJ1;
     double detJ2;
 

@@ -1775,8 +1775,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
 	if(!_edge) {
 		_u = u1;
 		_v = v1;
-		WARNING_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
-		WARNING_OUT()<<"\tAlgorithm has NOT CONVERGED. Relax newtonRaphsonBoundary parameters in XML input file!"<<endl;
+        DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
+        DEBUG_OUT()<<"\tAlgorithm has NOT CONVERGED. Relax newtonRaphsonBoundary parameters in XML input file!"<<endl;
 	}
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	return _edge;
@@ -1848,6 +1848,7 @@ bool IGAPatchSurface::findInitialGuess4PointProjectionOnTrimmingCurve(double& _u
     double tmpDistance;
     int xyzCtr = 0;
     bool isFound;
+    double minNumVertices = 51;
 
     // Number of existing linearziation vertices
     int numVertices = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getPolyline()->size()/noCoordParam;
@@ -1857,11 +1858,11 @@ bool IGAPatchSurface::findInitialGuess4PointProjectionOnTrimmingCurve(double& _u
     std::vector<double> candidatesUV;
 
     // If number of linearization vertices are less than 10 then create equidistant points on the curve parameter space to get an initial guess
-    if (numVertices<10){
+    if (numVertices<minNumVertices){
         double u0 = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getFirstKnot();
         double u1 = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getLastKnot();
-        double du = (u1-u0)/(10-1);
-        for(int i=0;i<10;i++) {
+        double du = (u1-u0)/(minNumVertices-1);
+        for(int i=0;i<minNumVertices;i++) {
             double knot = u0 + i*du;
             double parametricCoordinates[2] = {0};
             candidatesUTilde.push_back(knot);
@@ -1874,7 +1875,6 @@ bool IGAPatchSurface::findInitialGuess4PointProjectionOnTrimmingCurve(double& _u
         candidatesUTilde = *Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getPolylineKnots();
         candidatesUV = *Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getPolyline();
     }
-
 
     // For each vertex
     for(int vertexCtr=0; vertexCtr<candidatesUTilde.size(); vertexCtr++){

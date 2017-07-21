@@ -322,6 +322,29 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
 
     int noCoordParam = 2;
 
+    double minNumVertices = 51;
+
+//    // Check the linearization resolution
+//    std::vector<double> verticesUTilde;
+//    std::vector<double> verticesUV;
+
+//    if (polyline.size()/noCoordParam < minNumVertices) {
+//        double u0 = IGABasis->getFirstKnot();
+//        double u1 = IGABasis->getLastKnot();
+//        double du = (u1-u0) / (minNumVertices-1);
+//        for(int i = 0; i < minNumVertices; i++) {
+//            double knot = u0 + i*du;
+//            double parametricCoordinates[2] = {0};
+//            verticesUTilde.push_back(knot);
+//            computeCartesianCoordinates(parametricCoordinates,knot);
+//            verticesUV.push_back(parametricCoordinates[0]);
+//            verticesUV.push_back(parametricCoordinates[1]);
+//        }
+//    } else {
+//        verticesUTilde = polylineKnots;
+//        verticesUV = polyline;
+//    }
+
     // Check if the direction of the parameter curve is given correctly
     if (_dir<2)
         coordP1 = polyline.at(0+(_dir+1)%noCoordParam);

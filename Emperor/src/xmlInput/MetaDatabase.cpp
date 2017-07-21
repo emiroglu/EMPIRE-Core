@@ -397,6 +397,19 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty = 0;
                 mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
             }
+            ticpp::Element *xmlIgaWeakDirichletBoundaryConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletBoundaryConditions", false);
+            if (xmlIgaWeakDirichletBoundaryConditions != NULL) {
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty =
+                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<double>("dispPenalty");
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty =
+                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<double>("rotPenalty");
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors =
+                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<int>("isAutomaticPenaltyFactors");
+            } else {
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors = 0;
+            }
 
             ticpp::Element *xmlDirichletBCs = xmlIGAMortar->FirstChildElement("dirichletBCs", false);
             if (xmlDirichletBCs != NULL) {

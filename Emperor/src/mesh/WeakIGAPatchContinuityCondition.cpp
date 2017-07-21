@@ -128,6 +128,7 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
         // Consider the intersection only if the projection is successful
         if (isProjectedOnSlave)     masterUTildesFromSlave.push_back(tmpUTilde);
+        else    WARNING_OUT("In \"WeakIGAPatchContinuityCondition::createGPData\"; a knot intersection could not be projected and discarded!");
     }
 
     // Merge the knot intersections. Here an assert for the vector sizes is not necessary since at least the beginning and the end knots are added
@@ -203,7 +204,7 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
                 counterValidGP++;
                 trCurveNumGP++;
 
-            } else WARNING_OUT("In \"WeakIGAPatchContinuityCondition::createGPData\"; an interface GP could not be projected and discarded!");
+            } else  WARNING_OUT("In \"WeakIGAPatchContinuityCondition::createGPData\"; an interface GP could not be projected and discarded!");
         }
 
         // Store number of valid GPs per section
@@ -283,8 +284,9 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
                     (tmpUVMaster, localBasisFunctionsAndDerivativesTrCurveMaster, knotSpanIndexTrCurveMaster);
             _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeCartesianCoordinates
                     (tmpUVSlave, localBasisFunctionsAndDerivativesTrCurveSlave, knotSpanIndexTrCurveSlave);
-
             for (int iCoord = 0; iCoord < noCoordParam; iCoord++) {
+                _masterPatch->getIGABasis(iCoord)->clampKnot(tmpUVMaster[iCoord]);
+                _slavePatch->getIGABasis(iCoord)->clampKnot(tmpUVSlave[iCoord]);
                 trCurveMasterGPs[noCoordParam*counterGP + iCoord] = tmpUVMaster[iCoord];
                 trCurveSlaveGPs[noCoordParam*counterGP + iCoord] = tmpUVSlave[iCoord];
             }

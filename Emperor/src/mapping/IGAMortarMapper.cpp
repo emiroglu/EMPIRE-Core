@@ -76,8 +76,11 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesMaster = meshIGA->getNumNodes();
     }
 
-    // Initialize flag for the case that coupling between the patches is enables and when Dirichlet boundary conditions are applied in not all directions
+    // Initialize flag for the case that coupling between the patches is enabled and when Dirichlet boundary conditions are applied in not all directions
     isIGAPatchContinuityConditions = false;
+
+    // Initialize flag for the case that weak Dirichlet boundary conditions are enabled
+    isIGAWeakDirichletBoundaryConditions = false;
 
     // Initialize flag on whether the meshFEDirectElemTable was created
     isMeshFEDirectElemTable = false;
@@ -87,6 +90,13 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     
     // Initialize coupling matrices
     couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
+
+    // Get the number of weak continuity conditions
+    noWeakIGADirichletBoundaryConditions = meshIGA->getWeakIGADirichletBoundaryConditions().size();
+
+    // Initialize the penalty factors for the application of weak Dirichlet boundary conditions
+    wDBCalphaPrimaryIJ = new double[noWeakIGADirichletBoundaryConditions];
+    wDBCalphaSecondaryIJ = new double[noWeakIGADirichletBoundaryConditions];
 
     // Get the number of weak continuity conditions
     noWeakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions().size();
@@ -101,6 +111,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     setParametersBisection();
     setParametersIntegration();
     setParametersIgaPatchCoupling();
+    setParametersIgaWeakDirichletBoundaryConditions();
     setParametersDirichletBCs();
     setParametersErrorComputation();
 }
@@ -136,6 +147,12 @@ void IGAMortarMapper::setParametersIgaPatchCoupling(double _dispPenalty, double 
     IgaPatchCoupling.dispPenalty = _dispPenalty;
     IgaPatchCoupling.rotPenalty = _rotPenalty;
     IgaPatchCoupling.isAutomaticPenaltyFactors = isAutomaticPenaltyFactors;
+}
+
+void IGAMortarMapper::setParametersIgaWeakDirichletBoundaryConditions(double _dispPenalty, double _rotPenalty, int isAutomaticPenaltyFactors) {
+    IgaWeakDirichletBoundaryConditions.dispPenalty = _dispPenalty;
+    IgaWeakDirichletBoundaryConditions.rotPenalty = _rotPenalty;
+    IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors = isAutomaticPenaltyFactors;
 }
 
 void IGAMortarMapper::setParametersDirichletBCs(int _isDirichletBCs) {
@@ -221,17 +238,33 @@ void IGAMortarMapper::buildCouplingMatrices() {
         isIGAPatchContinuityConditions = true;
     }
 
-    // Check if weak patch continuity conditions are applied and expand the matrices accordingly
-    couplingMatrices->setIsIGAPatchCoupling(isIGAPatchContinuityConditions, isClampedDofs);
+    // Flag on whether weak Dirichlet boundary conditions are to be applied
+    if(IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors || (IgaWeakDirichletBoundaryConditions.dispPenalty > 0 || IgaWeakDirichletBoundaryConditions.rotPenalty > 0 )){
+        isIGAWeakDirichletBoundaryConditions = true;
+    }
+
+    // Check if weak conditions are applied and expand the matrices accordingly
+    couplingMatrices->setIsIGAPatchCoupling(isIGAPatchContinuityConditions, isIGAWeakDirichletBoundaryConditions, isClampedDofs);
 
     // Compute the penalty factors for the application of weak patch continuity conditions
-    if(isIGAPatchContinuityConditions && !isMappingIGA2FEM)
+    if(isIGAWeakDirichletBoundaryConditions  && !isMappingIGA2FEM)
+        computePenaltyFactorsForWeakDirichletBoundaryConditions();
+
+    // Compute the penalty factors for the application of weak patch continuity conditions
+    if(isIGAPatchContinuityConditions  && !isMappingIGA2FEM)
         computePenaltyFactorsForPatchContinuityConditions();
 
-//    for (int i=0; i<10; i++) {
-//        cout << i << endl;
-//        meshIGA->createWeakContinuityConditionGPData(i);
-//    }
+    if (isIGAWeakDirichletBoundaryConditions) {
+        INFO_OUT() << "Application of weak Dirichlet boundary conditions started" << endl;
+        if(!IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors){
+            INFO_OUT() << "Manual weak Dirichlet boundary condition penalties: alphaPrim = "<< IgaWeakDirichletBoundaryConditions.dispPenalty <<" alphaSec = " <<  IgaWeakDirichletBoundaryConditions.rotPenalty << endl;
+        }else{
+            INFO_OUT() << "Automatic weak Dirichlet boundary condition penalties, use DEBUG mode to see the computed values" << endl;
+        }
+        computeIGAWeakDirichletBoundaryConditionMatrices();
+        INFO_OUT() << "Application of weak Dirichlet boundary conditions finished" << std::endl;
+    }else
+        INFO_OUT() << "No application of weak Dirichlet boundary conditions are assumed" << std::endl;
 
     if (isIGAPatchContinuityConditions) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
@@ -245,16 +278,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
     }else
         INFO_OUT() << "No application of weak patch continuity conditions are assumed" << std::endl;
 
-    // NEEDS TO BE CLEANLY DONE!!!
-//    if (isIGAPatchContinuityConditions) {
-//        INFO_OUT() << "Application of weak Dirichlet conditions started" << endl;
-//        computeIGAWeakDirichletConditionMatrices();
-//        INFO_OUT() << "Application of weak Dirichlet conditions finished" << endl;
-//    }
-
     // Check input
-    if(!isIGAPatchContinuityConditions && (errorComputation.isDomainError || errorComputation.isInterfaceError))
-        assert(false);
+    if(!isIGAPatchContinuityConditions && !isIGAWeakDirichletBoundaryConditions && (errorComputation.isDomainError || errorComputation.isInterfaceError)) {
+        ERROR_BLOCK_OUT("IGAMortarMapper","buildCouplingMatrices","Error computation is requested but neither weak Dirichlet boundary conditions nor patch coupling conditions are not defined!");
+        ERROR_BLOCK_OUT("IGAMortarMapper","buildCouplingMatrices","Please correct the input file.");
+    }
 
     // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
     // if it is not always clamped in all three dircetions
@@ -281,7 +309,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     couplingMatrices->factorizeCorrectCNN();
     INFO_OUT() << "Factorize was successful" << std::endl;
 
-    if(dirichletBCs.isDirichletBCs==0)
+    if(dirichletBCs.isDirichletBCs==0 &&  !isIGAWeakDirichletBoundaryConditions)
         checkConsistency();
 
     // Clear GP data
@@ -303,6 +331,11 @@ IGAMortarMapper::~IGAMortarMapper() {
     }
 
     delete couplingMatrices;
+
+    if(isIGAWeakDirichletBoundaryConditions){
+        delete[] wDBCalphaPrimaryIJ;
+        delete[] wDBCalphaSecondaryIJ;
+    }
 
     if(isIGAPatchContinuityConditions){
         delete[] alphaPrimaryIJ;
@@ -873,9 +906,9 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
         /// Warning/Error output
         if(!isProjectedOnPatchBoundary) {
             if(thePatch->isTrimmed()) {
-                WARNING_OUT() << "Warning in IGAMortarMapper::buildBoundaryParametricElement"
+                DEBUG_OUT() << "Warning in IGAMortarMapper::buildBoundaryParametricElement"
                               << endl;
-                WARNING_OUT() << "Cannot find point projection on patch boundary. "
+                DEBUG_OUT() << "Cannot find point projection on patch boundary. "
                               << "Element "<< elemIndex <<" on Patch "<< patchIndex <<" not integrated and skipped !" << endl;
                 break;//break loop over node
             } else {
@@ -904,7 +937,7 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
     bool isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, Pin, Pout,
                                                                                                    newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
     if(!isProjectedOnPatchBoundary || dis > projectionProperties.maxProjectionDistance) {
-        WARNING_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm."<<endl;
+        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm."<<endl;
         // Reset initial guess
         u = uIn;
         v = vIn;
@@ -913,9 +946,9 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
     }
     // Perform some validity check
     if(!isProjectedOnPatchBoundary)
-        WARNING_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
+        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
     if(isProjectedOnPatchBoundary && dis > projectionProperties.maxProjectionDistance) {
-        WARNING_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!"<<endl;
+        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!"<<endl;
     }
     return isProjectedOnPatchBoundary;
 }
@@ -1394,22 +1427,26 @@ int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _no
     return -1;
 }
 
-void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
+void IGAMortarMapper::computeIGAWeakDirichletBoundaryConditionMatrices() {
+    /*
+     * Computes and assembles the patch weak continuity conditions.
+     */
 
     // Get the weak patch continuity conditions
     std::vector<WeakIGADirichletBoundaryCondition*> weakIGADirichletBoundaryConditions = meshIGA->getWeakIGADirichletBoundaryConditions();
 
     // Initialize constant array sizes
+    const int noCoordParam = 2;
     const int noCoord = 3;
 
     // Initialize varying array sizes
-    int index;
+    int patchIndex;
     int counter;
     int p;
     int q;
     int noLocalBasisFcts;
     int noDOFsLoc;
-    int noGPsOnDirichletCond;
+    int noGPsOnContCond;
     int uKnotSpan;
     int vKnotSpan;
     int indexCP;
@@ -1431,14 +1468,14 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
     // Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iDBC = 0; iDBC < weakIGADirichletBoundaryConditions.size(); iDBC++){
         // Get the penalty factors for the primary and the secondary field
-        alphaPrimary = 1e-4;
-        alphaSecondary = 0.0;
+        alphaPrimary = 1.0;
+        alphaSecondary = 0;
 
         // Get the index of the patch
-        index = weakIGADirichletBoundaryConditions[iDBC]->getPatchIndex();
+        patchIndex = weakIGADirichletBoundaryConditions[iDBC]->getPatchIndex();
 
         // Get the number of Gauss Points for the given condition
-        noGPsOnDirichletCond = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveNumGP();
+        noGPsOnContCond = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveNumGP();
 
         // Get the parametric coordinates of the Gauss Points
         trCurveGPs = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPs();
@@ -1453,16 +1490,16 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
         trCurveGPJacobianProducts = weakIGADirichletBoundaryConditions[iDBC]->getTrCurveGPJacobianProducts();
 
         // Get the patch
-        thePatch = meshIGA->getSurfacePatch(index);
+        thePatch = meshIGA->getSurfacePatch(patchIndex);
 
-        // Get the polynomial orders of the patch
+        // Get the polynomial orders of the master and the slave patch
         p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
         // get the number of local basis functions
         noLocalBasisFcts = (p + 1)*(q + 1);
 
-        // get the number of the local DOFs of the patch
+        // get the number of the local DOFs for the patch
         noDOFsLoc = noCoord*noLocalBasisFcts;
 
         // Initialize pointers
@@ -1474,35 +1511,35 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
         double* KPenaltyTwistingRotation = new double[noDOFsLoc*noDOFsLoc];
 
         // Loop over all the Gauss Points of the given condition
-        for(int iGP = 0; iGP < noGPsOnDirichletCond; iGP++){
+        for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
+
             // Get the parametric coordinates of the Gauss Point on the patch
-            uGP = trCurveGPs[2*iGP];
-            vGP = trCurveGPs[2*iGP + 1];
+            uGP = trCurveGPs[iGP*noCoordParam];
+            vGP = trCurveGPs[iGP*noCoordParam + 1];
 
             // Find the knot span indices of the Gauss point locations in the parameter space of the patch
             uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
             vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
 
             // Get the tangent to the boundary vector on the patch
-            for(int iCoord = 0; iCoord < noCoord; iCoord++){
-                tangentTrCurveVct[iCoord] = trCurveGPTangents[3*iGP + iCoord];
-            }
+            for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                tangentTrCurveVct[iCoord] = trCurveGPTangents[iGP*noCoord + iCoord];
 
-            // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions of the patch at the Gauss point
+            // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
+
+            // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalTrCurveVct,
-                                                            thePatch, tangentTrCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+                                                                thePatch, tangentTrCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
-            // Compute the dual product matrix for the displacements
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc, noDOFsLoc, BDisplacementsGC, BDisplacementsGC, KPenaltyDisplacement);
+            // Compute the dual product matrices for the displacements
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
             // Compute the dual product matrices for the bending rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
 
             // Compute the dual product matrices for the twisting rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
-
-            // Compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
-            elementLengthOnGP = trCurveGPJacobianProducts[iGP];
 
             // Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
@@ -1519,11 +1556,11 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
                 }
             }
 
-            // Assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
+            // Assemble KPenaltyDisplacement to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLoc; i++){
                 for(int j = 0; j < noDOFsLoc; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + j]*elementLengthOnGP);
+                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
                     couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
@@ -1532,6 +1569,59 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
                     couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
                 }
             }
+
+            //// TODO
+//            if(errorComputation.isInterfaceError){
+//                // Initialize variable storing the Gauss Point data
+//                std::vector<double> streamInterfaceGP;
+
+//                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...)
+//                streamInterfaceGP.reserve(1 + 1 + 2*noLocalBasisFctsMaster + 3*noDOFsLocMaster + 1 + 2*noLocalBasisFctsSlave + 3*noDOFsLocSlave + 1 + 1);
+
+//                // Save the element length on the Gauss Point
+//                streamInterfaceGP.push_back(elementLengthOnGP);
+
+//                // Save the number of basis functions of the master patch
+//                streamInterfaceGP.push_back(noLocalBasisFctsMaster);
+
+//                // Save the Control Point index and the basis function's values of the master patch
+//                for(int iBFs = 0; iBFs < noLocalBasisFctsMaster; iBFs++){
+//                    indexCP = patchMaster->getControlPointNet()[CPIndexMaster[iBFs]]->getDofIndex();
+//                    streamInterfaceGP.push_back(indexCP);
+//                    streamInterfaceGP.push_back(BDisplacementsGCMaster[0*noLocalBasisFctsMaster + 3*iBFs]);
+//                }
+
+//                // Save the DOF index and the bending and twisting B-operator values of the master patch
+//                for(int iDOFs = 0; iDOFs < noDOFsLocMaster; iDOFs++){
+//                    streamInterfaceGP.push_back(EFTMaster[iDOFs]);
+//                    streamInterfaceGP.push_back(BOperatorOmegaTMaster[iDOFs]);
+//                    streamInterfaceGP.push_back(BOperatorOmegaNMaster[iDOFs]);
+//                }
+
+//                // Save the number of basis functions of the slave patch
+//                streamInterfaceGP.push_back(noLocalBasisFctsSlave);
+
+//                // Save the Control Point index and the basis function's values of the slave patch
+//                for(int iBFs = 0; iBFs < noLocalBasisFctsSlave; iBFs++){
+//                    indexCP = patchSlave->getControlPointNet()[CPIndexSlave[iBFs]]->getDofIndex();
+//                    streamInterfaceGP.push_back(indexCP);
+//                    streamInterfaceGP.push_back(BDisplacementsGCSlave[0*noLocalBasisFctsSlave + 3*iBFs]);
+//                }
+
+//                // Save the DOF index and the bending and twisting B-operator values of the slave patch
+//                for(int iDOFs = 0; iDOFs < noDOFsLocSlave; iDOFs++){
+//                    streamInterfaceGP.push_back(EFTSlave[iDOFs]);
+//                    streamInterfaceGP.push_back(BOperatorOmegaTSlave[iDOFs]);
+//                    streamInterfaceGP.push_back(BOperatorOmegaNSlave[iDOFs]);
+//                }
+
+//                // Save the factors
+//                streamInterfaceGP.push_back(factorTangent);
+//                streamInterfaceGP.push_back(factorNormal);
+
+//                // Push back the Gauss Point values into the member variable
+//                streamInterfaceGPs.push_back(streamInterfaceGP);
+//            }
 
         } // End of Gauss Point loop
 
@@ -1542,7 +1632,8 @@ void IGAMortarMapper::computeIGAWeakDirichletConditionMatrices(){
         delete[] KPenaltyDisplacement;
         delete[] KPenaltyBendingRotation;
         delete[] KPenaltyTwistingRotation;
-    } // End of weak continuity condition loop
+
+    } // End of weak Dirichlet boundary condition loop
 }
 
 void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
@@ -1558,6 +1649,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     const double tolVct = 1e-4;
 
     // Initialize constant array sizes
+    const int noCoordParam = 2;
     const int noCoord = 3;
 
     // Initialize varying array sizes
@@ -1673,12 +1765,12 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
         // Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
             // Get the parametric coordinates of the Gauss Point on the master patch
-            uGPMaster = trCurveMasterGPs[2*iGP];
-            vGPMaster = trCurveMasterGPs[2*iGP + 1];
+            uGPMaster = trCurveMasterGPs[iGP*noCoordParam];
+            vGPMaster = trCurveMasterGPs[iGP*noCoordParam + 1];
 
             // Get the parametric coordinates of the Gauss Point on the slave patch
-            uGPSlave = trCurveSlaveGPs[2*iGP];
-            vGPSlave = trCurveSlaveGPs[2*iGP + 1];
+            uGPSlave = trCurveSlaveGPs[iGP*noCoordParam];
+            vGPSlave = trCurveSlaveGPs[iGP*noCoordParam + 1];
 
             // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
             uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
@@ -1690,8 +1782,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
             // Get the tangent to the boundary vector on the master and the slave patch
             for(int iCoord = 0; iCoord < noCoord; iCoord++){
-                tangentTrCurveVctMaster[iCoord] = trCurveMasterGPTangents[3*iGP + iCoord];
-                tangentTrCurveVctSlave[iCoord] = trCurveSlaveGPTangents[3*iGP + iCoord];
+                tangentTrCurveVctMaster[iCoord] = trCurveMasterGPTangents[iGP*noCoord + iCoord];
+                tangentTrCurveVctSlave[iCoord] = trCurveSlaveGPTangents[iGP*noCoord + iCoord];
             }
 
             // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
@@ -1732,7 +1824,9 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             }else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct)) {
                 assert(false);
             }
-            assert(abs(condNormalTrCurveVct) > tolAngle);
+            if (!(abs(condNormalTrCurveVct) > tolAngle))
+                WARNING_OUT("Check for trimming curve normals does not comply with the criterion!");
+//            assert(abs(condNormalTrCurveVct) > tolAngle);
             if(condNormalTrCurveVct > tolAngle){
                 factorNormal = -1.0*factorNormal;
             }
@@ -2046,6 +2140,142 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     delete[] commonBOperator2;
     delete[] commonBOperator3;
     delete[] commonBOperator;
+}
+
+void IGAMortarMapper::computePenaltyFactorsForWeakDirichletBoundaryConditions(){
+    /*
+     * Compute the penalty factors related to the application of weak Dirichlet conditions
+     * as a function of the minimum element edge size across interface.
+     */
+
+    // Get the weak patch continuity conditions
+    std::vector<WeakIGADirichletBoundaryCondition*> weakIGADirichletBoundaryConditions = meshIGA->getWeakIGADirichletBoundaryConditions();
+
+    // Initialize constant array sizes
+    const int noCoord = 3;
+
+    // Initialize varying array sizes
+    bool isElementChanged;
+    int patchIndex;
+    int p;
+    int q;
+    int pMax;
+    int noLocalBasisFcts;
+    int noDOFsLoc;
+    int noGPsOnCond;
+    int uKnotSpan;
+    int vKnotSpan;
+    int uKnotSpanSaved;
+    int vKnotSpanSaved;
+    double uGP;
+    double vGP;
+    double elEdgeSize;
+    double minElEdgeSize;
+
+    // Initialize pointers
+    double* trCurveGPs;
+    double* trCurveGPWeights;
+    double* trCurveGPTangents;
+    double* trCurveGPJacobianProducts;
+    IGAPatchSurface* thePatch;
+
+    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    for (int iWDBC = 0; iWDBC < weakIGADirichletBoundaryConditions.size(); iWDBC++){
+        // Check if penalty factors are to be assigned manually in the xml file
+        if(!IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors){
+            wDBCalphaPrimaryIJ[iWDBC] = IgaWeakDirichletBoundaryConditions.dispPenalty;
+            wDBCalphaSecondaryIJ[iWDBC] = IgaWeakDirichletBoundaryConditions.rotPenalty;
+            continue;
+        }
+
+        // Get the index of the patch
+        patchIndex = weakIGADirichletBoundaryConditions[iWDBC]->getPatchIndex();
+
+        // Get the number of Gauss Points for the given condition
+        noGPsOnCond = weakIGADirichletBoundaryConditions[iWDBC]->getTrCurveNumGP();
+
+        // Get the parametric coordinates of the Gauss Points
+        trCurveGPs = weakIGADirichletBoundaryConditions[iWDBC]->getTrCurveGPs();
+
+        // Get the corresponding Gauss weights
+        trCurveGPWeights = weakIGADirichletBoundaryConditions[iWDBC]->getTrCurveGPWeights();
+
+        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        trCurveGPTangents = weakIGADirichletBoundaryConditions[iWDBC]->getTrCurveGPTangents();
+
+        // Get the product of the Jacobian transformations
+        trCurveGPJacobianProducts = weakIGADirichletBoundaryConditions[iWDBC]->getTrCurveGPJacobianProducts();
+
+        // Get the master and the slave patch
+        thePatch = meshIGA->getSurfacePatch(patchIndex);
+
+        // Get the polynomial orders of the patch
+        p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+        pMax = std::max(p, q);
+
+        // get the number of local basis functions for the patch
+        noLocalBasisFcts = (p + 1)*(q + 1);
+
+        // get the number of the local DOFs for the patch
+        noDOFsLoc = noCoord*noLocalBasisFcts;
+
+        // Initialize flags on whether an element has been changed while looping over the Gauss Points
+        isElementChanged = false;
+
+        // Initialize the element edge sizes
+        elEdgeSize = 0.0;
+        minElEdgeSize = std::numeric_limits<double>::max();
+
+        // Loop over all the Gauss Points of the given condition
+        for(int iGP = 0; iGP < noGPsOnCond; iGP++){
+
+            // Get the parametric coordinates of the Gauss Point on the patch
+            uGP = trCurveGPs[2*iGP];
+            vGP = trCurveGPs[2*iGP + 1];
+
+            // Find the knot span indices of the Gauss point locations in the parameter space of the patch
+            uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
+            vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
+
+            // Initialize the saved knot span indices
+            if(iGP == 0){
+                uKnotSpanSaved = uKnotSpan;
+                vKnotSpanSaved = vKnotSpan;
+            }
+
+            // Initialize element edge sizes if an element has been crossed
+            if(uKnotSpan != uKnotSpanSaved || vKnotSpan != vKnotSpanSaved){
+                if(elEdgeSize < minElEdgeSize)
+                    minElEdgeSize = elEdgeSize;
+                elEdgeSize = 0.0;
+            }
+
+            // Add the contribution from the Gauss Point to the element edge sizes
+            elEdgeSize += trCurveGPJacobianProducts[iGP];
+
+            // Save the knot span indices
+            uKnotSpanSaved = uKnotSpan;
+            vKnotSpanSaved = vKnotSpan;
+
+        } // End of Gauss Point loop
+
+        // Check the element sizes for the last elements
+        if(elEdgeSize < minElEdgeSize)
+            minElEdgeSize = elEdgeSize;
+
+        // Compute correspondingly the penalty factors
+        wDBCalphaPrimaryIJ[iWDBC] = pMax/minElEdgeSize;
+        wDBCalphaSecondaryIJ[iWDBC] = pMax/sqrt(minElEdgeSize);
+        if (Message::isDebugMode()){
+            DEBUG_OUT() << std::endl;
+            DEBUG_OUT() << "Weak Dirichlet boundary condition on patch[" << patchIndex << "] :" << std::endl;
+            DEBUG_OUT() << "wDBCalphaPrimaryIJ[" << iWDBC << "] = " << scientific << setprecision(15) << wDBCalphaPrimaryIJ[iWDBC] << std::endl;
+            DEBUG_OUT() << "wDBCalphaSecondaryIJ[" << iWDBC << "] = " << scientific << setprecision(15) << wDBCalphaSecondaryIJ[iWDBC] << std::endl;
+            DEBUG_OUT() << std::endl;
+        }
+
+    } // End of weak Dirichlet boundary condition loop
 }
 
 void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
@@ -2795,9 +3025,9 @@ void IGAMortarMapper::checkConsistency() {
 
     // Replace badly conditioned row of Cnn by sum value of Cnr
     if(!inconsistentDoF.empty()) {
-        INFO_OUT()<<"inconsistendDOF size = "<<inconsistentDoF.size()<<std::endl;
+        INFO_OUT()<<"inconsistent DOF size = "<<inconsistentDoF.size()<<std::endl;
         for(vector<int>::iterator it=inconsistentDoF.begin();it!=inconsistentDoF.end();it++) {
-            if(!isIGAPatchContinuityConditions) {
+            if(!isIGAPatchContinuityConditions && !isIGAWeakDirichletBoundaryConditions) {
                 couplingMatrices->deleterow(*it);       // deleterow might not be working for the new coupling matrix datastructure
                 couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
             }
@@ -2825,6 +3055,27 @@ void IGAMortarMapper::checkConsistency() {
     if(fabs(norm - 1.0) > 1e-6) {
         ERROR_OUT() << "Coupling not consistent !"<<endl;
         ERROR_OUT() << "Coupling of unit field deviating from 1 of " << fabs(norm-1.0)<<endl;
+        ERROR_OUT() << "ALTUG PUT THE EXIT BACK !!!" <<endl;
+//        exit(-1);
+    }
+}
+
+void IGAMortarMapper::getPenaltyParameterForWeakDBCPrimaryField(double* _alphaPrim){
+    if(isIGAWeakDirichletBoundaryConditions){
+        for(int i = 0; i < noWeakIGADirichletBoundaryConditions; i++)
+            _alphaPrim[i] = wDBCalphaPrimaryIJ[i];
+    }else{
+        ERROR_OUT() << "Penalty parameters were not computed" << std::endl;
+        exit(-1);
+    }
+}
+
+void IGAMortarMapper::getPenaltyParameterForWeakDBCSecondaryField(double* _alphaSec){
+    if(isIGAWeakDirichletBoundaryConditions){
+        for(int i = 0; i < noWeakIGADirichletBoundaryConditions; i++)
+            _alphaSec[i] = wDBCalphaSecondaryIJ[i];
+    }else{
+        ERROR_OUT() << "Penalty parameters were not computed" << std::endl;
         exit(-1);
     }
 }

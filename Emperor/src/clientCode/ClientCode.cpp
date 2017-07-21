@@ -281,7 +281,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
     } // end patch
 
     // weak dirichlet condition data
-    /*int numWeakDirichletCond;
+    int numWeakDirichletCond;
     serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakDirichletCond);
 
     for(int wDBCCtr = 0; wDBCCtr<numWeakDirichletCond; wDBCCtr++){
@@ -297,7 +297,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         serverComm->receiveFromClientBlocking<int>(name, 1, &isGPProvided);
         if (isGPProvided != 1 && isGPProvided != 0) assert(false);
 
-        WeakIGADirichletCondition* theWeakDirichletCond = theIGAMesh->addWeakDirichletCondition(wDBCCtr,
+        WeakIGADirichletBoundaryCondition* theWeakDirichletBoundaryCond = theIGAMesh->addWeakDirichletBoundaryCondition(wDBCCtr,
                                                             patchIndex, patchBLIndex, patchBLTrCurveIndex);
 
         if(isGPProvided){
@@ -314,7 +314,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveGPTangents);
             serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPJacobianProducts);
 
-            theWeakDirichletCond->addWeakDirichletConditionGPData(trCurveNumGP,
+            theWeakDirichletBoundaryCond->addWeakDirichletBoundaryConditionGPData(trCurveNumGP,
                                                trCurveGPs, trCurveGPWeights,
                                                trCurveGPTangents,
                                                trCurveGPJacobianProducts);
@@ -326,9 +326,9 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             delete trCurveGPJacobianProducts;
 
         } else {
-            theIGAMesh->createWeakDirichletConditionGPData();
+            theIGAMesh->createWeakDirichletBoundaryConditionGPData(wDBCCtr);
         }
-    }*/
+    }
 
     // patch coupling data
     int numWeakContCond;

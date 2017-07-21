@@ -71,16 +71,23 @@ public:
      * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
      * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
      * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     * \param[in] _patchContinuityDispPenalty Displacement penalty factor for patch coupling conditions
+     * \param[in] _patchContinuityRotPenalty Rotation penalty factor for patch coupling conditions
+     * \param[in] _isPenaltyPatchCoupling Flag on whether the patch penalty coupling should be applied
+     * \param[in] _WeakDirichletBoundaryConditionsdispPenalty Displacement penalty factor for weak Dirichlet boundary conditions
+     * \param[in] _WeakDirichletBoundaryConditionsrotPenalty Rotation penalty factor for weak Dirichlet boundary conditions
+     * \param[in] _isWeakDirichletBoundaryConditions Flag on whether the weak Dirichlet boundary conditions should be applied
      * \param[in] _isDomainError Flag on the computation of the domain error from the mapping
      * \param[in] _isInterfaceError Flag on the computation of the interface error from the mapping
-     * \author Andreas Apostolatos, Fabien Pean, Chenshen Wu
+     * \author Andreas Apostolatos, Fabien Pean, Chenshen Wu, Altug Emiroglu
      ***********/
     void initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
                              int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
                              int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
                              int _bisectionMaxIt, double _bisectionTol,
                              int _numGPTriangle, int _numGPQuad,
-                             double _dispPenalty, double _rotPenalty, int _isPenaltyPatchCoupling,
+                             double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
+                             double _weakDirichletBoundaryConditionsDispPenalty, double _weakDirichletBoundaryConditionsRotPenalty, int _isWeakDirichletBoundaryConditions,
                              int _isDirichletBCs, bool _isDomainError, bool _isInterfaceError);
     /***********************************************************************************************
      * \brief Initialize IGA Barycentric Mapper
