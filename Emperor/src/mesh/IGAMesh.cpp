@@ -147,10 +147,10 @@ WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _con
 
 }
 
-WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _connectionID,
+WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _conditionID,
                                                                         int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex){
 
-    weakIGADirichletCurveConditions.push_back(new WeakIGADirichletCurveCondition(_connectionID,
+    weakIGADirichletCurveConditions.push_back(new WeakIGADirichletCurveCondition(_conditionID,
                                                                                  _patchIndex, _patchBLIndex, _patchBLTrCurveIndex));
     return weakIGADirichletCurveConditions.back();
 

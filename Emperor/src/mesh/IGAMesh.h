@@ -147,7 +147,7 @@ public:
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    WeakIGADirichletCurveCondition* addWeakDirichletCurveCondition(int _connectionID,
+    WeakIGADirichletCurveCondition* addWeakDirichletCurveCondition(int _conditionID,
                                                                    int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************

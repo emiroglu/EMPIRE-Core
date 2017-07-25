@@ -174,6 +174,7 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
 /***********************************************************************************************
  * \brief Adds a NURBS curve for the current loop and its attached information.
  *        It always adds the curve to the last initialized trimming loop
+ * \param[in] meshName name of the mesh
  * \param[in] direction The direction of the curve according to its CP and knot vector ordering
  * \param[in] pDegree The polynomial degree of the IGA 1D curve in the u-direction
  * \param[in] uNoKnots The number of knots for the knot vector in the u-direction
@@ -193,6 +194,55 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
  * \author Altug Emiroglu
  ***********/
 void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch);
+
+/***********************************************************************************************
+ * brief Add a new weak Dirichlet condition to the IGA mesh
+ * \param[in] meshName name of the mesh
+ * \param[in] _conditionID The ID of the condition
+ * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+ * \param[in] _direction The direction of the curve if is following standard or not
+ * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
+ * \param[in] _uNoKnots The number of knots for the knot vector in the u-direction
+ * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
+ * \param[in] _uNoControlPoints The number of the Control Points for the 1D NURBS patch in the u-direction
+ * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
+ * \author Altug Emiroglu
+ ***********/
+void addDirichletCurveConditionToIGAMesh(char* meshName,
+                                         int conditionID, int patchIndex,
+                                         int pDegree, int uNoKnots, double* uKnotVector,
+                                         int uNoControlPoints, double* controlPointNet);
+
+/***********************************************************************************************
+ * brief Add a new weak Dirichlet condition to the IGA mesh
+ * \param[in] meshName name of the mesh
+ * \param[in] _connectionID The ID of the condition
+ * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+ * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
+ * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \return The pointer to the weak condition just created
+ * \author Altug Emiroglu
+ ***********/
+void addDirichletBoundaryConditionToIGAMesh(char* meshName,
+                                            int conditionID,
+                                            int patchIndex, int patchBLIndex, int patchBLTrCurveIndex);
+
+/***********************************************************************************************
+ * brief Add a new weak patch continuity condition to the IGA mesh
+ * \param[in] meshName name of the mesh
+ * \param[in] _connectionID The ID of the condition
+ * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
+ * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
+ * \param[in] _masterPatchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
+ * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
+ * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
+ * \author Altug Emiroglu
+ ***********/
+void addPatchContinuityConditionToIGAMesh(char* meshName,
+                                          int connectionID,
+                                          int masterPatchIndex, int masterPatchBLIndex, int masterPatchBLTrCurveIndex,
+                                          int slavePatchIndex,  int slavePatchBLIndex,  int slavePatchBLTrCurveIndex);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -299,6 +349,41 @@ void setParametersBisection(char* mapperName,
  ***********/
 void setParametersIntegration(char* mapperName,
                               int numGPTriangle, int numGPQuad);
+
+/***********************************************************************************************
+ * \brief Set the flag for enforcing consistency
+ * \param[in] _enforceConsistency The consistency flag
+ ***********/
+void setParametersConsistency(char* mapperName,
+                              bool _enforceConsistency = false);
+
+/***********************************************************************************************
+ * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
+ * \param[in] _isCurveConditions Flag on whether general curve conditions are applied
+ * \param[in] _isSurfaceConditions Flag on whether general surface conditions are applied
+ * \param[in] _dispPenalty The displacement penalty factor
+ * \param[in] _rotPenalty The rotational penalty factor
+ * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+ ***********/
+void setParametersIgaWeakDirichletConditions(char* mapperName,
+                                             bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _dispPenalty = 0, double _rotPenalty = 0, int _isAutomaticPenaltyFactors = 0);
+
+/***********************************************************************************************
+ * \brief Set parameter for penalty coupling
+ * \param[in] _dispPenalty The displacement penalty coupling factor
+ * \param[in] _rotPenalty The rotational penalty coupling factor
+ * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+ ***********/
+void setParametersIgaPatchCoupling(char* mapperName,
+                                   double _dispPenalty = 0, double _rotPenalty = 0, int isAutomaticPenaltyFactors = 0);
+
+/***********************************************************************************************
+ * \brief Set parameters for the error computation
+ * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
+ * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
+ ***********/
+void setParametersErrorComputation(char* mapperName,
+                                   bool _isDomainError = 0, bool _isInterfaceError = 0);
 
 /***********************************************************************************************
  * \brief Build Coupling Matrices

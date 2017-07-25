@@ -173,10 +173,28 @@ public:
      ***********/
     void linearize(int _type = 2, bool _dir = true);
 
+    /***********************************************************************************************
+     * \brief Create a linear approximation for the curve using Greville abscissae
+     * (Implementation migrated from IGAPatchSurfaceTrimming object)
+     * \param[in] _dir Direction of the linearization. True starts from beginning, False starts from the end
+     * \author Altug Emiroglu
+     ***********/
     void linearizeUsingGreville(bool _dir = true);
 
+    /***********************************************************************************************
+     * \brief Create a linear approximation for the curve using NCPxP points
+     * (Implementation migrated from IGAPatchSurfaceTrimming object)
+     * \param[in] _dir Direction of the linearization. True starts from beginning, False starts from the end
+     * \author Altug Emiroglu
+     ***********/
     void linearizeUsingNCPxP(bool _dir = true);
 
+    /***********************************************************************************************
+     * \brief Create a linear approximation for the curve using Greville abscissae and NCPxP points
+     * (Implementation migrated from IGAPatchSurfaceTrimming object)
+     * \param[in] _dir Direction of the linearization. True starts from beginning, False starts from the end
+     * \author Altug Emiroglu
+     ***********/
     void linearizeCombined(bool _dir = true);
 
     /// get functions

@@ -30,6 +30,8 @@
 #include "FEMesh.h"
 #include "IGAMesh.h"
 #include "IGAPatchSurface.h"
+#include "WeakIGADirichletCurveCondition.h"
+#include "WeakIGAPatchContinuityCondition.h"
 
 #include "AbstractMapper.h"
 #include "NearestNeighborMapper.h"
@@ -233,7 +235,7 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimLoop(inner,numCurves);
+        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->addTrimLoop(inner,numCurves);
         INFO_OUT()<<"Added trimming loop to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
     }
 }
@@ -250,7 +252,7 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
+        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
                                                                      uNoControlPoints, controlPoints);
         INFO_OUT()<<"Added trimming curve to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
     }
@@ -266,10 +268,69 @@ void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch){
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        (tmpIGAMesh->getSurfacePatch(idxSurfacePatch))->linearizeTrimming();
+        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->linearizeTrimming();
         INFO_OUT()<<"Linearized trimming curves of \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
     }
 }
+
+void addDirichletCurveConditionToIGAMesh(char* meshName,
+                                         int conditionID, int patchIndex,
+                                         int pDegree, int uNoKnots, double* uKnotVector,
+                                         int uNoControlPoints, double* controlPointNet) {
+
+    std::string meshNameInMap = std::string(meshName);
+
+    if (!meshList.count( meshNameInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
+        WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, pDegree, uNoKnots, uKnotVector, uNoControlPoints, controlPointNet);
+        tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
+        INFO_OUT()<<"Added a Dirichlet condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
+    }
+}
+
+void addDirichletBoundaryConditionToIGAMesh(char* meshName,
+                                            int conditionID,
+                                            int patchIndex, int patchBLIndex, int patchBLTrCurveIndex) {
+
+    std::string meshNameInMap = std::string(meshName);
+
+    if (!meshList.count( meshNameInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
+        WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, patchBLIndex, patchBLTrCurveIndex);
+        tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
+        INFO_OUT()<<"Added a Dirichlet condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
+    }
+}
+
+void addPatchContinuityConditionToIGAMesh(char* meshName,
+                                          int connectionID,
+                                          int masterPatchIndex, int masterPatchBLIndex, int masterPatchBLTrCurveIndex,
+                                          int slavePatchIndex,  int slavePatchBLIndex,  int slavePatchBLTrCurveIndex) {
+
+    std::string meshNameInMap = std::string(meshName);
+
+    if (!meshList.count( meshNameInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
+        WeakIGAPatchContinuityCondition* tmpContCond = tmpIGAMesh->addWeakContinuityCondition(connectionID,
+                                                                                              masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
+                                                                                              slavePatchIndex, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatch(masterPatchIndex), tmpIGAMesh->getSurfacePatch(masterPatchIndex));
+        INFO_OUT()<<"Added a continuity condition condition to \"" << meshNameInMap << "\" between patch " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
+    }
+}
+
 
 void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
                           int oppositeSurfaceNormal, int dual, int enforceConsistency){
@@ -528,7 +589,7 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
         if (!tmpFEMesh->boundingBox.isComputed()) tmpFEMesh->computeBoundingBox();
 
         mapperList[mapperNameToMap] = new IGAMortarMapper(mapperNameToMap, tmpIGAMesh, tmpFEMesh, isMappingIGA2FEM);
-        INFO_OUT("Generated \"" +  mapperNameToMap);
+        INFO_OUT("Generated \"" +  mapperNameToMap + "\"");
     }
 }
 
@@ -553,6 +614,7 @@ void setParametersProjection(char* mapperName,
     else{
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersProjection(maxProjectionDistance, numRefinementForIntialGuess, maxDistanceForProjectedPointsOnDifferentPatches);
+        INFO_OUT("Point projection parameters are set for \"" +  mapperNameInMap + "\"");
     }
 
 }
@@ -577,6 +639,7 @@ void setParametersNewtonRaphson(char* mapperName,
     else{
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersNewtonRaphson(maxNumOfIterations, tolerance);
+        INFO_OUT("Point projection Newton Raphson parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
@@ -600,6 +663,7 @@ void setParametersNewtonRaphsonBoundary(char* mapperName,
     else{
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersNewtonRaphsonBoundary(maxNumOfIterations, tolerance);
+        INFO_OUT("Line projection parameters using Newton-Raphson are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
@@ -622,6 +686,7 @@ void setParametersBisection(char* mapperName,
     } else {
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersBisection(maxNumOfIterations, tolerance);
+        INFO_OUT("Line projection parameters using Bisection are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
@@ -645,6 +710,98 @@ void setParametersIntegration(char* mapperName,
     else{
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersIntegration(numGPTriangle, numGPQuad);
+        INFO_OUT("Integration parameters are set for \"" +  mapperNameInMap + "\"");
+    }
+}
+
+void setParametersConsistency(char* mapperName,
+                              bool _enforceConsistency){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else {
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersConsistency(_enforceConsistency);
+        INFO_OUT("Enforce consistency parameter is set for \"" +  mapperNameInMap + "\"");
+    }
+}
+
+void setParametersIgaWeakDirichletConditions(char* mapperName,
+                                             bool _isCurveConditions, bool _isSurfaceConditions,
+                                             double _dispPenalty, double _rotPenalty, int _isAutomaticPenaltyFactors) {
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else {
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersIgaWeakDirichletConditions(_isCurveConditions, _isSurfaceConditions,
+                                                                    _dispPenalty, _rotPenalty, _isAutomaticPenaltyFactors);
+        INFO_OUT("Dirichlet condition parameters are set for \"" +  mapperNameInMap + "\"");
+    }
+}
+
+void setParametersIgaPatchCoupling(char* mapperName,
+                                   double _dispPenalty, double _rotPenalty, int isAutomaticPenaltyFactors) {
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else {
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersIgaPatchCoupling(_dispPenalty, _rotPenalty, isAutomaticPenaltyFactors);
+        INFO_OUT("Patch coupling parameters are set for \"" +  mapperNameInMap + "\"");
+    }
+}
+
+void setParametersErrorComputation(char* mapperName,
+                                   bool _isDomainError, bool _isInterfaceError) {
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else {
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
+        INFO_OUT("Error computation parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 

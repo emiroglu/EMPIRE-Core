@@ -271,7 +271,7 @@ public:
      * \brief Set the flag for enforcing consistency
      * \param[in] _enforceConsistency The consistency flag
      ***********/
-    void setParametersConsistency(bool _enforceConsistency = true);
+    void setParametersConsistency(bool _enforceConsistency = false);
 
     /***********************************************************************************************
      * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
