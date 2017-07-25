@@ -114,6 +114,7 @@ struct structMapper {
         bool enforceConsistency;
     };
     struct structIGAMortarMapper {
+        bool enforceConsistency;
         struct projectionProperties {
             double maxProjectionDistance;
             int numRefinementForIntialGuess;
@@ -137,6 +138,13 @@ struct structMapper {
                 double rotPenalty;
                 int isAutomaticPenaltyFactors;
         } IgaWeakDirichletBoundaryConditions;
+        struct IgaWeakDirichletConditions {
+                bool isCurveConditions;
+                bool isSurfaceConditions;
+                double dispPenalty;
+                double rotPenalty;
+                int isAutomaticPenaltyFactors;
+        } IgaWeakDirichletConditions;
         struct dirichletBCs {
             int isDirichletBCs;
         }dirichletBCs;

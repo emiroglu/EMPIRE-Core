@@ -34,6 +34,7 @@ int IGAPatchCurve::MAX_NUM_ITERATIONS = 50;
 double IGAPatchCurve::TOL_CONVERGENCE = 1e-6;
 int IGAPatchCurve::MAX_NUM_ITERATIONS_NEWTONRAPHSON = 20;
 double IGAPatchCurve::TOL_CONVERGENCE_NEWTONRAPHSON = 1e-9;
+double IGAPatchCurve::TOL_LINEARIZATION = 1e-6;
 
 IGAPatchCurve::IGAPatchCurve(int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
 		int _uNoControlPoints, double* _controlPointNet):
@@ -320,30 +321,32 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
     double coordP1;
     double coordP2;
 
+    // Initialize parametric coordinates
     int noCoordParam = 2;
 
-    double minNumVertices = 51;
+    // Enforce minimum number of vertices to enhance the intersection search algorithm
+    double minNumVertices = 11;
 
-//    // Check the linearization resolution
-//    std::vector<double> verticesUTilde;
-//    std::vector<double> verticesUV;
+    // Check the linearization resolution
+    std::vector<double> verticesUTilde;
+    std::vector<double> verticesUV;
 
-//    if (polyline.size()/noCoordParam < minNumVertices) {
-//        double u0 = IGABasis->getFirstKnot();
-//        double u1 = IGABasis->getLastKnot();
-//        double du = (u1-u0) / (minNumVertices-1);
-//        for(int i = 0; i < minNumVertices; i++) {
-//            double knot = u0 + i*du;
-//            double parametricCoordinates[2] = {0};
-//            verticesUTilde.push_back(knot);
-//            computeCartesianCoordinates(parametricCoordinates,knot);
-//            verticesUV.push_back(parametricCoordinates[0]);
-//            verticesUV.push_back(parametricCoordinates[1]);
-//        }
-//    } else {
-//        verticesUTilde = polylineKnots;
-//        verticesUV = polyline;
-//    }
+    if (polyline.size()/noCoordParam < minNumVertices) {
+        double u0 = IGABasis->getFirstKnot();
+        double u1 = IGABasis->getLastKnot();
+        double du = (u1-u0) / (minNumVertices-1);
+        for(int i = 0; i < minNumVertices; i++) {
+            double knot = u0 + i*du;
+            double parametricCoordinates[2] = {0};
+            verticesUTilde.push_back(knot);
+            computeCartesianCoordinates(parametricCoordinates,knot);
+            verticesUV.push_back(parametricCoordinates[0]);
+            verticesUV.push_back(parametricCoordinates[1]);
+        }
+    } else {
+        verticesUTilde = polylineKnots;
+        verticesUV = polyline;
+    }
 
     // Check if the direction of the parameter curve is given correctly
     if (_dir<2)
@@ -357,12 +360,12 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
     double uTildeP1 = 0.0;
     double uTildeP2 = 0.0;
 
-    for (int iVertexCtr=1; iVertexCtr<polyline.size()/noCoordParam; iVertexCtr++) {
+    for (int iVertexCtr=1; iVertexCtr<verticesUV.size()/noCoordParam; iVertexCtr++) {
         // Reset intersection flag at each iteration
         isIntersecting = false;
 
         // Get the corresponding coordinate of the P2
-        coordP2 = polyline.at((iVertexCtr*noCoordParam)+(_dir+1)%noCoordParam);
+        coordP2 = verticesUV.at((iVertexCtr*noCoordParam)+(_dir+1)%noCoordParam);
 
         // Check if both points are aligned with a parameter line, if so skip this curve section
         if ( fabs(coordP1 - coordP2) < TOL_CONVERGENCE ) {
@@ -373,27 +376,27 @@ bool IGAPatchCurve::computeIntersectionsWithKnotBisection(std::vector<double>& _
         // Check if the knot is coinciding with P1 within given tolerance
         if ( fabs(coordP1 - _knot) < TOL_CONVERGENCE ) {
             // Get the curve parameter and compute the coordinates
-            uTilde = polylineKnots.at(iVertexCtr-1);
+            uTilde = verticesUTilde.at(iVertexCtr-1);
             isIntersecting = true;
         }
         // Check if the knot is coinciding with P2 within given tolerance
         else if ( fabs(coordP2 - _knot) < TOL_CONVERGENCE ) {
             // Get the corresponding curve parameter and compute the coordinates
-            uTilde = polylineKnots.at(iVertexCtr);
+            uTilde = verticesUTilde.at(iVertexCtr);
             isIntersecting = true;
         }
         // Check if the knot is between the two considered vertices on P1->P2 direction
         else if (coordP1 > _knot && coordP2 < _knot) {
             // Get the curve parameters of P1 and P2 in forward sense
-            uTildeP1 = polylineKnots.at(iVertexCtr-1);
-            uTildeP2 = polylineKnots.at(iVertexCtr);
+            uTildeP1 = verticesUTilde.at(iVertexCtr-1);
+            uTildeP2 = verticesUTilde.at(iVertexCtr);
             isIntersecting = solveIntersectionWithKnotBisection(uvP, uTilde, uTildeP1, uTildeP2, _dir, _knot);
         }
         // Check if the knot is between the two considered vertices on P2->P1 direction
         else if (coordP2 > _knot && coordP1 < _knot){
             // Get the curve parameters of P1 and P2 in backward sense
-            uTildeP1 = polylineKnots.at(iVertexCtr);
-            uTildeP2 = polylineKnots.at(iVertexCtr-1);
+            uTildeP1 = verticesUTilde.at(iVertexCtr);
+            uTildeP2 = verticesUTilde.at(iVertexCtr-1);
             isIntersecting = solveIntersectionWithKnotBisection(uvP, uTilde, uTildeP1, uTildeP2, _dir, _knot);
         }
         // If none of the cases holds then switch to the next vertex pair
@@ -580,6 +583,165 @@ bool IGAPatchCurve::computePointProjectionOn2DCurve(double& _uPrm, double* _P, i
 
     // Return the convergence flag
     return isConvergent;
+}
+
+void IGAPatchCurve::linearize(int _type, bool _dir) {
+    // Check if the linearization type is given correctly
+    if (_type != 0 && _type != 1 && _type != 2) assert(false);
+
+    if (_type == 0) linearizeUsingGreville(_dir);
+    else if (_type == 1) linearizeUsingNCPxP(_dir);
+    else if (_type == 2) linearizeCombined(_dir);
+
+}
+
+void IGAPatchCurve::linearizeUsingGreville(bool _dir) {
+
+    /*
+     * Linear approximation of the nurbs curves
+     *
+     * Function layout :
+     *
+     * 1. For every control points of the curve
+     * 1.1. Compute Greville abscissae
+     * 1.2. Compute position in parametric space at Greville abscissae
+     * 1.3. Store point in data structure of polylines
+     */
+
+    if(_dir) {
+        for(int cpIndex = 0; cpIndex < uNoControlPoints ; cpIndex++) {
+            double knotGreville=IGABasis->computeGrevilleAbscissae(cpIndex);
+            double parametricCoordinates[2] = {0};
+            computeCartesianCoordinates(parametricCoordinates,knotGreville);
+            addPolylineVertex(knotGreville, parametricCoordinates[0], parametricCoordinates[1]);
+        }
+    } else {
+        for(int cpIndex = uNoControlPoints-1; cpIndex >= 0; cpIndex--) {
+            double knotGreville=IGABasis->computeGrevilleAbscissae(cpIndex);
+            double parametricCoordinates[2] = {0};
+            computeCartesianCoordinates(parametricCoordinates,knotGreville);
+            addPolylineVertex(knotGreville, parametricCoordinates[0], parametricCoordinates[1]);
+        }
+    }
+}
+
+void IGAPatchCurve::linearizeUsingNCPxP(bool _dir) {
+    /*
+     * Linear approximation of the nurbs curves
+     *
+     * Function layout :
+     *
+     * 1. Prepare data
+     * 2. Compute knot delta
+     * 3.1. For (nCP * p) nodes
+     * 3.1.1. Compute knot
+     * 3.1.2. Compute position in parametric space at knot
+     * 3.1.3. Store point in data structure of polylines
+     */
+
+    int p = IGABasis->getPolynomialDegree();
+    double u0 = IGABasis->getFirstKnot();
+    double u1 = IGABasis->getLastKnot();
+    double du = (u1-u0)/(uNoControlPoints*p-1);
+    /// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
+    if(_dir) {
+        for(int i=0;i<uNoControlPoints*p;i++) {
+            double knot = u0 + i*du;
+            double parametricCoordinates[2] = {0};
+            computeCartesianCoordinates(parametricCoordinates,knot);
+            addPolylineVertex(knot ,parametricCoordinates[0], parametricCoordinates[1]);
+        }
+    } else {
+        for(int i=uNoControlPoints*p-1;i>=0;i--) {
+            double knot = u0 + i*du;
+            double parametricCoordinates[2] = {0};
+            computeCartesianCoordinates(parametricCoordinates,knot);
+            addPolylineVertex(knot, parametricCoordinates[0], parametricCoordinates[1]);
+        }
+    }
+
+}
+
+void IGAPatchCurve::linearizeCombined(bool _dir) {
+    /*
+     * Linear approximation of the nurbs curves
+     *
+     * Function layout :
+     *
+     * 1. Prepare data for NCPxP method
+     * 2. Compute knot delta
+     * 3. For every control points of the curve
+     * 3.1. Compute and store Greville abscissae
+     * 4. For (nCP * p) nodes
+     * 4.1 Compute knot
+     * 4.2 Find the position in the stored knots where the value is in correct order
+     * 4.3 Insert the knot if it is not lying in the vicinity of an existing knot with a tolerance=1e-6
+     * 1.1. Compute knot
+     * 5. For every computed knot
+     * 5.1 Store knot in uTildeCurve
+     * 5.2 Compute position in parametric space
+     * 5.3 Store point in data structure of polylines and in data structure of polyline inside IGAPatchCurve
+     */
+
+    // NCPxP variables
+    int p = IGABasis->getPolynomialDegree();
+    double u0 = IGABasis->getFirstKnot();
+    double u1 = IGABasis->getLastKnot();
+    double du = (u1-u0)/(uNoControlPoints*p-1);
+    std::vector<double> uTildeCurve;
+    /// Check direction to put points in the right sequence (counter clockwise for outter loop, clockwise for inner
+    if(_dir) {
+
+        // Create the linearization with Greville Abscissae and store the corresponding curve parameters
+        for(int cpIndex=0;cpIndex<uNoControlPoints;cpIndex++) {
+            double knotGreville=IGABasis->computeGrevilleAbscissae(cpIndex);
+            uTildeCurve.push_back(knotGreville);
+        }
+
+        // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
+        // NCPxP
+        std::vector<double>::iterator iUTildeCurve;
+        for(int i=1;i<uNoControlPoints*p-1;i++) {    // loop excludes the start and the end points
+            iUTildeCurve = uTildeCurve.begin();
+            double knot = u0 + i*du;
+
+            while (knot>*iUTildeCurve)  iUTildeCurve++;
+
+            if (fabs(*iUTildeCurve-knot)>TOL_LINEARIZATION){
+                uTildeCurve.insert(iUTildeCurve,knot);
+                iUTildeCurve++;
+            }
+        }
+    } else {
+
+        // Create the linearization with Greville Abscissae and store the corresponding curve parameters
+        for(int cpIndex=uNoControlPoints-1;cpIndex>=0;cpIndex--) {
+            double knotGreville=IGABasis->computeGrevilleAbscissae(cpIndex);
+            uTildeCurve.push_back(knotGreville);
+        }
+
+        // Create the linearization with NCPxP and store the corresponding curve parameters considering the ordering
+        // NCPxP
+        std::vector<double>::iterator iUTildeCurve;
+        for(int i=uNoControlPoints*p-2;i>0;i--) {    // loop excludes the start and the end points
+            iUTildeCurve = uTildeCurve.begin();
+            double knot = u0 + i*du;
+
+            while (knot<*iUTildeCurve)  iUTildeCurve++;
+
+            if (fabs(*iUTildeCurve-knot)>TOL_LINEARIZATION){
+                uTildeCurve.insert(iUTildeCurve,knot);
+                iUTildeCurve++;
+            }
+        }
+    }
+
+    double parametricCoordinates[2] = {0.0, 0.0};
+    for (int knotCtr=0; knotCtr<uTildeCurve.size(); knotCtr++){
+        computeCartesianCoordinates(parametricCoordinates, uTildeCurve[knotCtr]);
+        addPolylineVertex(uTildeCurve[knotCtr], parametricCoordinates[0], parametricCoordinates[1]);
+    }
+
 }
 
 } /* namespace EMPIRE */

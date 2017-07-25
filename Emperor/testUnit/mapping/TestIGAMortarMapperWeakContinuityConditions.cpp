@@ -1517,23 +1517,23 @@ public:
         // Compute the Penalty parameters
         theMapper->computePenaltyFactorsForPatchContinuityConditions();
         int noWeakPatchContinuityConditions = theMapper->getNoWeakIGAPatchContinuityConditions();
-        double* alphaPrimaryIJ = new double[noWeakPatchContinuityConditions];
-        double* alphaSecondaryIJ = new double[noWeakPatchContinuityConditions];
+        double* weakPatchContinuityAlphaPrimaryIJ = new double[noWeakPatchContinuityConditions];
+        double* weakPatchContinuityAlphaSecondaryIJ = new double[noWeakPatchContinuityConditions];
         theMapper->setUseIGAPatchCouplingPenalties(true);
-        theMapper->getPenaltyParameterForPrimaryField(alphaPrimaryIJ);
-        theMapper->getPenaltyParameterForSecondaryField(alphaSecondaryIJ);
+        theMapper->getPenaltyParameterForPatchContinuityPrimaryField(weakPatchContinuityAlphaPrimaryIJ);
+        theMapper->getPenaltyParameterForPatchContinuitySecondaryField(weakPatchContinuityAlphaSecondaryIJ);
 
         // Define the expected solution in terms of the Penalty parameters
         double expectedAlphaPrimaryIJ = 5.527399039185964e+01;
         double expectedAlphaSecondaryIJ = 1.051417998627184e+01;
 
         // Check if the computed Penalty parameters match the expected ones
-        CPPUNIT_ASSERT(fabs( alphaPrimaryIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
-        CPPUNIT_ASSERT(fabs( alphaSecondaryIJ[0] - expectedAlphaSecondaryIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaPrimaryIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryIJ[0] - expectedAlphaSecondaryIJ ) <= Tol);
 
         // Delete pointers
-        delete[] alphaPrimaryIJ;
-        delete[] alphaSecondaryIJ;
+        delete[] weakPatchContinuityAlphaPrimaryIJ;
+        delete[] weakPatchContinuityAlphaSecondaryIJ;
     }
 
     /***********************************************************************************************

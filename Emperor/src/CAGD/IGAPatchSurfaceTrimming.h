@@ -187,24 +187,11 @@
      public:
          /***********************************************************************************************
           * \brief Create a linear approximation for this loop
+          * \param[in] _type Type of linearization 0: NCPxP, 1: Greville, 2: Combined
           * \author Fabien Pean
+          * \edit Altug Emiroglu: the function is migrated from the trimming loop to the underlying curve
           ***********/
-         void linearize();
-         /***********************************************************************************************
-          * \brief Create a linear approximation for this loop using 1 node per control point at Greville position
-          * 	This is a coarse linearization whose deviation is limited by using the Greville abscissae
-          * \author Fabien Pean
-          ***********/
-         void linearizeUsingGreville();
-         /***********************************************************************************************
-          * \brief Create a linear approximation for this loop using (#CPs times degree of the curve) nodes
-          * 	This allows a scalable linearization, quite refined.
-          * \author Fabien Pean
-          ***********/
-         void linearizeUsingNCPxP();
-
-         void linearizeCombined();
-
+         void linearize(int _type = 2);
 
          /// get functions
 	 public:
@@ -276,8 +263,6 @@
         	 return &polylines[0];
          }
 
-         /// The tolerance in the curve parameter space for the linearization of the trimming loops
-         static double TOL_LINEARIZATION;
 	 };
      
      /***********************************************************************************************

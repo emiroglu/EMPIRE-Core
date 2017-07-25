@@ -326,6 +326,13 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.type = EMPIRE_IGAMortarMapper;
             ticpp::Element *xmlIGAMortar = xmlMapper->FirstChildElement("IGAMortarMapper");
             assert(xmlIGAMortar != NULL);
+            if (xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "true" ||
+                xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "True" )
+                mapper.igaMortarMapper.enforceConsistency = true;
+            else if (xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "false" ||
+                     xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "False" )
+                     mapper.igaMortarMapper.enforceConsistency = false;
+            else assert(false);
             ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties",
                     false);
             if (xmlProjection != NULL) {
@@ -397,7 +404,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty = 0;
                 mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
             }
-            ticpp::Element *xmlIgaWeakDirichletBoundaryConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletBoundaryConditions", false);
+            ticpp::Element *xmlIgaWeakDirichletBoundaryConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletBC", false);
             if (xmlIgaWeakDirichletBoundaryConditions != NULL) {
                 mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty =
                         xmlIgaWeakDirichletBoundaryConditions->GetAttribute<double>("dispPenalty");
@@ -409,6 +416,32 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty = 0;
                 mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty = 0;
                 mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors = 0;
+            }
+            ticpp::Element *xmlIgaWeakDirichletConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletCC", false);
+            if (xmlIgaWeakDirichletConditions != NULL) {
+                if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "True" ||
+                     xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "true" )
+                    mapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions = true;
+                else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "False" ||
+                          xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "false" )
+                         mapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions = false;
+
+                if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "True" ||
+                     xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "true" )
+                    mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = true;
+                else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "False" ||
+                          xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "false" )
+                         mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = false;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.dispPenalty =
+                        xmlIgaWeakDirichletConditions->GetAttribute<double>("dispPenalty");
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.rotPenalty =
+                        xmlIgaWeakDirichletConditions->GetAttribute<double>("rotPenalty");
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors =
+                        xmlIgaWeakDirichletConditions->GetAttribute<int>("isAutomaticPenaltyFactors");
+            } else {
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.dispPenalty = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.rotPenalty = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors = 0;
             }
 
             ticpp::Element *xmlDirichletBCs = xmlIGAMortar->FirstChildElement("dirichletBCs", false);

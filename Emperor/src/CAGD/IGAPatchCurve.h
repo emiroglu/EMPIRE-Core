@@ -165,6 +165,20 @@ public:
      */
     bool computePointProjectionOn2DCurve(double& _uPrm, double* _P, int _noCoord, int _maxIt=MAX_NUM_ITERATIONS_NEWTONRAPHSON, double _tol=TOL_CONVERGENCE_NEWTONRAPHSON);
 
+    /***********************************************************************************************
+     * \brief Create a linear approximation for the curve (Implementation migrated from IGAPatchSurfaceTrimming object)
+     * \param[in] _type (0: NCPxP, 1: Greville, 2: Combined) Type of linearization
+     * \param[in] _dir Direction of the linearization. True starts from beginning, False starts from the end
+     * \author Altug Emiroglu
+     ***********/
+    void linearize(int _type = 2, bool _dir = true);
+
+    void linearizeUsingGreville(bool _dir = true);
+
+    void linearizeUsingNCPxP(bool _dir = true);
+
+    void linearizeCombined(bool _dir = true);
+
     /// get functions
 public:
     /***********************************************************************************************
@@ -229,10 +243,10 @@ public:
      * \brief Add a vertex to the linearization of the trimming curve
      * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
-    inline void addPolylineVertex(double _u, double _v, double _knot){
+    inline void addPolylineVertex(double _knot, double _u, double _v){
+        polylineKnots.push_back(_knot);
         polyline.push_back(_u);
         polyline.push_back(_v);
-        polylineKnots.push_back(_knot);
     }
 
     /// The maximum number of iterations for the computation of the intersection with a line
@@ -243,6 +257,9 @@ public:
     static int MAX_NUM_ITERATIONS_NEWTONRAPHSON;
     /// The tolerance for the iterations for the projection of a point on a curve using the Newton-Raphson algorithm
     static double TOL_CONVERGENCE_NEWTONRAPHSON;
+
+    /// The tolerance in the curve parameter space for the linearization of the trimming loops
+    static double TOL_LINEARIZATION;
 
 };
 

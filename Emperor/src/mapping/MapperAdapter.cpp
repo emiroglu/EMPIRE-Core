@@ -87,14 +87,17 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
     mapper->buildCouplingMatrices();
 }
 
-void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
-        int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
-        int _newtonRaphsonMaxIt, double _newtonRaphsonTol, int _newtonRaphsonBoundaryMaxIt,
-        double _newtonRaphsonBoundaryTol, int _bisectionMaxIt, double _bisectionTol,
-        int _numGPTriangle, int _numGPQuad,
-    double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
-    double _weakDirichletBoundaryConditionsDispPenalty, double _weakDirichletBoundaryConditionsRotPenalty, int _isWeakDirichletBoundaryConditions,
-        int _isDirichletBCs, bool _isDomainError, bool _isInterfaceError) {
+void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
+                                        int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
+                                        int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
+                                        int _bisectionMaxIt, double _bisectionTol,
+                                        int _numGPTriangle, int _numGPQuad,
+                                        bool _enforceConsistency,
+                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditions,
+                                        double _weakDirichletBoundaryConditionsDispPenalty, double _weakDirichletBoundaryConditionsRotPenalty, int _isWeakDirichletBoundaryConditions,
+                                        double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
+                                        int _isDirichletBCs,
+                                        bool _isDomainError, bool _isInterfaceError) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
@@ -118,8 +121,10 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance,
             _newtonRaphsonBoundaryTol);
     mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
-    mapper->setParametersIgaPatchCoupling(_patchContinuityDispPenalty, _patchContinuityRotPenalty, _isPenaltyPatchCoupling);
+    mapper->setParametersConsistency(_enforceConsistency);
+    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsDispPenalty, _weakDirichletConditionsRotPenalty, _isWeakDirichletConditions);
     mapper->setParametersIgaWeakDirichletBoundaryConditions(_weakDirichletBoundaryConditionsDispPenalty, _weakDirichletBoundaryConditionsRotPenalty, _isWeakDirichletBoundaryConditions);
+    mapper->setParametersIgaPatchCoupling(_patchContinuityDispPenalty, _patchContinuityRotPenalty, _isPenaltyPatchCoupling);
     mapper->setParametersDirichletBCs(_isDirichletBCs);
     mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
     mapper->buildCouplingMatrices();

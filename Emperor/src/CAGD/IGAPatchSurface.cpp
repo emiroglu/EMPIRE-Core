@@ -188,11 +188,11 @@ void IGAPatchSurface::addTrimLoop(int inner, int numCurves) {
     Trimming.addTrimLoop(inner, numCurves);
 }
 
-void IGAPatchSurface::addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
+void IGAPatchSurface::addTrimCurve(int _direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                   int _uNoControlPoints, double* _controlPointNet) {
     int IDBasis = 0; ///???
 
-    Trimming.addTrimCurve(direction, IDBasis, _pDegree, _uNoKnots, _uKnotVector,
+    Trimming.addTrimCurve(_direction, IDBasis, _pDegree, _uNoKnots, _uKnotVector,
                                                _uNoControlPoints, _controlPointNet);
 }
 
@@ -1997,6 +1997,67 @@ void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<doub
         DEBUG_OUT("Adding the first and the last knot.");
         _uTilde.push_back(Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getFirstKnot());
         _uTilde.push_back(Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getIGABasis()->getLastKnot());
+    }
+}
+
+void IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde,
+                                                                IGAPatchCurve* _theCurve){
+
+    /*
+     * 1. Get the knots and the trimming curve to perform the intersection
+     * 2. Compute U and V intersections separately. At the end of the process _uTilde is sorted in ascending order
+     * 3. Given the curve parameters, compute UV parameters on the patch and the global Cartesian coordinates
+     */
+
+    // Define an equality tolerance which is actually the tolerance of the bisection algorithm that is used here
+    double tol = 1e-6;
+
+    // Initialize parameter line direction
+    int dirU = 0;
+    int dirV = 1;
+
+    // Compute knot intersections
+    double knot;
+    // Compute U knot intersections in V direction
+    for (int knotCtr = 0; knotCtr < IGABasis->getUBSplineBasis1D()->getNoKnots(); knotCtr++){
+        if (knotCtr == 0) knot = IGABasis->getUBSplineBasis1D()->getKnotVector()[knotCtr];
+        else if (knot == IGABasis->getUBSplineBasis1D()->getKnotVector()[knotCtr]) continue;
+        else knot = IGABasis->getUBSplineBasis1D()->getKnotVector()[knotCtr];
+
+        _theCurve->computeIntersectionsWithKnotBisection(_uTilde, dirV, knot);
+    }
+
+    // Compute V knot intersections in U direction
+    for (int knotCtr = 0; knotCtr < IGABasis->getVBSplineBasis1D()->getNoKnots(); knotCtr++){
+        if (knotCtr == 0) knot = IGABasis->getVBSplineBasis1D()->getKnotVector()[knotCtr];
+        else if (knot == IGABasis->getVBSplineBasis1D()->getKnotVector()[knotCtr]) continue;
+        else knot = IGABasis->getVBSplineBasis1D()->getKnotVector()[knotCtr];
+
+        _theCurve->computeIntersectionsWithKnotBisection(_uTilde, dirU, knot);
+    }
+
+    // Check if intersections exist and the first/last knot is included
+    if (!_uTilde.empty()) {
+        EMPIRE::MathLibrary::sortRemoveDuplicates(_uTilde);
+        // Check for the first knot
+        if (fabs (*_uTilde.begin() - _theCurve->getIGABasis()->getFirstKnot())  > tol) {
+            _uTilde.insert(_uTilde.begin(), _theCurve->getIGABasis()->getFirstKnot());
+            DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": Intersections exist but the first knot is not found!");
+            DEBUG_OUT("Adding the first knot.");
+        }
+        // Check for the last knot
+        if (fabs (*(_uTilde.end()-1) - _theCurve->getIGABasis()->getLastKnot()) > tol) {
+            _uTilde.push_back(_theCurve->getIGABasis()->getLastKnot());
+            DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": Intersections exist but the last knot is not found!");
+            DEBUG_OUT("Adding the last knot.");
+        }
+    }
+    // Check if the trimming curve is not intersected by any knot then add the first and the last knots
+    else if (_uTilde.empty()) {
+        DEBUG_OUT("In \"IGAPatchSurface::computeKnotIntersectionsWithTrimmingCurve\": No intersections found!");
+        DEBUG_OUT("Adding the first and the last knot.");
+        _uTilde.push_back(_theCurve->getIGABasis()->getFirstKnot());
+        _uTilde.push_back(_theCurve->getIGABasis()->getLastKnot());
     }
 }
 

@@ -71,6 +71,7 @@ public:
      * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
      * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
      * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     * \param[in] _enforceConsistency A flag on whether the consistency should be enforced
      * \param[in] _patchContinuityDispPenalty Displacement penalty factor for patch coupling conditions
      * \param[in] _patchContinuityRotPenalty Rotation penalty factor for patch coupling conditions
      * \param[in] _isPenaltyPatchCoupling Flag on whether the patch penalty coupling should be applied
@@ -86,9 +87,12 @@ public:
                              int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
                              int _bisectionMaxIt, double _bisectionTol,
                              int _numGPTriangle, int _numGPQuad,
-                             double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
+                             bool _enforceConsistency,
+                             bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
                              double _weakDirichletBoundaryConditionsDispPenalty, double _weakDirichletBoundaryConditionsRotPenalty, int _isWeakDirichletBoundaryConditions,
-                             int _isDirichletBCs, bool _isDomainError, bool _isInterfaceError);
+                             double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
+                             int _isDirichletBCs,
+                             bool _isDomainError, bool _isInterfaceError);
     /***********************************************************************************************
      * \brief Initialize IGA Barycentric Mapper
      * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface

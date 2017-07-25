@@ -221,7 +221,6 @@ void WeakIGADirichletBoundaryCondition::createGPData(IGAPatchSurface* _patch) {
 
 }
 
-
 WeakIGADirichletBoundaryCondition::~WeakIGADirichletBoundaryCondition() {
     if (isGPDataInitialized) {
         delete trCurveGPs;

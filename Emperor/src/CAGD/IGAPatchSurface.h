@@ -102,7 +102,7 @@ public:
     void addTrimLoop(int inner, int numCurves);
     /***********************************************************************************************
      * \brief Add a Nurbs curve for the current loop and its attached information
-     * \param[in] direction The direction of the curve if is following standard or not
+     * \param[in] _direction The direction of the curve if is following standard or not
      * \param[in] _pDegree The polynomial degree of the IGA 1D curve in the u-direction
      * \param[in] _uNoKnots The number of knots for the knot vector in the u-direction
      * \param[in] _uKnotVector The underlying knot vector of the IGA 1D curve in the u-direction
@@ -110,7 +110,7 @@ public:
      * \param[in] _controlPointNet The set of the Control Points related to the 1D NURBS patch
      * \author Fabien Pean
      ***********/
-    void addTrimCurve(int direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
+    void addTrimCurve(int _direction, int _pDegree, int _uNoKnots, double* _uKnotVector,
                       int _uNoControlPoints, double* _controlPointNet);
 
     /***********************************************************************************************
@@ -420,14 +420,24 @@ public:
 public:
     /***********************************************************************************************
      * \brief Find the knot intersections of a trimming curve and return the coordinates
-     * in the patch parameter space as well as the curve parameter space
+     * in the curve parameter space
      * \param[in/out] _uTilde The curve parameters of the intersections
      * \param[in] _patchBLIndex Given is the u-surface parameter
      * \param[in] _patchBLTrCurveIndex Given is the v-surface parameter
-     * \author Altug Emiroglu
+     * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
     void computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde,
                                                    int _patchBLIndex, int _patchBLTrCurveIndex);
+
+    /***********************************************************************************************
+     * \brief Find the knot intersections of the given trimming curve and return the coordinates
+     * in the curve parameter space
+     * \param[in/out] _uTilde The curve parameters of the intersections
+     * \param[in] _theCurve The curve on which the knot intersections to be computed
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    void computeKnotIntersectionsWithTrimmingCurve(std::vector<double>& _uTilde,
+                                                   IGAPatchCurve* _theCurve);
 
 
     /// Postprocessing functions

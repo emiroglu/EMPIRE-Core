@@ -79,7 +79,7 @@ public:
                               int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
-     * \brief Set the GP data for the coupling condition
+     * \brief Set the GP data for the Dirichlet condition
      * \param[in] _trCurveNumGP The total number of GPs on the trimming curve
      * \param[in] _trCurveGPs The parametric coordinates of the GPs on the trimming curve in the patch parameter space
      * \param[in] _trCurveGPWeights The GP weights
@@ -92,7 +92,7 @@ public:
                                          double* _trCurveGPJacobianProducts);
 
     /***********************************************************************************************
-     * \brief Set the GP data for the coupling condition
+     * \brief Set the GP data for the Dirichlet condition
      * \param[in] _patch The patch on which the trimming curve exists
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/

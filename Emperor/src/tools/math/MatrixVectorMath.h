@@ -528,6 +528,7 @@ public:
      * \brief This function deletes or resets a whole row in sparse matrix.
      * \param[in] 	-- row 			Row number of the sparse matrix for which should be deleted.
      * \author Aditya Ghantasala
+     * \ edit Altug Emiroglu : when a row is deleted isFactorized flag is set to false
      ***********/
     void deleteRow(size_t row){
 #ifdef USE_INTEL_MKL
@@ -700,6 +701,19 @@ public:
 #endif
 
     }
+
+    /***********************************************************************************************
+     * \brief This returns the flag on if the factorization is performed
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    inline bool isFactorization() { return isFactorized; }
+
+    /***********************************************************************************************
+     * \brief This sets the flag on the factorization
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    inline void setFactorization(bool _flag) { isFactorized = _flag; }
+
     /***********************************************************************************************
      * \brief This prints the matrix in full style
      * \author Stefan Sicklinger
