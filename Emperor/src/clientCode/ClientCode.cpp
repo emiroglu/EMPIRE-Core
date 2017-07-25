@@ -28,8 +28,8 @@
 #include "SectionMesh.h"
 #include "IGAMesh.h"	 	
 #include "IGAPatchSurface.h"
+#include "WeakIGADirichletCurveCondition.h"
 #include "WeakIGAPatchContinuityCondition.h"
-#include "WeakIGADirichletBoundaryCondition.h"
 #include "Signal.h"
 #include "Message.h"
 #include <stdlib.h>
@@ -284,7 +284,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
     int numWeakDirichletCond;
     serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakDirichletCond);
 
-    for(int wDBCCtr = 0; wDBCCtr<numWeakDirichletCond; wDBCCtr++){
+    for(int wDCCtr = 0; wDCCtr<numWeakDirichletCond; wDCCtr++){
         const int BUFFER_SIZE_CONNECTION_INFO = 3;
         int connectionInfo[BUFFER_SIZE_CONNECTION_INFO];
         serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_CONNECTION_INFO, connectionInfo);
@@ -297,7 +297,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         serverComm->receiveFromClientBlocking<int>(name, 1, &isGPProvided);
         if (isGPProvided != 1 && isGPProvided != 0) assert(false);
 
-        WeakIGADirichletBoundaryCondition* theWeakDirichletBoundaryCond = theIGAMesh->addWeakDirichletBoundaryCondition(wDBCCtr,
+        WeakIGADirichletCurveCondition* theWeakDirichletCurveCond = theIGAMesh->addWeakDirichletCurveCondition(wDCCtr,
                                                             patchIndex, patchBLIndex, patchBLTrCurveIndex);
 
         if(isGPProvided){
@@ -314,7 +314,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP*3, trCurveGPTangents);
             serverComm->receiveFromClientBlocking<double>(name,trCurveNumGP, trCurveGPJacobianProducts);
 
-            theWeakDirichletBoundaryCond->addWeakDirichletBoundaryConditionGPData(trCurveNumGP,
+            theWeakDirichletCurveCond->addWeakDirichletCurveConditionGPData(trCurveNumGP,
                                                trCurveGPs, trCurveGPWeights,
                                                trCurveGPTangents,
                                                trCurveGPJacobianProducts);
@@ -326,7 +326,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             delete trCurveGPJacobianProducts;
 
         } else {
-            theIGAMesh->createWeakDirichletBoundaryConditionGPData(wDBCCtr);
+            theIGAMesh->createWeakDirichletCurveConditionGPData(wDCCtr);
         }
     }
 
@@ -334,7 +334,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
     int numWeakContCond;
     serverComm->receiveFromClientBlocking<int>(name, 1, &numWeakContCond);
 
-    for(int connectionCtr = 0; connectionCtr<numWeakContCond; connectionCtr++){
+    for(int wPCCCtr = 0; wPCCCtr<numWeakContCond; wPCCCtr++){
         const int BUFFER_SIZE_CONNECTION_INFO = 6;
         int connectionInfo[BUFFER_SIZE_CONNECTION_INFO];
         serverComm->receiveFromClientBlocking<int>(name, BUFFER_SIZE_CONNECTION_INFO, connectionInfo);
@@ -350,7 +350,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         serverComm->receiveFromClientBlocking<int>(name, 1, &isGPProvided);
         if (isGPProvided != 1 && isGPProvided != 0) assert(false);
 
-        WeakIGAPatchContinuityCondition* theWeakContCond = theIGAMesh->addWeakContinuityCondition(connectionCtr,
+        WeakIGAPatchContinuityCondition* theWeakContCond = theIGAMesh->addWeakContinuityCondition(wPCCCtr,
                                                             masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
                                                             slavePatchIndex,  slavePatchBLIndex,  slavePatchBLTrCurveIndex);
 
@@ -386,7 +386,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
             delete trCurveGPJacobianProducts;
 
         } else {
-            theIGAMesh->createWeakContinuityConditionGPData(connectionCtr);
+            theIGAMesh->createWeakContinuityConditionGPData(wPCCCtr);
         }
     }
 

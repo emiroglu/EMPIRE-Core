@@ -52,6 +52,18 @@ public:
      ***********/
     virtual ~AbstractCondition(){};
 
+    /***********************************************************************************************
+     * \brief Create GP Data
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    virtual void createGPData(){};
+
+    /***********************************************************************************************
+     * \brief Create GP Data
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    virtual void getGPData(){};
+
     /// type of the condition
     EMPIRE_Condition_type type;
 };

@@ -133,11 +133,6 @@ struct structMapper {
                 double rotPenalty;
                 int isAutomaticPenaltyFactors;
         } IgaPatchCoupling;
-        struct IgaWeakDirichletBoundaryConditions {
-                double dispPenalty;
-                double rotPenalty;
-                int isAutomaticPenaltyFactors;
-        } IgaWeakDirichletBoundaryConditions;
         struct IgaWeakDirichletConditions {
                 bool isCurveConditions;
                 bool isSurfaceConditions;

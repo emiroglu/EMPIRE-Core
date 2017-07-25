@@ -39,7 +39,6 @@ class Message;
 class IGAPatchSurface;
 class IGAControlPoint;
 class WeakIGADirichletCurveCondition;
-class WeakIGADirichletBoundaryCondition;
 class WeakIGAPatchContinuityCondition;
 
 /********//**
@@ -61,9 +60,6 @@ protected:
 
     /// Vector of all weak Dirichlet conditions
     std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions;
-
-    /// Vector of all weak Dirichlet boundary conditions
-    std::vector<WeakIGADirichletBoundaryCondition*> weakIGADirichletBoundaryConditions;
 
     /// Vector of all weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
@@ -126,7 +122,7 @@ public:
     void computeBoundingBox();
 
     /***********************************************************************************************
-     * brief Add a new weak condition to the IGA mesh
+     * brief Add a new weak Dirichlet condition to the IGA mesh
      * \param[in] _conditionID The ID of the condition
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _direction The direction of the curve if is following standard or not
@@ -143,14 +139,7 @@ public:
                                                                    int _uNoControlPoints, double* _controlPointNet);
 
     /***********************************************************************************************
-      * brief Create the GP data for the weak Dirichlet condition
-      * \param[in] _conditionIndex Weak condition index
-      * \author Andreas Apostolatos, Altug Emiroglu
-      ***********/
-    void createWeakDirichletCurveConditionGPData(int _conditionIndex);
-
-    /***********************************************************************************************
-     * brief Add a new weak condition to the IGA mesh
+     * brief Add a new weak Dirichlet condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
@@ -158,18 +147,18 @@ public:
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    WeakIGADirichletBoundaryCondition* addWeakDirichletBoundaryCondition(int _connectionID,
-                                                                         int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
+    WeakIGADirichletCurveCondition* addWeakDirichletCurveCondition(int _connectionID,
+                                                                   int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
-      * brief Create the GP data for the weak Dirichlet boundary condition if not provided
+      * brief Create the GP data for the weak Dirichlet condition
       * \param[in] _conditionIndex Weak condition index
       * \author Andreas Apostolatos, Altug Emiroglu
       ***********/
-    void createWeakDirichletBoundaryConditionGPData(int _conditionIndex);
+    void createWeakDirichletCurveConditionGPData(int _conditionIndex);
 
     /***********************************************************************************************
-     * brief Add a new weak condition to the IGA mesh
+     * brief Add a new weak patch continuity condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
      * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
      * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
@@ -185,7 +174,7 @@ public:
                                                                 int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex);
 
     /***********************************************************************************************
-      * brief Create the GP data for a weak continuity condition with the given index if not provided
+      * brief Create the GP data for a weak patch continuity condition with the given index if not provided
       * \param[in] _connectionIndex Weak continuity condition index
       * \author Andreas Apostolatos, Altug Emiroglu
       ***********/
@@ -247,15 +236,6 @@ public:
      ***********/
     std::vector<WeakIGADirichletCurveCondition*> getWeakIGADirichletCurveConditions() const{
         return weakIGADirichletCurveConditions;
-    }
-
-    /***********************************************************************************************
-     * \brief Returns the array of all weak IGA Dirichlet boundary conditions
-     * \param[out] The array of all weak IGA Dirichlet boundary conditions
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    std::vector<WeakIGADirichletBoundaryCondition*> getWeakIGADirichletBoundaryConditions() const{
-        return weakIGADirichletBoundaryConditions;
     }
 
     /***********************************************************************************************

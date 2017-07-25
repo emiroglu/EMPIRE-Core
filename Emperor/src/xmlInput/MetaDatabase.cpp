@@ -404,20 +404,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty = 0;
                 mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
             }
-            ticpp::Element *xmlIgaWeakDirichletBoundaryConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletBC", false);
-            if (xmlIgaWeakDirichletBoundaryConditions != NULL) {
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty =
-                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<double>("dispPenalty");
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty =
-                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<double>("rotPenalty");
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors =
-                        xmlIgaWeakDirichletBoundaryConditions->GetAttribute<int>("isAutomaticPenaltyFactors");
-            } else {
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.dispPenalty = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.rotPenalty = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletBoundaryConditions.isAutomaticPenaltyFactors = 0;
-            }
-            ticpp::Element *xmlIgaWeakDirichletConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletCC", false);
+            ticpp::Element *xmlIgaWeakDirichletConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletConditions", false);
             if (xmlIgaWeakDirichletConditions != NULL) {
                 if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "True" ||
                      xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "true" )
@@ -425,7 +412,6 @@ void MetaDatabase::fillSettingMapperVec() {
                 else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "False" ||
                           xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "false" )
                          mapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions = false;
-
                 if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "True" ||
                      xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "true" )
                     mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = true;

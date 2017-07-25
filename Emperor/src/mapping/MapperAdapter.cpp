@@ -94,7 +94,6 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
                                         int _numGPTriangle, int _numGPQuad,
                                         bool _enforceConsistency,
                                         bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditions,
-                                        double _weakDirichletBoundaryConditionsDispPenalty, double _weakDirichletBoundaryConditionsRotPenalty, int _isWeakDirichletBoundaryConditions,
                                         double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
                                         int _isDirichletBCs,
                                         bool _isDomainError, bool _isInterfaceError) {
@@ -123,7 +122,6 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
     mapper->setParametersConsistency(_enforceConsistency);
     mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsDispPenalty, _weakDirichletConditionsRotPenalty, _isWeakDirichletConditions);
-    mapper->setParametersIgaWeakDirichletBoundaryConditions(_weakDirichletBoundaryConditionsDispPenalty, _weakDirichletBoundaryConditionsRotPenalty, _isWeakDirichletBoundaryConditions);
     mapper->setParametersIgaPatchCoupling(_patchContinuityDispPenalty, _patchContinuityRotPenalty, _isPenaltyPatchCoupling);
     mapper->setParametersDirichletBCs(_isDirichletBCs);
     mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
@@ -216,7 +214,7 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletBoundaryConditionPenalties() )) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() )) {
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {
@@ -269,7 +267,7 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     } 
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletBoundaryConditionPenalties() )) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties())) {
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {

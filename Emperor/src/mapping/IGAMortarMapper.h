@@ -106,18 +106,6 @@ private:
     double* weakDirichletCCAlphaSecondary;
 
     /// Flag on the application of patch continuity conditions using Penalty
-    bool isIGAWeakDirichletBoundaryConditions;
-
-    /// Number of weak IGA patch continuity conditions
-    int noWeakIGADirichletBoundaryConditions;
-
-    /// Penalty factors for the primary field to the application of weak patch continuity conditions
-    double* weakDirichletBCAlphaPrimary;
-
-    /// Penalty factors for the secondary field to the application of weak patch continuity conditions
-    double* weakDirichletBCAlphaSecondary;
-
-    /// Flag on the application of patch continuity conditions using Penalty
     bool isIGAPatchContinuityConditions;
 
     /// Number of weak IGA patch continuity conditions
@@ -198,13 +186,6 @@ private:
             double rotPenalty;
             int isAutomaticPenaltyFactors;
     } IgaPatchCoupling;
-
-    /// Properties for the application of weak Dirichlet boundary conditions with Penalty
-    struct IgaWeakDirichletBoundaryConditions {
-            double dispPenalty;
-            double rotPenalty;
-            int isAutomaticPenaltyFactors;
-    } IgaWeakDirichletBoundaryConditions;
 
     /// Properties for the application of general weak Dirichlet conditions with Penalty
     struct IgaWeakDirichletConditions {
@@ -303,14 +284,6 @@ public:
     void setParametersIgaWeakDirichletConditions(bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _dispPenalty = 0, double _rotPenalty = 0, int _isAutomaticPenaltyFactors = 0);
 
     /***********************************************************************************************
-     * \brief Set parameter for the application of weak Dirichlet BCs with penalty method
-     * \param[in] _dispPenalty The displacement penalty factor
-     * \param[in] _rotPenalty The rotational penalty factor
-     * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
-     ***********/
-    void setParametersIgaWeakDirichletBoundaryConditions(double _dispPenalty = 0, double _rotPenalty = 0, int isAutomaticPenaltyFactors = 0);
-
-    /***********************************************************************************************
      * \brief Set parameter for penalty coupling
      * \param[in] _dispPenalty The displacement penalty coupling factor
      * \param[in] _rotPenalty The rotational penalty coupling factor
@@ -337,14 +310,6 @@ public:
      ***********/
     bool setUseIGAWeakDirichletCurveConditionsPenalties(bool _isIGAWeakDirichletCurveConditions) {
         isIGAWeakDirichletCurveConditions = _isIGAWeakDirichletCurveConditions;
-    }
-
-    /***********************************************************************************************
-     * \brief Set the flag regarding the computation of weak Dirichlet boundary conditions
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    bool setUseIGAWeakDirichletBoundaryConditionsPenalties(bool _isIGAWeakDirichletBoundaryConditions) {
-        isIGAWeakDirichletBoundaryConditions = _isIGAWeakDirichletBoundaryConditions;
     }
 
     /***********************************************************************************************
@@ -456,12 +421,6 @@ public:
     void computeIGAWeakDirichletCurveConditionMatrices();
 
     /***********************************************************************************************
-     * \brief Compute and assemble the IGA weak Dirichlet boundary condition matrices
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    void computeIGAWeakDirichletBoundaryConditionMatrices();
-
-    /***********************************************************************************************
      * \brief Compute and assemble the IGA Patch weak continuity condition matrices
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
@@ -485,14 +444,11 @@ public:
                                                          double* _BOperatorOmegaN, double* _normalTrCurveVct,
                                                          IGAPatchSurface* _patch, double* _tangentTrCurveVct,
                                                          double _u, double _v, int _uKnotSpan, int _vKnotSpan);
-
-    void computePenaltyFactorsForWeakDirichletCurveConditions();
-
     /***********************************************************************************************
-     * \brief Compute the penalty factors for the primary and the secondary field for the weak Dirichlet boundary conditions
+     * \brief Compute the penalty factors for the primary and the secondary field for the weak Dirichlet curve conditions
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void computePenaltyFactorsForWeakDirichletBoundaryConditions();
+    void computePenaltyFactorsForWeakDirichletCurveConditions();
 
     /***********************************************************************************************
      * \brief Compute the penalty factors for the primary and the secondary field for each interface
@@ -705,14 +661,6 @@ public:
     }
 
     /***********************************************************************************************
-     * \brief Get boolean whether a IGA weak Dirichlet boundary condition was used or not
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    bool getUseIGAWeakDirichletBoundaryConditionPenalties() {
-        return isIGAWeakDirichletBoundaryConditions;
-    }
-
-    /***********************************************************************************************
      * \brief Get boolean whether the IGA patch coupling was used or not
      * \author Ragnar Björnsson
      ***********/
@@ -732,8 +680,8 @@ public:
      * \brief Get the number of the weak patch continuity conditions
      * \author Altug Emiroglu
      ***********/
-    int getNoWeakIGADirichletBoundaryConditions(){
-        return noWeakIGADirichletBoundaryConditions;
+    int getNoWeakIGADirichletCurveConditions(){
+        return noWeakIGADirichletCurveConditions;
     }
 
     /***********************************************************************************************
@@ -757,20 +705,6 @@ public:
      * \author Altug Emiroglu
      ***********/
     void getPenaltyParameterForWeakDirichletCCSecondaryField(double* _alphaSec);
-
-    /***********************************************************************************************
-     * \brief Get the penalty parameters of the primary field
-     * \param[in/out] The vector of the penalty factors for the primary field
-     * \author Altug Emiroglu
-     ***********/
-    void getPenaltyParameterForWeakDirichletBCPrimaryField(double* _alphaPrim);
-
-    /***********************************************************************************************
-     * \brief Get the penalty parameters of the secondary field
-     * \param[in/out] The vector of the penalty factors for the primary field
-     * \author Altug Emiroglu
-     ***********/
-    void getPenaltyParameterForWeakDirichletBCSecondaryField(double* _alphaSec);
 
     /***********************************************************************************************
      * \brief Get the penalty parameters of the primary field

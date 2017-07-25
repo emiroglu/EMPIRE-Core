@@ -26,7 +26,6 @@
 
 // Inclusion of user defined libraries
 #include "WeakIGADirichletCurveCondition.h"
-#include "WeakIGADirichletBoundaryCondition.h"
 #include "WeakIGAPatchContinuityCondition.h"
 #include "IGAPatchSurface.h"
 #include "IGAControlPoint.h"
@@ -51,9 +50,6 @@ IGAMesh::~IGAMesh() {
 
     for (int i = 0; i < weakIGADirichletCurveConditions.size(); i++)
         delete weakIGADirichletCurveConditions[i];
-
-    for (int i = 0; i < weakIGADirichletBoundaryConditions.size(); i++)
-        delete weakIGADirichletBoundaryConditions[i];
 
     for (int i = 0; i < weakIGAPatchContinuityConditions.size(); i++)
         delete weakIGAPatchContinuityConditions[i];
@@ -151,6 +147,15 @@ WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _con
 
 }
 
+WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _connectionID,
+                                                                        int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex){
+
+    weakIGADirichletCurveConditions.push_back(new WeakIGADirichletCurveCondition(_connectionID,
+                                                                                 _patchIndex, _patchBLIndex, _patchBLTrCurveIndex));
+    return weakIGADirichletCurveConditions.back();
+
+}
+
 void IGAMesh::createWeakDirichletCurveConditionGPData(int _conditionIndex){
 
     /*
@@ -164,31 +169,6 @@ void IGAMesh::createWeakDirichletCurveConditionGPData(int _conditionIndex){
 
     // Create GP Data for the patch
     weakIGADirichletCurveConditions[_conditionIndex]->createGPData(thePatch);
-
-}
-
-WeakIGADirichletBoundaryCondition* IGAMesh::addWeakDirichletBoundaryCondition(int _connectionID,
-                                                              int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex){
-
-    weakIGADirichletBoundaryConditions.push_back(new WeakIGADirichletBoundaryCondition(_connectionID,
-                                                                       _patchIndex, _patchBLIndex, _patchBLTrCurveIndex));
-    return weakIGADirichletBoundaryConditions.back();
-
-}
-
-void IGAMesh::createWeakDirichletBoundaryConditionGPData(int _conditionIndex){
-
-    /*
-     * This function calls the corresponding function of the weak Dirichlet boundary condition
-     */
-
-    int patchIndex = weakIGADirichletBoundaryConditions[_conditionIndex]->getPatchIndex();
-
-    // Get the patch
-    IGAPatchSurface* thePatch = getSurfacePatch(patchIndex);
-
-    // Create GP Data for the patch
-    weakIGADirichletBoundaryConditions[_conditionIndex]->createGPData(thePatch);
 
 }
 
