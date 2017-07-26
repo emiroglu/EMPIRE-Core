@@ -98,6 +98,11 @@ IGAPatchSurfaceTrimmingLoop::~IGAPatchSurfaceTrimmingLoop() {
         delete IGACurves[i];
 }
 
+void IGAPatchSurfaceTrimmingLoop::addTrimCurve(int _direction, IGAPatchCurve* _trimCurve) {
+    direction.push_back(_direction);
+    IGACurves.push_back(_trimCurve);
+}
+
 void IGAPatchSurfaceTrimmingLoop::linearize(int _type) {
 
     // Linearize each trimming curve using the combined algorithm and
@@ -105,8 +110,8 @@ void IGAPatchSurfaceTrimmingLoop::linearize(int _type) {
     std::vector<double> curvePolyline;
     for(int j=0;j<IGACurves.size();j++) {
         IGACurves[j]->linearize(_type, direction[j]);
-//        IGACurves[j]->linearizeUsingGreville(_type, direction[j]);
-//        IGACurves[j]->linearizeUsingNCPxP(_type, direction[j]);
+//        IGACurves[j]->linearizeUsingGreville(direction[j]);
+//        IGACurves[j]->linearizeUsingNCPxP(direction[j]);
         curvePolyline = *(IGACurves[j]->getPolyline());
         for (int iVertex = 0; iVertex < curvePolyline.size()/2; iVertex++) {
             polylines.push_back(curvePolyline[iVertex*2]);

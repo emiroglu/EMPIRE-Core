@@ -1308,25 +1308,20 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUT
 
     // Initialize coordinates
     const int noCoordParam = 2;
-    const int noCoord = 3;
 
     // Initialize variables and flags
-    double uTilde = 0.0;
-
     bool isProjectedOnPatch = false;
     bool isProjectedOnCurve = false;
-
-    double uvParam[noCoordParam];
-    double P[noCoord];
+    double UV[noCoordParam];
 
     // Find the initial guess for projection onto the patch for the first point
-    findInitialGuess4PointProjectionOnTrimmingCurve(_projectedUTilde, uvParam[0], uvParam[1], _P, _patchBLIndex, _patchBLTrCurveIndex);
+    findInitialGuess4PointProjectionOnTrimmingCurve(_projectedUTilde, UV[0], UV[1], _P, _patchBLIndex, _patchBLTrCurveIndex);
 
     // Force projection and return the patch parameters of the projection
-    isProjectedOnPatch = computeForcedPointProjectionOnPatch(uvParam[0], uvParam[1], _P);
+    isProjectedOnPatch = computeForcedPointProjectionOnPatch(UV[0], UV[1], _P);
 
     if (isProjectedOnPatch) {
-        isProjectedOnCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(_projectedUTilde, uvParam, noCoordParam);
+        isProjectedOnCurve = Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).computePointProjectionOn2DCurve(_projectedUTilde, UV, noCoordParam);
         if (!isProjectedOnCurve)
             WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point was not projected on curve and skipped!");
     } else {

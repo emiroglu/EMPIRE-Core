@@ -60,7 +60,7 @@ private:
     size_t size_N;
     size_t size_R;
 
-    bool isIGAWeakDirichletCurveConditions;
+    bool isIGAWeakDirichletConditions;
     bool isIGAPatchContinuityConditions;
     bool isDirichletBCs;
     bool isClampedDofs;
@@ -120,11 +120,12 @@ public:
 
     /***********************************************************************************************
      * \brief set isIGAPatchCoupling and isClampedDofs and expand if any of them is true
+     * \param[in] _isIGAWeakDirichletConditions Flag on whether any type of weak Dirichlet conditions are applied
      * \param[in] _isIGAPatchContinuityConditions Flag on whether weak patch continuity conditions are applied
      * \param[in] _isClampedDofs are any clamped nodes where not all directions are clamped
      * \author Ragnar Björnsson, Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void setIsIGAConditions(bool _isIGAWeakDirichletCurveConditions, bool _isIGAPatchContinuityConditions, bool _isClampedDofs);
+    void setIsIGAConditions(bool _isIGAWeakDirichletConditions, bool _isIGAPatchContinuityConditions, bool _isClampedDofs);
 
     /***********************************************************************************************
      * \brief expand CNN and CNR matrices to account for all 3 directions
@@ -144,7 +145,7 @@ public:
             (*C_NN_BCs)(_row,_column) = value;
             C_NN_BCs->setFactorization(false);
         }
-        else if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions ) {
+        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
             (*C_NN_expanded)(_row,_column) = value;
             C_NN_expanded->setFactorization(false);
         }
@@ -173,7 +174,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     int getCorrectSizeN() {
-        if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions || isClampedDofs)
+        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions || isClampedDofs)
             return 3*size_N;
         else
             return size_N;
@@ -184,7 +185,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     int getCorrectSizeR() {
-        if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions || isClampedDofs)
+        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions || isClampedDofs)
             return 3*size_R;
         else
             return size_R;
@@ -197,7 +198,7 @@ public:
     MathLibrary::SparseMatrix<double>* getCorrectCNN() {
         if(isDirichletBCs)
             return C_NN_BCs;
-        else if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions )
+        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
                 return C_NN_expanded;
         else
             return C_NN;
@@ -210,7 +211,7 @@ public:
     MathLibrary::SparseMatrix<double>* getCorrectCNR() {
         if(isDirichletBCs)
             return C_NR_BCs;
-        else if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions )
+        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
             return C_NR_expanded;
         else
             return C_NR;
@@ -221,7 +222,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     MathLibrary::SparseMatrix<double>* getCorrectCNN_conservative() {
-        if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions )
+        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
                 return C_NN_expanded;
         else {
             return C_NN;
@@ -233,7 +234,7 @@ public:
      * \author Ragnar Björnsson
      ***********/
     MathLibrary::SparseMatrix<double>* getCorrectCNR_conservative() {
-        if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions )
+        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
             return C_NR_expanded;
         else
             return C_NR;
@@ -268,7 +269,7 @@ public:
             C_NN_BCs->deleteRow(row);
             C_NN_BCs->setFactorization(false);
         }
-        else if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions ) {
+        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
             C_NN_expanded->deleteRow(row);
             C_NN_expanded->setFactorization(false);
         }

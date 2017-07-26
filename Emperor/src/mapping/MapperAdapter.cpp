@@ -214,7 +214,9 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() )) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ||
+                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() ||
+                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletSurfaceConditionPenalties() )) {
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {
@@ -267,7 +269,9 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     } 
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() || dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties())) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ||
+                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() ||
+                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletSurfaceConditionPenalties())) {
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {

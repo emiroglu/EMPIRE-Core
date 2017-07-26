@@ -183,6 +183,17 @@
          // List of points making up the linearized version of the trimming loop
          std::vector<double> polylines;
 
+         /// Set functions
+     public:
+
+         /***********************************************************************************************
+          * \brief Add a Nurbs curve to the trimming loop
+          * \param[in] direction The direction of the curve if is following standard or not
+          * \param[in] _trimCurve The trimming curve to be added
+          * \author Altug Emiroglu
+          ***********/
+         void addTrimCurve(int _direction, IGAPatchCurve* _trimCurve);
+
          /// Linearizing related functions
      public:
          /***********************************************************************************************

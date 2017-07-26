@@ -25,11 +25,12 @@
 #include <assert.h>
 
 // Inclusion of user defined libraries
-#include "WeakIGADirichletCurveCondition.h"
-#include "WeakIGAPatchContinuityCondition.h"
-#include "IGAPatchSurface.h"
 #include "IGAControlPoint.h"
+#include "IGAPatchSurface.h"
 #include "IGAMesh.h"
+#include "WeakIGADirichletCurveCondition.h"
+#include "WeakIGADirichletSurfaceCondition.h"
+#include "WeakIGAPatchContinuityCondition.h"
 #include "DataField.h"
 #include "Message.h"
 
@@ -50,6 +51,9 @@ IGAMesh::~IGAMesh() {
 
     for (int i = 0; i < weakIGADirichletCurveConditions.size(); i++)
         delete weakIGADirichletCurveConditions[i];
+
+    for (int i = 0; i < weakIGADirichletSurfaceConditions.size(); i++)
+        delete weakIGADirichletSurfaceConditions[i];
 
     for (int i = 0; i < weakIGAPatchContinuityConditions.size(); i++)
         delete weakIGAPatchContinuityConditions[i];
@@ -170,6 +174,35 @@ void IGAMesh::createWeakDirichletCurveConditionGPData(int _conditionIndex){
     // Create GP Data for the patch
     weakIGADirichletCurveConditions[_conditionIndex]->createGPData(thePatch);
 
+}
+
+WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex) {
+
+    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, _patchBLIndex));
+
+    return weakIGADirichletSurfaceConditions.back();
+}
+
+WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, IGAPatchSurfaceTrimmingLoop* theLoop) {
+
+    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, theLoop));
+
+    return weakIGADirichletSurfaceConditions.back();
+}
+
+void IGAMesh::createWeakDirichletSurfaceConditionGPData(int _connectionIndex) {
+
+    /*
+     * This function calls the corresponding function of the weak Dirichlet condition
+     */
+
+    int patchIndex = weakIGADirichletSurfaceConditions[_connectionIndex]->getPatchIndex();
+
+    // Get the patch
+    IGAPatchSurface* thePatch = getSurfacePatch(patchIndex);
+
+    // Create GP Data for the patch
+    weakIGADirichletSurfaceConditions[_connectionIndex]->createGPData(thePatch);
 }
 
 WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,

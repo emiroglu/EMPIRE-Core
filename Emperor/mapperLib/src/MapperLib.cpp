@@ -288,7 +288,7 @@ void addDirichletCurveConditionToIGAMesh(char* meshName,
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, pDegree, uNoKnots, uKnotVector, uNoControlPoints, controlPointNet);
         tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
-        INFO_OUT()<<"Added a Dirichlet condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
+        INFO_OUT()<<"Added a Dirichlet curve condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
     }
 }
 
@@ -306,7 +306,7 @@ void addDirichletBoundaryConditionToIGAMesh(char* meshName,
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, patchBLIndex, patchBLTrCurveIndex);
         tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
-        INFO_OUT()<<"Added a Dirichlet condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
+        INFO_OUT()<<"Added a Dirichlet boundary condition to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
     }
 }
 

@@ -36,9 +36,11 @@
 namespace EMPIRE {
 class DataField;
 class Message;
-class IGAPatchSurface;
 class IGAControlPoint;
+class IGAPatchSurfaceTrimmingLoop;
+class IGAPatchSurface;
 class WeakIGADirichletCurveCondition;
+class WeakIGADirichletSurfaceCondition;
 class WeakIGAPatchContinuityCondition;
 
 /********//**
@@ -58,8 +60,11 @@ protected:
     /// the lowest number of clamped directions
     int clampedDirections;
 
-    /// Vector of all weak Dirichlet conditions
+    /// Vector of all weak Dirichlet curve conditions
     std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions;
+
+    /// Vector of all weak Dirichlet surface conditions
+    std::vector<WeakIGADirichletSurfaceCondition*> weakIGADirichletSurfaceConditions;
 
     /// Vector of all weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions;
@@ -139,7 +144,7 @@ public:
                                                                    int _uNoControlPoints, double* _controlPointNet);
 
     /***********************************************************************************************
-     * brief Add a new weak Dirichlet condition to the IGA mesh
+     * brief Add a new weak Dirichlet curve condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
@@ -156,6 +161,33 @@ public:
       * \author Andreas Apostolatos, Altug Emiroglu
       ***********/
     void createWeakDirichletCurveConditionGPData(int _conditionIndex);
+
+    /***********************************************************************************************
+     * brief Add a new weak Dirichlet surface condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGADirichletSurfaceCondition* addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex);
+
+    /***********************************************************************************************
+     * brief Add a new weak Dirichlet surface condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _theLoop The boundary loop of the condition
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGADirichletSurfaceCondition* addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, IGAPatchSurfaceTrimmingLoop* theLoop);
+
+    /***********************************************************************************************
+      * brief Create the GP data for the weak Dirichlet condition
+      * \param[in] _conditionIndex Weak condition index
+      * \author Andreas Apostolatos, Altug Emiroglu
+      ***********/
+    void createWeakDirichletSurfaceConditionGPData(int _connectionIndex);
 
     /***********************************************************************************************
      * brief Add a new weak patch continuity condition to the IGA mesh
@@ -236,6 +268,15 @@ public:
      ***********/
     std::vector<WeakIGADirichletCurveCondition*> getWeakIGADirichletCurveConditions() const{
         return weakIGADirichletCurveConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Returns the array of all weak IGA Dirichlet curve conditions
+     * \param[out] The array of all weak IGA Dirichlet curve conditions
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    std::vector<WeakIGADirichletSurfaceCondition*> getWeakIGADirichletSurfaceConditions() const{
+        return weakIGADirichletSurfaceConditions;
     }
 
     /***********************************************************************************************

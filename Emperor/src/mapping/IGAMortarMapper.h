@@ -43,6 +43,7 @@ template<class T> class SparseMatrix;
 }
 
 class IGAPatchSurface;
+class IGAPatchSurfaceTrimmingLoop;
 class IGAMesh;
 class Message;
 class FEMesh;
@@ -96,14 +97,26 @@ private:
     /// Flag on the application of weak Dirichlet curve conditions using Penalty
     bool isIGAWeakDirichletCurveConditions;
 
-    /// Number of weak IGA patch continuity conditions
+    /// Number of weak IGA Dirichlet curve conditions
     int noWeakIGADirichletCurveConditions;
 
-    /// Penalty factors for the primary field to the application of weak patch continuity conditions
+    /// Penalty factors for the primary field to the application of weak Dirichlet curve conditions
     double* weakDirichletCCAlphaPrimary;
 
-    /// Penalty factors for the secondary field to the application of weak patch continuity conditions
+    /// Penalty factors for the secondary field to the application of weak Dirichlet curve conditions
     double* weakDirichletCCAlphaSecondary;
+
+    /// Flag on the application of weak Dirichlet surface conditions using Penalty
+    bool isIGAWeakDirichletSurfaceConditions;
+
+    /// Number of weak IGA Dirichlet surface conditions
+    int noWeakIGADirichletSurfaceConditions;
+
+    /// Penalty factors for the primary field to the application of weak Dirichlet surface conditions
+    double* weakDirichletSCAlphaPrimary;
+
+    /// Penalty factors for the secondary field to the application of weak Dirichlet surface conditions
+    double* weakDirichletSCAlphaSecondary;
 
     /// Flag on the application of patch continuity conditions using Penalty
     bool isIGAPatchContinuityConditions;
@@ -421,6 +434,12 @@ public:
     void computeIGAWeakDirichletCurveConditionMatrices();
 
     /***********************************************************************************************
+     * \brief Compute and assemble the IGA weak Dirichlet surface condition matrices
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void computeIGAWeakDirichletSurfaceConditionMatrices();
+
+    /***********************************************************************************************
      * \brief Compute and assemble the IGA Patch weak continuity condition matrices
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
@@ -449,6 +468,12 @@ public:
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     void computePenaltyFactorsForWeakDirichletCurveConditions();
+
+    /***********************************************************************************************
+     * \brief Compute the penalty factors for the primary and the secondary field for the weak Dirichlet surface conditions
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void computePenaltyFactorsForWeakDirichletSurfaceConditions();
 
     /***********************************************************************************************
      * \brief Compute the penalty factors for the primary and the secondary field for each interface
@@ -525,6 +550,16 @@ private:
      * \author Fabien Pean
      ***********/
     void clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV);
+
+    /***********************************************************************************************
+     * \brief Clip the input polygon by the trimming window of the trimming loop
+     * This function does the same as above function but for a specific given trimming loop
+     * \param[in] _theTrimmingLoop 	The trimming loop for which trimming curves are used
+     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[out] _listPolygon	A set of polygons after application of trimming polygon
+     * \author Altug Emiroglu
+     ***********/
+    void clipByTrimming(const IGAPatchSurfaceTrimmingLoop* _theTrimmingLoop, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV);
 
     /***********************************************************************************************
      * \brief Clip the input polygon for every knot span of the patch it is crossing
@@ -658,6 +693,14 @@ public:
      ***********/
     bool getUseIGAWeakDirichletCurveConditionPenalties() {
         return isIGAWeakDirichletCurveConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Get boolean whether a IGA weak Dirichlet surface condition was used or not
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    bool getUseIGAWeakDirichletSurfaceConditionPenalties() {
+        return isIGAWeakDirichletSurfaceConditions;
     }
 
     /***********************************************************************************************

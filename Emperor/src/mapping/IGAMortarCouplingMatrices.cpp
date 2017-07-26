@@ -53,7 +53,7 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
     C_NR = new MathLibrary::SparseMatrix<double>(size_N, size_R);
 
     // Initialize flag on the whether weak Dirichlet curve conditions are applied
-    isIGAWeakDirichletCurveConditions = false;
+    isIGAWeakDirichletConditions = false;
 
     // Initialize flag on the whether patch continuity conditions are applied
     isIGAPatchContinuityConditions = false;    
@@ -62,12 +62,12 @@ IGAMortarCouplingMatrices::IGAMortarCouplingMatrices(int _size_N , int _size_R)
     isDirichletBCs = false;
 }
 
-void IGAMortarCouplingMatrices::setIsIGAConditions(bool _isIGAWeakDirichletCurveConditions, bool _isIGAPatchContinuityConditions, bool _isClampedDofs) {
+void IGAMortarCouplingMatrices::setIsIGAConditions(bool _isIGAWeakDirichletConditions, bool _isIGAPatchContinuityConditions, bool _isClampedDofs) {
     isClampedDofs = _isClampedDofs;
-    isIGAWeakDirichletCurveConditions = _isIGAWeakDirichletCurveConditions;
+    isIGAWeakDirichletConditions = _isIGAWeakDirichletConditions;
     isIGAPatchContinuityConditions = _isIGAPatchContinuityConditions;
 
-    if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions || isClampedDofs) {
+    if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions || isClampedDofs) {
         C_NN_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , false);
         C_NR_expanded = new MathLibrary::SparseMatrix<double>(3*size_N , 3*size_R);
 
@@ -80,7 +80,7 @@ IGAMortarCouplingMatrices::~IGAMortarCouplingMatrices() {
     delete C_NN;
     delete C_NR;
 
-    if( isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions ) {
+    if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
         delete C_NN_expanded;
         delete C_NR_expanded;
     }
@@ -118,7 +118,7 @@ void IGAMortarCouplingMatrices::setIsDirichletBCs(bool _isDirichletBCs) {
     isDirichletBCs = _isDirichletBCs;
 
     if(isDirichletBCs) {
-        if(isClampedDofs || isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions ) {
+        if(isClampedDofs || isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
             C_NN_BCs = new MathLibrary::SparseMatrix<double>(3*size_N , false);
             C_NR_BCs = new MathLibrary::SparseMatrix<double>(3*size_N , 3*size_R);
         }
@@ -132,7 +132,7 @@ void IGAMortarCouplingMatrices::setIsDirichletBCs(bool _isDirichletBCs) {
 void IGAMortarCouplingMatrices::applyDirichletBCs(std::vector<int> clampedIds) {
 
     if(clampedIds.size() > 0) {
-        if(isClampedDofs || isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions ) {
+        if(isClampedDofs || isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
             for(int i = 0 ; i < 3*size_N ; i++) {
                 if ( std::find(clampedIds.begin(), clampedIds.end(), i)!=clampedIds.end() ) {
                     for(int j = 0 ; j < i ; j++) {
@@ -189,7 +189,7 @@ void IGAMortarCouplingMatrices::applyDirichletBCs(std::vector<int> clampedIds) {
 void IGAMortarCouplingMatrices::factorizeCorrectCNN() {
     if(isDirichletBCs)
         C_NN_BCs->factorize();
-    else if(isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions)
+    else if(isIGAWeakDirichletConditions || isIGAPatchContinuityConditions)
         C_NN_expanded->factorize();
     else
         C_NN->factorize();
@@ -199,7 +199,7 @@ void IGAMortarCouplingMatrices::enforceCnn() {
     /*
      * Checks if a row if empty and if yes adds 1.0 in the diagonal
      */
-    if(isIGAWeakDirichletCurveConditions || isIGAPatchContinuityConditions) {
+    if(isIGAWeakDirichletConditions || isIGAPatchContinuityConditions) {
         indexEmptyRowCnn.reserve(3*size_N);
         for(int i = 0; i < 3*size_N; i++) {
             if(C_NN_expanded->isRowEmpty(i)) {
