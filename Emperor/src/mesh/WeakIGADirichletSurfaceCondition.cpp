@@ -159,8 +159,10 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
                 // Triangulate each sub polygon
                 ListPolygon2D trimCondClippedTrias = triangulatePolygon(trimCondClippedPolygonList[iTCCW]);
 
+                // Loop over each triangle
                 for (int iTCP = 0; iTCP < trimCondClippedTrias.size(); iTCP++) {
 
+                    // Copy triangle vertices to C++ type
                     int numNodes = trimCondClippedTrias[iTCP].size();
                     double triaUV[numNodes*noCoordParam];
                     for (int iNode = 0; iNode < numNodes; iNode++) {
@@ -168,29 +170,33 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
                         triaUV[iNode * noCoordParam + 1]=trimCondClippedTrias[iTCP][iNode].second;
                     }
 
+                    // Loop over GPs on the triangle
                     for (int iGP = 0; iGP < gaussTriangle->numGaussPoints; iGP++) {
-                        const double *GP = gaussTriangle->getGaussPoint(iGP);
+                        const double* GP = gaussTriangle->getGaussPoint(iGP);
+                        double GW = gaussTriangle->weights[iGP];
 
+                        // Get shape function values
                         double shapeFuncs[numNodes];
                         MathLibrary::computeLowOrderShapeFunc(numNodes, GP, shapeFuncs);
 
+                        // Compute parametric coordinates (u,v) of the GP
                         double uvGP[2];
                         MathLibrary::computeLinearCombination(numNodes, 2, triaUV, shapeFuncs, uvGP);
 
+                        // Compute base vectors on GP
                         uKnotSpan = _patch->findSpanU(uvGP[0]);
                         vKnotSpan = _patch->findSpanV(uvGP[1]);
-
                         _patch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
                                     localBasisFunctionsAndDerivatives, derivDegree, uvGP[0], uKnotSpan, uvGP[1], vKnotSpan);
-
                         _patch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
 
+                        // Compute Jacobian on GP
                         double JacobianGP = MathLibrary::computeAreaTriangle(baseVectors[0], baseVectors[1], baseVectors[2],
-                                baseVectors[3], baseVectors[4], baseVectors[5]) * 2;
+                                baseVectors[3], baseVectors[4], baseVectors[5]) * 2 * GW;
 
                         tmpGPData.push_back(uvGP[0]);
                         tmpGPData.push_back(uvGP[1]);
-                        tmpGPData.push_back(gaussTriangle->weights[iGP]);
+                        tmpGPData.push_back(GW);
                         tmpGPData.push_back(JacobianGP);
                     }
                 }

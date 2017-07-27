@@ -388,6 +388,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
         } else {
             theIGAMesh->createWeakContinuityConditionGPData(wPCCCtr);
         }
+
     }
 
 //    // get the dirichlet boundary conditions

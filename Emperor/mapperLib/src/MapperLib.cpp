@@ -224,7 +224,7 @@ void addPatchToIGAMesh(char* meshName,
     }
 }
 
-void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
+void addTrimmingLoopToPatch(char* meshName, int patchIndex,
                             int inner, int numCurves){
 
     std::string meshNameInMap = std::string(meshName);
@@ -235,12 +235,12 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->addTrimLoop(inner,numCurves);
-        INFO_OUT()<<"Added trimming loop to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
+        tmpIGAMesh->getSurfacePatch(patchIndex)->addTrimLoop(inner,numCurves);
+        INFO_OUT()<<"Added trimming loop to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
     }
 }
 
-void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
+void addTrimmingCurveToTrimmingLoop(char* meshName, int patchIndex,
                                     int direction, int pDegree, int uNoKnots, double* uKnotVector,
                                     int uNoControlPoints, double* controlPoints){
 
@@ -252,13 +252,13 @@ void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
+        tmpIGAMesh->getSurfacePatch(patchIndex)->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
                                                                      uNoControlPoints, controlPoints);
-        INFO_OUT()<<"Added trimming curve to \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
+        INFO_OUT()<<"Added trimming curve to \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
     }
 }
 
-void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch){
+void linearizeTrimmingLoops(char* meshName, int patchIndex){
 
     std::string meshNameInMap = std::string(meshName);
 
@@ -268,8 +268,8 @@ void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch){
         return;
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
-        tmpIGAMesh->getSurfacePatch(idxSurfacePatch)->linearizeTrimming();
-        INFO_OUT()<<"Linearized trimming curves of \"" << meshNameInMap << "\" patch " << idxSurfacePatch <<  std::endl;
+        tmpIGAMesh->getSurfacePatch(patchIndex)->linearizeTrimming();
+        INFO_OUT()<<"Linearized trimming curves of \"" << meshNameInMap << "\" patch " << patchIndex <<  std::endl;
     }
 }
 
@@ -331,10 +331,10 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
     }
 }
 
-void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
-                                                  int connectionID,
-                                                  int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
-                                                  int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave) {
+void addContinuityConditionOnCurvesToIGAMesh(char* meshName,
+                                             int connectionID,
+                                             int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
+                                             int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave) {
 
     std::string meshNameInMap = std::string(meshName);
 

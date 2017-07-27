@@ -1071,14 +1071,16 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 
 void IGAMortarMapper::clipByTrimming(const IGAPatchSurfaceTrimmingLoop* _theTrimmingLoop, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
     ClipperAdapter c;
-    // Fill clipper with trimming loop to clip with
+    // Define the clipping window for the clipper
     const std::vector<double> clippingWindow = _theTrimmingLoop->getPolylines();
     c.addPathClipper(clippingWindow);
     // Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
-    c.setFilling(ClipperAdapter::POSITIVE, 0);
+    c.setFilling(ClipperAdapter::NEGATIVE, 0);
     c.addPathSubject(_polygonUV);
     c.clip();
-    c.getSolution(_listPolygonUV);
+    ListPolygon2D tmpListPolygonUV;
+    c.getSolution(tmpListPolygonUV);
+    _listPolygonUV.insert(_listPolygonUV.end(),tmpListPolygonUV.begin(),tmpListPolygonUV.end());
 }
 
 void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan) {
@@ -1681,7 +1683,7 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
         delete[] KPenaltyBendingRotation;
         delete[] KPenaltyTwistingRotation;
 
-    } // End of weak Dirichlet boundary condition loop
+    } // End of weak Dirichlet curve condition loop
 }
 
 void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
@@ -1866,7 +1868,7 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
         delete[] BOperatorOmegaN;
         delete[] KPenaltyDisplacement;
 
-    } // End of weak Dirichlet boundary condition loop
+    } // End of weak Dirichlet surface condition loop
 }
 
 void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {

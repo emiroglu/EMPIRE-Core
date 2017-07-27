@@ -93,7 +93,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
                                         int _bisectionMaxIt, double _bisectionTol,
                                         int _numGPTriangle, int _numGPQuad,
                                         bool _enforceConsistency,
-                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditions,
+                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
                                         double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
                                         int _isDirichletBCs,
                                         bool _isDomainError, bool _isInterfaceError) {
@@ -121,7 +121,7 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
     mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
     mapper->setParametersConsistency(_enforceConsistency);
-    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsDispPenalty, _weakDirichletConditionsRotPenalty, _isWeakDirichletConditions);
+    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsDispPenalty, _weakDirichletConditionsRotPenalty, _isWeakDirichletConditionsAutomaticPenaltyFactors);
     mapper->setParametersIgaPatchCoupling(_patchContinuityDispPenalty, _patchContinuityRotPenalty, _isPenaltyPatchCoupling);
     mapper->setParametersDirichletBCs(_isDirichletBCs);
     mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);

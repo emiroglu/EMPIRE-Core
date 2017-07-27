@@ -152,6 +152,15 @@ WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _con
 }
 
 WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _conditionID,
+                                                                        int _patchIndex, IGAPatchCurve* _dirichletCurve){
+
+    weakIGADirichletCurveConditions.push_back(new WeakIGADirichletCurveCondition(_conditionID, _patchIndex, _dirichletCurve));
+
+    return weakIGADirichletCurveConditions.back();
+
+}
+
+WeakIGADirichletCurveCondition* IGAMesh::addWeakDirichletCurveCondition(int _conditionID,
                                                                         int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex){
 
     weakIGADirichletCurveConditions.push_back(new WeakIGADirichletCurveCondition(_conditionID,
@@ -176,16 +185,16 @@ void IGAMesh::createWeakDirichletCurveConditionGPData(int _conditionIndex){
 
 }
 
-WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex) {
+WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, IGAPatchSurfaceTrimmingLoop* theLoop) {
 
-    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, _patchBLIndex));
+    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, theLoop));
 
     return weakIGADirichletSurfaceConditions.back();
 }
 
-WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, IGAPatchSurfaceTrimmingLoop* theLoop) {
+WeakIGADirichletSurfaceCondition* IGAMesh::addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex) {
 
-    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, theLoop));
+    weakIGADirichletSurfaceConditions.push_back(new WeakIGADirichletSurfaceCondition(_conditionID, _patchIndex, _patchBLIndex));
 
     return weakIGADirichletSurfaceConditions.back();
 }
@@ -212,6 +221,28 @@ WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connec
     weakIGAPatchContinuityConditions.push_back(new WeakIGAPatchContinuityCondition(_connectionID,
                                                                                    _masterPatchIndex, _masterPatchBLIndex, _masterPatchBLTrCurveIndex,
                                                                                    _slavePatchIndex, _slavePatchBLIndex, _slavePatchBLTrCurveIndex));
+    return weakIGAPatchContinuityConditions.back();
+
+}
+
+WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
+                                                                     int _masterPatchIndex, IGAPatchCurve* _masterCurve,
+                                                                     int _slavePatchIndex,  IGAPatchCurve* _slaveCurve) {
+
+    weakIGAPatchContinuityConditions.push_back(new WeakIGAPatchContinuityCondition(_connectionID,
+                                                                                   _masterPatchIndex, _masterCurve,
+                                                                                   _slavePatchIndex,  _slaveCurve));
+    return weakIGAPatchContinuityConditions.back();
+
+}
+
+WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
+                                                                     int _masterPatchIndex, int _pMaster, int _uNoKnotsMaster, double* _uKnotVectorMaster, int _uNoControlPointsMaster, double* _controlPointNetMaster,
+                                                                     int _slavePatchIndex,  int _pSlave, int _uNoKnotsSlave, double* _uKnotVectorSlave, int _uNoControlPointsSlave, double* _controlPointNetSlave) {
+
+    weakIGAPatchContinuityConditions.push_back(new WeakIGAPatchContinuityCondition(_connectionID,
+                                                                                   _masterPatchIndex, _pMaster, _uNoKnotsMaster, _uKnotVectorMaster, _uNoControlPointsMaster, _controlPointNetMaster,
+                                                                                   _slavePatchIndex,  _pSlave, _uNoKnotsSlave, _uKnotVectorSlave, _uNoControlPointsSlave, _controlPointNetSlave));
     return weakIGAPatchContinuityConditions.back();
 
 }

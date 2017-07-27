@@ -163,12 +163,12 @@ void addPatchToIGAMesh(char* meshName,
 /***********************************************************************************************
  * \brief Adds trimming loop information to a previously added patch of a mesh
  * \param[in] meshName name of the mesh
- * \param[in] idxSurfacePatch index of the surface patch that is previously added to the mesh
+ * \param[in] patchIndex index of the surface patch that is previously added to the mesh
  * \param[in] inner 0 for outter and 1 for inner
  * \param[in] numCurves Number of curves to be received for this loop
  * \author Altug Emiroglu
  ***********/
-void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
+void addTrimmingLoopToPatch(char* meshName, int patchIndex,
                             int inner, int numCurves);
 
 /***********************************************************************************************
@@ -183,17 +183,17 @@ void addTrimmingLoopToPatch(char* meshName, int idxSurfacePatch,
  * \param[in] controlPoints The set of the Control Points related to the 1D NURBS curve
  * \author Altug Emiroglu
  ***********/
-void addTrimmingCurveToTrimmingLoop(char* meshName, int idxSurfacePatch,
+void addTrimmingCurveToTrimmingLoop(char* meshName, int patchIndex,
                                     int direction, int pDegree, int uNoKnots, double* uKnotVector,
                                     int uNoControlPoints, double* controlPoints);
 
 /***********************************************************************************************
  * \brief Linearize all the trimming loops and curves of the given mesh and patch
  * \param[in] meshName name of the mesh
- * \param[in] idxSurfacePatch index of the surface patch that is previously added to the mesh
+ * \param[in] patchIndex index of the surface patch that is previously added to the mesh
  * \author Altug Emiroglu
  ***********/
-void linearizeTrimmingLoops(char* meshName, int idxSurfacePatch);
+void linearizeTrimmingLoops(char* meshName, int patchIndex);
 
 /***********************************************************************************************
  * brief Add a new weak Dirichlet condition to the IGA mesh
@@ -220,7 +220,6 @@ void addDirichletCurveConditionToIGAMesh(char* meshName,
  * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
  * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
  * \param[in] _patchBLTrCurveIndex The index of the patch trimming curve in the current boundary loop in the EMPIRE data structure
- * \return The pointer to the weak condition just created
  * \author Altug Emiroglu
  ***********/
 void addDirichletBoundaryConditionToIGAMesh(char* meshName,
@@ -259,13 +258,12 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
  * \param[in] _uKnotVectorSlave The underlying knot vector of the IGA 1D curve in the u-direction
  * \param[in] _uNoControlPointsSlave The number of the Control Points for the 1D NURBS patch in the u-direction
  * \param[in] _controlPointNetSlave The set of the Control Points related to the 1D NURBS patch
- * \return The pointer to the weak condition just created
  * \author Altug Emiroglu
  ***********/
-void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
-                                                  int connectionID,
-                                                  int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
-                                                  int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
+void addContinuityConditionOnCurvesToIGAMesh(char* meshName,
+                                             int connectionID,
+                                             int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
+                                             int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list

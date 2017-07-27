@@ -37,6 +37,7 @@ namespace EMPIRE {
 class DataField;
 class Message;
 class IGAControlPoint;
+class IGAPatchCurve;
 class IGAPatchSurfaceTrimmingLoop;
 class IGAPatchSurface;
 class WeakIGADirichletCurveCondition;
@@ -144,6 +145,16 @@ public:
                                                                    int _uNoControlPoints, double* _controlPointNet);
 
     /***********************************************************************************************
+     * brief Add a new weak Dirichlet condition to the IGA mesh
+     * \param[in] _conditionID The ID of the condition
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _dirichletCurve The curve on which the Dirichlet condition is to be applied
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGADirichletCurveCondition* addWeakDirichletCurveCondition(int _conditionID,
+                                            int _patchIndex, IGAPatchCurve* _dirichletCurve);
+
+    /***********************************************************************************************
      * brief Add a new weak Dirichlet curve condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
@@ -166,21 +177,21 @@ public:
      * brief Add a new weak Dirichlet surface condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
      * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
-     * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
-     * \return The pointer to the weak condition just created
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    WeakIGADirichletSurfaceCondition* addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex);
-
-    /***********************************************************************************************
-     * brief Add a new weak Dirichlet surface condition to the IGA mesh
-     * \param[in] _connectionID The ID of the condition
-     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
      * \param[in] _theLoop The boundary loop of the condition
      * \return The pointer to the weak condition just created
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     WeakIGADirichletSurfaceCondition* addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, IGAPatchSurfaceTrimmingLoop* theLoop);
+
+    /***********************************************************************************************
+     * brief Add a new weak Dirichlet surface condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _patchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _patchBLIndex The index of the patch boundary loop in the EMPIRE data structure
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGADirichletSurfaceCondition* addWeakDirichletSurfaceCondition(int _conditionID, int _patchIndex, int _patchBLIndex);
 
     /***********************************************************************************************
       * brief Create the GP data for the weak Dirichlet condition
@@ -189,21 +200,6 @@ public:
       ***********/
     void createWeakDirichletSurfaceConditionGPData(int _connectionIndex);
 
-    /***********************************************************************************************
-     * brief Add a new weak patch continuity condition to the IGA mesh
-     * \param[in] _connectionID The ID of the condition
-     * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
-     * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
-     * \param[in] _masterPatchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
-     * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
-     * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
-     * \return The pointer to the weak condition just created
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int _connectionID,
-                                                                int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
-                                                                int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex);
     /***********************************************************************************************
      * brief Add a new weak patch continuity condition to the IGA mesh
      * \param[in] _connectionID The ID of the condition
@@ -225,6 +221,37 @@ public:
     WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int connectionID,
                                                                 int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
                                                                 int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
+
+    /***********************************************************************************************
+     * brief Add a new weak patch continuity condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _masterPatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _masterCurve The coupling curve on the master patch
+     * \param[in] _slavePatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _slaveCurve The coupling curve on the slave patch
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int _connectionID,
+                                                                int _masterPatchIndex, IGAPatchCurve* _masterCurve,
+                                                                int _slavePatchIndex,  IGAPatchCurve* _slaveCurve);
+
+    /***********************************************************************************************
+     * brief Add a new weak patch continuity condition to the IGA mesh
+     * \param[in] _connectionID The ID of the condition
+     * \param[in] _masterPatchIndex The index of the master patch in the EMPIRE data structure
+     * \param[in] _masterPatchBLIndex The index of the master patch boundary loop in the EMPIRE data structure
+     * \param[in] _masterPatchBLTrCurveIndex The index of the master patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchIndex The index of the slave patch in the EMPIRE data structure
+     * \param[in] _slavePatchBLIndex The index of the slave patch boundary loop in the EMPIRE data structure
+     * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
+     * \return The pointer to the weak condition just created
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGAPatchContinuityCondition* addWeakContinuityCondition(int _connectionID,
+                                                                int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
+                                                                int _slavePatchIndex,  int _slavePatchBLIndex,  int _slavePatchBLTrCurveIndex);
+
     /***********************************************************************************************
       * brief Create the GP data for a weak patch continuity condition with the given index if not provided
       * \param[in] _connectionIndex Weak continuity condition index
