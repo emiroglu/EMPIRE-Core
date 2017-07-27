@@ -30,6 +30,7 @@
 namespace EMPIRE {
 
 class Message;
+class IGAPatchCurve;
 class IGAPatchSurface;
 
 /********//**
@@ -38,6 +39,15 @@ class IGAPatchSurface;
 class WeakIGAPatchContinuityCondition: public AbstractCondition {
 
 protected:
+
+    /// The master curve
+    IGAPatchCurve* masterCurve;
+
+    /// The slave curve
+    IGAPatchCurve* slaveCurve;
+
+    /// If the curves belong to a trimming loop of a patch
+    bool isTrimmingCurve;
 
     /// If the GP data for the coupling condition is initialized
     bool isGPDataInitialized;
@@ -82,6 +92,41 @@ protected:
     double* trCurveSlaveGPTangents;
 
 public:
+
+    /***********************************************************************************************
+     * brief Constructor, initializing the class
+     * \param[in] _ID ID of the condition
+     * \param[in] _masterPatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _pMaster The polynomial degree of the IGA 1D curve in the u-direction
+     * \param[in] _uNoKnotsMaster The number of knots for the knot vector in the u-direction
+     * \param[in] _uKnotVectorMaster The underlying knot vector of the IGA 1D curve in the u-direction
+     * \param[in] _uNoControlPointsMaster The number of the Control Points for the 1D NURBS patch in the u-direction
+     * \param[in] _controlPointNetMaster The set of the Control Points related to the 1D NURBS patch
+     * \param[in] _slavePatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _pDegreeSlave The polynomial degree of the IGA 1D curve in the u-direction
+     * \param[in] _uNoKnotsSlave The number of knots for the knot vector in the u-direction
+     * \param[in] _uKnotVectorSlave The underlying knot vector of the IGA 1D curve in the u-direction
+     * \param[in] _uNoControlPointsSlave The number of the Control Points for the 1D NURBS patch in the u-direction
+     * \param[in] _controlPointNetSlave The set of the Control Points related to the 1D NURBS patch
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGAPatchContinuityCondition(int _ID,
+                                    int _masterPatchIndex, int _pMaster, int _uNoKnotsMaster, double* _uKnotVectorMaster, int _uNoControlPointsMaster, double* _controlPointNetMaster,
+                                    int _slavePatchIndex,  int _pSlave, int _uNoKnotsSlave, double* _uKnotVectorSlave, int _uNoControlPointsSlave, double* _controlPointNetSlave);
+
+    /***********************************************************************************************
+     * brief Constructor, initializing the class
+     * \param[in] _ID ID of the condition
+     * \param[in] _masterPatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _masterCurve The master curve
+     * \param[in] _slavePatchIndex The index of the patch in the EMPIRE data structure
+     * \param[in] _slaveCurve The slave curve
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    WeakIGAPatchContinuityCondition(int _ID,
+                                    int _masterPatchIndex, IGAPatchCurve* _masterCurve,
+                                    int _slavePatchIndex, IGAPatchCurve* _slaveCurve);
+
     /***********************************************************************************************
      * \brief Constructor, initializing the class
      * \param[in] _ID ID of the condition
@@ -93,10 +138,10 @@ public:
      * \param[in] _slavePatchBLTrCurveIndex The index of the slave patch trimming curve in the current boundary loop in the EMPIRE data structure
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    WeakIGAPatchContinuityCondition(int _ID, 
+    WeakIGAPatchContinuityCondition(int _ID,
                     int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
                     int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex);
-    
+
     /***********************************************************************************************
      * \brief Set the GP data for the coupling condition
      * \param[in] _trCurveNumGP The total number of GPs on the trimming curve

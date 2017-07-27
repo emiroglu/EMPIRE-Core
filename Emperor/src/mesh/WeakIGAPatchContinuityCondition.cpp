@@ -27,6 +27,7 @@
 #include <string>
 
 // Inclusion of user defined libraries
+#include "IGAPatchCurve.h"
 #include "IGAPatchSurface.h"
 #include "WeakIGAPatchContinuityCondition.h"
 #include "MathLibrary.h"
@@ -36,7 +37,48 @@ using namespace std;
 
 namespace EMPIRE {
 
-WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID, 
+WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID,
+                                                                 int _masterPatchIndex, int _pMaster, int _uNoKnotsMaster, double* _uKnotVectorMaster, int _uNoControlPointsMaster, double* _controlPointNetMaster,
+                                                                 int _slavePatchIndex,  int _pSlave, int _uNoKnotsSlave, double* _uKnotVectorSlave, int _uNoControlPointsSlave, double* _controlPointNetSlave) :
+    AbstractCondition(_ID),
+    masterPatchIndex(_masterPatchIndex), slavePatchIndex(_slavePatchIndex)
+{
+
+    type = EMPIRE_WeakIGAPatchContinuityCondition;
+
+    isTrimmingCurve = false;
+
+    // Initialize the masterCurve and the slaveCurve
+    masterCurve = new IGAPatchCurve(0, _pMaster, _uNoKnotsMaster, _uKnotVectorMaster, _uNoControlPointsMaster, _controlPointNetMaster);
+    slaveCurve = new IGAPatchCurve(0, _pSlave, _uNoKnotsSlave, _uKnotVectorSlave, _uNoControlPointsSlave, _controlPointNetSlave);
+
+    // Linearize the curves with the default algorithm and direction (combined algorithm and forward direction)
+    masterCurve->linearize();
+    slaveCurve->linearize();
+
+    isGPDataInitialized = false;
+}
+
+WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID,
+                                                                 int _masterPatchIndex, IGAPatchCurve* _masterCurve,
+                                                                 int _slavePatchIndex, IGAPatchCurve* _slaveCurve) :
+    AbstractCondition(_ID),
+    masterPatchIndex(_masterPatchIndex), masterCurve(_masterCurve),
+    slavePatchIndex(_slavePatchIndex), slaveCurve(_slaveCurve)
+{
+
+    type = EMPIRE_WeakIGAPatchContinuityCondition;
+
+    isTrimmingCurve = false;
+
+    // Linearize the curves with the default algorithm and direction (combined algorithm and forward direction)
+    masterCurve->linearize();
+    slaveCurve->linearize();
+
+    isGPDataInitialized = false;
+}
+
+WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID,
                                                                  int _masterPatchIndex, int _masterPatchBLIndex, int _masterPatchBLTrCurveIndex,
                                                                  int _slavePatchIndex, int _slavePatchBLIndex, int _slavePatchBLTrCurveIndex) :
     AbstractCondition(_ID),
@@ -45,6 +87,8 @@ WeakIGAPatchContinuityCondition::WeakIGAPatchContinuityCondition(int _ID,
 {
 
     type = EMPIRE_WeakIGAPatchContinuityCondition;
+
+    isTrimmingCurve = true;
 
     isGPDataInitialized = false;
 }
@@ -88,6 +132,12 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
     if (isGPDataInitialized) assert(false);
 
+    // Set the master and slave curves in case they are trimming curves of the given patches
+    if (isTrimmingCurve) {
+        masterCurve = &_masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex);
+        slaveCurve = &_masterPatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex);
+    }
+
     // Initialize the coordinates
     const int noCoordParam = 2;
     const int noCoord = 3;
@@ -108,23 +158,32 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
     double tmpXYZ[noCoord];
 
     // Compute the knot intersections of the master trimming curve
+//    _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes,
+//                                                            masterPatchBLIndex, masterPatchBLTrCurveIndex);
     _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes,
-                                                            masterPatchBLIndex, masterPatchBLTrCurveIndex);
+                                                            masterCurve);
+
 
     // Compute the knot intersections of slave the trimming curve
+//    _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes,
+//                                                           slavePatchBLIndex, slavePatchBLTrCurveIndex);
     _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes,
-                                                           slavePatchBLIndex, slavePatchBLTrCurveIndex);
+                                                           slaveCurve);
+
 
     // Project the knot intersections onto the master curve
     for (std::vector<double>::iterator iUTilde = slaveUTildes.begin(); iUTilde != slaveUTildes.end(); iUTilde++) {
 
         // Compute the physical coordinates of the knot intersection
-        _slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+//        _slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+        _slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slaveCurve);
 
         // Compute the point projection of the slave knot intersection on the master trimming curve
         isProjectedOnSlave = false;
+//        isProjectedOnSlave = _masterPatch->computePointProjectionOnTrimmingCurve(tmpUTilde,
+//                                                            tmpXYZ, masterPatchBLIndex, masterPatchBLTrCurveIndex);
         isProjectedOnSlave = _masterPatch->computePointProjectionOnTrimmingCurve(tmpUTilde,
-                                                            tmpXYZ, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+                                                                                 tmpXYZ, masterCurve);
 
         // Consider the intersection only if the projection is successful
         if (isProjectedOnSlave)     masterUTildesFromSlave.push_back(tmpUTilde);
@@ -184,11 +243,13 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
             masterGPUTilde = ((1.0 - GP)*masterUTildesMerged[iSection] + (1.0 + GP)*masterUTildesMerged[iSection + 1])/2.0;
 
             // Compute the physical coordinates of the GP
-            _masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+//            _masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterPatchBLIndex, masterPatchBLTrCurveIndex);
+            _masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterCurve);
 
             // Project the GP onto the slave side
             isProjectedOnSlave = false;
-            isProjectedOnSlave = _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+//            isProjectedOnSlave = _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slavePatchBLIndex, slavePatchBLTrCurveIndex);
+            isProjectedOnSlave = _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slaveCurve);
 
             // If the GP is projected onto the slave side successfully then store the GP pair
             if (isProjectedOnSlave) {
@@ -230,8 +291,10 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
     int vKnotSpanSlave;
     int knotSpanIndexTrCurveMaster;
     int knotSpanIndexTrCurveSlave;
-    int pTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
-    int pTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
+//    int pTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
+//    int pTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->getPolynomialDegree();
+    int pTrCurveMaster = masterCurve->getIGABasis()->getPolynomialDegree();
+    int pTrCurveSlave = slaveCurve->getIGABasis()->getPolynomialDegree();
     int noLocalBasisFunctionsTrCurveMaster = pTrCurveMaster + 1;
     int noLocalBasisFunctionsMaster = (pMaster + 1)*(qMaster + 1);
     int noLocalBasisFunctionsTrCurveSlave = pTrCurveSlave + 1;
@@ -270,19 +333,25 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
             slaveGPUTilde = slaveValidGPUTildes[counterGP];
 
             // Find the knot spans in the parameter space of the curves
-            knotSpanIndexTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->findKnotSpan(masterGPUTilde);
-            knotSpanIndexTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->findKnotSpan(slaveGPUTilde);
+//            knotSpanIndexTrCurveMaster = _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->findKnotSpan(masterGPUTilde);
+//            knotSpanIndexTrCurveSlave = _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->findKnotSpan(slaveGPUTilde);
+            knotSpanIndexTrCurveMaster = masterCurve->getIGABasis()->findKnotSpan(masterGPUTilde);
+            knotSpanIndexTrCurveSlave = slaveCurve->getIGABasis()->findKnotSpan(slaveGPUTilde);
 
             // Compute the basis functions at the parametric locations of the trimming curves
-            _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+//            _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+//                    (localBasisFunctionsAndDerivativesTrCurveMaster, noDeriv, masterGPUTilde, knotSpanIndexTrCurveMaster);
+//            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+//                    (localBasisFunctionsAndDerivativesTrCurveSlave, noDeriv, slaveGPUTilde, knotSpanIndexTrCurveSlave);
+            masterCurve->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
                     (localBasisFunctionsAndDerivativesTrCurveMaster, noDeriv, masterGPUTilde, knotSpanIndexTrCurveMaster);
-            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+            slaveCurve->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
                     (localBasisFunctionsAndDerivativesTrCurveSlave, noDeriv, slaveGPUTilde, knotSpanIndexTrCurveSlave);
 
             // Get the corresponding u,v parameters of the parametric locations
-            _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).computeCartesianCoordinates
+            masterCurve->computeCartesianCoordinates
                     (tmpUVMaster, localBasisFunctionsAndDerivativesTrCurveMaster, knotSpanIndexTrCurveMaster);
-            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeCartesianCoordinates
+            slaveCurve->computeCartesianCoordinates
                     (tmpUVSlave, localBasisFunctionsAndDerivativesTrCurveSlave, knotSpanIndexTrCurveSlave);
             for (int iCoord = 0; iCoord < noCoordParam; iCoord++) {
                 _masterPatch->getIGABasis(iCoord)->clampKnot(tmpUVMaster[iCoord]);
@@ -292,9 +361,9 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
             }
 
             // Compute the base vectors of the trimming curves
-            _masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex).computeBaseVectorAndDerivatives
+            masterCurve->computeBaseVectorAndDerivatives
                     (baseVectorTrCurveMaster, knotSpanIndexTrCurveMaster, localBasisFunctionsAndDerivativesTrCurveMaster, noDerivBaseVct);
-            _slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex).computeBaseVectorAndDerivatives
+            slaveCurve->computeBaseVectorAndDerivatives
                     (baseVectorTrCurveSlave, knotSpanIndexTrCurveSlave, localBasisFunctionsAndDerivativesTrCurveSlave, noDerivBaseVct);
 
             // Find the knot span indices on the patch
@@ -361,6 +430,10 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 }
 
 WeakIGAPatchContinuityCondition::~WeakIGAPatchContinuityCondition() {
+    if (!isTrimmingCurve) {
+        delete masterCurve;
+        delete slaveCurve;
+    }
     if (isGPDataInitialized) {
         delete trCurveMasterGPs;
         delete trCurveSlaveGPs;

@@ -459,7 +459,7 @@ public:
     // Make the tests
     CPPUNIT_TEST_SUITE (TestIGAMortarMapperCreateInterfaceGPs);
     CPPUNIT_TEST (testCreateWeakContinuityConditionGPData);
-    //    CPPUNIT_TEST (test4Leakage);
+//    CPPUNIT_TEST (test4Leakage);
     CPPUNIT_TEST_SUITE_END();
 }
 ;

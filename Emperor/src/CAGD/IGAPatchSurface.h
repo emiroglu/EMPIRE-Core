@@ -175,6 +175,8 @@ public:
      ***********/
     void computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm, int _patchBLIndex, int _patchBLTrCurveIndex) const;
 
+    void computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm, IGAPatchCurve* _curve) const;
+
     /***********************************************************************************************
      * \brief Returns the Cartesian Coordinates of the base vectors at a given pair of surface parameters given the basis functions and their derivatives
      * \param[in/out] _baseVectors The Cartesian coordinates of the base vectors on the patch whose surface parameters are _uPrm and _vPrm
@@ -313,6 +315,17 @@ public:
                                                double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
+     * \brief Computes the orthogonal projection of point of the 3D Euclidean space onto the trimming curve
+     * \param[in/out] _projectedUTilde Curve parameter of the projected point on the trimming curve
+     * \param[in]     _coordsXYZ Cartesian coordinates of the points to be projected
+     * \param[in]	  _curve The curve on which the point should be projected
+     * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    bool computePointProjectionOnTrimmingCurve(double& _projectedUTilde,
+                                                                double* _P, IGAPatchCurve* _curve);
+
+    /***********************************************************************************************
      * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary
      * \param[in/out] _t The running parameter on the given NURBS patch boundary
      * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
@@ -402,6 +415,17 @@ public:
      * \author Altug Emiroglu
      ***********/
     bool findInitialGuess4PointProjectionOnTrimmingCurve(double& _uTilde, double& _u, double& _v, double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
+
+    /***********************************************************************************************
+     * \brief Find the nearest vertex from the linearization of the trimming curve as an initial guess for the projection
+     * \param[in/out] _u Given is the u-surface parameter of the nearest linearization vertex.
+     * \param[in/out] _v Given is the v-surface parameter of the nearest linearization vertex.
+     * \param[in] _P Given the Cartesian components of the point to be projected on the trimming curve
+     * \param[in] _curve The trimming curve to project the point onto
+     * \author Altug Emiroglu
+     ***********/
+    bool findInitialGuess4PointProjectionOnTrimmingCurve(double& _uTilde, double& _u, double& _v,
+                                                                          double* _P, IGAPatchCurve* _curve);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection

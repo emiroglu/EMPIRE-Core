@@ -327,7 +327,28 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
                                                                                               masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
                                                                                               slavePatchIndex, slavePatchBLIndex, slavePatchBLTrCurveIndex);
         tmpContCond->createGPData(tmpIGAMesh->getSurfacePatch(masterPatchIndex), tmpIGAMesh->getSurfacePatch(masterPatchIndex));
-        INFO_OUT()<<"Added a continuity condition condition to \"" << meshNameInMap << "\" between patch " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
+        INFO_OUT()<<"Added a continuity condition to \"" << meshNameInMap << "\" between patch " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
+    }
+}
+
+void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
+                                                  int connectionID,
+                                                  int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
+                                                  int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave) {
+
+    std::string meshNameInMap = std::string(meshName);
+
+    if (!meshList.count( meshNameInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
+        IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
+        WeakIGAPatchContinuityCondition* tmpContCond = tmpIGAMesh->addWeakContinuityCondition(connectionID,
+                                                                                              masterPatchIndex, pMaster, uNoKnotsMaster, uKnotVectorMaster, uNoControlPointsMaster, controlPointNetMaster,
+                                                                                              slavePatchIndex, pSlave, uNoKnotsSlave, uKnotVectorSlave, uNoControlPointsSlave, controlPointNetSlave);
+        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatch(masterPatchIndex), tmpIGAMesh->getSurfacePatch(masterPatchIndex));
+        INFO_OUT()<<"Added a continuity condition to \"" << meshNameInMap << "\" between patch " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
     }
 }
 

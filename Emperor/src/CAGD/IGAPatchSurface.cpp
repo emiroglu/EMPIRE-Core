@@ -395,6 +395,26 @@ void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates,
 
 }
 
+void IGAPatchSurface::computeCartesianCoordinates(double* _cartesianCoordinates, double _uPrm, IGAPatchCurve* _curve) const {
+
+    /*
+     * This function gets the curve parameter on a trimming curve and
+     * computes the physical coordinates of the point that lies on the designated
+     * trimming curve
+     */
+
+    const int noCoordParam = 2;
+
+    double uv[noCoordParam];
+
+    // Compute the patch parameters (u, v)
+    _curve->computeCartesianCoordinates(uv, _uPrm);
+
+    // Compute the physical coordinates (x, y, z)
+    computeCartesianCoordinates(_cartesianCoordinates, uv);
+
+}
+
 void IGAPatchSurface::computeBaseVectors(double* _baseVectors,
         double* _localBasisFunctionsAndDerivatives, int _uKnotSpanIndex, int _vKnotSpanIndex) const {
     /*
@@ -1332,6 +1352,43 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUT
     return isProjectedOnCurve;
 }
 
+bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUTilde,
+                                                            double* _P, IGAPatchCurve* _curve) {
+
+    /*
+     * This function receives a cartesian point for projection onto the trimming curve on this patch
+     * The point is firstly projected onto the patch. After the patch parameters of the point are found, it is projected onto the curve
+     * in the patch parameter space.
+     * The initial guess for the projection onto the patch is performed making use of the linearization of the trimming curve.
+     * The minimum cartesian distance between the point and the linearization vertices is taken as an initial guess.
+     */
+
+    // Initialize coordinates
+    const int noCoordParam = 2;
+
+    // Initialize variables and flags
+    bool isProjectedOnPatch = false;
+    bool isProjectedOnCurve = false;
+    double UV[noCoordParam];
+
+    // Find the initial guess for projection onto the patch for the first point
+    findInitialGuess4PointProjectionOnTrimmingCurve(_projectedUTilde, UV[0], UV[1], _P, _curve);
+
+    // Force projection and return the patch parameters of the projection
+    isProjectedOnPatch = computeForcedPointProjectionOnPatch(UV[0], UV[1], _P);
+
+    if (isProjectedOnPatch) {
+        isProjectedOnCurve = _curve->computePointProjectionOn2DCurve(_projectedUTilde, UV, noCoordParam);
+        if (!isProjectedOnCurve)
+            WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point was not projected on curve and skipped!");
+    } else {
+        WARNING_OUT("In \"computePointProjectionOnTrimmingCurve\": Point was not projected on patch and skipped!");
+        isProjectedOnCurve = false;
+    }
+
+    return isProjectedOnCurve;
+}
+
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 		double& _u, double& _v, double& _ratio, double& _distance, double* _P1,
 		double* _P2, int _maxIt, double _tol) {
@@ -1869,6 +1926,82 @@ bool IGAPatchSurface::findInitialGuess4PointProjectionOnTrimmingCurve(double& _u
     else {
         candidatesUTilde = *Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getPolylineKnots();
         candidatesUV = *Trimming.getLoop(_patchBLIndex).getIGACurve(_patchBLTrCurveIndex).getPolyline();
+    }
+
+    // For each vertex
+    for(int vertexCtr=0; vertexCtr<candidatesUTilde.size(); vertexCtr++){
+
+        // Get the vertex
+        theVertex[0] = candidatesUV[vertexCtr*noCoordParam];
+        theVertex[1] = candidatesUV[vertexCtr*noCoordParam+1];
+
+        // Compute the physical coordinates and the distance
+        computeCartesianCoordinates(xyzCoord, theVertex);
+        for(xyzCtr=0; xyzCtr < noCoord; xyzCtr++)
+            xyzCoord[xyzCtr] = xyzCoord[xyzCtr] - _P[xyzCtr];
+
+        // Compute the length of the distance vector
+        tmpDistance = MathLibrary::vector2norm(xyzCoord,noCoord);
+
+        // Update the distance and the patch parameters
+        if (tmpDistance<distance) {
+            distance = tmpDistance;
+            _uTilde = candidatesUTilde[vertexCtr];
+            _u = theVertex[0];
+            _v = theVertex[1];
+            isFound = true;
+        }
+    }
+
+
+    if (!isFound)
+        ERROR_BLOCK_OUT("IGAPatchSurface","findInitialGuess4PointProjectionOnTrimmingCurve","Initial guess for projection cannot be found!");
+
+}
+
+bool IGAPatchSurface::findInitialGuess4PointProjectionOnTrimmingCurve(double& _uTilde, double& _u, double& _v,
+                                                                      double* _P, IGAPatchCurve* _curve){
+    /*
+     * This function computes an initial guess for projection of a cartesian point onto a trimming curve belonging to a patch.
+     * The algorithm advances on the linearization vertices of the trimming curve and returns
+     * the patch parameters of the vertex which has the closest cartesian distance to the point to be projected.
+     */
+
+    const int noCoordParam = 2;
+    const int noCoord = 3;
+
+    double theVertex[noCoordParam];
+    double xyzCoord[noCoord];
+    double distance = 1e3;
+    double tmpDistance;
+    int xyzCtr = 0;
+    bool isFound;
+    double minNumVertices = 51;
+
+    // Number of existing linearziation vertices
+    int numVertices = _curve->getPolyline()->size()/noCoordParam;
+
+    // Candidates for the initial guess
+    std::vector<double> candidatesUTilde;
+    std::vector<double> candidatesUV;
+
+    // If number of linearization vertices are less than 10 then create equidistant points on the curve parameter space to get an initial guess
+    if (numVertices<minNumVertices){
+        double u0 = _curve->getIGABasis()->getFirstKnot();
+        double u1 = _curve->getIGABasis()->getLastKnot();
+        double du = (u1-u0)/(minNumVertices-1);
+        for(int i=0;i<minNumVertices;i++) {
+            double knot = u0 + i*du;
+            double parametricCoordinates[2] = {0};
+            candidatesUTilde.push_back(knot);
+            _curve->computeCartesianCoordinates(parametricCoordinates,knot);
+            candidatesUV.push_back(parametricCoordinates[0]);
+            candidatesUV.push_back(parametricCoordinates[1]);
+        }
+    } // else use the linearization vertices for getting an initial guess
+    else {
+        candidatesUTilde = *_curve->getPolylineKnots();
+        candidatesUV = *_curve->getPolyline();
     }
 
     // For each vertex

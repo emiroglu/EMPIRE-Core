@@ -245,6 +245,29 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
                                           int slavePatchIndex,  int slavePatchBLIndex,  int slavePatchBLTrCurveIndex);
 
 /***********************************************************************************************
+ * brief Add a new weak patch continuity condition to the IGA mesh
+ * \param[in] _connectionID The ID of the condition
+ * \param[in] _masterPatchIndex The index of the patch in the EMPIRE data structure
+ * \param[in] _pMaster The polynomial degree of the IGA 1D curve in the u-direction
+ * \param[in] _UNoKnotsMaster The number of knots for the knot vector in the u-direction
+ * \param[in] _uKnotVectorMaster The underlying knot vector of the IGA 1D curve in the u-direction
+ * \param[in] _uNoControlPointsMaster The number of the Control Points for the 1D NURBS patch in the u-direction
+ * \param[in] _controlPointNetMaster The set of the Control Points related to the 1D NURBS patch
+ * \param[in] _slavePatchIndex The index of the patch in the EMPIRE data structure
+ * \param[in] _pDegreeSlave The polynomial degree of the IGA 1D curve in the u-direction
+ * \param[in] _uNoKnotsSlave The number of knots for the knot vector in the u-direction
+ * \param[in] _uKnotVectorSlave The underlying knot vector of the IGA 1D curve in the u-direction
+ * \param[in] _uNoControlPointsSlave The number of the Control Points for the 1D NURBS patch in the u-direction
+ * \param[in] _controlPointNetSlave The set of the Control Points related to the 1D NURBS patch
+ * \return The pointer to the weak condition just created
+ * \author Altug Emiroglu
+ ***********/
+void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
+                                                  int connectionID,
+                                                  int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
+                                                  int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
+
+/***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
  * \param[in] AmeshName a previously initialized slave FEMesh name
