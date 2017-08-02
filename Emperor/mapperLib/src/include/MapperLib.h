@@ -260,10 +260,10 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
  * \param[in] _controlPointNetSlave The set of the Control Points related to the 1D NURBS patch
  * \author Altug Emiroglu
  ***********/
-void addContinuityConditionOnCurvesToIGAMesh(char* meshName,
-                                             int connectionID,
-                                             int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
-                                             int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
+void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
+                                                  int connectionID,
+                                                  int masterPatchIndex, int pMaster, int uNoKnotsMaster, double* uKnotVectorMaster, int uNoControlPointsMaster, double* controlPointNetMaster,
+                                                  int slavePatchIndex,  int pSlave, int uNoKnotsSlave, double* uKnotVectorSlave, int uNoControlPointsSlave, double* controlPointNetSlave);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
@@ -328,8 +328,8 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
  * \author Altug Emiroglu
  ***********/
 void setParametersProjection(char* mapperName,
-                             double maxProjectionDistance, int numRefinementForIntialGuess,
-                             double maxDistanceForProjectedPointsOnDifferentPatches);
+                             double maxProjectionDistance = 1e-2, int numRefinementForIntialGuess = 10,
+                             double maxDistanceForProjectedPointsOnDifferentPatches = 1e-3);
 
 /***********************************************************************************************
  * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
@@ -339,7 +339,7 @@ void setParametersProjection(char* mapperName,
 * \author Altug Emiroglu
  ***********/
 void setParametersNewtonRaphson(char* mapperName,
-                                int maxNumOfIterations, double tolerance);
+                                int maxNumOfIterations = 20, double tolerance = 1e-6);
 
 /***********************************************************************************************
  * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
@@ -349,7 +349,7 @@ void setParametersNewtonRaphson(char* mapperName,
  * \author Altug Emiroglu
  ***********/
 void setParametersNewtonRaphsonBoundary(char* mapperName,
-                                        int maxNumOfIterations, double tolerance);
+                                        int maxNumOfIterations = 20, double tolerance = 1e-6);
 
 /***********************************************************************************************
  * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
@@ -359,7 +359,7 @@ void setParametersNewtonRaphsonBoundary(char* mapperName,
  * \author Altug Emiroglu
  ***********/
 void setParametersBisection(char* mapperName,
-                            int maxNumOfIterations, double tolerance);
+                            int maxNumOfIterations = 40, double tolerance = 1e-6);
 
 /***********************************************************************************************
  * \brief Set parameter for integration
@@ -369,7 +369,7 @@ void setParametersBisection(char* mapperName,
  * \author Altug Emiroglu
  ***********/
 void setParametersIntegration(char* mapperName,
-                              int numGPTriangle, int numGPQuad);
+                              int numGPTriangle = 16, int numGPQuad = 25);
 
 /***********************************************************************************************
  * \brief Set the flag for enforcing consistency

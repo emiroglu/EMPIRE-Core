@@ -226,10 +226,9 @@ public:
      * \param[in] _name The name of the mapper
      * \param[in] _meshIGA The IGAMesh
      * \param[in] _meshFE The FEMesh
-     * \param[in] _disTol Tolerance up to which projection is trusted
-     * \param[in] _numGPsTri The number of Gauss points used for computing triangle element
-     * \param[in] _numGPsQuad The number of Gauss points used for computing quad element
+     * \param[in] _isMappingIGA2FEM
      * \author Fabien Pean, Chenshen Wu
+     * \modified Altug Emiroglu (reduced the number of input arguments)
      ***********/
     IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isMappingIGA2FEM);
 

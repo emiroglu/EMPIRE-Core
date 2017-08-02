@@ -197,7 +197,7 @@ void IGAMortarCouplingMatrices::factorizeCorrectCNN() {
 
 void IGAMortarCouplingMatrices::enforceCnn() {
     /*
-     * Checks if a row if empty and if yes adds 1.0 in the diagonal
+     * Checks if a row is empty and if yes adds 1.0 in the diagonal
      */
     if(isIGAWeakDirichletConditions || isIGAPatchContinuityConditions) {
         indexEmptyRowCnn.reserve(3*size_N);

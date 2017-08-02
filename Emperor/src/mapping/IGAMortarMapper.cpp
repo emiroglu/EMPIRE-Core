@@ -80,6 +80,9 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     // Initialize flag for the case that weak Dirichlet curve conditions are enabled
     isIGAWeakDirichletCurveConditions = false;
 
+    // Initialize flag for the case that weak Dirichlet surface conditions are enabled
+    isIGAWeakDirichletSurfaceConditions = false;
+
     // Initialize flag for the case that coupling between the patches is enabled and when Dirichlet boundary conditions are applied in not all directions
     isIGAPatchContinuityConditions = false;
 
@@ -252,7 +255,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if(IgaWeakDirichletConditions.isCurveConditions && (IgaWeakDirichletConditions.dispPenalty > 0 || IgaWeakDirichletConditions.rotPenalty > 0 ))
         isIGAWeakDirichletCurveConditions = true;
 
-    // Flag on whether weak Dirichlet curve conditions are to be applied
+    // Flag on whether weak Dirichlet surface conditions are to be applied
     if(IgaWeakDirichletConditions.isSurfaceConditions && (IgaWeakDirichletConditions.dispPenalty > 0 || IgaWeakDirichletConditions.rotPenalty > 0 ))
         isIGAWeakDirichletSurfaceConditions = true;
 
@@ -267,7 +270,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if(isIGAWeakDirichletCurveConditions  && !isMappingIGA2FEM)
         computePenaltyFactorsForWeakDirichletCurveConditions();
 
-    // Compute the penalty factors for the application of weak Dirichlet curve conditions
+    // Compute the penalty factors for the application of weak Dirichlet surface conditions
     if(isIGAWeakDirichletSurfaceConditions  && !isMappingIGA2FEM)
         computePenaltyFactorsForWeakDirichletSurfaceConditions();
 

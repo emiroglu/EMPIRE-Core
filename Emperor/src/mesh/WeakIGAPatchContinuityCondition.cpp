@@ -160,10 +160,8 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
     // Compute the knot intersections of the master trimming curve
     _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes, masterCurve);
 
-
     // Compute the knot intersections of slave the trimming curve
     _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes, slaveCurve);
-
 
     // Project the knot intersections onto the master curve
     for (std::vector<double>::iterator iUTilde = slaveUTildes.begin(); iUTilde != slaveUTildes.end(); iUTilde++) {
@@ -397,7 +395,6 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
             // Update the GP counter
             counterGP++;
-
         }
     }
 
