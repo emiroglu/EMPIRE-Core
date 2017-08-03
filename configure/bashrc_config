@@ -38,6 +38,7 @@ EMPIRECodeMetric() { cloc-1.60.pl $EMPIRE_CORE_BASE_DIR/Emperor/src $EMPIRE_CORE
 ######################################################################################
 export PATH=$EMP_PATH:$PATH
 export LD_LIBRARY_PATH=$EMPIRE_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+export PYTHONPATH=$EMPIRE_LD_LIBRARY_PATH:$PYTHONPATH
 ######################################################################################
 echo 'EMPIRE environment is ready to use.'
 

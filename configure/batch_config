@@ -26,6 +26,7 @@ REM # Not support under WINDOWS
 REM ######################################################################################
 set PATH=%EMP_PATH%;%PATH%
 REM set LD_LIBRARY_PATH=%EMPIRE_LD_LIBRARY_PATH%;%LD_LIBRARY_PATH%
+set PYTHONPATH=%$EMPIRE_LD_LIBRARY_PATH%;%PYTHONPATH%
 REM ######################################################################################
 echo 'EMPIRE environment is ready to use.'
 
