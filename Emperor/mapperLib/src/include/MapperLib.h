@@ -137,7 +137,7 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems);
  * \param[in] numNodes total number of CPs in a multipatch geometry
  * \author Altug Emiroglu
 ***********/
-void initIGAMesh(char* meshName, int numNodes);
+void initIGAMesh(char* meshName);
 
 /***********************************************************************************************
  * brief Adds a new patch patch to a previously initialized IGA mesh

@@ -38,9 +38,19 @@ using namespace std;
 
 namespace EMPIRE {
 
+IGAMesh::IGAMesh(std::string _name) :
+    AbstractMesh(_name), numNodes(0) {
+    type = EMPIRE_Mesh_IGAMesh;
+
+    isNumNodesProvided = false;
+
+}
+
 IGAMesh::IGAMesh(std::string _name, int _numNodes) :
     AbstractMesh(_name), numNodes(_numNodes) {
     type = EMPIRE_Mesh_IGAMesh;
+
+    isNumNodesProvided = true;
 
 }
 
@@ -69,6 +79,9 @@ IGAPatchSurface* IGAMesh::addPatch(int _pDegree, int _uNoKnots, double* _uKnotVe
     int numCPs = _uNoControlPoints * _vNoControlPoints;
     IGAControlPoint **cpNet;
     cpNet = new IGAControlPoint*[numCPs];
+
+    if (!isNumNodesProvided)
+        numNodes += numCPs;
 
     for (int i = 0; i < numCPs; i++) {
         if (_dofIndexNet[i] < numNodes && _dofIndexNet[i] >= 0)

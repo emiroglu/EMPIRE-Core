@@ -188,7 +188,7 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
     }
 }
 
-void initIGAMesh(char* meshName, int numNodes){
+void initIGAMesh(char* meshName){
 
     std::string meshNameToMap = std::string(meshName);
 
@@ -197,7 +197,7 @@ void initIGAMesh(char* meshName, int numNodes){
         ERROR_OUT("Mesh not generated!");
         return;
     } else {
-        meshList[meshNameToMap] = new IGAMesh(meshNameToMap, numNodes);
+        meshList[meshNameToMap] = new IGAMesh(meshNameToMap);
         INFO_OUT("IGAMesh \"" + meshNameToMap +  "\" generated");
     }
 }

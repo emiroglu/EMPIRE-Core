@@ -73,8 +73,19 @@ protected:
     /// The number of the Control Points in the IGAMesh
     int numNodes;
 
+    /// The flag on whether num of GPs are provided for the constructor
+    bool isNumNodesProvided;
+
     /// The constructor, the destructor and the copy constructor
 public:
+
+    /***********************************************************************************************
+     * \brief Constructor
+     * \param[in] _name The name of the IGA mesh
+     * \author Altug Emiroglu
+     ***********/
+    IGAMesh(std::string _name);
+
     /***********************************************************************************************
      * \brief Constructor
      * \param[in] _name The name of the IGA mesh
