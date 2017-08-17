@@ -1619,7 +1619,7 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
                     couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                    //couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondary*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
                 }
             }
 
@@ -2121,7 +2121,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                     couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondary*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondary*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    //couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondary*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
@@ -2135,7 +2135,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                     couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondary*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondary*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    //couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondary*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
@@ -2151,8 +2151,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                     couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    //couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    //couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondary*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
