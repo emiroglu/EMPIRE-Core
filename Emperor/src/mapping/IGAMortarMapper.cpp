@@ -3358,7 +3358,7 @@ void IGAMortarMapper::checkConsistency() {
     vector<int> inconsistentDoF;
 
     for(int i = 0; i < size_N; i++) {
-        if(fabs(output[i] - 1) > 1e-6 && output[i] != 0)
+        if(fabs(output[i] - 1) > 1e-2 && output[i] != 0)
             inconsistentDoF.push_back(i);
         norm += output[i]*output[i];
     }
@@ -3392,7 +3392,7 @@ void IGAMortarMapper::checkConsistency() {
 
     DEBUG_OUT() << "### Check consistency ###"<<endl;
     DEBUG_OUT() << "Norm of output field = "<< norm << endl;
-    if(fabs(norm - 1.0) > 1e-6) {
+    if(fabs(norm - 1.0) > 1e-2) {
         ERROR_OUT() << "Coupling not consistent !"<<endl;
         ERROR_OUT() << "Coupling of unit field deviating from 1 of " << fabs(norm-1.0)<<endl;
         exit(-1);
