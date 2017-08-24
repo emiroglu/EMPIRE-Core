@@ -184,7 +184,7 @@ void IGAMortarMapper::setParametersDirichletBCs(int _isDirichletBCs) {
 void IGAMortarMapper::setParametersErrorComputation(bool _isDomainError, bool _isInterfaceError, bool _isCurveError){
     errorComputation.isDomainError = _isDomainError;
     errorComputation.isInterfaceError = _isInterfaceError;
-    errorComputation.isInterfaceError = _isCurveError;
+    errorComputation.isCurveError = _isCurveError;
 }
 
 void IGAMortarMapper::buildCouplingMatrices() {
