@@ -98,12 +98,16 @@
 		</meshB>
 	</mapper>
 	<mapper name="IGAMortar1" type="IGAMortarMapper">
-                <IGAMortarMapper>                     
-                        <projectionProperties maxProjectionDistance="15e-2" numRefinementForIntialGuess="15" maxDistanceForProjectedPointsOnDifferentPatches="1e-2"/>
-                        <newtonRaphson maxNumOfIterations="20" tolerance="1e-6"/>
-                        <newtonRaphsonBoundary maxNumOfIterations="20" tolerance="1e-6"/>
-                        <bisection maxNumOfIterations="40" tolerance="1e-6"/>
-                        <integration numGPTriangle="15" numGPQuad="25"/>
+                <IGAMortarMapper enforceConsistency = "false">
+                    <projectionProperties maxProjectionDistance="1.0e-2" numRefinementForIntialGuess="40" maxDistanceForProjectedPointsOnDifferentPatches="1.0e-3"/>
+                    <newtonRaphson maxNumOfIterations="40" tolerance="1e-3"/>
+                    <newtonRaphsonBoundary maxNumOfIterations="0" tolerance="1e-1"/>
+                    <bisection maxNumOfIterations="80" tolerance="1e-5"/>
+                    <integration numGPTriangle="16" numGPQuad="25"/>
+					<IgaPatchCoupling alphaPrim="1e4" alphaSecBending="1e4" alphaSecTwisting="1e4" isAutomaticPenaltyFactors = "0"/>
+					<!--dirichletBCs isDirichletBCs="0"/-->
+					<IgaWeakDirichletConditions isCurveConditions = "true" isSurfaceConditions = "false" alphaPrim="1e4" alphaSecBending="1e4" alphaSecTwisting="1e4" isAutomaticPenaltyFactors = "0" />
+					<errorComputation isDomainError="1" isInterfaceError="1" isCurveError="1"/>
                 </IGAMortarMapper>
                 <!-- mapping displacements from meshA to meshB, mapping forces from meshB 
                     to meshA. -->

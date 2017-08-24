@@ -760,7 +760,8 @@ void setParametersConsistency(char* mapperName,
 
 void setParametersIgaWeakDirichletConditions(char* mapperName,
                                              bool _isCurveConditions, bool _isSurfaceConditions,
-                                             double _dispPenalty, double _rotPenalty, int _isAutomaticPenaltyFactors) {
+                                             double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting,
+                                             int _isAutomaticPenaltyFactors) {
     std::string mapperNameInMap = std::string(mapperName);
 
     IGAMortarMapper *tmpIGAMortarMapper;
@@ -777,13 +778,14 @@ void setParametersIgaWeakDirichletConditions(char* mapperName,
     } else {
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
         tmpIGAMortarMapper->setParametersIgaWeakDirichletConditions(_isCurveConditions, _isSurfaceConditions,
-                                                                    _dispPenalty, _rotPenalty, _isAutomaticPenaltyFactors);
+                                                                    _alphaPrim, _alphaSecBending, _alphaSecTwisting,
+                                                                    _isAutomaticPenaltyFactors);
         INFO_OUT("Dirichlet condition parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
 void setParametersIgaPatchCoupling(char* mapperName,
-                                   double _dispPenalty, double _rotPenalty, int isAutomaticPenaltyFactors) {
+                                   double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting, int isAutomaticPenaltyFactors) {
     std::string mapperNameInMap = std::string(mapperName);
 
     IGAMortarMapper *tmpIGAMortarMapper;
@@ -799,13 +801,13 @@ void setParametersIgaPatchCoupling(char* mapperName,
         return;
     } else {
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersIgaPatchCoupling(_dispPenalty, _rotPenalty, isAutomaticPenaltyFactors);
+        tmpIGAMortarMapper->setParametersIgaPatchCoupling(_alphaPrim, _alphaSecBending, _alphaSecTwisting, isAutomaticPenaltyFactors);
         INFO_OUT("Patch coupling parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
 void setParametersErrorComputation(char* mapperName,
-                                   bool _isDomainError, bool _isInterfaceError) {
+                                   bool _isDomainError, bool _isInterfaceError, bool _isCurveError) {
     std::string mapperNameInMap = std::string(mapperName);
 
     IGAMortarMapper *tmpIGAMortarMapper;
@@ -821,7 +823,7 @@ void setParametersErrorComputation(char* mapperName,
         return;
     } else {
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
+        tmpIGAMortarMapper->setParametersErrorComputation(_isDomainError, _isInterfaceError, _isCurveError);
         INFO_OUT("Error computation parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }

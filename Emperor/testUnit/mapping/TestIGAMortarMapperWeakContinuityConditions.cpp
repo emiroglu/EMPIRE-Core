@@ -1512,28 +1512,33 @@ public:
         addPrecomputedGPData();
 
         // Set the computation of the Penalty parameters to automatic
-        theMapper->setParametersIgaPatchCoupling(0.0,0.0,1);
+        theMapper->setParametersIgaPatchCoupling(0.0, 0.0, 0.0, 1);
 
         // Compute the Penalty parameters
         theMapper->computePenaltyFactorsForPatchContinuityConditions();
         int noWeakPatchContinuityConditions = theMapper->getNoWeakIGAPatchContinuityConditions();
         double* weakPatchContinuityAlphaPrimaryIJ = new double[noWeakPatchContinuityConditions];
-        double* weakPatchContinuityAlphaSecondaryIJ = new double[noWeakPatchContinuityConditions];
+        double* weakPatchContinuityAlphaSecondaryBendingIJ = new double[noWeakPatchContinuityConditions];
+        double* weakPatchContinuityAlphaSecondaryTwistingIJ = new double[noWeakPatchContinuityConditions];
         theMapper->setUseIGAPatchCouplingPenalties(true);
         theMapper->getPenaltyParameterForPatchContinuityPrimaryField(weakPatchContinuityAlphaPrimaryIJ);
-        theMapper->getPenaltyParameterForPatchContinuitySecondaryField(weakPatchContinuityAlphaSecondaryIJ);
+        theMapper->getPenaltyParameterForPatchContinuitySecondaryFieldBending(weakPatchContinuityAlphaSecondaryBendingIJ);
+        theMapper->getPenaltyParameterForPatchContinuitySecondaryFieldTwisting(weakPatchContinuityAlphaSecondaryTwistingIJ);
 
         // Define the expected solution in terms of the Penalty parameters
         double expectedAlphaPrimaryIJ = 5.527399039185964e+01;
-        double expectedAlphaSecondaryIJ = 1.051417998627184e+01;
+        double expectedAlphaSecondaryBendingIJ = 1.051417998627184e+01;
+        double expectedAlphaSecondaryTwistingIJ = 1.051417998627184e+01;
 
         // Check if the computed Penalty parameters match the expected ones
         CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaPrimaryIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
-        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryIJ[0] - expectedAlphaSecondaryIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryBendingIJ[0] - expectedAlphaSecondaryBendingIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryTwistingIJ[0] - expectedAlphaSecondaryTwistingIJ ) <= Tol);
 
         // Delete pointers
         delete[] weakPatchContinuityAlphaPrimaryIJ;
-        delete[] weakPatchContinuityAlphaSecondaryIJ;
+        delete[] weakPatchContinuityAlphaSecondaryBendingIJ;
+        delete[] weakPatchContinuityAlphaSecondaryTwistingIJ;
     }
 
     /***********************************************************************************************

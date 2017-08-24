@@ -393,15 +393,18 @@ void MetaDatabase::fillSettingMapperVec() {
             }
             ticpp::Element *xmlIgaPatchCoupling = xmlIGAMortar->FirstChildElement("IgaPatchCoupling", false);
             if (xmlIgaPatchCoupling != NULL) {
-                mapper.igaMortarMapper.IgaPatchCoupling.dispPenalty =
-                        xmlIgaPatchCoupling->GetAttribute<double>("dispPenalty");
-                mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty =
-                        xmlIgaPatchCoupling->GetAttribute<double>("rotPenalty");
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaPrim =
+                        xmlIgaPatchCoupling->GetAttribute<double>("alphaPrim");
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecBending =
+                        xmlIgaPatchCoupling->GetAttribute<double>("alphaSecBending");
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecTwisting =
+                        xmlIgaPatchCoupling->GetAttribute<double>("alphaSecTwisting");
                 mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors =
                         xmlIgaPatchCoupling->GetAttribute<int>("isAutomaticPenaltyFactors");
             } else {
-                mapper.igaMortarMapper.IgaPatchCoupling.dispPenalty = 0;
-                mapper.igaMortarMapper.IgaPatchCoupling.rotPenalty = 0;
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaPrim = 0;
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecBending = 0;
+                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecTwisting = 0;
                 mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
             }
             ticpp::Element *xmlIgaWeakDirichletConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletConditions", false);
@@ -418,15 +421,18 @@ void MetaDatabase::fillSettingMapperVec() {
                 else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "False" ||
                           xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "false" )
                          mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = false;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.dispPenalty =
-                        xmlIgaWeakDirichletConditions->GetAttribute<double>("dispPenalty");
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.rotPenalty =
-                        xmlIgaWeakDirichletConditions->GetAttribute<double>("rotPenalty");
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaPrim =
+                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaPrim");
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecBending =
+                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaSecBending");
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecTwisting =
+                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaSecTwisting");
                 mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors =
                         xmlIgaWeakDirichletConditions->GetAttribute<int>("isAutomaticPenaltyFactors");
             } else {
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.dispPenalty = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.rotPenalty = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaPrim = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecBending = 0;
+                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecTwisting = 0;
                 mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors = 0;
             }
 
@@ -444,9 +450,12 @@ void MetaDatabase::fillSettingMapperVec() {
                         xmlErrorComputation->GetAttribute<double>("isDomainError");
                 mapper.igaMortarMapper.errorComputation.isInterfaceError =
                         xmlErrorComputation->GetAttribute<double>("isInterfaceError");
+                mapper.igaMortarMapper.errorComputation.isCurveError =
+                        xmlErrorComputation->GetAttribute<double>("isCurveError");
             } else {
                 mapper.igaMortarMapper.errorComputation.isDomainError = false;
                 mapper.igaMortarMapper.errorComputation.isInterfaceError = false;
+                mapper.igaMortarMapper.errorComputation.isCurveError = false;
             }
 
 	} else if (xmlMapper->GetAttribute<string>("type") == "IGABarycentricMapper") {

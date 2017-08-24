@@ -74,11 +74,13 @@ public:
      * \param[in] _enforceConsistency A flag on whether the consistency should be enforced
      * \param[in] _isWeakDirichletCurveConditions Flag on whether the weak Dirichlet curve conditions should be applied
      * \param[in] _isWeakDirichletSurfaceConditions Flag on whether the weak Dirichlet surface conditions should be applied
-     * \param[in] _weakDirichletConditionsDispPenalty Displacement penalty factor for weak Dirichlet conditions
-     * \param[in] _weakDirichletConditionsRotPenalty Rotation penalty factor for weak Dirichlet conditions
+     * \param[in] _weakDirichletConditionsAlphaPrim Primary field Penalty parameter for weak Dirichlet conditions
+     * \param[in] _weakDirichletConditionsAlphaSecBending Bending rotation field Penalty parameter for weak Dirichlet conditions
+     * \param[in] _weakDirichletConditionsAlphaSecTwisting Bending rotation field Penalty parameter for weak Dirichlet conditions
      * \param[in] _isWeakDirichletConditionsAutomaticPenaltyFactors Flag on whether the penalty factors for Dirichlet conditions should be computed automatically
-     * \param[in] _patchContinuityDispPenalty Displacement penalty factor for patch coupling conditions
-     * \param[in] _patchContinuityRotPenalty Rotation penalty factor for patch coupling conditions
+     * \param[in] _patchContinuityAlphaPrim Primary field Penalty parameter for patch coupling conditions
+     * \param[in] _patchContinuityAlphaSecBending Bending rotation field Penalty parameter for patch coupling conditions
+     * \param[in] _patchContinuityAlphaSecTwisting Twisting rotation field Penalty parameter for patch coupling conditions
      * \param[in] _isPenaltyPatchCoupling Flag on whether the patch penalty coupling should be applied
      * \param[in] _isDomainError Flag on the computation of the domain error from the mapping
      * \param[in] _isInterfaceError Flag on the computation of the interface error from the mapping
@@ -90,10 +92,9 @@ public:
                              int _bisectionMaxIt, double _bisectionTol,
                              int _numGPTriangle, int _numGPQuad,
                              bool _enforceConsistency,
-                             bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
-                             double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
-                             int _isDirichletBCs,
-                             bool _isDomainError, bool _isInterfaceError);
+                             bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsAlphaPrim, double _weakDirichletConditionsAlphaSecBending, double _weakDirichletConditionsAlphaSecTwisting, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
+                             double _patchContinuityAlphaPrim, double _patchContinuityAlphaSecBending, double _patchContinuityAlphaSecTwisting, int _isPenaltyPatchCoupling, int _isDirichletBCs,
+                             bool _isDomainError, bool _isInterfaceError, bool _isCurveError);
     /***********************************************************************************************
      * \brief Initialize IGA Barycentric Mapper
      * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface

@@ -129,15 +129,17 @@ struct structMapper {
             int numGPQuad;
         } integration;
         struct IgaPatchCoupling {
-                double dispPenalty;
-                double rotPenalty;
+                double alphaPrim;
+                double alphaSecBending;
+                double alphaSecTwisting;
                 int isAutomaticPenaltyFactors;
         } IgaPatchCoupling;
         struct IgaWeakDirichletConditions {
                 bool isCurveConditions;
                 bool isSurfaceConditions;
-                double dispPenalty;
-                double rotPenalty;
+                double alphaPrim;
+                double alphaSecBending;
+                double alphaSecTwisting;
                 int isAutomaticPenaltyFactors;
         } IgaWeakDirichletConditions;
         struct dirichletBCs {
@@ -146,6 +148,7 @@ struct structMapper {
         struct errorComputation {
             bool isDomainError;
             bool isInterfaceError;
+            bool isCurveError;
         }errorComputation;
     };
     struct structIGABarycentricMapper {

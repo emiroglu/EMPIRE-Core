@@ -93,10 +93,10 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
                                         int _bisectionMaxIt, double _bisectionTol,
                                         int _numGPTriangle, int _numGPQuad,
                                         bool _enforceConsistency,
-                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsDispPenalty, double _weakDirichletConditionsRotPenalty, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
-                                        double _patchContinuityDispPenalty, double _patchContinuityRotPenalty, int _isPenaltyPatchCoupling,
+                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsAlphaPrim, double _weakDirichletConditionsAlphaSecBending, double _weakDirichletConditionsAlphaSecTwisting, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
+                                        double _patchContinuityAlphaPrim, double _patchContinuityAlphaSecBending, double _patchContinuityAlphaSecTwisting, int _isPenaltyPatchCoupling,
                                         int _isDirichletBCs,
-                                        bool _isDomainError, bool _isInterfaceError) {
+                                        bool _isDomainError, bool _isInterfaceError, bool _isCurveError) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
     if (meshAIGA && !meshBIGA) {
@@ -121,10 +121,10 @@ void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numR
     mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
     mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
     mapper->setParametersConsistency(_enforceConsistency);
-    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsDispPenalty, _weakDirichletConditionsRotPenalty, _isWeakDirichletConditionsAutomaticPenaltyFactors);
-    mapper->setParametersIgaPatchCoupling(_patchContinuityDispPenalty, _patchContinuityRotPenalty, _isPenaltyPatchCoupling);
+    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsAlphaPrim, _weakDirichletConditionsAlphaSecBending, _weakDirichletConditionsAlphaSecTwisting, _isWeakDirichletConditionsAutomaticPenaltyFactors);
+    mapper->setParametersIgaPatchCoupling(_patchContinuityAlphaPrim, _patchContinuityAlphaSecBending, _patchContinuityAlphaSecTwisting, _isPenaltyPatchCoupling);
     mapper->setParametersDirichletBCs(_isDirichletBCs);
-    mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError);
+    mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError, _isCurveError);
     mapper->buildCouplingMatrices();
 }
 

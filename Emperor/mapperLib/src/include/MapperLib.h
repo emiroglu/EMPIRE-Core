@@ -382,29 +382,35 @@ void setParametersConsistency(char* mapperName,
  * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
  * \param[in] _isCurveConditions Flag on whether general curve conditions are applied
  * \param[in] _isSurfaceConditions Flag on whether general surface conditions are applied
- * \param[in] _dispPenalty The displacement penalty factor
- * \param[in] _rotPenalty The rotational penalty factor
+ * \param[in] _alphaPrim The Penalty factor for the primary field
+ * \param[in] _alphaSecBending The Penalty factor for the bending rotation of the primary field
+ * \param[in] _alphaSecTwisting The Penalty factor for the twisting rotation of the primary field
  * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
  ***********/
 void setParametersIgaWeakDirichletConditions(char* mapperName,
-                                             bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _dispPenalty = 0, double _rotPenalty = 0, int _isAutomaticPenaltyFactors = 0);
+                                             bool _isCurveConditions = false, bool _isSurfaceConditions = false,
+                                             double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0,
+                                             int _isAutomaticPenaltyFactors = 0);
 
 /***********************************************************************************************
  * \brief Set parameter for penalty coupling
- * \param[in] _dispPenalty The displacement penalty coupling factor
- * \param[in] _rotPenalty The rotational penalty coupling factor
+ * \param[in] _alphaPrim The Penalty factor for the primary field
+ * \param[in] _alphaSecBending The Penalty factor for the bending rotation of the primary field
+ * \param[in] _alphaSecTwisting The Penalty factor for the twisting rotation of the primary field
  * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
  ***********/
 void setParametersIgaPatchCoupling(char* mapperName,
-                                   double _dispPenalty = 0, double _rotPenalty = 0, int isAutomaticPenaltyFactors = 0);
+                                   double _alphaPrim = 0, double _alphaSecBending = 0,
+                                   double _alphaSecTwisting = 0, int isAutomaticPenaltyFactors = 0);
 
 /***********************************************************************************************
  * \brief Set parameters for the error computation
  * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
  * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
+ * \param[in] _isCurveError Flag on the computation of the error along trimming curves where constraints are to be applied
  ***********/
 void setParametersErrorComputation(char* mapperName,
-                                   bool _isDomainError = 0, bool _isInterfaceError = 0);
+                                   bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
 
 /***********************************************************************************************
  * \brief Build Coupling Matrices

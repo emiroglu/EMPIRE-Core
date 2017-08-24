@@ -103,8 +103,11 @@ private:
     /// Penalty factors for the primary field to the application of weak Dirichlet curve conditions
     double* weakDirichletCCAlphaPrimary;
 
-    /// Penalty factors for the secondary field to the application of weak Dirichlet curve conditions
-    double* weakDirichletCCAlphaSecondary;
+    /// Penalty factors for the bending secondary field to the application of weak Dirichlet curve conditions
+    double* weakDirichletCCAlphaSecondaryBending;
+
+    /// Penalty factors for the twisting secondary field to the application of weak Dirichlet curve conditions
+    double* weakDirichletCCAlphaSecondaryTwisting;
 
     /// Flag on the application of weak Dirichlet surface conditions using Penalty
     bool isIGAWeakDirichletSurfaceConditions;
@@ -115,8 +118,11 @@ private:
     /// Penalty factors for the primary field to the application of weak Dirichlet surface conditions
     double* weakDirichletSCAlphaPrimary;
 
-    /// Penalty factors for the secondary field to the application of weak Dirichlet surface conditions
-    double* weakDirichletSCAlphaSecondary;
+    /// Penalty factors for the bending secondary field to the application of weak Dirichlet surface conditions
+    double* weakDirichletSCAlphaSecondaryBending;
+
+    /// Penalty factors for the twisting secondary field to the application of weak Dirichlet surface conditions
+    double* weakDirichletSCAlphaSecondaryTwisting;
 
     /// Flag on the application of patch continuity conditions using Penalty
     bool isIGAPatchContinuityConditions;
@@ -127,8 +133,11 @@ private:
     /// Penalty factors for the primary field to the application of weak patch continuity conditions
     double* weakPatchContinuityAlphaPrimaryIJ;
 
-    /// Penalty factors for the secondary field to the application of weak patch continuity conditions
-    double* weakPatchContinuityAlphaSecondaryIJ;
+    /// Penalty factors for the bending secondary field to the application of weak patch continuity conditions
+    double* weakPatchContinuityAlphaSecondaryBendingIJ;
+
+    /// Penalty factors for the twisting secondary field to the application of weak patch continuity conditions
+    double* weakPatchContinuityAlphaSecondaryTwistingIJ;
 
     /// Flag on checking the consistency of the equation system
     bool isCheckConsistency;
@@ -165,6 +174,9 @@ private:
     /// Stream of interface gauss points stored in line with format
     std::vector<std::vector<double> > streamInterfaceGPs;
 
+    /// Stream of gauss points for the trimming curves where conditions are applied stored in line with format
+    std::vector<std::vector<double> > streamCurveGPs;
+
     /// Flag on the mapping direction
     bool isMappingIGA2FEM;
 
@@ -195,8 +207,9 @@ private:
 
     /// Properties for the application of weak patch continuity conditions with Penalty
     struct IgaPatchCoupling {
-            double dispPenalty;
-            double rotPenalty;
+            double alphaPrim;
+            double alphaSecBending;
+            double alphaSecTwisting;
             int isAutomaticPenaltyFactors;
     } IgaPatchCoupling;
 
@@ -204,8 +217,9 @@ private:
     struct IgaWeakDirichletConditions {
             bool isCurveConditions;
             bool isSurfaceConditions;
-            double dispPenalty;
-            double rotPenalty;
+            double alphaPrim;
+            double alphaSecBending;
+            double alphaSecTwisting;
             int isAutomaticPenaltyFactors;
     } IgaWeakDirichletConditions;
 
@@ -218,6 +232,7 @@ private:
     struct errorComputation {
         bool isDomainError;
         bool isInterfaceError;
+        bool isCurveError;
     }errorComputation;
 
 public:
@@ -289,19 +304,21 @@ public:
      * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
      * \param[in] _isCurveConditions Flag on whether general curve conditions are applied
      * \param[in] _isSurfaceConditions Flag on whether general surface conditions are applied
-     * \param[in] _dispPenalty The displacement penalty factor
-     * \param[in] _rotPenalty The rotational penalty factor
+     * \param[in] _alphaPrim The Penalty parameter for the primary field
+     * \param[in] _alphaSecBending The Penalty parameter for the bending rotation of the primary field
+     * \param[in] _alphaSecTwisting The Penalty parameter for the twisting rotation of the primary field
      * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
      ***********/
-    void setParametersIgaWeakDirichletConditions(bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _dispPenalty = 0, double _rotPenalty = 0, int _isAutomaticPenaltyFactors = 0);
+    void setParametersIgaWeakDirichletConditions(bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0, int _isAutomaticPenaltyFactors = 0);
 
     /***********************************************************************************************
      * \brief Set parameter for penalty coupling
-     * \param[in] _dispPenalty The displacement penalty coupling factor
-     * \param[in] _rotPenalty The rotational penalty coupling factor
+     * \param[in] _alphaPrim The Penalty parameter for the primary field
+     * \param[in] _alphaSecBending The Penalty parameter for the bending rotation of the primary field
+     * \param[in] _alphaSecTwisting The Penalty parameter for the twisting rotation of the primary field
      * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
      ***********/
-    void setParametersIgaPatchCoupling(double _dispPenalty = 0, double _rotPenalty = 0, int isAutomaticPenaltyFactors = 0);
+    void setParametersIgaPatchCoupling(double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0, int isAutomaticPenaltyFactors = 0);
 
     /***********************************************************************************************
      * \brief Set parameter for penalty coupling
@@ -313,8 +330,9 @@ public:
      * \brief Set parameters for the error computation
      * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
      * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
+     * \param[in] _isCurveError Flag on the computation of the error of the constaint satisfaction along the trimming curves
      ***********/
-    void setParametersErrorComputation(bool _isDomainError = 0, bool _isInterfaceError = 0);
+    void setParametersErrorComputation(bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
 
     /***********************************************************************************************
      * \brief Set the flag regarding the computation of weak Dirichlet curve conditions
@@ -362,6 +380,14 @@ public:
      * \author Andreas Apostolatos
      ***********/
     double computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField);
+
+    /***********************************************************************************************
+     * \brief Compute the relative error in the L2 norm of the error along the trimming curves where conditions are applied in terms of the primary and the secondary fields
+     * \param[in/out] _errorL2Interface Double array of constant size 2 containing the L2 norm of the error along the curves where conditions are applied in terms of the primary and the secondary fields
+     * \param[in] _fieldIGA The field on the isogeometric discretization
+     * \author Andreas Apostolatos
+     ***********/
+    void computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curve, const double *_fieldIGA);
 
     /***********************************************************************************************
      * \brief Compute the relative error in the L2 norm of the interface error in terms of the displacements and the rotations across the patch interfaces
@@ -742,11 +768,18 @@ public:
     void getPenaltyParameterForWeakDirichletCCPrimaryField(double* _alphaPrim);
 
     /***********************************************************************************************
-     * \brief Get the penalty parameters of the secondary field
-     * \param[in/out] The vector of the penalty factors for the primary field
+     * \brief Get the penalty parameters for the bending rotation of the secondary field
+     * \param[in/out] The vector of the penalty factors for the bending rotation of the primary field
      * \author Altug Emiroglu
      ***********/
-    void getPenaltyParameterForWeakDirichletCCSecondaryField(double* _alphaSec);
+    void getPenaltyParameterForWeakDirichletCCSecondaryFieldBending(double* _alphaSecBending);
+
+    /***********************************************************************************************
+     * \brief Get the penalty parameters of the twisting rotation of the secondary field
+     * \param[in/out] The vector of the penalty factors for the twisting rotation of the primary field
+     * \author Altug Emiroglu
+     ***********/
+    void getPenaltyParameterForWeakDirichletCCSecondaryFieldTwisting(double* _alphaSecTwisting);
 
     /***********************************************************************************************
      * \brief Get the penalty parameters of the primary field
@@ -756,11 +789,18 @@ public:
     void getPenaltyParameterForPatchContinuityPrimaryField(double* _alphaPrim);
 
     /***********************************************************************************************
-     * \brief Get the penalty parameters of the secondary field
-     * \param[in/out] The vector of the penalty factors for the secondary field
+     * \brief Get the penalty parameters of the bending rotation of the secondary field
+     * \param[in/out] The vector of the penalty factors for the bending rotation of the secondary field
      * \author Andreas Apostolatos
      ***********/
-    void getPenaltyParameterForPatchContinuitySecondaryField(double* _alphaSec);
+    void getPenaltyParameterForPatchContinuitySecondaryFieldBending(double* _alphaSecBending);
+
+    /***********************************************************************************************
+     * \brief Get the penalty parameters of the twisting rotation of the secondary field
+     * \param[in/out] The vector of the penalty factors for the twisting rotation of the secondary field
+     * \author Andreas Apostolatos
+     ***********/
+    void getPenaltyParameterForPatchContinuitySecondaryFieldTwisting(double* _alphaSecTwisting);
 
     /// Print functions
 public:
@@ -768,10 +808,11 @@ public:
      * \brief Print the domain and the interface error from the mapping
      * \param[in] message Reference to the message
      * \param[in] _domainError The computed error from the mapping in the domain
+     * \param[in] _errorL2Curve The computed errors across the curves where conditions are applied from the mapped field
      * \param[in] _errorL2Interface The computed interface errors accross the patch interfaces from the mapped field
      * \author Andreas Apostolatos
      ***********/
-    void printErrorMessage(Message &message, double _errorL2Domain, double *_errorL2Interface);
+    void printErrorMessage(Message &message, double _errorL2Domain, double* _errorL2Curve, double *_errorL2Interface);
 
     /// unit test class
     friend class TestIGAMortarMapperTube;

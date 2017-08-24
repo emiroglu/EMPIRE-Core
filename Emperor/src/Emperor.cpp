@@ -337,15 +337,18 @@ void Emperor::initMappers() {
                     settingMapper.igaMortarMapper.enforceConsistency,
                     settingMapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions,
                     settingMapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions,
-                    settingMapper.igaMortarMapper.IgaWeakDirichletConditions.dispPenalty,
-                    settingMapper.igaMortarMapper.IgaWeakDirichletConditions.rotPenalty,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletConditions.alphaPrim,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecBending,
+                    settingMapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecTwisting,
                     settingMapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors,
-                    settingMapper.igaMortarMapper.IgaPatchCoupling.dispPenalty,
-                    settingMapper.igaMortarMapper.IgaPatchCoupling.rotPenalty,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.alphaPrim,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.alphaSecBending,
+                    settingMapper.igaMortarMapper.IgaPatchCoupling.alphaSecTwisting,
                     settingMapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors,
                     settingMapper.igaMortarMapper.dirichletBCs.isDirichletBCs,
                     settingMapper.igaMortarMapper.errorComputation.isDomainError,
-                    settingMapper.igaMortarMapper.errorComputation.isInterfaceError);
+                    settingMapper.igaMortarMapper.errorComputation.isInterfaceError,
+                    settingMapper.igaMortarMapper.errorComputation.isCurveError);
 	} else if (settingMapper.type == EMPIRE_IGABarycentricMapper) {
             mapper->initIGABarycentricMapper(
                     settingMapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance,
