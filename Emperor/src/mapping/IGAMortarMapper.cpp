@@ -279,7 +279,14 @@ void IGAMortarMapper::buildCouplingMatrices() {
         isIGAPatchContinuityConditions = true;
 
     // Check if weak conditions are applied and expand the matrices accordingly
+    cout << endl;
+    cout << "Expanding matrices..." << endl;
     couplingMatrices->setIsIGAConditions(isIGAWeakDirichletCurveConditions || isIGAWeakDirichletSurfaceConditions, isIGAPatchContinuityConditions, isClampedDofs);
+    cout << "Expanded matrices..." << endl;
+    cout << endl;
+
+    cout << endl;
+    cout << "Computing penalty factors..." << endl;
 
     // Compute the penalty factors for the application of weak Dirichlet curve conditions
     if(isIGAWeakDirichletCurveConditions  && !isMappingIGA2FEM)
@@ -292,6 +299,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
     // Compute the penalty factors for the application of weak patch continuity conditions
     if(isIGAPatchContinuityConditions  && !isMappingIGA2FEM)
         computePenaltyFactorsForPatchContinuityConditions();
+
+    cout << "Computed Penalty factors..." << endl;
+    cout << endl;
 
     if (isIGAPatchContinuityConditions) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
