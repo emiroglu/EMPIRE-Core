@@ -99,6 +99,7 @@ void IGAMortarCouplingMatrices::expandMatrices() {
             tmp = (*C_NN)(i,j);
             if(tmp != 0.0) {
                 for(int r = 0 ; r < 3 ; r++) {      // 3 coordinates
+                    cout << "CNN ( " << 3*i + r << " , " << 3*j + r << " )" << endl;
                     (*C_NN_expanded)(3*i + r, 3*j + r) = tmp;
                 }
             }
@@ -107,6 +108,7 @@ void IGAMortarCouplingMatrices::expandMatrices() {
             tmp = (*C_NR)(i,j);
             if(tmp != 0.0) {
                 for(int r = 0 ; r < 3 ; r++) {      // 3 coordinates
+                    cout << "CNR ( " << 3*i + r << " , " << 3*j + r << " )" << endl;
                     (*C_NR_expanded)(3*i + r, 3*j + r) = tmp;
                 }
             }
