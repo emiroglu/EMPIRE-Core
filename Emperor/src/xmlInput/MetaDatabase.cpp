@@ -326,168 +326,204 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.type = EMPIRE_IGAMortarMapper;
             ticpp::Element *xmlIGAMortar = xmlMapper->FirstChildElement("IGAMortarMapper");
             assert(xmlIGAMortar != NULL);
-            if (xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "true" ||
-                xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "True" )
-                mapper.igaMortarMapper.enforceConsistency = true;
-            else if (xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "false" ||
-                     xmlIGAMortar->GetAttribute<string>("enforceConsistency") == "False" )
-                     mapper.igaMortarMapper.enforceConsistency = false;
-            else assert(false);
-            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("projectionProperties",
+            ticpp::Element *xmlConsistency = xmlIGAMortar->FirstChildElement("propConsistency",
+                    false);
+            if (xmlConsistency != NULL) {
+                if (xmlConsistency->GetAttribute<string>("enforceConsistency") == "true")
+                    mapper.IGAMortarMapper.propConsistency.enforceConsistency = true;
+                else if (xmlConsistency->GetAttribute<string>("enforceConsistency") == "false")
+                    mapper.IGAMortarMapper.propConsistency.enforceConsistency = false;
+                else
+                    assert(false);
+                if (mapper.IGAMortarMapper.propConsistency.enforceConsistency)
+                    mapper.IGAMortarMapper.propConsistency.tolConsistency =
+                            xmlConsistency->GetAttribute<double>("tolConsistency");
+            } else {
+                mapper.IGAMortarMapper.propConsistency.enforceConsistency = false;
+                mapper.IGAMortarMapper.propConsistency.tolConsistency = 0.0;
+            }
+
+            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("propProjection",
                     false);
             if (xmlProjection != NULL) {
-                mapper.igaMortarMapper.projectionProperties.maxProjectionDistance =
+                mapper.IGAMortarMapper.propProjection.maxProjectionDistance =
                         xmlProjection->GetAttribute<double>("maxProjectionDistance");
-                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess =
-                        xmlProjection->GetAttribute<int>("numRefinementForIntialGuess");
-                mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                mapper.IGAMortarMapper.propProjection.noInitialGuess =
+                        xmlProjection->GetAttribute<int>("noInitialGuess");
+                mapper.IGAMortarMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         xmlProjection->GetAttribute<double>(
-                                "maxDistanceForProjectedPointsOnDifferentPatches");
+                                "maxProjectionDistanceOnDifferentPatches");
             } else {
-                mapper.igaMortarMapper.projectionProperties.maxProjectionDistance = 1e-2;
-                mapper.igaMortarMapper.projectionProperties.numRefinementForIntialGuess = 10;
-                mapper.igaMortarMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                mapper.IGAMortarMapper.propProjection.maxProjectionDistance = 1e-2;
+                mapper.IGAMortarMapper.propProjection.noInitialGuess = 10;
+                mapper.IGAMortarMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         1e-3;
             }
-            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphson",
+            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("propNewtonRaphson",
                     false);
             if (xmlNewtonRaphson != NULL) {
-                mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations =
-                        xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<
-                        double>("tolerance");
+                mapper.IGAMortarMapper.propNewtonRaphson.noIterations =
+                        xmlNewtonRaphson->GetAttribute<int>("noIterations");
+                mapper.IGAMortarMapper.propNewtonRaphson.tolProjection = xmlNewtonRaphson->GetAttribute<
+                        double>("tolProjection");
             } else {
-                mapper.igaMortarMapper.newtonRaphson.maxNumOfIterations = 20;
-                mapper.igaMortarMapper.newtonRaphson.tolerance = 1e-9;
+                mapper.IGAMortarMapper.propNewtonRaphson.noIterations = 20;
+                mapper.IGAMortarMapper.propNewtonRaphson.tolProjection = 1e-9;
             }
             ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement(
-                    "newtonRaphsonBoundary", false);
+                    "propNewtonRaphsonBoundary", false);
             if (xmlNewtonRaphsonBoundary != NULL) {
-                mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations =
-                        xmlNewtonRaphsonBoundary->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance =
-                        xmlNewtonRaphsonBoundary->GetAttribute<double>("tolerance");
+                mapper.IGAMortarMapper.propNewtonRaphsonBoundary.noIterations =
+                        xmlNewtonRaphsonBoundary->GetAttribute<int>("noIterations");
+                mapper.IGAMortarMapper.propNewtonRaphsonBoundary.tolProjection =
+                        xmlNewtonRaphsonBoundary->GetAttribute<double>("tolProjection");
             } else {
-                mapper.igaMortarMapper.newtonRaphsonBoundary.maxNumOfIterations = 20;
-                mapper.igaMortarMapper.newtonRaphsonBoundary.tolerance = 1e-9;
+                mapper.IGAMortarMapper.propNewtonRaphsonBoundary.noIterations = 20;
+                mapper.IGAMortarMapper.propNewtonRaphsonBoundary.tolProjection = 1e-9;
             }
-            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("bisection", false);
+            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("propBisection", false);
             if (xmlBisection != NULL) {
-                mapper.igaMortarMapper.bisection.maxNumOfIterations =
-                        xmlBisection->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaMortarMapper.bisection.tolerance = xmlBisection->GetAttribute<double>(
-                        "tolerance");
+                mapper.IGAMortarMapper.propBisection.noIterations =
+                        xmlBisection->GetAttribute<int>("noIterations");
+                mapper.IGAMortarMapper.propBisection.tolProjection = xmlBisection->GetAttribute<double>(
+                        "tolProjection");
             } else {
-                mapper.igaMortarMapper.bisection.maxNumOfIterations = 40;
-                mapper.igaMortarMapper.bisection.tolerance = 1e-6;
+                mapper.IGAMortarMapper.propBisection.noIterations = 40;
+                mapper.IGAMortarMapper.propBisection.tolProjection = 1e-6;
             }
-            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration", false);
+            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("propIntegration", false);
             if (xmlIntegration != NULL) {
-                mapper.igaMortarMapper.integration.numGPTriangle =
-                        xmlIntegration->GetAttribute<int>("numGPTriangle");
-                mapper.igaMortarMapper.integration.numGPQuad = xmlIntegration->GetAttribute<int>(
-                        "numGPQuad");
+                mapper.IGAMortarMapper.propIntegration.noGPTriangle =
+                        xmlIntegration->GetAttribute<int>("noGPTriangle");
+                mapper.IGAMortarMapper.propIntegration.noGPQuad = xmlIntegration->GetAttribute<int>(
+                        "noGPQuad");
             } else {
-                mapper.igaMortarMapper.integration.numGPTriangle = 16;
-                mapper.igaMortarMapper.integration.numGPQuad = 25;
+                mapper.IGAMortarMapper.propIntegration.noGPTriangle = 16;
+                mapper.IGAMortarMapper.propIntegration.noGPQuad = 25;
             }
-            ticpp::Element *xmlIgaPatchCoupling = xmlIGAMortar->FirstChildElement("IgaPatchCoupling", false);
-            if (xmlIgaPatchCoupling != NULL) {
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaPrim =
-                        xmlIgaPatchCoupling->GetAttribute<double>("alphaPrim");
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecBending =
-                        xmlIgaPatchCoupling->GetAttribute<double>("alphaSecBending");
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecTwisting =
-                        xmlIgaPatchCoupling->GetAttribute<double>("alphaSecTwisting");
-                mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors =
-                        xmlIgaPatchCoupling->GetAttribute<int>("isAutomaticPenaltyFactors");
+            ticpp::Element *xmlWeakCurveDirichletConditions = xmlIGAMortar->FirstChildElement("propWeakCurveDirichletConditions", false);
+            if (xmlWeakCurveDirichletConditions != NULL) {
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = true;
+                if (xmlWeakCurveDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = true;
+                else if (xmlWeakCurveDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "false")
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = false;
+                else
+                    assert(false);
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim =
+                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaPrim");
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending =
+                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecBending");
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting =
+                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecTwisting");
             } else {
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaPrim = 0;
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecBending = 0;
-                mapper.igaMortarMapper.IgaPatchCoupling.alphaSecTwisting = 0;
-                mapper.igaMortarMapper.IgaPatchCoupling.isAutomaticPenaltyFactors = 0;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = false;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim = 0.0;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending = 0.0;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting = 0.0;
             }
-            ticpp::Element *xmlIgaWeakDirichletConditions = xmlIGAMortar->FirstChildElement("IgaWeakDirichletConditions", false);
-            if (xmlIgaWeakDirichletConditions != NULL) {
-                if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "True" ||
-                     xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "true" )
-                    mapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions = true;
-                else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "False" ||
-                          xmlIgaWeakDirichletConditions->GetAttribute<string>("isCurveConditions") == "false" )
-                         mapper.igaMortarMapper.IgaWeakDirichletConditions.isCurveConditions = false;
-                if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "True" ||
-                     xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "true" )
-                    mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = true;
-                else if ( xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "False" ||
-                          xmlIgaWeakDirichletConditions->GetAttribute<string>("isSurfaceConditions") == "false" )
-                         mapper.igaMortarMapper.IgaWeakDirichletConditions.isSurfaceConditions = false;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaPrim =
-                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaPrim");
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecBending =
-                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaSecBending");
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecTwisting =
-                        xmlIgaWeakDirichletConditions->GetAttribute<double>("alphaSecTwisting");
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors =
-                        xmlIgaWeakDirichletConditions->GetAttribute<int>("isAutomaticPenaltyFactors");
+            ticpp::Element *xmlWeakSurfaceDirichletConditions = xmlIGAMortar->FirstChildElement("propWeakSurfaceDirichletConditions", false);
+            if (xmlWeakSurfaceDirichletConditions != NULL) {
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = true;
+                if (xmlWeakSurfaceDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = true;
+                else if (xmlWeakSurfaceDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "false")
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = false;
+                else
+                    assert(false);
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim =
+                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaPrim");
             } else {
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaPrim = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecBending = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.alphaSecTwisting = 0;
-                mapper.igaMortarMapper.IgaWeakDirichletConditions.isAutomaticPenaltyFactors = 0;
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = false;
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim = 0.0;
             }
-
-            ticpp::Element *xmlDirichletBCs = xmlIGAMortar->FirstChildElement("dirichletBCs", false);
-            if (xmlDirichletBCs != NULL) {
-                mapper.igaMortarMapper.dirichletBCs.isDirichletBCs =
-                        xmlDirichletBCs->GetAttribute<int>("isDirichletBCs");
+            ticpp::Element *xmlWeakPatchConinuityConditions = xmlIGAMortar->FirstChildElement("propWeakPatchContinuityConditions", false);
+            if (xmlWeakPatchConinuityConditions != NULL) {
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = true;
+                if (xmlWeakPatchConinuityConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = true;
+                else if (xmlWeakPatchConinuityConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "false")
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = false;
+                else
+                    assert(false);
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim =
+                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaPrim");
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending =
+                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecBending");
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting =
+                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecTwisting");
             } else {
-                mapper.igaMortarMapper.dirichletBCs.isDirichletBCs = 0;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = false;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim = 0.0;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending = 0.0;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting = 0.0;
             }
-
-            ticpp::Element *xmlErrorComputation = xmlIGAMortar->FirstChildElement("errorComputation", false);
+            ticpp::Element *xmlStrongDirichletConditions = xmlIGAMortar->FirstChildElement("propStrongCurveDirichletConditions", false);
+            if (xmlStrongDirichletConditions != NULL) {
+                mapper.IGAMortarMapper.propStrongCurveDirichletConditions.isStrongCurveDirichletConditions = true;
+            } else {
+                mapper.IGAMortarMapper.propStrongCurveDirichletConditions.isStrongCurveDirichletConditions = false;
+            }
+            ticpp::Element *xmlErrorComputation = xmlIGAMortar->FirstChildElement("propErrorComputation", false);
             if (xmlErrorComputation != NULL) {
-                mapper.igaMortarMapper.errorComputation.isDomainError =
-                        xmlErrorComputation->GetAttribute<double>("isDomainError");
-                mapper.igaMortarMapper.errorComputation.isInterfaceError =
-                        xmlErrorComputation->GetAttribute<double>("isInterfaceError");
-                mapper.igaMortarMapper.errorComputation.isCurveError =
-                        xmlErrorComputation->GetAttribute<double>("isCurveError");
+                mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = true;
+                if (xmlErrorComputation->GetAttribute<string>("isDomainError") == "true")
+                    mapper.IGAMortarMapper.propErrorComputation.isDomainError = true;
+                else if (xmlErrorComputation->GetAttribute<string>("isDomainError") == "false")
+                    mapper.IGAMortarMapper.propErrorComputation.isDomainError = false;
+                else
+                    assert(false);
+                if (xmlErrorComputation->GetAttribute<string>("isCurveError") == "true")
+                    mapper.IGAMortarMapper.propErrorComputation.isCurveError = true;
+                else if (xmlErrorComputation->GetAttribute<string>("isCurveError") == "false")
+                    mapper.IGAMortarMapper.propErrorComputation.isCurveError = false;
+                else
+                    assert(false);
+                if (xmlErrorComputation->GetAttribute<string>("isInterfaceError") == "true")
+                    mapper.IGAMortarMapper.propErrorComputation.isInterfaceError = true;
+                else if (xmlErrorComputation->GetAttribute<string>("isInterfaceError") == "false")
+                    mapper.IGAMortarMapper.propErrorComputation.isInterfaceError = false;
+                else
+                    assert(false);
             } else {
-                mapper.igaMortarMapper.errorComputation.isDomainError = false;
-                mapper.igaMortarMapper.errorComputation.isInterfaceError = false;
-                mapper.igaMortarMapper.errorComputation.isCurveError = false;
+                mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = false;
+                mapper.IGAMortarMapper.propErrorComputation.isDomainError = false;
+                mapper.IGAMortarMapper.propErrorComputation.isCurveError = false;
+                mapper.IGAMortarMapper.propErrorComputation.isInterfaceError = false;
             }
-
 	} else if (xmlMapper->GetAttribute<string>("type") == "IGABarycentricMapper") {
             mapper.type = EMPIRE_IGABarycentricMapper;
             ticpp::Element *xmlIGABarycentric = xmlMapper->FirstChildElement("IGABarycentricMapper");
             assert(xmlIGABarycentric != NULL);
-            ticpp::Element *xmlProjection = xmlIGABarycentric->FirstChildElement("projectionProperties",
+            ticpp::Element *xmlProjection = xmlIGABarycentric->FirstChildElement("propProjection",
                     false);
             if (xmlProjection != NULL) {
-                mapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance =
+                mapper.IGABarycentricMapper.propProjection.maxProjectionDistance =
                         xmlProjection->GetAttribute<double>("maxProjectionDistance");
-                mapper.igaBarycentricMapper.projectionProperties.numRefinementForIntialGuess =
-                        xmlProjection->GetAttribute<int>("numRefinementForIntialGuess");
-                mapper.igaBarycentricMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                mapper.IGABarycentricMapper.propProjection.noInitialGuess =
+                        xmlProjection->GetAttribute<int>("noInitialGuess");
+                mapper.IGABarycentricMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         xmlProjection->GetAttribute<double>(
-                                "maxDistanceForProjectedPointsOnDifferentPatches");
+                                "maxProjectionDistanceOnDifferentPatches");
             } else {
-                mapper.igaBarycentricMapper.projectionProperties.maxProjectionDistance = 1e-2;
-                mapper.igaBarycentricMapper.projectionProperties.numRefinementForIntialGuess = 10;
-                mapper.igaBarycentricMapper.projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches =
+                mapper.IGABarycentricMapper.propProjection.maxProjectionDistance = 1e-2;
+                mapper.IGABarycentricMapper.propProjection.noInitialGuess = 10;
+                mapper.IGABarycentricMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         1e-3;
             }
             ticpp::Element *xmlNewtonRaphson = xmlIGABarycentric->FirstChildElement("newtonRaphson",
                     false);
             if (xmlNewtonRaphson != NULL) {
-                mapper.igaBarycentricMapper.newtonRaphson.maxNumOfIterations =
-                        xmlNewtonRaphson->GetAttribute<int>("maxNumOfIterations");
-                mapper.igaBarycentricMapper.newtonRaphson.tolerance = xmlNewtonRaphson->GetAttribute<
-                        double>("tolerance");
+                mapper.IGABarycentricMapper.propNewtonRaphson.noIterations =
+                        xmlNewtonRaphson->GetAttribute<int>("noIterations");
+                mapper.IGABarycentricMapper.propNewtonRaphson.tolProjection = xmlNewtonRaphson->GetAttribute<
+                        double>("tolProjection");
             } else {
-                mapper.igaBarycentricMapper.newtonRaphson.maxNumOfIterations = 20;
-                mapper.igaBarycentricMapper.newtonRaphson.tolerance = 1e-9;
+                mapper.IGABarycentricMapper.propNewtonRaphson.noIterations = 20;
+                mapper.IGABarycentricMapper.propNewtonRaphson.tolProjection = 1e-9;
             }
         } else if (xmlMapper->GetAttribute<string>("type") == "curveSurfaceMapper") {
             mapper.type = EMPIRE_CurveSurfaceMapper;

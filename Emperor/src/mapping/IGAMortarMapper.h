@@ -91,12 +91,6 @@ private:
     /// The isogeometric coupling matrices
     IGAMortarCouplingMatrices *couplingMatrices;
 
-    /// Flag on enforcing consistency
-    bool enforceConsistency;
-
-    /// Flag on the application of weak Dirichlet curve conditions using Penalty
-    bool isIGAWeakDirichletCurveConditions;
-
     /// Number of weak IGA Dirichlet curve conditions
     int noWeakIGADirichletCurveConditions;
 
@@ -108,9 +102,6 @@ private:
 
     /// Penalty factors for the twisting secondary field to the application of weak Dirichlet curve conditions
     double* weakDirichletCCAlphaSecondaryTwisting;
-
-    /// Flag on the application of weak Dirichlet surface conditions using Penalty
-    bool isIGAWeakDirichletSurfaceConditions;
 
     /// Number of weak IGA Dirichlet surface conditions
     int noWeakIGADirichletSurfaceConditions;
@@ -124,9 +115,6 @@ private:
     /// Penalty factors for the twisting secondary field to the application of weak Dirichlet surface conditions
     double* weakDirichletSCAlphaSecondaryTwisting;
 
-    /// Flag on the application of patch continuity conditions using Penalty
-    bool isIGAPatchContinuityConditions;
-
     /// Number of weak IGA patch continuity conditions
     int noWeakIGAPatchContinuityConditions;
 
@@ -139,8 +127,8 @@ private:
     /// Penalty factors for the twisting secondary field to the application of weak patch continuity conditions
     double* weakPatchContinuityAlphaSecondaryTwistingIJ;
 
-    /// Flag on checking the consistency of the equation system
-    bool isCheckConsistency;
+    /// Flag on whether the expanded version of the coupling matrices is computed
+    bool isExpanded;
 
     /// Flag on the initialization of the quadrature
     bool isGaussQuadrature;
@@ -186,54 +174,68 @@ private:
     /// Number of nodes for the master side
     size_t numNodesMaster;
 
-    /// Number of Gauss Points for the integration over a triangle or a quadrilateral
-    struct integration {
-        int numGPTriangle;
-        int numGPQuad;
-    } integration;
-
-    /// Properties for the nonlinear solution schemes
-    struct nonlinearSchemeProperties {
-        int maxNumOfIterations;
-        double tolerance;
-    } newtonRaphson, newtonRaphsonBoundary, bisection;
+    /// Consistency properties
+    struct propConsistency {
+        bool enforceConsistency;
+        bool tolConsistency;
+    } propConsistency;
 
     /// Properties for the projection schemes
-    struct projectionProperties {
+    struct propProjection {
         double maxProjectionDistance;
-        int numRefinementForIntialGuess;
-        double maxDistanceForProjectedPointsOnDifferentPatches;
-    } projectionProperties;
+        int noInitialGuess;
+        double maxProjectionDistanceOnDifferentPatches;
+    } propProjection;
 
-    /// Properties for the application of weak patch continuity conditions with Penalty
-    struct IgaPatchCoupling {
-            double alphaPrim;
-            double alphaSecBending;
-            double alphaSecTwisting;
-            int isAutomaticPenaltyFactors;
-    } IgaPatchCoupling;
+    /// Properties for the nonlinear solution schemes
+    struct propNonlinearSchemes {
+        int noIterations;
+        double tolProjection;
+    } propNewtonRaphson, propNewtonRaphsonBoundary, propBisection;
 
-    /// Properties for the application of general weak Dirichlet conditions with Penalty
-    struct IgaWeakDirichletConditions {
-            bool isCurveConditions;
-            bool isSurfaceConditions;
-            double alphaPrim;
-            double alphaSecBending;
-            double alphaSecTwisting;
-            int isAutomaticPenaltyFactors;
-    } IgaWeakDirichletConditions;
+    /// Properties for the integration
+    struct propIntegration {
+        int noGPTriangle;
+        int noGPQuad;
+    } propIntegration;
+
+    /// Properties for the application of weak Dirichlet conditions along trimming curves
+    struct propWeakCurveDirichletConditions {
+        bool isWeakCurveDirichletConditions;
+        bool isAutomaticPenaltyParameters;
+        double alphaPrim;
+        double alphaSecBending;
+        double alphaSecTwisting;
+    } propWeakCurveDirichletConditions;
+
+    /// Properties for the application of weak Dirichlet conditions across surfaces
+    struct propWeakSurfaceDirichletConditions {
+        bool isWeakSurfaceDirichletConditions;
+        bool isAutomaticPenaltyParameters;
+        bool alphaPrim;
+    } propWeakSurfaceDirichletConditions;
+
+    /// Properties for the application of weak continuity conditions across the multipatches
+    struct propWeakPatchContinuityConditions {
+        bool isWeakPatchContinuityConditions;
+        bool isAutomaticPenaltyParameters;
+        double alphaPrim;
+        double alphaSecBending;
+        double alphaSecTwisting;
+    } propWeakPatchContinuityConditions;
 
     /// On the strong application of Dirichlet boundary conditions
-    struct dirichletBCs {
-        int isDirichletBCs;
-    }dirichletBCs;
+    struct propStrongCurveDirichletConditions {
+        int isStrongCurveDirichletConditions;
+    } propStrongCurveDirichletConditions;
 
     /// On the error computation
-    struct errorComputation {
+    struct propErrorComputation {
+        bool isErrorComputation;
         bool isDomainError;
-        bool isInterfaceError;
         bool isCurveError;
-    }errorComputation;
+        bool isInterfaceError;
+    } propErrorComputation;
 
 public:
     /***********************************************************************************************
@@ -241,11 +243,12 @@ public:
      * \param[in] _name The name of the mapper
      * \param[in] _meshIGA The IGAMesh
      * \param[in] _meshFE The FEMesh
+     * \param[in] _isExpanded Flag on whether or not the coupling matrices will be expanded
      * \param[in] _isMappingIGA2FEM
      * \author Fabien Pean, Chenshen Wu
      * \modified Altug Emiroglu (reduced the number of input arguments)
      ***********/
-    IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isMappingIGA2FEM);
+    IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isWeakConditions, bool _isMappingIGA2FEM);
 
     /***********************************************************************************************
      * \brief Destructor
@@ -254,104 +257,107 @@ public:
     virtual ~IGAMortarMapper();
 
     /***********************************************************************************************
-     * \brief Set parameter for the projection of mesh onto the NURBS surface
+     * \brief Set the the parameters for the consistency enforcement
+     * \param[in] _enforceConsistency The consistency flag
+     * \author Andreas Apostolatos, Altug Emiroglu
+     ***********/
+    void setParametersConsistency(bool _enforceConsistency = false, double _tolConsistency = 1e-6);
+
+    /***********************************************************************************************
+     * \brief Set the parameters for the projection of mesh onto the NURBS surface
      * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
-     * \param[in] _numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
-     * \param[in] _maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
-     * \author Fabien Pean
+     * \param[in] _noInitialGuess The number of test point to find initial guess for Newton-Raphson scheme
+     * \param[in] _maxProjectionDistanceOnDifferentPatches The max authorized distance between two projected points from a same physical node
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersProjection(double _maxProjectionDistance = 1e-2, int _numRefinementForIntialGuess = 10,
-                                 double _maxDistanceForProjectedPointsOnDifferentPatches = 1e-3);
+    void setParametersProjection(double _maxProjectionDistance = 1e-2, int _noInitialGuess = 10,
+                                 double _maxProjectionDistanceOnDifferentPatches = 1e-3);
 
     /***********************************************************************************************
-     * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch
-     * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
-     * \param[in] _newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
-     * \author Fabien Pean
+     * \brief Set the parameters for Newton-Raphson scheme of projection on NURBS patch
+     * \param[in] _noIterations The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _tolProjection The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersNewtonRaphson(int _maxNumOfIterations = 20, double _tolerance = 1e-6);
+    void setParametersNewtonRaphson(int _noIterations = 20, double _tolProjection = 1e-6);
 
     /***********************************************************************************************
-     * \brief Set parameter for Newton-Raphson scheme of projection on NURBS patch boundary
-     * \param[in] _newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
-     * \param[in] _newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
-     * \author Fabien Pean
+     * \brief Set the parameters for Newton-Raphson scheme of projection on NURBS patch boundary
+     * \param[in] _noIterations The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _tolProjection The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersNewtonRaphsonBoundary(int _maxNumOfIterations = 20, double _tolerance = 1e-6);
+    void setParametersNewtonRaphsonBoundary(int _noIterations = 20, double _tolProjection = 1e-6);
 
     /***********************************************************************************************
-     * \brief Set parameter for bisection scheme of projection on NURBS patch boundary
+     * \brief Set the parameters for bisection scheme of projection on NURBS patch boundary
      * \param[in] _bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
      * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
-     * \author Fabien Pean
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersBisection(int _maxNumOfIterations = 40, double _tolerance = 1e-6);
+    void setParametersBisection(int _noIterations = 40, double _tolProjection = 1e-6);
 
     /***********************************************************************************************
-     * \brief Set parameter for integration
+     * \brief Set the parameters for integration
      * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
      * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersIntegration(int _numGPTriangle = 16, int _numGPQuad = 25);
+    void setParametersIntegration(int _noGPTriangle = 16, int _noGPQuad = 25);
 
     /***********************************************************************************************
-     * \brief Set the flag for enforcing consistency
-     * \param[in] _enforceConsistency The consistency flag
+     * \brief Set the parameters for the application of weak Dirichlet boundary conditions along trimming curves
+     * \param[in] _isWeakCurveDirichletConditions Flag on the application of weak Dirichlet conditions along trimming curves
+     * \param[in] _isAutomaticPenaltyParameters Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _alphaPrim Penalty parameter for the primary field
+     * \param[in] _alphaSecBending Penalty parameter for the bending rotation of the primary field
+     * \param[in] _alphaSecTwisting Penalty parameter for the twisting rotation of the primary field
+     * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void setParametersConsistency(bool _enforceConsistency = false);
+    void setParametersWeakCurveDirichletConditions(bool _isWeakCurveDirichletConditions = false, bool _isAutomaticPenaltyParameters = false,
+                                                   double _alphaPrim = 0.0, double _alphaSecBending = 0.0, double _alphaSecTwisting = 0.0);
 
     /***********************************************************************************************
-     * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
-     * \param[in] _isCurveConditions Flag on whether general curve conditions are applied
-     * \param[in] _isSurfaceConditions Flag on whether general surface conditions are applied
-     * \param[in] _alphaPrim The Penalty parameter for the primary field
-     * \param[in] _alphaSecBending The Penalty parameter for the bending rotation of the primary field
-     * \param[in] _alphaSecTwisting The Penalty parameter for the twisting rotation of the primary field
-     * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+     * \brief Set the parameters for the application of weak Dirichlet boundary conditions across surfaces
+     * \param[in] _isWeakSurfaceDirichletConditions Flag on the application of weak Dirichlet conditions across surfaces
+     * \param[in] _isAutomaticPenaltyFactors Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _alphaPrim Penalty parameter for the primary field
+     * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void setParametersIgaWeakDirichletConditions(bool _isCurveConditions = false, bool _isSurfaceConditions = false, double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0, int _isAutomaticPenaltyFactors = 0);
+    void setParametersWeakSurfaceDirichletConditions(bool _isWeakSurfaceDirichletConditions = false, bool _isAutomaticPenaltyParameters = false,
+                                                     double _alphaPrim = 0.0);
 
     /***********************************************************************************************
-     * \brief Set parameter for penalty coupling
-     * \param[in] _alphaPrim The Penalty parameter for the primary field
-     * \param[in] _alphaSecBending The Penalty parameter for the bending rotation of the primary field
-     * \param[in] _alphaSecTwisting The Penalty parameter for the twisting rotation of the primary field
-     * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+     * \brief Set parameter for the application of weak continuity conditions across the multipatches
+     * \param[in] _isWeakCurveDirichletConditions Flag on the application of weak continuity conditions across the multipatches
+     * \param[in] _isAutomaticPenaltyFactors Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _alphaPrim Penalty parameter for the primary field
+     * \param[in] _alphaSecBending Penalty parameter for the bending rotation of the primary field
+     * \param[in] _alphaSecTwisting Penalty parameter for the twisting rotation of the primary field
      ***********/
-    void setParametersIgaPatchCoupling(double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0, int isAutomaticPenaltyFactors = 0);
+    void setParametersWeakPatchContinuityConditions(bool _isWeakPatchContinuityConditions = false, bool _isAutomaticPenaltyParameters = false,
+                                                    double _alphaPrim = 0.0, double _alphaSecBending = 0.0, double _alphaSecTwisting = 0.0);
 
     /***********************************************************************************************
-     * \brief Set parameter for penalty coupling
-     * \param[in] _isDirichletBCs flag if dirichlet boundary conditions are used or not
+     * \brief Set the parameters for the application of strong Dirichlet boundary conditions along curves
+     * \param[in] _isStrongCurveDirichletConditions Flag on whether strong Dirichlet boundary conditions along curves are assumed
+     * \author Andreas Apostolatos
      ***********/
-    void setParametersDirichletBCs(int _isDirichletBCs = 0);
+    void setParametersStrongCurveDirichletConditions(bool _isStrongCurveDirichletConditions = false);
 
     /***********************************************************************************************
      * \brief Set parameters for the error computation
+     * \param[in] _isErrorComputation Flag if error computation is assumed
      * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
-     * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
      * \param[in] _isCurveError Flag on the computation of the error of the constaint satisfaction along the trimming curves
+     * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
+     * \author Andreas Apostolatos
      ***********/
-    void setParametersErrorComputation(bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
+    void setParametersErrorComputation(bool _isErrorComputation = false, bool _isDomainError = false,
+                                       bool _isCurveError = false, bool _isInterfaceError = false);
 
     /***********************************************************************************************
-     * \brief Set the flag regarding the computation of weak Dirichlet curve conditions
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    bool setUseIGAWeakDirichletCurveConditionsPenalties(bool _isIGAWeakDirichletCurveConditions) {
-        isIGAWeakDirichletCurveConditions = _isIGAWeakDirichletCurveConditions;
-    }
-
-    /***********************************************************************************************
-     * \brief Set the flag regarding the computation of weak continuity conditions
-     * \author Ragnar Björnsson
-     ***********/
-    bool setUseIGAPatchCouplingPenalties(bool _isIGAPatchContinuityConditions) {
-        isIGAPatchContinuityConditions = _isIGAPatchContinuityConditions;
-    }
-
-    /***********************************************************************************************
-     * \brief Build the coupling matrcies C_NN and C_NR
+     * \brief Build the coupling matrcies Cnn and Cnr
      * \author Fabien Pean
      ***********/
     void buildCouplingMatrices();
@@ -445,7 +451,7 @@ private:
     bool forceProjectPointOnPatch(const int patchIndex, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
 
     /***********************************************************************************************
-     * \brief Compute matrices C_NN and C_NR by looping over the FE elements and processing them
+     * \brief Compute matrices Cnn and Cnr by looping over the FE elements and processing them
      * \author Fabien Pean, Chenshen Wu
      ***********/
     void computeCouplingMatrices();
@@ -488,23 +494,26 @@ public:
                                                          double* _BOperatorOmegaN, double* _normalTrCurveVct,
                                                          IGAPatchSurface* _patch, double* _tangentTrCurveVct,
                                                          double _u, double _v, int _uKnotSpan, int _vKnotSpan);
+
     /***********************************************************************************************
-     * \brief Compute the penalty factors for the primary and the secondary field for the weak Dirichlet curve conditions
+     * \brief Compute and write the penalty factors for the primary and the secondary field for the weak Dirichlet curve conditions
+     * [in] _filename The name of the file where the Penalty parameters are written out
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void computePenaltyFactorsForWeakDirichletCurveConditions();
+    void computePenaltyParametersForWeakDirichletCurveConditions(std::string _filename);
 
     /***********************************************************************************************
      * \brief Compute the penalty factors for the primary and the secondary field for the weak Dirichlet surface conditions
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void computePenaltyFactorsForWeakDirichletSurfaceConditions();
+    void computePenaltyParametersForWeakDirichletSurfaceConditions();
 
     /***********************************************************************************************
-     * \brief Compute the penalty factors for the primary and the secondary field for each interface
+     * \brief Compute and write the penalty factors for the primary and the secondary field for each interface
+     * [in] _filename The name of the file where the Penalty parameters are written out
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void computePenaltyFactorsForPatchContinuityConditions();
+    void computePenaltyParametersForPatchContinuityConditions(std::string _filename);
 
 private:
     /***********************************************************************************************
@@ -551,7 +560,7 @@ private:
     bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
 
     /***********************************************************************************************
-     * \brief Compute local matrices C_NN and C_NR for element _elemIndex  on patch _patchIndex
+     * \brief Compute local matrices Cnn and Cnr for element _elemIndex  on patch _patchIndex
      * \param[in] _elemIndex The element index
      * \param[in] _patchIndex The patch index
      * \param[in/out] _projectedElement The polygon containing parametric coordinates of projected element on patch
@@ -624,7 +633,7 @@ private:
      * \author Fabien Pean, Chenshen Wu
      ***********/
     void integrate(IGAPatchSurface* _igaPatchSurface, Polygon2D _polygonIGA,
-            int _spanU, int _spanV, Polygon2D _polygonFE, int _elementIndex);
+                   int _spanU, int _spanV, Polygon2D _polygonFE, int _elementIndex);
 
     /// helper functions used for the computation of coupling matrix process
 private:
@@ -638,7 +647,7 @@ private:
      ***********/
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
-/***********************************************************************************************
+    /***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
      * \param[in] _element		The element for which we want the neighbor
      * \param[in] _node1	 	The first node index of the edge
@@ -663,22 +672,22 @@ public:
      * \param[in] _filename		The substring to append to open csv file and write vtk file
      * \author Fabien Pean
      ***********/
-     void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
+    void writeCartesianProjectedPolygon(const std::string _filename, std::map<int,ListPolygon2D>& _data);
 
     /***********************************************************************************************
      * \brief Writes all FE mesh in parametric coordinates
      * \author Fabien Pean
      ***********/
-     void writeParametricProjectedPolygons(std::string _filename);
+    void writeParametricProjectedPolygons(std::string _filename);
 
     /***********************************************************************************************
      * \brief Writes all triangulated polygons to be integrated
      * \author Fabien Pean
      ***********/
-     void writeTriangulatedParametricPolygon(std::string _filename);
+    void writeTriangulatedParametricPolygon(std::string _filename);
 
     /***********************************************************************************************
-     * \brief Print both coupling matrices C_NN and C_NR in file in csv format with space delimiter
+     * \brief Print both coupling matrices Cnn and Cnr in file in csv format with space delimiter
      * \author Fabien Pean
      ***********/
     void writeCouplingMatricesToFile();
@@ -698,42 +707,50 @@ public:
     void debugPolygon(const ListPolygon2D& _listPolygon, std::string _name="");
 
     /***********************************************************************************************
-     * \brief Print both coupling matrices C_NN and C_NR
+     * \brief Print both coupling matrices Cnn and Cnr
      * \author Chenshen Wu
      ***********/
     void printCouplingMatrices();
 
     /***********************************************************************************************
-     * \brief Check consistency of the coupling, constant field gives constant field
+     * \brief Check and enforce consistency of the mapper based on the mapping of a unit field
      * \author Fabien Pean
      ***********/
-    void checkConsistency();
+    void enforceConsistency();
 
     /// Get functions
 public:
 
     /***********************************************************************************************
-     * \brief Get boolean whether a IGA weak Dirichlet curve condition was used or not
+     * \brief Get flag on whether a IGA weak Dirichlet curve condition was used or not
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    bool getUseIGAWeakDirichletCurveConditionPenalties() {
-        return isIGAWeakDirichletCurveConditions;
+    bool getIsIGAWeakDirichletCurveConditionPenalties() {
+        return propWeakCurveDirichletConditions.isWeakCurveDirichletConditions;
     }
 
     /***********************************************************************************************
-     * \brief Get boolean whether a IGA weak Dirichlet surface condition was used or not
+     * \brief Get flag on whether a IGA weak Dirichlet surface condition was used or not
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    bool getUseIGAWeakDirichletSurfaceConditionPenalties() {
-        return isIGAWeakDirichletSurfaceConditions;
+    bool getIsIGAWeakDirichletSurfaceConditionPenalties() {
+        return propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions;
     }
 
     /***********************************************************************************************
-     * \brief Get boolean whether the IGA patch coupling was used or not
-     * \author Ragnar Björnsson
+     * \brief Get flag on whether the IGA patch coupling was used or not
+     * \author Andreas Apostolatos
      ***********/
-    bool getUseIGAPatchCouplingPenalties() {
-        return isIGAPatchContinuityConditions;
+    bool getIsIGAPatchCouplingPenalties() {
+        return propWeakPatchContinuityConditions.isWeakPatchContinuityConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Get flag on whether the expanded version of the coupling matrices is assumed
+     * \author Andreas Apostolatos
+     ***********/
+    bool getIsExpanded() {
+        return isExpanded;
     }
 
     /***********************************************************************************************

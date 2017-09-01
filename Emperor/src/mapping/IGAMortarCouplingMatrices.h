@@ -47,236 +47,147 @@ template<class T> class SparseMatrix;
 class IGAMortarCouplingMatrices {
 
 private:
-    // CNN matrices
-    MathLibrary::SparseMatrix<double> *C_NN;
-    MathLibrary::SparseMatrix<double> *C_NN_expanded;
-    MathLibrary::SparseMatrix<double> *C_NN_BCs;
+    // Cnn and Cnr matrices
+    MathLibrary::SparseMatrix<double> *Cnn;
 
     // CNR matrices
-    MathLibrary::SparseMatrix<double> *C_NR;
-    MathLibrary::SparseMatrix<double> *C_NR_expanded;
-    MathLibrary::SparseMatrix<double> *C_NR_BCs;
+    MathLibrary::SparseMatrix<double> *Cnr;
 
+    // Master and slave sizes of Cnr
     size_t size_N;
     size_t size_R;
 
-    bool isIGAWeakDirichletConditions;
-    bool isIGAPatchContinuityConditions;
-    bool isDirichletBCs;
-    bool isClampedDofs;
+    // Flag on whether the expanded version of the coupling matrices is assumed
+    bool isExpanded;
 
+    // Vector containing all indices of empty rows in Cnn
     std::vector<int> indexEmptyRowCnn;
 
 public:
 
     /***********************************************************************************************
      * \brief Constructor
-     * \param[in] _size_N number of master nodes
-     * \param[in] _size_R number of slave nodes
-     * \author Ragnar Björnsson
+     * \param[in] _size_N Master size of Cnr
+     * \param[in] _size_R Slave size of Cnr
+     * \author Andreas Apostolatos
      ***********/
-    IGAMortarCouplingMatrices(int _size_N , int _size_R);
+    IGAMortarCouplingMatrices(int _size_N , int _size_R, bool _isExpanded);
 
     /***********************************************************************************************
      * \brief Destructor
-     * \author Ragnar Björnsson
+     * \author Andreas Apostolatos
      ***********/
     ~IGAMortarCouplingMatrices();
 
     /***********************************************************************************************
-     * \brief add value to a location in the CNN matrix
+     * \brief Add value in the Cnn matrix
      * \param[in] _row row of added value
      * \param[in] _column column of added value
      * \param[in] value value to be added
-     * \author Ragnar Björnsson
+     * \author Andreas Apostolatos
      ***********/
     void addCNNValue(int _row , int _column , double value) {
-        (*C_NN)(_row , _column) += value;
-        C_NN->setFactorization(false);
+        (*Cnn)(_row, _column) += value;
+        Cnn->setFactorization(false);
     }
 
     /***********************************************************************************************
-     * \brief add value to a location in the CNR matrix
+     * \brief Add value in the Cnr matrix
      * \param[in] _row row of added value
      * \param[in] _column column of added value
      * \param[in] value value to be added
-     * \author Ragnar Björnsson
+     * \author Andreas Apostolatos
      ***********/
     void addCNRValue(int _row , int _column , double value) {
-        (*C_NR)(_row , _column) += value;
+        (*Cnr)(_row, _column) += value;
     }
 
     /***********************************************************************************************
-     * \brief add value to a location in the C_NN_expanded matrix
-     * \param[in] _row row of added value
-     * \param[in] _column column of added value
-     * \param[in] value value to be added
-     * \author Ragnar Björnsson
-     ***********/
-    void addCNN_expandedValue(int _row , int _column , double value) {
-        (*C_NN_expanded)(_row , _column) += value;
-        C_NN_expanded->setFactorization(false);
-    }
-
-    /***********************************************************************************************
-     * \brief set isIGAPatchCoupling and isClampedDofs and expand if any of them is true
-     * \param[in] _isIGAWeakDirichletConditions Flag on whether any type of weak Dirichlet conditions are applied
-     * \param[in] _isIGAPatchContinuityConditions Flag on whether weak patch continuity conditions are applied
-     * \param[in] _isClampedDofs are any clamped nodes where not all directions are clamped
-     * \author Ragnar Björnsson, Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    void setIsIGAConditions(bool _isIGAWeakDirichletConditions, bool _isIGAPatchContinuityConditions, bool _isClampedDofs);
-
-    /***********************************************************************************************
-     * \brief expand CNN and CNR matrices to account for all 3 directions
-     * \author Ragnar Björnsson
-     ***********/
-    void expandMatrices();
-
-    /***********************************************************************************************
-     * \brief set value of the correct CNN matrix
+     * \brief Set value in the Cnn matrix
      * \param[in] _row row of value
      * \param[in] _column column of value
      * \param[in] value value to be set
-     * \author Ragnar Björnsson
+     * \author Andreas Apostolatos
      ***********/
     void setValue(int _row , int _column , double value) {
-        if(isDirichletBCs) {
-            (*C_NN_BCs)(_row,_column) = value;
-            C_NN_BCs->setFactorization(false);
-        }
-        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
-            (*C_NN_expanded)(_row,_column) = value;
-            C_NN_expanded->setFactorization(false);
-        }
-        else {
-            (*C_NN)(_row,_column) = value;
-            C_NN->setFactorization(false);
-        }
+        (*Cnn)(_row, _column) = value;
+        Cnn->setFactorization(false);
     }
-
-    /***********************************************************************************************
-     * \brief set isDirichletBCs and initialize BCs matrices if that is true
-     * \param[in] _isDirichletBCs will Dirichlet Boundary conditions be applied
-     * \author Ragnar Björnsson
-     ***********/
-    void setIsDirichletBCs(bool _isDirichletBCs);
 
     /***********************************************************************************************
      * \brief apply Dirichlet boundary conditions
      * \param[in] clampedIds clamped Dofs
      * \author Ragnar Björnsson
      ***********/
-    void applyDirichletBCs(std::vector<int> clampedIds);
+//    void applyDirichletBCs(std::vector<int> clampedIds);
 
     /***********************************************************************************************
-     * \brief get correct master size, either number of nodes or dofs
-     * \author Ragnar Björnsson
+     * \brief Get the size of C_nn
+     * \author Andreas Apostolatos
      ***********/
-    int getCorrectSizeN() {
-        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions || isClampedDofs)
-            return 3*size_N;
-        else
-            return size_N;
+    int getSizeN() {
+        return size_N;
     }
 
     /***********************************************************************************************
-     * \brief get correct slave size, either number of nodes or dofs
-     * \author Ragnar Björnsson
+     * \brief Get the slave size of C_nr
+     * \author Andreas Apostolatos
      ***********/
-    int getCorrectSizeR() {
-        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions || isClampedDofs)
-            return 3*size_R;
-        else
-            return size_R;
+    int getSizeR() {
+        return size_R;
     }
 
     /***********************************************************************************************
-     * \brief get correct CNN matrix
-     * \author Ragnar Björnsson
+     * \brief Get the flag on whether the expanded version of the coupling matrices is assumed
+     * \author Andreas Apostolatos
      ***********/
-    MathLibrary::SparseMatrix<double>* getCorrectCNN() {
-        if(isDirichletBCs)
-            return C_NN_BCs;
-        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
-                return C_NN_expanded;
-        else
-            return C_NN;
+    int getIsExpanded() {
+        return isExpanded;
     }
 
     /***********************************************************************************************
-     * \brief get correct CNR matrix
-     * \author Ragnar Björnsson
+     * \brief get CNN matrix
+     * \author Andreas Apostolatos
      ***********/
-    MathLibrary::SparseMatrix<double>* getCorrectCNR() {
-        if(isDirichletBCs)
-            return C_NR_BCs;
-        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
-            return C_NR_expanded;
-        else
-            return C_NR;
+    MathLibrary::SparseMatrix<double>* getCnn() {
+        return Cnn;
     }
 
     /***********************************************************************************************
-     * \brief get correct CNN matrix when using conservative mapping (cannot use Dirichlet boundary conditions here)
-     * \author Ragnar Björnsson
+     * \brief get CNR matrix
+     * \author Andreas Apostolatos
      ***********/
-    MathLibrary::SparseMatrix<double>* getCorrectCNN_conservative() {
-        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
-                return C_NN_expanded;
-        else {
-            return C_NN;
-        }
+    MathLibrary::SparseMatrix<double>* getCnr() {
+        return Cnr;
     }
 
     /***********************************************************************************************
-     * \brief get correct CNR matrix when using conservative mapping (cannot use Dirichlet boundary conditions here)
-     * \author Ragnar Björnsson
+     * \brief factorize the Cnn matrix
+     * \author Andreas Apostolatos
      ***********/
-    MathLibrary::SparseMatrix<double>* getCorrectCNR_conservative() {
-        if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions )
-            return C_NR_expanded;
-        else
-            return C_NR;
-    }
+    void factorizeCnn();
 
     /***********************************************************************************************
-     * \brief factorize the correct CNN matrix
-     * \author Ragnar Björnsson
-     ***********/
-    void factorizeCorrectCNN();
-
-    /***********************************************************************************************
-     * \brief enforce consistency on the correct CNN matrix
-     * \author Ragnar Björnsson
+     * \brief Enforce consistency on the correct CNN matrix
+     * \author Andreas Apostolatos
      ***********/
     void enforceCnn();
 
     /***********************************************************************************************
-     * \brief get indices of rows that are empty for the correct CNN matrix
-     * \author Ragnar Björnsson
+     * \brief Get indices of rows that are empty for the correct CNN matrix
+     * \author Andreas Apostolatos
      ***********/
     std::vector<int> getIndexEmptyRowCnn() {
         return indexEmptyRowCnn;
     }
 
     /***********************************************************************************************
-     * \brief delete a row of the correct CNN matrix
-     * \author Ragnar Björnsson
+     * \brief Delete a row of the CNN matrix
+     * \author Andreas Apostolatos
      ***********/
     void deleterow(int row) {
-        if(isDirichletBCs) {
-            C_NN_BCs->deleteRow(row);
-            C_NN_BCs->setFactorization(false);
-        }
-        else if( isIGAWeakDirichletConditions || isIGAPatchContinuityConditions ) {
-            C_NN_expanded->deleteRow(row);
-            C_NN_expanded->setFactorization(false);
-        }
-        else {
-            C_NN->deleteRow(row);
-            C_NN->setFactorization(false);
-        }
+        Cnn->deleteRow(row);
+        Cnn->setFactorization(false);
     }
 };
 }

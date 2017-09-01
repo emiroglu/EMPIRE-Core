@@ -48,6 +48,7 @@ private:
     IGAMesh* theIGAMesh;
     FEMesh* theFEMesh;
     bool isMappingIGA2FEM;
+    bool isWeakConditions;
     double Tol;
     double TolRel10;
     double TolRel100;
@@ -59,6 +60,7 @@ private:
 public:
     void setUp() {
         isMappingIGA2FEM = false;
+        isWeakConditions = true;
 
         // Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB)
         Tol = 1e-15;
@@ -997,7 +999,7 @@ public:
         theFEMesh->elems[29 * 4 + 3] = 61;
 
         // Initialize the isogeometric mortar-based mapper
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh, isMappingIGA2FEM);
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
 
         // Assign the mapper's properties
         theMapper->setParametersProjection(0.05, 2, 1e-3);
@@ -1508,19 +1510,21 @@ public:
 
     void testComputePenaltyFactorsIGAPatchContinuityConditions() {
 
+        // Initialize empty string
+        std::string emptyString = "";
+
         // Add the precomputed GP data to the continuity condition
         addPrecomputedGPData();
 
         // Set the computation of the Penalty parameters to automatic
-        theMapper->setParametersIgaPatchCoupling(0.0, 0.0, 0.0, 1);
+        theMapper->setParametersWeakPatchContinuityConditions(true, true, 0.0, 0.0 ,0.0);
 
         // Compute the Penalty parameters
-        theMapper->computePenaltyFactorsForPatchContinuityConditions();
+        theMapper->computePenaltyParametersForPatchContinuityConditions(emptyString);
         int noWeakPatchContinuityConditions = theMapper->getNoWeakIGAPatchContinuityConditions();
         double* weakPatchContinuityAlphaPrimaryIJ = new double[noWeakPatchContinuityConditions];
         double* weakPatchContinuityAlphaSecondaryBendingIJ = new double[noWeakPatchContinuityConditions];
         double* weakPatchContinuityAlphaSecondaryTwistingIJ = new double[noWeakPatchContinuityConditions];
-        theMapper->setUseIGAPatchCouplingPenalties(true);
         theMapper->getPenaltyParameterForPatchContinuityPrimaryField(weakPatchContinuityAlphaPrimaryIJ);
         theMapper->getPenaltyParameterForPatchContinuitySecondaryFieldBending(weakPatchContinuityAlphaSecondaryBendingIJ);
         theMapper->getPenaltyParameterForPatchContinuitySecondaryFieldTwisting(weakPatchContinuityAlphaSecondaryTwistingIJ);
@@ -1972,17 +1976,20 @@ public:
      * \brief Test case: testComputePenaltyFactorsIGAPatchContinuityConditions4Leakage
      ***********/
 
-    void testComputePenaltyFactorsIGAPatchContinuityConditions4Leakage(){
+    void testComputePenaltyParametersIGAPatchContinuityConditions4Leakage(){
+
+        // Initialize empty string
+        std::string emptyString = "";
 
         // Add the precomputed GP data to the continuity condition
         addPrecomputedGPData();
 
         // Set the computation of the Penalty parameters to automatic
-        theMapper->setParametersIgaPatchCoupling(0.0,0.0,1);
+        theMapper->setParametersWeakPatchContinuityConditions(true, true, 0.0, 0.0, 0.0);
 
         // Create and destroy the same objects iteratively
         for(int i = 0; i < 1e10; i++)
-            theMapper->computePenaltyFactorsForPatchContinuityConditions();
+            theMapper->computePenaltyParametersForPatchContinuityConditions(emptyString);
     }
 
     /***********************************************************************************************

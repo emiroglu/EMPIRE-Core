@@ -114,53 +114,62 @@ struct structMapper {
         bool enforceConsistency;
     };
     struct structIGAMortarMapper {
-        bool enforceConsistency;
-        struct projectionProperties {
+        struct propConsistency {
+            bool enforceConsistency;
+            double tolConsistency;
+        } propConsistency;
+        struct propProjection {
             double maxProjectionDistance;
-            int numRefinementForIntialGuess;
-            double maxDistanceForProjectedPointsOnDifferentPatches;
-        } projectionProperties;
-        struct nonlinearSchemeProperties {
-            int maxNumOfIterations;
-            double tolerance;
-        } newtonRaphson, newtonRaphsonBoundary, bisection;
-        struct integration {
-            int numGPTriangle;
-            int numGPQuad;
-        } integration;
-        struct IgaPatchCoupling {
+            int noInitialGuess;
+            double maxProjectionDistanceOnDifferentPatches;
+        } propProjection;
+        struct propNonlinearScheme {
+            int noIterations;
+            double tolProjection;
+        } propNewtonRaphson, propNewtonRaphsonBoundary, propBisection;
+        struct propIntegration {
+            int noGPTriangle;
+            int noGPQuad;
+        } propIntegration;
+        struct propWeakCurveDirichletConditions {
+                bool isWeakCurveDirichletConditions;
+                bool isAutomaticPenaltyParameters;
                 double alphaPrim;
                 double alphaSecBending;
                 double alphaSecTwisting;
-                int isAutomaticPenaltyFactors;
-        } IgaPatchCoupling;
-        struct IgaWeakDirichletConditions {
-                bool isCurveConditions;
-                bool isSurfaceConditions;
+        } propWeakCurveDirichletConditions;
+        struct propWeakSurfaceDirichletConditions {
+            bool isWeakSurfaceDirichletConditions;
+            bool isAutomaticPenaltyParameters;
+            double alphaPrim;
+        } propWeakSurfaceDirichletConditions;
+        struct propWeakPatchContinuityConditions {
+                bool isWeakPatchContinuityConditions;
+                bool isAutomaticPenaltyParameters;
                 double alphaPrim;
                 double alphaSecBending;
                 double alphaSecTwisting;
-                int isAutomaticPenaltyFactors;
-        } IgaWeakDirichletConditions;
-        struct dirichletBCs {
-            int isDirichletBCs;
-        }dirichletBCs;
-        struct errorComputation {
+        } propWeakPatchContinuityConditions;
+        struct propStrongCurveDirichletConditions {
+            bool isStrongCurveDirichletConditions;
+        } propStrongCurveDirichletConditions;
+        struct propErrorComputation {
+            bool isErrorComputation;
             bool isDomainError;
-            bool isInterfaceError;
             bool isCurveError;
-        }errorComputation;
+            bool isInterfaceError;
+        } propErrorComputation;
     };
     struct structIGABarycentricMapper {
-        struct projectionProperties {
+        struct propProjection {
             double maxProjectionDistance;
-            int numRefinementForIntialGuess;
-            double maxDistanceForProjectedPointsOnDifferentPatches;
-        } projectionProperties;
-        struct nonlinearSchemeProperties {
-            int maxNumOfIterations;
-            double tolerance;
-        } newtonRaphson;
+            int noInitialGuess;
+            double maxProjectionDistanceOnDifferentPatches;
+        } propProjection;
+        struct propNonlinearScheme {
+            int noIterations;
+            double tolProjection;
+        } propNewtonRaphson;
     };
     struct structCurveSurfaceMapper {
         EMPIRE_CurveSurfaceMapper_type type;
@@ -170,8 +179,8 @@ struct structMapper {
     structMeshRef meshRefB;
     EMPIRE_Mapper_type type;
     structMortarMapper mortarMapper;
-    structIGAMortarMapper igaMortarMapper;
-    structIGABarycentricMapper igaBarycentricMapper;
+    structIGAMortarMapper IGAMortarMapper;
+    structIGABarycentricMapper IGABarycentricMapper;
     structCurveSurfaceMapper curveSurfaceMapper;
 };
 

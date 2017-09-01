@@ -155,7 +155,7 @@ void IGABarycentricMapper::buildCouplingMatrices() {
 
     writeCouplingMatricesToFile();
 
-    checkConsistency();
+    enforceConsistency();
 }
 
 void IGABarycentricMapper::initTables() {
@@ -1293,7 +1293,7 @@ void IGABarycentricMapper::writeCouplingMatricesToFile() {
     }
 }
 
-void IGABarycentricMapper::checkConsistency() {
+void IGABarycentricMapper::enforceConsistency() {
     double unitField[numNodesSlave];
     for(int i=0;i<numNodesSlave;i++) {
     	unitField[i]=1.0;

@@ -60,41 +60,51 @@ public:
     void initMortarMapper(bool oppositeSurfaceNormal, bool dual, bool enforceConsistency);
     /***********************************************************************************************
      * \brief Initialize IGA Mortar Mapper
-     * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
-     * \param[in] _numRefinementForIntialGuess The number of test point to find initial guess for Newton-Raphson scheme
-     * \param[in] _maxDistanceForProjectedPointsOnDifferentPatches The max authorized distance between two projected points from a same physical node
-     * \param[in] _newtonRaphsonMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
-     * \param[in] _newtonRaphsonTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
-     * \param[in] _newtonRaphsonBoundaryMaxIt The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
-     * \param[in] _newtonRaphsonBoundaryTol The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
-     * \param[in] _bisectionMaxIt The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
-     * \param[in] _bisectionTol The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
-     * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
-     * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
      * \param[in] _enforceConsistency A flag on whether the consistency should be enforced
-     * \param[in] _isWeakDirichletCurveConditions Flag on whether the weak Dirichlet curve conditions should be applied
-     * \param[in] _isWeakDirichletSurfaceConditions Flag on whether the weak Dirichlet surface conditions should be applied
-     * \param[in] _weakDirichletConditionsAlphaPrim Primary field Penalty parameter for weak Dirichlet conditions
-     * \param[in] _weakDirichletConditionsAlphaSecBending Bending rotation field Penalty parameter for weak Dirichlet conditions
-     * \param[in] _weakDirichletConditionsAlphaSecTwisting Bending rotation field Penalty parameter for weak Dirichlet conditions
-     * \param[in] _isWeakDirichletConditionsAutomaticPenaltyFactors Flag on whether the penalty factors for Dirichlet conditions should be computed automatically
-     * \param[in] _patchContinuityAlphaPrim Primary field Penalty parameter for patch coupling conditions
-     * \param[in] _patchContinuityAlphaSecBending Bending rotation field Penalty parameter for patch coupling conditions
-     * \param[in] _patchContinuityAlphaSecTwisting Twisting rotation field Penalty parameter for patch coupling conditions
-     * \param[in] _isPenaltyPatchCoupling Flag on whether the patch penalty coupling should be applied
+     * \param[in] _tolConsistency The tolerance up to which the consistency in the mapping is assumed
+     * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface
+     * \param[in] _noInitialGuess The number of test point to find initial guess for Newton-Raphson scheme
+     * \param[in] _maxProjectionDistanceOnDifferentPatches The max authorized distance between two projected points from a same physical node
+     * \param[in] _noIterationsNewton The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _tolProjectionNewtonRaphson The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch
+     * \param[in] _noIterationsNewtonRaphsonBoundary The number of iteration for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _tolProjectionNewtonRaphsonBoundary The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _noIterationsBisection The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _tolProjectionBisection The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _noGPTriangle The number of Gauss points when performs integration on triangle
+     * \param[in] _noGPQuad The number of Gauss points when performs integration on quadrilateral
+     * \param[in] _isWeakCurveDirichletConditions Flag on whether weak Dirichlet conditions along trimming curves are assumed
+     * \param[in] _isAutomaticPenaltyParametersWeakCurveDirichletConditions Flag on whether the Penalty parameters for the application of weak Dirichlet conditions along trimming curves is automatic
+     * \param[in] _alphaPrimWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the primary field condition
+     * \param[in] _alphaSecBendingWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the bending rotation of the primary field condition
+     * \param[in] _alphaSecTwistingWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the twisting rotation of the primary field condition
+     * \param[in] _isWeakSurfaceDirichletConditions Flag on whether weak Dirichlet conditions across a surface
+     * \param[in] _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions Flag on whether the Penalty parameters for the application of weak Dirichlet conditions across a surface is automatic
+     * \param[in] _alphaPrimWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition across a surface based on the primary field condition
+     * \param[in] _isWeakPatchContinuityConditions Flag on whether across patch continuity conditions are assumed
+     * \param[in] _isAutomaticPenaltyParametersWeakContinuityConditions Flag on whether the Penalty parameters for the weak enforcement of the continuity conditions across the patches are automatically computed
+     * \param[in] _alphaPrimWeakContinuityConditions Penalty parameter for the continuity of the field across the patches
+     * \param[in] _alphaSecBendingWeakContinuityConditions Penalty parameter for the continuity of the bending rotation of the field across the patches
+     * \param[in] _alphaSecTwistingWeakContinuityConditions Penalty parameter for the continuity of the twisting rotation of the field across the patches
+     * \param[in] _isStrongCurveDirichletConditions Flag on whether strong Dirichlet conditions are applied
+     * \param[in] _isErrorComputation Flag on whether error computation is assumed
      * \param[in] _isDomainError Flag on the computation of the domain error from the mapping
      * \param[in] _isInterfaceError Flag on the computation of the interface error from the mapping
-     * \author Andreas Apostolatos, Fabien Pean, Chenshen Wu, Altug Emiroglu
+     * \param[in] _isCurveError Flag on the computation of the error along the trimming curves where Dirichlet conditions are applied
+     * \author Andreas Apostolatos, Altug Emiroglu, Fabien Pean
      ***********/
-    void initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
-                             int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
-                             int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
-                             int _bisectionMaxIt, double _bisectionTol,
-                             int _numGPTriangle, int _numGPQuad,
-                             bool _enforceConsistency,
-                             bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsAlphaPrim, double _weakDirichletConditionsAlphaSecBending, double _weakDirichletConditionsAlphaSecTwisting, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
-                             double _patchContinuityAlphaPrim, double _patchContinuityAlphaSecBending, double _patchContinuityAlphaSecTwisting, int _isPenaltyPatchCoupling, int _isDirichletBCs,
-                             bool _isDomainError, bool _isInterfaceError, bool _isCurveError);
+    void initIGAMortarMapper(bool _enforceConsistency, double _tolConsistency,
+                             double _maxProjectionDistance, int _noInitialGuess, double _maxProjectionDistanceOnDifferentPatches,
+                             int _noIterationsNewton, double _tolProjectionNewtonRaphson,
+                             int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
+                             int _noIterationsBisection, double _tolProjectionBisection,
+                             int _noGPTriangle, int _noGPQuad,
+                             bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
+                             bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
+                             bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
+                             bool _isStrongCurveDirichletConditions,
+                             bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError);
+
     /***********************************************************************************************
      * \brief Initialize IGA Barycentric Mapper
      * \param[in] _maxProjectionDistance The max distance allowed between FE mesh and NURBS surface

@@ -347,10 +347,10 @@ public:
     void printCouplingMatrices();
     
     /***********************************************************************************************
-     * \brief Check consistency of the coupling, constant field gives constant field
+     * \brief Check and enforce consistency of the mapper based on the mapping of a unit field
      * \author Fabien Pean
      ***********/
-    void checkConsistency();
+    void enforceConsistency();
 
     /// unit test class
     friend class TestIGABarycentricMapperCurve;

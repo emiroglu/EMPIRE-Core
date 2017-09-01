@@ -98,16 +98,17 @@
 		</meshB>
 	</mapper>
 	<mapper name="IGAMortar1" type="IGAMortarMapper">
-                <IGAMortarMapper enforceConsistency = "false">
-                    <projectionProperties maxProjectionDistance="1.0e-2" numRefinementForIntialGuess="40" maxDistanceForProjectedPointsOnDifferentPatches="1.0e-3"/>
-                    <newtonRaphson maxNumOfIterations="40" tolerance="1e-3"/>
+                <IGAMortarMapper>
+					<propConsistency enforceConsistency="true" tolConsistency="1e-6"/>
+                    <maxProjectionDistance="1.0e-2" noInitialGuess="40" maxProjectionDistanceOnDifferentPatches="1.0e-3"/>
+                    <propNewtonRaphsonBoundary noIterations="0" tolProjection="1e-1"/>
                     <newtonRaphsonBoundary maxNumOfIterations="0" tolerance="1e-1"/>
-                    <bisection maxNumOfIterations="80" tolerance="1e-5"/>
-                    <integration numGPTriangle="16" numGPQuad="25"/>
-					<IgaPatchCoupling alphaPrim="1e4" alphaSecBending="1e4" alphaSecTwisting="1e4" isAutomaticPenaltyFactors = "0"/>
-					<!--dirichletBCs isDirichletBCs="0"/-->
-					<IgaWeakDirichletConditions isCurveConditions = "true" isSurfaceConditions = "false" alphaPrim="1e4" alphaSecBending="1e4" alphaSecTwisting="1e4" isAutomaticPenaltyFactors = "0" />
-					<errorComputation isDomainError="1" isInterfaceError="1" isCurveError="1"/>
+                    <propBisection noIterations="80" tolProjection="1e-5"/>
+                    <propIntegration noGPTriangle="16" noGPQuad="25"/>
+					<propWeakCurveDirichletConditions isAutomaticPenaltyParameters="true" alphaPrim="1e4" alphaSecBending="1e4" alphaSecTwisting="1e4"/>
+					<propWeakSurfaceDirichletConditions isAutomaticPenaltyParameters="true" alphaPrim="1e4"/>
+					<propWeakPatchContinuityConditions isAutomaticPenaltyParameters="true" alphaPrim="0" alphaSecBending="0" alphaSecTwisting="0"/>
+					<propErrorComputation isDomainError="true" isCurveError="false" isInterfaceError="false"/>
                 </IGAMortarMapper>
                 <!-- mapping displacements from meshA to meshB, mapping forces from meshB 
                     to meshA. -->

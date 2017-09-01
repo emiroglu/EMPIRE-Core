@@ -87,44 +87,74 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
     mapper->buildCouplingMatrices();
 }
 
-void MapperAdapter::initIGAMortarMapper(double _maxProjectionDistance, int _numRefinementForIntialGuess, double _maxDistanceForProjectedPointsOnDifferentPatches,
-                                        int _newtonRaphsonMaxIt, double _newtonRaphsonTol,
-                                        int _newtonRaphsonBoundaryMaxIt, double _newtonRaphsonBoundaryTol,
-                                        int _bisectionMaxIt, double _bisectionTol,
-                                        int _numGPTriangle, int _numGPQuad,
-                                        bool _enforceConsistency,
-                                        bool _isWeakDirichletCurveConditions, bool _isWeakDirichletSurfaceConditions, double _weakDirichletConditionsAlphaPrim, double _weakDirichletConditionsAlphaSecBending, double _weakDirichletConditionsAlphaSecTwisting, int _isWeakDirichletConditionsAutomaticPenaltyFactors,
-                                        double _patchContinuityAlphaPrim, double _patchContinuityAlphaSecBending, double _patchContinuityAlphaSecTwisting, int _isPenaltyPatchCoupling,
-                                        int _isDirichletBCs,
-                                        bool _isDomainError, bool _isInterfaceError, bool _isCurveError) {
+void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolConsistency,
+                                        double _maxProjectionDistance, int _noInitialGuess, double _maxProjectionDistanceOnDifferentPatches,
+                                        int _noIterationsNewton, double _tolProjectionNewtonRaphson,
+                                        int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
+                                        int _noIterationsBisection, double _tolProjectionBisection,
+                                        int _noGPTriangle, int _noGPQuad,
+                                        bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
+                                        bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
+                                        bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
+                                        bool _isStrongCurveDirichletConditions,
+                                        bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
     bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
+    bool isExpanded = _isWeakCurveDirichletConditions || _isWeakSurfaceDirichletConditions || _isWeakPatchContinuityConditions;
+    bool isMappingIGA2FEM;
     if (meshAIGA && !meshBIGA) {
         assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
+        isMappingIGA2FEM = true;
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshA),
-                dynamic_cast<FEMesh *>(meshB), true);
+                dynamic_cast<FEMesh *>(meshB), isExpanded, isMappingIGA2FEM);
     } else if (!meshAIGA && meshBIGA) {
         assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
+        isMappingIGA2FEM = false;
         mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshB),
-                dynamic_cast<FEMesh *>(meshA), false);
+                dynamic_cast<FEMesh *>(meshA), isExpanded, isMappingIGA2FEM);
     } else {
         ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
         ERROR_OUT() << "Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
         exit(-1);
     }
+
+    // Check input
+    if (_isErrorComputation)
+        if (_isCurveError && !_isWeakCurveDirichletConditions){
+            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
+            ERROR_OUT() << "Error computation along trimming curves is requested but no conditions along trimming curves are prescribed" << endl;
+            exit(-1);
+        }
+        if (_isInterfaceError && !_isWeakPatchContinuityConditions) {
+            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
+            ERROR_OUT() << "Error computation along patch interfaces is requested but no conditions along the patch interfaces are prescribed" << endl;
+            exit(-1);
+        }
+    if(_isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
+        assert(isExpanded);
+    }
+    if(_isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
+        assert(isExpanded);
+    }
+
+    // Initialize the IGA mortar mapper
     IGAMortarMapper* mapper = dynamic_cast<IGAMortarMapper*>(mapperImpl);
-    mapper->setParametersProjection(_maxProjectionDistance, _numRefinementForIntialGuess,
-            _maxDistanceForProjectedPointsOnDifferentPatches);
-    mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt, _newtonRaphsonTol);
-    mapper->setParametersNewtonRaphsonBoundary(_newtonRaphsonBoundaryMaxIt,
-            _newtonRaphsonBoundaryTol);
-    mapper->setParametersBisection(_bisectionMaxIt, _bisectionTol);
-    mapper->setParametersIntegration(_numGPTriangle,_numGPQuad);
-    mapper->setParametersConsistency(_enforceConsistency);
-    mapper->setParametersIgaWeakDirichletConditions(_isWeakDirichletCurveConditions, _isWeakDirichletSurfaceConditions, _weakDirichletConditionsAlphaPrim, _weakDirichletConditionsAlphaSecBending, _weakDirichletConditionsAlphaSecTwisting, _isWeakDirichletConditionsAutomaticPenaltyFactors);
-    mapper->setParametersIgaPatchCoupling(_patchContinuityAlphaPrim, _patchContinuityAlphaSecBending, _patchContinuityAlphaSecTwisting, _isPenaltyPatchCoupling);
-    mapper->setParametersDirichletBCs(_isDirichletBCs);
-    mapper->setParametersErrorComputation(_isDomainError, _isInterfaceError, _isCurveError);
+    mapper->setParametersConsistency(_enforceConsistency, _tolConsistency);
+    mapper->setParametersProjection(_maxProjectionDistance, _noInitialGuess, _maxProjectionDistanceOnDifferentPatches);
+    mapper->setParametersNewtonRaphson(_noIterationsNewton, _tolProjectionNewtonRaphson);
+    mapper->setParametersNewtonRaphsonBoundary(_noIterationsNewtonRaphsonBoundary, _tolProjectionNewtonRaphsonBoundary);
+    mapper->setParametersBisection(_noIterationsBisection, _tolProjectionBisection);
+    mapper->setParametersIntegration(_noGPTriangle,_noGPQuad);
+    mapper->setParametersWeakCurveDirichletConditions(_isWeakCurveDirichletConditions, _isAutomaticPenaltyParametersWeakCurveDirichletConditions,
+                                                      _alphaPrimWeakCurveDirichletConditions, _alphaSecBendingWeakCurveDirichletConditions,
+                                                      _alphaSecTwistingWeakCurveDirichletConditions);
+    mapper->setParametersWeakSurfaceDirichletConditions(_isWeakSurfaceDirichletConditions, _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions,
+                                                        _alphaPrimWeakSurfaceDirichletConditions);
+    mapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, _isAutomaticPenaltyParametersWeakContinuityConditions,
+                                                       _alphaPrimWeakContinuityConditions, _alphaSecBendingWeakContinuityConditions,
+                                                       _alphaSecTwistingWeakContinuityConditions);
+    mapper->setParametersStrongCurveDirichletConditions(_isStrongCurveDirichletConditions);
+    mapper->setParametersErrorComputation(_isErrorComputation, _isDomainError, _isCurveError, _isInterfaceError);
     mapper->buildCouplingMatrices();
 }
 
@@ -209,14 +239,13 @@ void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) 
 
 void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB) {
     assert(mapperImpl != NULL);
+
     if (dynamic_cast<CurveSurfaceMapper *>(mapperImpl) != NULL) { // CurveSurfaceMappers map DOFs together
         assert(fieldA->dimension == EMPIRE_DataField_doubleVector);
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ||
-                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() ||
-                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletSurfaceConditionPenalties() )) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getIsExpanded())) {
         mapperImpl->consistentMapping(fieldA->data, fieldB->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {
@@ -269,9 +298,7 @@ void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fiel
         assert(fieldB->dimension == EMPIRE_DataField_vector);
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     } 
-    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAPatchCouplingPenalties() ||
-                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletCurveConditionPenalties() ||
-                                                                    dynamic_cast<IGAMortarMapper *>(mapperImpl)->getUseIGAWeakDirichletSurfaceConditionPenalties())) {
+    else if(dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && (dynamic_cast<IGAMortarMapper *>(mapperImpl)->getIsExpanded())) {
         mapperImpl->conservativeMapping(fieldB->data, fieldA->data);
     }
     else if(dynamic_cast<IGABarycentricMapper *>(mapperImpl) != NULL) {

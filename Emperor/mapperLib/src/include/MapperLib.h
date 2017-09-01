@@ -307,17 +307,18 @@ void initFEMBarycentricInterpolationMapper(char* mapperName,
  ***********/
 void initFEMMortarMapper(char* mapperName,
                          char* AmeshName, char* BmeshName,
-                         int oppositeSurfaceNormal, int dual, int enforceConsistency);
+                         int oppositeSurfaceNormal, int _dual, int enforceConsistency);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
  * \param[in] IGAMeshName a previously initialized IGAMeshName name
+ * \param[in] isWeakConditions
  * \param[in] FEMeshName a previously initialized FEMeshName name
  * \param[in] isMappingIGA2FEM direction of the mapping to be generated (true=IGA->FEM or false=FEM->IGA)
  * \author Altug Emiroglu
  ***********/
-void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isMappingIGA2FEM);
+void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isWeakConditions, bool isMappingIGA2FEM);
 
 /***********************************************************************************************
  * \brief Set parameter for the projection of mesh onto the NURBS surface
@@ -374,9 +375,11 @@ void setParametersIntegration(char* mapperName,
 /***********************************************************************************************
  * \brief Set the flag for enforcing consistency
  * \param[in] _enforceConsistency The consistency flag
+ * \param[in] _tolConsistency The consistency tolerance
+ * \author Altug Emiroglu
  ***********/
 void setParametersConsistency(char* mapperName,
-                              bool _enforceConsistency = false);
+                              bool _enforceConsistency = false, double _tolConsistency = 0.0);
 
 /***********************************************************************************************
  * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
@@ -394,23 +397,26 @@ void setParametersIgaWeakDirichletConditions(char* mapperName,
 
 /***********************************************************************************************
  * \brief Set parameter for penalty coupling
+ * \param[in] mapperName The name of the mapper
+ * \param[in] _isWeakPatchContinuityConditions Flag on whether weak patch continuity conditions are assumed
  * \param[in] _alphaPrim The Penalty factor for the primary field
  * \param[in] _alphaSecBending The Penalty factor for the bending rotation of the primary field
  * \param[in] _alphaSecTwisting The Penalty factor for the twisting rotation of the primary field
  * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
  ***********/
-void setParametersIgaPatchCoupling(char* mapperName,
+void setParametersIgaPatchCoupling(char* mapperName, bool _isWeakPatchContinuityConditions = false,
                                    double _alphaPrim = 0, double _alphaSecBending = 0,
                                    double _alphaSecTwisting = 0, int isAutomaticPenaltyFactors = 0);
 
 /***********************************************************************************************
  * \brief Set parameters for the error computation
+ * \param[in] _isErrorComputation Flag on whether error computation is assumed
  * \param[in] _isDomainError Flag on the computation of the error from the mapping in the domain
  * \param[in] _isInterfaceError Flag on the computation of the interface error between the patches
  * \param[in] _isCurveError Flag on the computation of the error along trimming curves where constraints are to be applied
  ***********/
 void setParametersErrorComputation(char* mapperName,
-                                   bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
+                                   bool _isErrorComputation, bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
 
 /***********************************************************************************************
  * \brief Build Coupling Matrices

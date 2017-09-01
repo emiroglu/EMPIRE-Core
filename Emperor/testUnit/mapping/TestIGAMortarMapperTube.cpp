@@ -2358,7 +2358,8 @@ public:
         theFEMesh->nodes[263 * 3 + 2] = 9.800000000000004e+00;
 
         bool isMappingIGA2FEM = true;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Tube", theIGAMesh, theFEMesh, isMappingIGA2FEM);
+        bool isWeakConditions = false;
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Tube", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
         theMapper->buildCouplingMatrices();
 //		theMapper->printCouplingMatrices();
 //		exit(-1);

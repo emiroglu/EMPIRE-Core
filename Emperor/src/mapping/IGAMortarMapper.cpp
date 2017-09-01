@@ -49,19 +49,25 @@ namespace EMPIRE {
 static const string HEADER_DECLARATION = "Author: Andreas Apostolatos";
 
 IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE,
-                                 bool _isMappingIGA2FEM) :
+                                 bool _isWeakConditions, bool _isMappingIGA2FEM) :
     name(_name), meshIGA(_meshIGA), isMappingIGA2FEM(_isMappingIGA2FEM) {
 
+    // Check input
     assert(_meshIGA != NULL);
     assert(_meshFE != NULL);
     assert(_meshIGA->type == EMPIRE_Mesh_IGAMesh);
     assert(_meshFE->type == EMPIRE_Mesh_FEMesh);
 
+    // Number of Cartesian directions
+    int noCoord = 3;
+
+    // Check if the FE mesh is triangulated and if not triangulate it
     if (_meshFE->triangulate() == NULL)
         meshFE = _meshFE;
     else
         meshFE = _meshFE->triangulate();
 
+    // Assign the mapper type
     mapperType = EMPIRE_IGAMortarMapper;
 
     projectedCoords.resize(meshFE->numNodes);
@@ -77,23 +83,14 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesMaster = meshIGA->getNumNodes();
     }
 
-    // Initialize flag for the case that weak Dirichlet curve conditions are enabled
-    isIGAWeakDirichletCurveConditions = false;
-
-    // Initialize flag for the case that weak Dirichlet surface conditions are enabled
-    isIGAWeakDirichletSurfaceConditions = false;
-
-    // Initialize flag for the case that coupling between the patches is enabled and when Dirichlet boundary conditions are applied in not all directions
-    isIGAPatchContinuityConditions = false;
+    // Flag on whether the expanded version of the coupling matrices is assumed
+    isExpanded = _isWeakConditions && ~isMappingIGA2FEM;
 
     // Initialize flag on whether the meshFEDirectElemTable was created
     isMeshFEDirectElemTable = false;
 
     // Initialize flag on whether the Gauss quadrature has been defined
     isGaussQuadrature = false;
-    
-    // Initialize coupling matrices
-    couplingMatrices = new IGAMortarCouplingMatrices(numNodesMaster , numNodesSlave);
 
     // Get the number of weak Dirichlet curve conditions
     noWeakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions().size();
@@ -119,72 +116,97 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     weakPatchContinuityAlphaSecondaryBendingIJ = new double[noWeakIGAPatchContinuityConditions];
     weakPatchContinuityAlphaSecondaryTwistingIJ = new double[noWeakIGAPatchContinuityConditions];
 
+    // Initialize the problem parameters with default values
+    setParametersConsistency();
     setParametersProjection();
     setParametersNewtonRaphson();
     setParametersNewtonRaphsonBoundary();
     setParametersBisection();
     setParametersIntegration();
-    setParametersIgaPatchCoupling();
-    setParametersIgaWeakDirichletConditions();
-    setParametersDirichletBCs();
+    setParametersWeakCurveDirichletConditions();
+    setParametersWeakSurfaceDirichletConditions();
+    setParametersWeakPatchContinuityConditions();
     setParametersErrorComputation();
+
+    // Initialize coupling matrices taking into consideration whether the expanded coupling matrices are assumed or not
+    int size_N;
+    int size_R;
+    if (isExpanded){
+        size_N = noCoord*numNodesMaster;
+        size_R = noCoord*numNodesSlave;
+    }else {
+        size_N = numNodesMaster;
+        size_R = numNodesSlave;
+    }
+    couplingMatrices = new IGAMortarCouplingMatrices(size_N, size_R, isExpanded);
 }
 
-void IGAMortarMapper::setParametersIntegration(int _numGPTriangle, int _numGPQuad) {
-    integration.numGPTriangle = _numGPTriangle;
-    integration.numGPQuad = _numGPQuad;
+void IGAMortarMapper::setParametersConsistency(bool _enforceConsistency, double _tolConsistency) {
+    propConsistency.enforceConsistency = _enforceConsistency;
+    propConsistency.tolConsistency = _tolConsistency;
 }
 
-void IGAMortarMapper::setParametersNewtonRaphson(int _maxNumOfIterations, double _tolerance) {
-    newtonRaphson.maxNumOfIterations = _maxNumOfIterations;
-    newtonRaphson.tolerance = _tolerance;
+void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int _noInitialGuess,
+                                              double _maxProjectionDistanceOnDifferentPatches) {
+    propProjection.maxProjectionDistance = _maxProjectionDistance;
+    propProjection.noInitialGuess = _noInitialGuess;
+    propProjection.maxProjectionDistanceOnDifferentPatches = _maxProjectionDistanceOnDifferentPatches;
 }
 
-void IGAMortarMapper::setParametersNewtonRaphsonBoundary(int _maxNumOfIterations, double _tolerance) {
-    newtonRaphsonBoundary.maxNumOfIterations = _maxNumOfIterations;
-    newtonRaphsonBoundary.tolerance = _tolerance;
+void IGAMortarMapper::setParametersNewtonRaphson(int _noIterations, double _tolProjection) {
+    propNewtonRaphson.noIterations = _noIterations;
+    propNewtonRaphson.tolProjection = _tolProjection;
 }
 
-void IGAMortarMapper::setParametersBisection(int _maxNumOfIterations, double _tolerance) {
-    bisection.maxNumOfIterations = _maxNumOfIterations;
-    bisection.tolerance = _tolerance;
+void IGAMortarMapper::setParametersNewtonRaphsonBoundary(int _noIterations, double _tolProjection) {
+    propNewtonRaphsonBoundary.noIterations = _noIterations;
+    propNewtonRaphsonBoundary.tolProjection = _tolProjection;
 }
 
-void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int _numRefinementForIntialGuess,
-                                              double _maxDistanceForProjectedPointsOnDifferentPatches) {
-    projectionProperties.maxProjectionDistance = _maxProjectionDistance;
-    projectionProperties.numRefinementForIntialGuess = _numRefinementForIntialGuess;
-    projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches = _maxDistanceForProjectedPointsOnDifferentPatches;
+void IGAMortarMapper::setParametersBisection(int _noIterations, double _tolProjection) {
+    propBisection.noIterations = _noIterations;
+    propBisection.tolProjection = _tolProjection;
 }
 
-void IGAMortarMapper::setParametersConsistency(bool _enforceConsistency) {
-    enforceConsistency = _enforceConsistency;
+void IGAMortarMapper::setParametersIntegration(int _noGPTriangle, int _noGPQuad) {
+    propIntegration.noGPTriangle = _noGPTriangle;
+    propIntegration.noGPQuad = _noGPQuad;
 }
 
-void IGAMortarMapper::setParametersIgaWeakDirichletConditions(bool _isCurveConditions, bool _isSurfaceConditions, double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting, int _isAutomaticPenaltyFactors) {
-    IgaWeakDirichletConditions.isCurveConditions = _isCurveConditions;
-    IgaWeakDirichletConditions.isSurfaceConditions = _isSurfaceConditions;
-    IgaWeakDirichletConditions.alphaPrim = _alphaPrim;
-    IgaWeakDirichletConditions.alphaSecBending = _alphaSecBending;
-    IgaWeakDirichletConditions.alphaSecTwisting = _alphaSecTwisting;
-    IgaWeakDirichletConditions.isAutomaticPenaltyFactors = _isAutomaticPenaltyFactors;
+void IGAMortarMapper::setParametersWeakCurveDirichletConditions(bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParameters,
+                                                                double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting) {
+    propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = _isWeakCurveDirichletConditions;
+    propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakCurveDirichletConditions.alphaPrim = _alphaPrim;
+    propWeakCurveDirichletConditions.alphaSecBending = _alphaSecBending;
+    propWeakCurveDirichletConditions.alphaSecTwisting = _alphaSecTwisting;
 }
 
-void IGAMortarMapper::setParametersIgaPatchCoupling(double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting, int isAutomaticPenaltyFactors) {
-    IgaPatchCoupling.alphaPrim = _alphaPrim;
-    IgaPatchCoupling.alphaSecBending = _alphaSecBending;
-    IgaPatchCoupling.alphaSecTwisting = _alphaSecTwisting;
-    IgaPatchCoupling.isAutomaticPenaltyFactors = isAutomaticPenaltyFactors;
+void IGAMortarMapper::setParametersWeakSurfaceDirichletConditions(bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParameters,
+                                                                  double _alphaPrim) {
+    propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = _isWeakSurfaceDirichletConditions;
+    propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakSurfaceDirichletConditions.alphaPrim = _alphaPrim;
 }
 
-void IGAMortarMapper::setParametersDirichletBCs(int _isDirichletBCs) {
-    dirichletBCs.isDirichletBCs = _isDirichletBCs;
+void IGAMortarMapper::setParametersWeakPatchContinuityConditions(bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParameters,
+                                                                 double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting) {
+    propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = _isWeakPatchContinuityConditions;
+    propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakPatchContinuityConditions.alphaPrim = _alphaPrim;
+    propWeakPatchContinuityConditions.alphaSecBending = _alphaSecBending;
+    propWeakPatchContinuityConditions.alphaSecTwisting = _alphaSecTwisting;
 }
 
-void IGAMortarMapper::setParametersErrorComputation(bool _isDomainError, bool _isInterfaceError, bool _isCurveError){
-    errorComputation.isDomainError = _isDomainError;
-    errorComputation.isInterfaceError = _isInterfaceError;
-    errorComputation.isCurveError = _isCurveError;
+void IGAMortarMapper::setParametersStrongCurveDirichletConditions(bool _isStrongCurveDirichletConditions) {
+    propStrongCurveDirichletConditions.isStrongCurveDirichletConditions = _isStrongCurveDirichletConditions;
+}
+
+void IGAMortarMapper::setParametersErrorComputation(bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError){
+    propErrorComputation.isErrorComputation = _isErrorComputation;
+    propErrorComputation.isDomainError = _isDomainError;
+    propErrorComputation.isCurveError = _isCurveError;
+    propErrorComputation.isInterfaceError = _isInterfaceError;
 }
 
 void IGAMortarMapper::buildCouplingMatrices() {
@@ -200,12 +222,15 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     //Instantiate quadrature rules
     isGaussQuadrature = true;
-    gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(integration.numGPTriangle);
-    gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(integration.numGPQuad);
+    gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(propIntegration.noGPTriangle);
+    gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(propIntegration.noGPQuad);
 
-    //Set default scheme values
-    IGAPatchSurface::MAX_NUM_ITERATIONS = newtonRaphson.maxNumOfIterations;
-    IGAPatchSurface::TOL_ORTHOGONALITY = newtonRaphson.tolerance;
+    // Initialize a string holding the filenames
+    string filename;
+
+    // Set default scheme values
+    IGAPatchSurface::MAX_NUM_ITERATIONS = propNewtonRaphson.noIterations;
+    IGAPatchSurface::TOL_ORTHOGONALITY = propNewtonRaphson.tolProjection;
 
     // Compute the EFT for the FE mesh
     initTables();
@@ -219,10 +244,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
         writeProjectedNodesOntoIGAMesh();
 
     // Reserve some space for gauss point values in the domain
-    streamGPs.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+    if (propErrorComputation.isDomainError)
+        streamGPs.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
 
     // Reserve some space for the gauss point values along each trimming curve where conditions are applied
-    if(errorComputation.isCurveError){
+    if(propErrorComputation.isCurveError){
         int noCurveGPs = 0;
         std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
         for (int iWDC = 0; iWDC < weakIGADirichletCurveConditions.size(); iWDC++){
@@ -231,7 +257,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
         streamInterfaceGPs.reserve(noCurveGPs);
     }
     // Reserve some space for the interface gauss point values
-    if(errorComputation.isInterfaceError){
+    if(propErrorComputation.isInterfaceError){
         int noInterfaceGPs = 0;
         std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
         for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
@@ -254,76 +280,52 @@ void IGAMortarMapper::buildCouplingMatrices() {
     triangulatedProjectedPolygons2.clear();
 
     // On the application of strong Dirichlet boundary conditions
-    bool _isdirichletBCs = false;
-    bool isClampedDofs = false;
-    std::vector<int> clampedIDs;
-    if(dirichletBCs.isDirichletBCs==1) {
-        _isdirichletBCs = true;
-        clampedIDs = meshIGA->getClampedDofs();
+//    bool _isdirichletBCs = false;
+//    bool isClampedDofs = false;
+//    std::vector<int> clampedIDs;
+//    if(dirichletBCs.isDirichletBCs==1) {
+//        _isdirichletBCs = true;
+//        clampedIDs = meshIGA->getClampedDofs();
 
-        int clampedDirections = meshIGA->getClampedDirections();
-        if(clampedDirections == 1 || clampedDirections == 2)
-            isClampedDofs = true;
+//        int clampedDirections = meshIGA->getClampedDirections();
+//        if(clampedDirections == 1 || clampedDirections == 2)
+//            isClampedDofs = true;
+//    }
+
+    // Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+    if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
+        filename = name + "_penaltyParametersWeakDirichletConditions.txt";
+        computePenaltyParametersForWeakDirichletCurveConditions(filename);
     }
 
-    // Flag on whether weak Dirichlet curve conditions are to be applied
-    if(IgaWeakDirichletConditions.isCurveConditions && (IgaWeakDirichletConditions.alphaPrim > 0 || IgaWeakDirichletConditions.alphaSecBending > 0 || IgaWeakDirichletConditions.alphaSecTwisting > 0 ))
-        isIGAWeakDirichletCurveConditions = true;
+    // Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+    if(propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions && !isMappingIGA2FEM)
+        computePenaltyParametersForWeakDirichletSurfaceConditions();
 
-    // Flag on whether weak Dirichlet surface conditions are to be applied
-    if(IgaWeakDirichletConditions.isSurfaceConditions && (IgaWeakDirichletConditions.alphaPrim > 0 || IgaWeakDirichletConditions.alphaSecBending > 0 || IgaWeakDirichletConditions.alphaSecTwisting > 0 ))
-        isIGAWeakDirichletSurfaceConditions = true;
+    // Compute the Penalty parameters for the application of weak patch continuity conditions
+    if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
+        filename = name + "_penaltyParametersWeakContinuityConditions.txt";
+        computePenaltyParametersForPatchContinuityConditions(filename);
+    }
 
-    // Flag on whether weak patch continuity conditions are to be applied
-    if(IgaPatchCoupling.isAutomaticPenaltyFactors || (IgaPatchCoupling.alphaPrim > 0 || IgaPatchCoupling.alphaSecBending > 0 || IgaPatchCoupling.alphaSecTwisting > 0 ))
-        isIGAPatchContinuityConditions = true;
-
-    // Check if weak conditions are applied and expand the matrices accordingly
-    cout << endl;
-    cout << "Expanding matrices..." << endl;
-    couplingMatrices->setIsIGAConditions(isIGAWeakDirichletCurveConditions || isIGAWeakDirichletSurfaceConditions, isIGAPatchContinuityConditions, isClampedDofs);
-    cout << "Expanded matrices..." << endl;
-    cout << endl;
-
-    cout << endl;
-    cout << "Computing penalty factors..." << endl;
-
-    // Compute the penalty factors for the application of weak Dirichlet curve conditions
-    if(isIGAWeakDirichletCurveConditions  && !isMappingIGA2FEM)
-        computePenaltyFactorsForWeakDirichletCurveConditions();
-
-    // Compute the penalty factors for the application of weak Dirichlet surface conditions
-    if(isIGAWeakDirichletSurfaceConditions  && !isMappingIGA2FEM)
-        computePenaltyFactorsForWeakDirichletSurfaceConditions();
-
-    // Compute the penalty factors for the application of weak patch continuity conditions
-    if(isIGAPatchContinuityConditions  && !isMappingIGA2FEM)
-        computePenaltyFactorsForPatchContinuityConditions();
-
-    cout << "Computed Penalty factors..." << endl;
-    cout << endl;
-
-    if (isIGAPatchContinuityConditions) {
+    // Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+    if (propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
-        if(!IgaPatchCoupling.isAutomaticPenaltyFactors) {
-            INFO_OUT() << "Manual patch coupling penalties: alphaPrim = "<< IgaPatchCoupling.alphaPrim <<" alphaSecBending = " <<  IgaPatchCoupling.alphaSecBending <<" alphaSecTwisting = " <<  IgaPatchCoupling.alphaSecTwisting << endl;
-        } else{
-            INFO_OUT() << "Automatic patch coupling penalties, use DEBUG mode to see the computed values" << endl;
+        if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters) {
+            INFO_OUT() << "Manual patch coupling penalties: alphaPrim = "<< propWeakPatchContinuityConditions.alphaPrim
+                       << " alphaSecBending = " <<  propWeakPatchContinuityConditions.alphaSecBending <<" alphaSecTwisting = "
+                       <<  propWeakPatchContinuityConditions.alphaSecTwisting << endl;
+        } else {
+            INFO_OUT() << "Automatic patch coupling penalties" << endl;
         }
         computeIGAPatchWeakContinuityConditionMatrices();
         INFO_OUT() << "Application of weak patch continuity conditions finished" << std::endl;
     } else
-        INFO_OUT() << "No application of weak patch continuity conditions are assumed" << std::endl;
-
-    // Check input
-    if(!isIGAPatchContinuityConditions && !isIGAWeakDirichletCurveConditions && (errorComputation.isDomainError || errorComputation.isInterfaceError || errorComputation.isCurveError )) {
-        ERROR_BLOCK_OUT("IGAMortarMapper","buildCouplingMatrices","Error computation is requested but neither weak Dirichlet conditions nor patch coupling conditions are defined!");
-        ERROR_BLOCK_OUT("IGAMortarMapper","buildCouplingMatrices","Please correct the input file.");
-    }
+        INFO_OUT() << "No application of weak patch continuity conditions is assumed" << std::endl;
 
     // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
     if(!isMappingIGA2FEM){
-        INFO_OUT() << "Enforcing CNN" << std::endl;
+        INFO_OUT() << "Enforcing flying nodes in Cnn" << std::endl;
         couplingMatrices->enforceCnn();
     }
 
@@ -331,14 +333,15 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if(Message::isDebugMode())
         writeCouplingMatricesToFile();
 
-    // Check consistency of C_NN. This has to be done before the application of the Dirichlet conditions in general.
-    if (enforceConsistency)
-        checkConsistency();
+    // Check and enforce consistency in Cnn. This has to be done before the application of the Dirichlet conditions in general.
+    if (propConsistency.enforceConsistency)
+        enforceConsistency();
 
-    if (isIGAWeakDirichletCurveConditions) {
+    // Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+    if (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet curve conditions started" << endl;
-        if(!IgaWeakDirichletConditions.isAutomaticPenaltyFactors) {
-            INFO_OUT() << "Manual weak Dirichlet curve condition penalties: alphaPrim = " << IgaWeakDirichletConditions.alphaPrim << " alphaSecBending = " <<  IgaWeakDirichletConditions.alphaSecBending << " alphaSecTwisting = " <<  IgaWeakDirichletConditions.alphaSecTwisting << endl;
+        if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters) {
+            INFO_OUT() << "Manual weak Dirichlet curve condition penalties: alphaPrim = " << propWeakCurveDirichletConditions.alphaPrim << " alphaSecBending = " <<  propWeakCurveDirichletConditions.alphaSecBending << " alphaSecTwisting = " <<  propWeakCurveDirichletConditions.alphaSecTwisting << endl;
         } else {
             INFO_OUT() << "Automatic weak Dirichlet curve condition penalties, use DEBUG mode to see the computed values" << endl;
         }
@@ -347,12 +350,13 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet curve conditions are assumed" << std::endl;
 
-    if (isIGAWeakDirichletSurfaceConditions) {
+    // Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+    if (propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions) {
         ERROR_OUT() << "Function under construction" << endl;
         exit(-1);
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
-        if(!IgaWeakDirichletConditions.isAutomaticPenaltyFactors) {
-            INFO_OUT() << "Manual weak Dirichlet surface condition penalties: alphaPrim = "<< IgaWeakDirichletConditions.alphaPrim << " alphaSecBending = " <<  IgaWeakDirichletConditions.alphaSecBending << " alphaSecTwisting = " <<  IgaWeakDirichletConditions.alphaSecTwisting << endl;
+        if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
+            INFO_OUT() << "Manual weak Dirichlet surface condition penalties: alphaPrim = "<< propWeakSurfaceDirichletConditions.alphaPrim << " alphaSecBending = " << endl;
         } else {
             INFO_OUT() << "Automatic weak Dirichlet surface condition penalties, use DEBUG mode to see the computed values" << endl;
         }
@@ -363,52 +367,57 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
     // if it is not always clamped in all three dircetions
-    if(isClampedDofs)
-        isIGAPatchContinuityConditions = true;
+//    if(isClampedDofs)
+//        isIGAPatchContinuityConditions = true;
 
-    couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
+//    couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
 
-    if(dirichletBCs.isDirichletBCs == 1){
-        INFO_OUT() << "Applying strong Dirichlet boundary conditions" << std::endl;
-        couplingMatrices->applyDirichletBCs(clampedIDs);
-    }
+//    if(dirichletBCs.isDirichletBCs == 1){
+//        INFO_OUT() << "Applying strong Dirichlet boundary conditions" << std::endl;
+//        couplingMatrices->applyDirichletBCs(clampedIDs);
+//    }
 
-    if (isIGAWeakDirichletCurveConditions || dirichletBCs.isDirichletBCs == 1) {
-        couplingMatrices->factorizeCorrectCNN();
-        INFO_OUT() << "Factorize was successful" << std::endl;
-    }
-
-    // Clear GP data
-//    if(!Message::isDebugMode())
-//        streamGP.clear();
+//    if (isIGAWeakDirichletCurveConditions || dirichletBCs.isDirichletBCs == 1) {
+//        couplingMatrices->factorizeCnn();
+//        INFO_OUT() << "Factorize was successful" << std::endl;
+//    }
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
 
+    // Delete the Finite Element direct element table
     if(isMeshFEDirectElemTable){
         for (int i = 0; i < meshFE->numElems; i++)
             delete[] meshFEDirectElemTable[i];
         delete[] meshFEDirectElemTable;
     }
 
+    // Delete the quadrature rules
     if(isGaussQuadrature){
         delete gaussTriangle;
         delete gaussQuad;
     }
 
+    // Delete the coupling matrices
     delete couplingMatrices;
 
-    if(isIGAWeakDirichletCurveConditions){
-        delete[] weakDirichletCCAlphaPrimary;
-        delete[] weakDirichletCCAlphaSecondaryBending;
-        delete[] weakDirichletCCAlphaSecondaryTwisting;
-    }
+    // Delete the penalty parameters for the application of weak Dirichlet conditions along trimming curves
+    delete[] weakDirichletCCAlphaPrimary;
+    delete[] weakDirichletCCAlphaSecondaryBending;
+    delete[] weakDirichletCCAlphaSecondaryTwisting;
 
-    if(isIGAPatchContinuityConditions){
-        delete[] weakPatchContinuityAlphaPrimaryIJ;
-        delete[] weakPatchContinuityAlphaSecondaryBendingIJ;
-        delete[] weakPatchContinuityAlphaSecondaryTwistingIJ;
-    }
+    // Delete the penalty parameters for the continuity enforcement across the patch interfaces
+    delete[] weakPatchContinuityAlphaPrimaryIJ;
+    delete[] weakPatchContinuityAlphaSecondaryBendingIJ;
+    delete[] weakPatchContinuityAlphaSecondaryTwistingIJ;
+
+    // Delete the stored GP values
+    if (propErrorComputation.isDomainError)
+        streamGPs.clear();
+    if (propErrorComputation.isCurveError)
+        streamCurveGPs.clear();
+    if (propErrorComputation.isInterfaceError)
+        streamInterfaceGPs.clear();
 }
 
 void IGAMortarMapper::initTables() {
@@ -461,10 +470,13 @@ void IGAMortarMapper::projectPointsToSurface() {
     // Array of booleans containing flags on the projection of the FE nodes onto the NURBS patch
     // A node needs to be projected at least once
     vector<bool> isProjected(meshFE->numNodes);
+
     // Keep track of the minimum distance found between a node and a patch
     vector<double> minProjectionDistance(meshFE->numNodes, 1e9);
+
     // Keep track of the point on patch related to minimum distance
     vector<vector<double> > minProjectionPoint(meshFE->numNodes);
+
     // List of patch to try a projection for every node
     vector<set<int> > patchToProcessPerNode(meshFE->numNodes);
 
@@ -473,8 +485,9 @@ void IGAMortarMapper::projectPointsToSurface() {
 
     // Get the number of patches in the IGA mesh
     int numPatches = meshIGA->getNumPatches();
+
     // Bounding box preprocessing, assign to each node the patches to be visited
-    INFO_OUT()<<"Bounding box preprocessing..."<<endl;
+    INFO_OUT() << "Bounding box preprocessing started" << endl;
     time(&timeStart);
     for (int i = 0; i < meshFE->numNodes; i++) {
         double P[3];
@@ -483,7 +496,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         P[2] = meshFE->nodes[3 * i + 2];
         for(int patchCount = 0; patchCount < numPatches; patchCount++) {
             IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
-            bool isInside = thePatch->getBoundingBox().isPointInside(P, projectionProperties.maxProjectionDistance);
+            bool isInside = thePatch->getBoundingBox().isPointInside(P, propProjection.maxProjectionDistance);
             if(isInside)
                 patchToProcessPerNode[i].insert(patchCount);
         }
@@ -494,10 +507,10 @@ void IGAMortarMapper::projectPointsToSurface() {
         }
     }
     time(&timeEnd);
-    INFO_OUT()<<"Bounding box preprocessing done in "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
+    INFO_OUT()<<"Bounding box preprocessing done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
     // Project the node for every patch's bounding box the node lies into
     // or on every patch if not found in a single bounding box
-    INFO_OUT()<<"First pass projection..."<<endl;
+    INFO_OUT()<<"First pass projection started"<<endl;
     time(&timeStart);
     for(int i = 0; i < meshFE->numElems; i++) {
         int numNodesInElem = meshFE->numNodesPerElem[i];
@@ -521,7 +534,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         }
     }
     time(&timeEnd);
-    INFO_OUT()<<"First pass projection done in "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
+    INFO_OUT()<<"First pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
     int missing = 0;
     for (int i = 0; i < meshFE->numNodes; i++) {
         if(!isProjected[i]) {
@@ -530,23 +543,23 @@ void IGAMortarMapper::projectPointsToSurface() {
         }
     }
     INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass." << endl;
-    double initialTolerance = newtonRaphson.tolerance;
+    double initialTolerance = propNewtonRaphson.tolProjection;
 
     // Second pass projection --> relax Newton-Rapshon tolerance and if still fails refine the sampling points for the Newton-Raphson initial guesses
     if(missing) {
-        INFO_OUT()<<"Second pass projection..."<<endl;
+        INFO_OUT()<<"Second pass projection started"<<endl;
         time(&timeStart);
         missing = 0;
         for (int i = 0; i < meshFE->numNodes; i++) {
             if(!isProjected[i]) {
-                newtonRaphson.tolerance = 10*newtonRaphson.tolerance;
-                for(set<int>::iterator patchIndex=patchToProcessPerNode[i].begin();patchIndex!=patchToProcessPerNode[i].end();patchIndex++) {
+                propNewtonRaphson.tolProjection = 10*propNewtonRaphson.tolProjection;
+                for(set<int>::iterator patchIndex = patchToProcessPerNode[i].begin();patchIndex != patchToProcessPerNode[i].end(); patchIndex++) {
                     computeInitialGuessForProjection(*patchIndex, meshFENodeToElementTable[i][0], i, initialU, initialV);
                     bool flagProjected = projectPointOnPatch(*patchIndex, i, initialU, initialV, minProjectionDistance[i], minProjectionPoint[i]);
                     isProjected[i] = isProjected[i] || flagProjected;
                 }
                 if(!isProjected[i]) {
-                    for(set<int>::iterator patchIndex=patchToProcessPerNode[i].begin();patchIndex!=patchToProcessPerNode[i].end();patchIndex++) {
+                    for(set<int>::iterator patchIndex = patchToProcessPerNode[i].begin(); patchIndex != patchToProcessPerNode[i].end(); patchIndex++) {
                         bool flagProjected = forceProjectPointOnPatch(*patchIndex, i, minProjectionDistance[i], minProjectionPoint[i]);
                         isProjected[i] = isProjected[i] || flagProjected;
                     }
@@ -556,11 +569,11 @@ void IGAMortarMapper::projectPointsToSurface() {
                 ERROR_OUT()<<"Node not projected at second pass ["<<i<<"] of coordinates "<<meshFE->nodes[3*i]<<","<<meshFE->nodes[3*i+1]<<","<<meshFE->nodes[3*i+2]<<endl;
                 missing++;
             }
-            newtonRaphson.tolerance = initialTolerance;
+            propNewtonRaphson.tolProjection = initialTolerance;
         }
-        newtonRaphson.tolerance = initialTolerance;
+        propNewtonRaphson.tolProjection = initialTolerance;
         time(&timeEnd);
-        INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds."<<endl;
+        INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
         if(missing) {
             stringstream msg;
             msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass !" << endl;
@@ -604,7 +617,7 @@ void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, co
         P[1] = meshFE->nodes[_nodeIndex * 3 + 1];
         P[2] = meshFE->nodes[_nodeIndex * 3 + 2];
         // Get accordingly an initial guess for the projection onto the NURBS patch
-        thePatch->findInitialGuess4PointProjection(_u, _v, P, projectionProperties.numRefinementForIntialGuess, projectionProperties.numRefinementForIntialGuess);
+        thePatch->findInitialGuess4PointProjection(_u, _v, P, propProjection.noInitialGuess, propProjection.noInitialGuess);
     }
 }
 
@@ -622,20 +635,20 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIn
     /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
     bool hasResidualConverged;
     bool hasConverged = thePatch->computePointProjectionOnPatch(u, v, projectedP,
-                                                                hasResidualConverged, newtonRaphson.maxNumOfIterations, newtonRaphson.tolerance);
+                                                                hasResidualConverged, propNewtonRaphson.noIterations, propNewtonRaphson.tolProjection);
     double distance = MathLibrary::computePointDistance(P, projectedP);
-    if(hasConverged &&  distance < projectionProperties.maxProjectionDistance) {
+    if(hasConverged &&  distance < propProjection.maxProjectionDistance) {
         /// Perform some validity checks to validate the projected point
-        if(distance > minProjectionDistance + projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+        if(distance > minProjectionDistance + propProjection.maxProjectionDistanceOnDifferentPatches) {
             return false;
         }
         if(!minProjectionPoint.empty() &&
-                MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches &&
+                MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > propProjection.maxProjectionDistanceOnDifferentPatches &&
                 distance > minProjectionDistance) {
             return false;
         }
-        if(distance < minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches
-                || MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+        if(distance < minProjectionDistance - propProjection.maxProjectionDistanceOnDifferentPatches
+                || MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > propProjection.maxProjectionDistanceOnDifferentPatches) {
             projectedCoords[nodeIndex].clear();
         }
         /// Store result
@@ -670,15 +683,15 @@ bool IGAMortarMapper::forceProjectPointOnPatch(const int patchIndex, const int n
         }
     }
     /// Compute approximate of parametric position based on brute sampling
-    thePatch->findInitialGuess4PointProjection(u,v,P,200,200);
+    thePatch->findInitialGuess4PointProjection(u, v, P, 200, 200);
     double uv[2] = {u, v};
     thePatch->computeCartesianCoordinates(projectedP, uv);
     double distance = MathLibrary::computePointDistance(P, projectedP);
     /// Perform some validity checks
-    if(distance > minProjectionDistance + projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+    if(distance > minProjectionDistance + propProjection.maxProjectionDistanceOnDifferentPatches) {
         return false;
     }
-    if(distance < minProjectionDistance - projectionProperties.maxDistanceForProjectedPointsOnDifferentPatches) {
+    if(distance < minProjectionDistance - propProjection.maxProjectionDistanceOnDifferentPatches) {
         projectedCoords[nodeIndex].clear();
     }
     /// Store result
@@ -721,7 +734,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
         elementStringLength = ss.str().length();
     }
 
-    INFO_OUT() << "Computing coupling matrices starting ..." << endl;
+    INFO_OUT() << "Computing coupling matrices started" << endl;
     time(&timeStart);
     /// Loop over all the elements in the FE side
     for (int elemIndex = 0; elemIndex < meshFE->numElems; elemIndex++) {
@@ -734,8 +747,8 @@ void IGAMortarMapper::computeCouplingMatrices() {
         set<int> patchWithFullElt;
         set<int> patchWithSplitElt;
         getPatchesIndexElementIsOn(elemIndex, patchWithFullElt, patchWithSplitElt);
-        DEBUG_OUT()<<"Element FULLY projected on \t" << patchWithFullElt.size() << " patch." << endl;
-        DEBUG_OUT()<<"Element PARTLY projected on \t" << patchWithSplitElt.size() << " patch." << endl;
+        DEBUG_OUT()<<"Element FULLY projected on \t" << patchWithFullElt.size() << " patch" << endl;
+        DEBUG_OUT()<<"Element PARTLY projected on \t" << patchWithSplitElt.size() << " patch" << endl;
         /////////////////////////////////////
         /// Compute the coupling matrices ///
         /////////////////////////////////////
@@ -773,7 +786,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
         } // end of loop over set of split patch
     } // end of loop over all the element
     time(&timeEnd);
-    INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds." << endl;
+    INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds" << endl;
     if(elementIntegrated.size() != meshFE->numElems) {
         WARNING_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
         for(int i = 0; i < meshFE->numElems; i++) {
@@ -804,7 +817,7 @@ void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchW
             if (!isNodeOnPatch) {
                 isAllNodesOnPatch = false;
             } else {
-                isAllNodesOut=false;
+                isAllNodesOut = false;
             }
         }
         // If all nodes are on the patch "patchCount", save this patch and go for next patch
@@ -852,7 +865,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
         bool isProjectedOnPatchBoundary = true;
         double uIn, vIn;
         double u, v;
-        double div = 0, dis = projectionProperties.maxProjectionDistance;
+        double div = 0, dis = propProjection.maxProjectionDistance;
 
         /// Get the node indexes
         int nodeCount = (i + 0) % numNodesElementFE;
@@ -889,23 +902,23 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
             double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
             u = u0In;
             v = v0In;
-            dis = projectionProperties.maxProjectionDistance;
+            dis = propProjection.maxProjectionDistance;
             isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
             double u0=u,v0=v,div0=div;
             double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
             double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
             u = u2In;
             v = v2In;
-            dis = projectionProperties.maxProjectionDistance;
+            dis = propProjection.maxProjectionDistance;
             isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
-            double u2=u,v2=v,div2=div;
-            double denominator = (u0In-u0)*(v2In-v2)-(v0In-v0)*(u2In-u2);
+            double u2 = u, v2 = v, div2 = div;
+            double denominator = (u0In - u0)*(v2In - v2) - (v0In - v0)*(u2In - u2);
             /// If two valid line parameter found and the denominator is valid
             if(div0 >= toleranceRatio && div2 >= toleranceRatio && fabs(denominator) > toleranceRatio) {
                 // Compute intersection of the two lines
                 // See http://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
-                u = ((u0In*v0-v0In*u0)*(u2In-u2)-(u0In-u0)*(u2In*v2-v2In*u2))/denominator;
-                v = ((u0In*v0-v0In*u0)*(v2In-v2)-(v0In-v0)*(u2In*v2-v2In*u2))/denominator;
+                u = ((u0In*v0 - v0In*u0)*(u2In - u2) - (u0In - u0)*(u2In*v2 - v2In*u2))/denominator;
+                v = ((u0In*v0 - v0In*u0)*(v2In - v2) - (v0In - v0)*(u2In*v2 - v2In*u2))/denominator;
                 // Store the point
                 polygonUV.push_back(make_pair(u,v));
                 continue;
@@ -914,16 +927,16 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
                 /// Save data from first projection
                 u = u0;
                 v = v0;
-                uIn=u0In;
-                vIn=v0In;
+                uIn = u0In;
+                vIn = v0In;
                 div = div0;
                 // If only second line parameter valid
             } else if(div2 >= toleranceRatio) {
                 // Save data from second projection
                 u = u2;
                 v = v2;
-                uIn=u2In;
-                vIn=v2In;
+                uIn = u2In;
+                vIn = v2In;
                 div = div2;
             }
             /// Else no valid point found
@@ -935,7 +948,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
             vIn = projectedCoords[nodeIndexNext][patchIndex][1];
             u = uIn;
             v = vIn;
-            dis = projectionProperties.maxProjectionDistance;
+            dis = propProjection.maxProjectionDistance;
             // Project on boundary
             isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
         }
@@ -946,7 +959,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
             vIn = projectedCoords[nodeIndexPrev][patchIndex][1];
             u = uIn;
             v = vIn;
-            dis = projectionProperties.maxProjectionDistance;
+            dis = propProjection.maxProjectionDistance;
             // Project on boundary
             isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
         }
@@ -961,14 +974,14 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
                 vIn = projectedCoords[*it][patchIndex][1];
                 u = uIn;
                 v = vIn;
-                dis = projectionProperties.maxProjectionDistance;
+                dis = propProjection.maxProjectionDistance;
                 isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
             }
         }
         /// Add point in polygon if line parameter is valid
         if(div >= toleranceRatio) {
-            u = uIn + (u-uIn)/div;
-            v = vIn + (v-vIn)/div;
+            u = uIn + (u - uIn)/div;
+            v = vIn + (v - vIn)/div;
             polygonUV.push_back(make_pair(u,v));
         }
         /// Warning/Error output
@@ -1003,20 +1016,21 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
     double uIn = u;
     double vIn = v;
     bool isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, Pin, Pout,
-                                                                                                   newtonRaphsonBoundary.maxNumOfIterations, newtonRaphsonBoundary.tolerance);
-    if(!isProjectedOnPatchBoundary || dis > projectionProperties.maxProjectionDistance) {
-        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm."<<endl;
+                                                                                                   propNewtonRaphsonBoundary.noIterations, propNewtonRaphsonBoundary.tolProjection);
+    if(!isProjectedOnPatchBoundary || dis > propProjection.maxProjectionDistance) {
+        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm." << endl;
         // Reset initial guess
         u = uIn;
         v = vIn;
         isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, Pin, Pout,
-                                                                                              bisection.maxNumOfIterations, bisection.tolerance);
+                                                                                              propBisection.noIterations, propBisection.tolProjection);
     }
     // Perform some validity check
     if(!isProjectedOnPatchBoundary)
         DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
-    if(isProjectedOnPatchBoundary && dis > projectionProperties.maxProjectionDistance) {
-        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<<dis<<" for prescribed max of "<<projectionProperties.maxProjectionDistance<<". Relax maxProjectionDistance in XML input!"<<endl;
+    if(isProjectedOnPatchBoundary && dis > propProjection.maxProjectionDistance) {
+        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<< dis << " for prescribed max of " <<
+                       propProjection.maxProjectionDistance << ". Relax maxProjectionDistance in XML input!" << endl;
     }
     return isProjectedOnPatchBoundary;
 }
@@ -1214,20 +1228,23 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
      *       2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
      *       2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
      *       2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
-     *       2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
-     *       2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
+     *       2.2.8 integrate the shape function product for Cnn(Linear shape function multiply linear shape function)
+     *       2.2.9 integrate the shape function product for Cnr(Linear shape function multiply IGA shape function)
      * 3. Assemble the element coupling matrix to the global coupling matrix.
      */
 
+    // Read input
     assert(!_polygonUV.empty());
     assert(!_polygonWZ.empty());
-
     int numNodesUV=_polygonUV.size();
     int numNodesWZ=_polygonWZ.size();
     assert(numNodesUV > 2);
     assert(numNodesUV < 5);
     assert(numNodesWZ > 2);
     assert(numNodesWZ < 5);
+
+    // Number of Cartesian directions
+    int noCoord = 3;
 
     // Definitions
     int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
@@ -1349,7 +1366,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
         }
         double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
 
-        /// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
+        /// 2.2.8 integrate the shape function product for Cnn(Linear shape function multiply linear shape function)
         int count = 0;
         for (int i = 0; i < numNodesElMaster; i++) {
             for (int j = i; j < numNodesElMaster; j++) {
@@ -1370,7 +1387,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
         }
 
         /// Save GP data
-        if(errorComputation.isDomainError){
+        if(propErrorComputation.isDomainError){
             std::vector<double> streamGP;
             // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
             streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*nShapeFuncsIGA);
@@ -1436,9 +1453,17 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                     dof1 = dofIGA[i];
                     dof2 = dofIGA[j];
                 }
-                couplingMatrices->addCNNValue(dof1,dof2,elementCouplingMatrixNN[count]);
-                if (dof1 != dof2)
-                    couplingMatrices->addCNNValue(dof2,dof1,elementCouplingMatrixNN[count]);
+                if (!isExpanded){
+                    couplingMatrices->addCNNValue(dof1, dof2, elementCouplingMatrixNN[count]);
+                    if (dof1 != dof2)
+                        couplingMatrices->addCNNValue(dof2, dof1, elementCouplingMatrixNN[count]);
+                } else {
+                    for(int iCoord = 0; iCoord < noCoord; iCoord++){
+                        couplingMatrices->addCNNValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, elementCouplingMatrixNN[count]);
+                        if (dof1 != dof2)
+                            couplingMatrices->addCNNValue(noCoord*dof2 + iCoord, noCoord*dof1 + iCoord, elementCouplingMatrixNN[count]);
+                    }
+                }
                 count++;
             }
 
@@ -1453,7 +1478,12 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
                     dof1 = dofIGA[i];
                     dof2 = meshFEDirectElemTable[_elementIndex][j];
                 }
-                couplingMatrices->addCNRValue(dof1,dof2,elementCouplingMatrixNR[count]);
+                if (!isExpanded){
+                    couplingMatrices->addCNRValue(dof1, dof2, elementCouplingMatrixNR[count]);
+                } else {
+                    for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                        couplingMatrices->addCNRValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, elementCouplingMatrixNR[count]);
+                }
                 count ++;
             }
     }
@@ -1644,18 +1674,18 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
             for(int i = 0; i < noDOFsLoc; i++){
                 for(int j = 0; j < noDOFsLoc; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondaryBending*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryBending*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[j], alphaSecondaryTwisting*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryTwisting*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
                 }
             }
 
             // Compute the error along the trimming curves where constraints are applied
-            if(errorComputation.isCurveError){
+            if(propErrorComputation.isCurveError){
                 // Initialize variable storing the Gauss Point data
                 std::vector<double> streamCurveGP;
 
@@ -1820,7 +1850,7 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
             for(int i = 0; i < noDOFsLoc; i++){
                 for(int j = 0; j < noDOFsLoc; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*jacobianOnGP);
+                    couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*jacobianOnGP);
                 }
             }
 
@@ -1877,8 +1907,9 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double vGPSlave;
     double condTangentTrCurveVct;
     double condNormalTrCurveVct;
-    double factorTangent = 1.0;
-    double factorNormal = 1.0;
+    double factorTangent;
+    double factorNormal;
+    double factorTwisting;
     double tangentTrCurveVctMaster[noCoord];
     double tangentTrCurveVctSlave[noCoord];
     double normalTrCurveVctMaster[noCoord];
@@ -2000,39 +2031,59 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
                                                             patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
 
-            // Determine the alignment of the tangent and the normal vectors from both patches at their common interface
+            // Determine the alignment of the tangent vectors from both patches at their common interface
             condTangentTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
             normTangentTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctMaster);
             normTangentTrCurveVctMaster = sqrt(normTangentTrCurveVctMaster);
             normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
             normTangentTrCurveVctSlave = sqrt(normTangentTrCurveVctSlave);
             condTangentTrCurveVct = condTangentTrCurveVct/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
+
+            // Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct) {
                 continue;
             }else if((normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave > tolVct) || (normTangentTrCurveVctMaster > tolVct && normTangentTrCurveVctSlave < tolVct)) {
                 assert(false);
             }
+
+            // Check if the tangent vectors are perpendicular to each other and if yes assert error
             assert(abs(condTangentTrCurveVct) > tolAngle);
+
+            // Check if the angle between the tangent vectors is 0° (have the same direction) or 180° (have opposite directions) to formulate the interface constraint
             if(condTangentTrCurveVct > tolAngle){
-                factorTangent = -1.0*factorTangent;
-            }
+                factorTangent = -1.0;
+            } else
+                factorTangent = 1.0;
+
+            // Determine the alignment of the normal vectors from both patches at their common interface
             condNormalTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
             normNormalTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctMaster);
             normNormalTrCurveVctMaster = sqrt(normNormalTrCurveVctMaster);
             normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
             normNormalTrCurveVctSlave = sqrt(normNormalTrCurveVctSlave);
             condNormalTrCurveVct = condNormalTrCurveVct/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
+
+            // Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct) {
                 continue;
             }else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct)) {
                 assert(false);
             }
-            if (!(abs(condNormalTrCurveVct) > tolAngle))
-                WARNING_OUT("Check for trimming curve normals does not comply with the criterion!");
-//                assert(abs(condNormalTrCurveVct) > tolAngle);
+
+            // Check if the normal vectors are not aligned and in this case neglect the interface twisting rotation continuity condition
+//            if (!(abs(condNormalTrCurveVct) > tolAngle)){
+////                WARNING_OUT("Check for trimming curve normals does not comply with the criterion!");
+////                assert(abs(condNormalTrCurveVct) > tolAngle);
+//                factorTwisting = 0.0;
+//            } else
+//                factorTwisting = 1.0;
+            factorTwisting = 0.0;
+
+            // Check if the angle between the normal vectors is 0° (have the same direction) or 180° (have opposite directions) to formulate the interface constraint
             if(condNormalTrCurveVct > tolAngle){
-                factorNormal = -1.0*factorNormal;
-            }
+                factorNormal = -1.0;
+            } else
+                factorNormal = 1.0;
 
             // Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
@@ -2080,13 +2131,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocMaster; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondaryBending*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryBending*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTMaster[j], alphaSecondaryTwisting*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], factorTwisting*alphaSecondaryTwisting*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
@@ -2094,13 +2145,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocSlave; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++) {
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondaryBending*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryBending*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[i], EFTSlave[j], alphaSecondaryTwisting*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], factorTwisting*alphaSecondaryTwisting*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
@@ -2108,25 +2159,25 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNN_expandedValue(EFTMaster[i], EFTSlave[j], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNN_expandedValue(EFTSlave[j], EFTMaster[i], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], factorTwisting*alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], factorTwisting*alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
 
-            if(errorComputation.isInterfaceError){
+            if(propErrorComputation.isInterfaceError){
                 // Initialize variable storing the Gauss Point data
                 std::vector<double> streamInterfaceGP;
 
-                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...)
+                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...) + factorTangent + factorNormal + factorTwisting
                 streamInterfaceGP.reserve(1 + 1 + 2*noLocalBasisFctsMaster + 3*noDOFsLocMaster + 1 + 2*noLocalBasisFctsSlave + 3*noDOFsLocSlave + 1 + 1);
 
                 // Save the element length on the Gauss Point
@@ -2169,6 +2220,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 // Save the factors
                 streamInterfaceGP.push_back(factorTangent);
                 streamInterfaceGP.push_back(factorNormal);
+                streamInterfaceGP.push_back(factorTwisting);
 
                 // Push back the Gauss Point values into the member variable
                 streamInterfaceGPs.push_back(streamInterfaceGP);
@@ -2345,11 +2397,19 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     delete[] commonBOperator;
 }
 
-void IGAMortarMapper::computePenaltyFactorsForWeakDirichletCurveConditions(){
+void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(std::string _filename){
     /*
      * Compute the penalty factors related to the application of weak Dirichlet curve conditions
      * as a function of the minimum element edge size across interface.
      */
+
+    // Initialize a file stream to write out the Penalty parameters
+    std::ofstream ofs;
+    if (!_filename.empty()) {
+        ofs.open(_filename.c_str(), std::ofstream::out);
+        ofs << std::scientific;
+        ofs << std::endl;
+    }
 
     // Get the weak patch continuity conditions
     std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
@@ -2387,10 +2447,10 @@ void IGAMortarMapper::computePenaltyFactorsForWeakDirichletCurveConditions(){
     // Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWDCC = 0; iWDCC < weakIGADirichletCurveConditions.size(); iWDCC++){
         // Check if penalty factors are to be assigned manually in the xml file
-        if(!IgaWeakDirichletConditions.isAutomaticPenaltyFactors){
-            weakDirichletCCAlphaPrimary[iWDCC] = IgaWeakDirichletConditions.alphaPrim;
-            weakDirichletCCAlphaSecondaryBending[iWDCC] = IgaWeakDirichletConditions.alphaSecBending;
-            weakDirichletCCAlphaSecondaryTwisting[iWDCC] = IgaWeakDirichletConditions.alphaSecTwisting;
+        if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters){
+            weakDirichletCCAlphaPrimary[iWDCC] = propWeakCurveDirichletConditions.alphaPrim;
+            weakDirichletCCAlphaSecondaryBending[iWDCC] = propWeakCurveDirichletConditions.alphaSecBending;
+            weakDirichletCCAlphaSecondaryTwisting[iWDCC] = propWeakCurveDirichletConditions.alphaSecTwisting;
             continue;
         }
 
@@ -2476,16 +2536,22 @@ void IGAMortarMapper::computePenaltyFactorsForWeakDirichletCurveConditions(){
         weakDirichletCCAlphaPrimary[iWDCC] = alphaPrim;
         weakDirichletCCAlphaSecondaryBending[iWDCC] = alphaSec;
         weakDirichletCCAlphaSecondaryTwisting[iWDCC] = alphaSec;
-        INFO_OUT() << std::endl;
-        INFO_OUT() << "Weak Dirichlet curve condition on patch[" << patchIndex << "] :" << std::endl;
-        INFO_OUT() << "weakDirichletCCAlphaPrimary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaPrim << std::endl;
-        INFO_OUT() << "weakDirichletCCAlphaSecondary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaSec << std::endl;
-        INFO_OUT() << std::endl;
 
+        // Write the Penalty parameters into a file
+        if (!_filename.empty()) {
+            ofs << "Weak Dirichlet curve condition on patch[" << patchIndex << "] :" << std::endl;
+            ofs << "weakDirichletCCAlphaPrimary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaPrim << std::endl;
+            ofs << "weakDirichletCCAlphaSecondary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaSec << std::endl;
+            ofs << std::endl;
+        }
     } // End of weak Dirichlet curve condition loop
+
+    // Close file
+    if (!_filename.empty())
+        ofs.close();
 }
 
-void IGAMortarMapper::computePenaltyFactorsForWeakDirichletSurfaceConditions(){
+void IGAMortarMapper::computePenaltyParametersForWeakDirichletSurfaceConditions(){
 
     /*
      * Compute the penalty factors related to the application of weak Dirichlet surface conditions
@@ -2493,17 +2559,12 @@ void IGAMortarMapper::computePenaltyFactorsForWeakDirichletSurfaceConditions(){
     ERROR_OUT() << "Function under construction" << endl;
     exit(-1);
 
-    if (IgaWeakDirichletConditions.isSurfaceConditions && IgaWeakDirichletConditions.isAutomaticPenaltyFactors)
-        WARNING_OUT("Automatic computation of the penalty factors is not implemented! Setting the manual penalty factors!");
-
     std::vector<WeakIGADirichletSurfaceCondition*> weakIGADirichletSurfaceConditions = meshIGA->getWeakIGADirichletSurfaceConditions();
 
     int patchIndex;
 
     for (int iWDSC = 0; iWDSC < weakIGADirichletSurfaceConditions.size(); iWDSC++){
-        weakDirichletSCAlphaPrimary[iWDSC] = IgaWeakDirichletConditions.alphaPrim;
-        weakDirichletSCAlphaSecondaryBending[iWDSC] = IgaWeakDirichletConditions.alphaSecBending;
-        weakDirichletSCAlphaSecondaryTwisting[iWDSC] = IgaWeakDirichletConditions.alphaSecTwisting;
+        weakDirichletSCAlphaPrimary[iWDSC] = propWeakSurfaceDirichletConditions.alphaPrim;
 
         patchIndex = weakIGADirichletSurfaceConditions[iWDSC]->getPatchIndex();
 
@@ -2519,11 +2580,19 @@ void IGAMortarMapper::computePenaltyFactorsForWeakDirichletSurfaceConditions(){
 
 }
 
-void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
+void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::string _filename){
     /*
      * Compute the penalty factors related to the application of weak patch continuity conditions
      * as a function of the minimum element edge size across each interface.
      */
+
+    // Initialize a file stream to write out the Penalty parameters
+    std::ofstream ofs;
+    if (!_filename.empty()) {
+        ofs.open(_filename.c_str(), std::ofstream::out);
+        ofs << std::scientific;
+        ofs << std::endl;
+    }
 
     // Get the weak patch continuity conditions
     std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
@@ -2581,10 +2650,10 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
     // Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
         // Check if penalty factors are to be assigned manually in the xml file
-        if(!IgaPatchCoupling.isAutomaticPenaltyFactors){
-            weakPatchContinuityAlphaPrimaryIJ[iWCC] = IgaPatchCoupling.alphaPrim;
-            weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = IgaPatchCoupling.alphaSecBending;
-            weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC] = IgaPatchCoupling.alphaSecTwisting;
+        if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters){
+            weakPatchContinuityAlphaPrimaryIJ[iWCC] = propWeakPatchContinuityConditions.alphaPrim;
+            weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = propWeakPatchContinuityConditions.alphaSecBending;
+            weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC] = propWeakPatchContinuityConditions.alphaSecTwisting;
             continue;
         }
 
@@ -2714,48 +2783,53 @@ void IGAMortarMapper::computePenaltyFactorsForPatchContinuityConditions(){
         weakPatchContinuityAlphaPrimaryIJ[iWCC] = alphaPrim;
         weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = alphaSec;
         weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC] = alphaSec;
-        INFO_OUT() << std::endl;
-        INFO_OUT() << "Coupling between patch[" << indexMaster << "] and patch[" << indexSlave << "]:" << std::endl;
-        INFO_OUT() << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaPrim << std::endl;
-        INFO_OUT() << "weakPatchContinuityAlphaSecondaryIJ[" << iWCC << "] = " << scientific << setprecision(15) << alphaSec << std::endl;
-        INFO_OUT() << std::endl;
 
+        // Write the Penalty parameters into a file
+        if (!_filename.empty()) {
+            ofs << "Coupling between patch[" << indexMaster << "] and patch[" << indexSlave << "]:" << std::endl;
+            ofs << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << alphaPrim << std::endl;
+            ofs << "weakPatchContinuityAlphaSecondaryIJ[" << iWCC << "] = " << alphaSec << std::endl;
+            ofs << std::endl;
+        }
     } // End of weak continuity condition loop
+
+    // Close file
+    if (!_filename.empty())
+        ofs.close();
 }
 
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
     /*
      * Mapping of the
-     * C_NN * x_master = C_NR * x_slave
+     * Cnn * x_master = Cnr * x_slave
      */
 
     // Get the appropriate sizes of the matrices
-    int size_N = couplingMatrices->getCorrectSizeN();
-    int size_R = couplingMatrices->getCorrectSizeR();
+    int size_N = couplingMatrices->getSizeN();
 
     // Initialize right hand side vector
     double* tmpVec = new double[size_N]();
 
     // C_NR * x_slave = tmpVec
-    couplingMatrices->getCorrectCNR()->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, size_N);
+    couplingMatrices->getCnr()->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, size_N);
 
-    // Solve for the master field C_NN * x_master = tmpVec
-    couplingMatrices->getCorrectCNN()->solve(_masterField, tmpVec);
+    // Solve for the master field Cnn * x_master = tmpVec
+    couplingMatrices->getCnn()->solve(_masterField, tmpVec);
 
     // Compute the error in the relative L2-norm
-    if (errorComputation.isDomainError || errorComputation.isInterfaceError || errorComputation.isCurveError){
+    if (propErrorComputation.isErrorComputation){
         double errorL2Domain;
         double errorL2Interface[2];
         double errorL2Curve[2];
-        if(errorComputation.isDomainError)
+        if(propErrorComputation.isDomainError)
             errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
-        if(errorComputation.isInterfaceError)
+        if(propErrorComputation.isInterfaceError)
             if(isMappingIGA2FEM){
                 computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _slaveField);
             }else{
                 computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _masterField);
             }
-        if(errorComputation.isCurveError)
+        if(propErrorComputation.isCurveError)
             if(isMappingIGA2FEM){
                 computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _slaveField);
             }else{
@@ -2771,16 +2845,15 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
 void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_slaveField) {
     /*
      * Mapping of the
-     * f_slave = (C_NN^(-1) * C_NR)^T * f_master
+     * f_slave = (Cnn^(-1) * Cnr)^T * f_master
      */
-    int size_N = couplingMatrices->getCorrectSizeN();
-    int size_R = couplingMatrices->getCorrectSizeR();
+    int size_N = couplingMatrices->getSizeN();
 
     double* tmpVec = new double[size_N];
 
-    couplingMatrices->getCorrectCNN_conservative()->solve(tmpVec, const_cast<double *>(_masterField));
+    couplingMatrices->getCnn()->solve(tmpVec, const_cast<double *>(_masterField));
 
-    couplingMatrices->getCorrectCNR_conservative()->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
+    couplingMatrices->getCnr()->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
 
     delete[] tmpVec;
 }
@@ -2813,6 +2886,7 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     int noNodesFE;
     int noCPsIGA;
     int indexNode;
+    int indexDOF;
     int indexCP;
     int noCoord = 3;
 
@@ -3019,9 +3093,10 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
     int noDOFsJ;
     int indexCP;
     int indexDOF;
-    int facTangent;
-    int facNormal;
     int noCoord = 3;
+    double factorTangent;
+    double factorNormal;
+    double factorTwisting;
     double elementLengthOnGP;
     double basisFct;
     double BoperatorT;
@@ -3120,8 +3195,11 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
         }
 
         // Get the factors for the bending and the twisting rotation
-        facTangent = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ];
-        facNormal = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 1];
+        factorTangent = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ];
+        factorNormal = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 1];
+
+        // Get the factor on whether the twisting rotations are to be used
+        factorTwisting = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 2];
 
         // Compute the error vector for the displacements
         for(int iCoord = 0; iCoord < noCoord; iCoord++){
@@ -3131,8 +3209,8 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
         _errorL2Interface[0] += normErrorFieldSquare*elementLengthOnGP;
 
         // Compute the error in terms of the rotations
-        errorBendingRotation = omegaTI + facTangent*omegaTJ;
-        errorTwistingRotation = omegaNI + facNormal*omegaNJ;
+        errorBendingRotation = omegaTI + factorTangent*omegaTJ;
+        errorTwistingRotation = factorTwisting*(omegaNI + factorNormal*omegaNJ);
         normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
         _errorL2Interface[1] += normRotationSquare*elementLengthOnGP;
     }
@@ -3335,82 +3413,83 @@ void IGAMortarMapper::debugPolygon(const ListPolygon2D& _listPolygon, string _na
 
 void IGAMortarMapper::printCouplingMatrices() {
 
-    ERROR_OUT() << "C_NN" << endl;
-    couplingMatrices->getCorrectCNN()->printCSR();
-    ERROR_OUT() << "C_NR" << endl;
-    couplingMatrices->getCorrectCNR()->printCSR();
+    ERROR_OUT() << "Cnn" << endl;
+    couplingMatrices->getCnn()->printCSR();
+    ERROR_OUT() << "Cnr" << endl;
+    couplingMatrices->getCnr()->printCSR();
 }
 
 void IGAMortarMapper::writeCouplingMatricesToFile() {
     DEBUG_OUT()<<"### Printing matrices into file ###"<<endl;
-    DEBUG_OUT()<<"Size of C_NR is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
+    DEBUG_OUT()<<"Size of Cnr is "<<numNodesMaster<<" by "<<numNodesSlave<<endl;
     if(Message::isDebugMode()) {
-        couplingMatrices->getCorrectCNR()->printCSRToFile(name + "_Cnr.dat",1);
-        couplingMatrices->getCorrectCNN()->printCSRToFile(name + "_Cnn.dat",1);
+        couplingMatrices->getCnr()->printCSRToFile(name + "_Cnr.dat",1);
+        couplingMatrices->getCnn()->printCSRToFile(name + "_Cnn.dat",1);
     }
 }
 
-void IGAMortarMapper::checkConsistency() {
-    INFO_OUT()<<"Check Consistency"<<std::endl;
+void IGAMortarMapper::enforceConsistency() {
+    /*
+     * The function checks the consistency up to the specified tolerance when mapping a unit field and if the consistency up
+     * to the specified tolerance is violated then it is being enforced. In case after enforcing the consistency the mapping
+     * of a unit field still violates the specified consistency tolerance an error is asserted.
+     */
 
-    int size_N = couplingMatrices->getCorrectSizeN();
-    int size_R = couplingMatrices->getCorrectSizeR();
+    INFO_OUT() << "Checking consistency" << std::endl;
+
+    int size_N = couplingMatrices->getSizeN();
+    int size_R = couplingMatrices->getSizeR();
 
     double ones[size_R];
     for(int i = 0; i < size_R; i++) {
-        ones[i]=1.0;
+        ones[i] = 1.0;
     }
 
     double output[size_N];
-    this->consistentMapping(ones,output);
+    this->consistentMapping(ones, output);
 
     double norm = 0;
     vector<int> inconsistentDoF;
-
     for(int i = 0; i < size_N; i++) {
-        if(fabs(output[i] - 1) > 1e-2 && output[i] != 0)
+        if(fabs(output[i] - 1) > propConsistency.tolConsistency && output[i] != 0)
             inconsistentDoF.push_back(i);
         norm += output[i]*output[i];
     }
 
     // Replace badly conditioned row of Cnn by sum value of Cnr
     if(!inconsistentDoF.empty()) {
-        INFO_OUT() << "inconsistent DOF size = " << inconsistentDoF.size()<<std::endl;
+        INFO_OUT() << "Mapping found inconsistent up to specified tolerance" << std::endl;
+        INFO_OUT() << "inconsistent DOF size = " << inconsistentDoF.size() << std::endl;
+        INFO_OUT() << "Enforcing consistency" << std::endl;
         for(vector<int>::iterator it = inconsistentDoF.begin(); it != inconsistentDoF.end(); it++) {
-            if(!isIGAPatchContinuityConditions && !isIGAWeakDirichletCurveConditions) {
-                couplingMatrices->deleterow(*it);       // deleterow might not be working for the new coupling matrix datastructure
-                couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
-            }
-            else {
-                couplingMatrices->deleterow(*it); // deleterow might not be working for the new coupling matrix datastructure
-                couplingMatrices->addCNN_expandedValue(*it ,*it , couplingMatrices->getCorrectCNR()->getRowSum(*it));
-            }
+            couplingMatrices->deleterow(*it);       // deleterow might not be working for the new coupling matrix datastructure
+            couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCnr()->getRowSum(*it));
         }
 
-        couplingMatrices->factorizeCorrectCNN();
-        this->consistentMapping(ones,output);
+        couplingMatrices->factorizeCnn();
+        this->consistentMapping(ones, output);
         norm = 0;
 
         for(int i = 0; i < size_N; i++) {
             norm += output[i]*output[i];
         }
-    }
+    } else
+        INFO_OUT() << "Mapping found consistent up to specified tolerance" << std::endl;
 
     int denom = size_N - couplingMatrices->getIndexEmptyRowCnn().size();
 
     norm = sqrt(norm/denom);
 
-    DEBUG_OUT() << "### Check consistency ###"<<endl;
-    DEBUG_OUT() << "Norm of output field = "<< norm << endl;
-    if(fabs(norm - 1.0) > 1e-2) {
-        ERROR_OUT() << "Coupling not consistent !"<<endl;
-        ERROR_OUT() << "Coupling of unit field deviating from 1 of " << fabs(norm-1.0)<<endl;
+    DEBUG_OUT() << "Checking consistency after enforcement"<<endl;
+    DEBUG_OUT() << "Deviation from unit field : "<< fabs(norm - 1.0) << endl;
+    if(fabs(norm - 1.0) > propConsistency.tolConsistency) {
+        ERROR_OUT() << "Coupling matrices not consistent up to " << propConsistency.tolConsistency << "!"<<endl;
         exit(-1);
     }
 }
 
 void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCPrimaryField(double* _alphaPrim){
-    if( IgaWeakDirichletConditions.isCurveConditions ){
+    if( propWeakCurveDirichletConditions.isWeakCurveDirichletConditions ){
         for(int i = 0; i < noWeakIGADirichletCurveConditions; i++)
             _alphaPrim[i] = weakDirichletCCAlphaPrimary[i];
     }else{
@@ -3420,7 +3499,7 @@ void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCPrimaryField(double* 
 }
 
 void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCSecondaryFieldBending(double* _alphaSecBending){
-    if( IgaWeakDirichletConditions.isCurveConditions ){
+    if( propWeakCurveDirichletConditions.isWeakCurveDirichletConditions ){
         for(int i = 0; i < noWeakIGADirichletCurveConditions; i++)
             _alphaSecBending[i] = weakDirichletCCAlphaSecondaryBending[i];
     }else{
@@ -3430,7 +3509,7 @@ void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCSecondaryFieldBending
 }
 
 void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCSecondaryFieldTwisting(double* _alphaSecTwisting){
-    if( IgaWeakDirichletConditions.isCurveConditions ){
+    if( propWeakCurveDirichletConditions.isWeakCurveDirichletConditions ){
         for(int i = 0; i < noWeakIGADirichletCurveConditions; i++)
             _alphaSecTwisting[i] = weakDirichletCCAlphaSecondaryTwisting[i];
     }else{
@@ -3441,7 +3520,7 @@ void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCSecondaryFieldTwistin
 
 
 void IGAMortarMapper::getPenaltyParameterForPatchContinuityPrimaryField(double* _alphaPrim){
-    if(isIGAPatchContinuityConditions){
+    if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions){
         for(int i = 0; i < noWeakIGAPatchContinuityConditions; i++)
             _alphaPrim[i] = weakPatchContinuityAlphaPrimaryIJ[i];
     }else{
@@ -3451,7 +3530,7 @@ void IGAMortarMapper::getPenaltyParameterForPatchContinuityPrimaryField(double* 
 }
 
 void IGAMortarMapper::getPenaltyParameterForPatchContinuitySecondaryFieldBending(double* _alphaSecBending){
-    if(isIGAPatchContinuityConditions){
+    if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions){
         for(int i = 0; i < noWeakIGAPatchContinuityConditions; i++)
             _alphaSecBending[i] = weakPatchContinuityAlphaSecondaryBendingIJ[i];
     }else{
@@ -3461,7 +3540,7 @@ void IGAMortarMapper::getPenaltyParameterForPatchContinuitySecondaryFieldBending
 }
 
 void IGAMortarMapper::getPenaltyParameterForPatchContinuitySecondaryFieldTwisting(double* _alphaSecTwisting){
-    if(isIGAPatchContinuityConditions){
+    if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions){
         for(int i = 0; i < noWeakIGAPatchContinuityConditions; i++)
             _alphaSecTwisting[i] = weakPatchContinuityAlphaSecondaryTwistingIJ[i];
     }else{
@@ -3473,13 +3552,13 @@ void IGAMortarMapper::getPenaltyParameterForPatchContinuitySecondaryFieldTwistin
 void IGAMortarMapper::printErrorMessage(Message &message, double _errorL2Domain, double* _errorL2Curve, double* _errorL2Interface){
     message << std::endl;
     message() << "\t+" << "Mapping error: " << std::endl;
-    if(errorComputation.isDomainError)
+    if(propErrorComputation.isDomainError)
         message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << std::endl;
-    if(errorComputation.isCurveError){
+    if(propErrorComputation.isCurveError){
         message << "\t\t+" << '\t' << "L2 norm of the field along the Dirichlet boundary: " << _errorL2Curve[0] << std::endl;
         message << "\t\t+" << '\t' << "L2 norm of the field rotation along the Dirichlet boundary: " << _errorL2Curve[1] << std::endl;
     }
-    if(errorComputation.isInterfaceError){
+    if(propErrorComputation.isInterfaceError){
         message << "\t\t+" << '\t' << "L2 norm of the field interface jump: " << _errorL2Interface[0] << std::endl;
         message << "\t\t+" << '\t' << "L2 norm of the field rotation interface jump: " << _errorL2Interface[1] << std::endl;
     }
