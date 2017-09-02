@@ -542,7 +542,7 @@ void IGAMortarMapper::projectPointsToSurface() {
             WARNING_OUT()<<"Node not projected at first pass ["<<i<<"] of coordinates "<<meshFE->nodes[3*i]<<","<<meshFE->nodes[3*i+1]<<","<<meshFE->nodes[3*i+2]<<endl;
         }
     }
-    INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass." << endl;
+    INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass" << endl;
     double initialTolerance = propNewtonRaphson.tolProjection;
 
     // Second pass projection --> relax Newton-Rapshon tolerance and if still fails refine the sampling points for the Newton-Raphson initial guesses
@@ -576,7 +576,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
         if(missing) {
             stringstream msg;
-            msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass !" << endl;
+            msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass!" << endl;
             msg << "Treatment possibility 1." << endl;
             msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
             msg << "Treatment possibility 2." << endl;
@@ -1905,8 +1905,9 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double vGPMaster;
     double uGPSlave;
     double vGPSlave;
-    double condTangentTrCurveVct;
-    double condNormalTrCurveVct;
+    double phiTangents;
+    double phiNormals;
+    double condAligned;
     double factorTangent;
     double factorNormal;
     double factorTwisting;
@@ -2032,58 +2033,65 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                                                             patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
 
             // Determine the alignment of the tangent vectors from both patches at their common interface
-            condTangentTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
             normTangentTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctMaster);
             normTangentTrCurveVctMaster = sqrt(normTangentTrCurveVctMaster);
             normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
             normTangentTrCurveVctSlave = sqrt(normTangentTrCurveVctSlave);
-            condTangentTrCurveVct = condTangentTrCurveVct/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
+            phiTangents = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
+            phiTangents = phiTangents/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
 
             // Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
-            if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct) {
+            if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct)
                 continue;
-            }else if((normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave > tolVct) || (normTangentTrCurveVctMaster > tolVct && normTangentTrCurveVctSlave < tolVct)) {
+            else if((normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave > tolVct) || (normTangentTrCurveVctMaster > tolVct && normTangentTrCurveVctSlave < tolVct))
+                assert(false);
+
+            // Check if the tangent vectors are aligned and if not assert error
+            condAligned = phiTangents*phiTangents - 1;
+            if (abs(condAligned) > tolAngle) {
+                INFO_OUT() << "Found boundaries for which the tangent vectors are not aligned with angle = " << phiTangents << endl;
+            }
+            assert(abs(condAligned) < tolAngle);
+
+            // Check if the angle between the tangent vectors is 0° (have the same direction cos(phi) = 1) or 180° (have opposite directions cos(phi) = - 1) to formulate the interface constraint
+            if (abs(phiTangents - 1) < sqrt(tolAngle)) {
+                factorTangent = -1.0;
+            } else if (abs(phiTangents + 1) < sqrt(tolAngle)) {
+                factorTangent = 1.0;
+            } else {
                 assert(false);
             }
 
-            // Check if the tangent vectors are perpendicular to each other and if yes assert error
-            assert(abs(condTangentTrCurveVct) > tolAngle);
-
-            // Check if the angle between the tangent vectors is 0° (have the same direction) or 180° (have opposite directions) to formulate the interface constraint
-            if(condTangentTrCurveVct > tolAngle){
-                factorTangent = -1.0;
-            } else
-                factorTangent = 1.0;
-
             // Determine the alignment of the normal vectors from both patches at their common interface
-            condNormalTrCurveVct = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
             normNormalTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctMaster);
             normNormalTrCurveVctMaster = sqrt(normNormalTrCurveVctMaster);
             normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
             normNormalTrCurveVctSlave = sqrt(normNormalTrCurveVctSlave);
-            condNormalTrCurveVct = condNormalTrCurveVct/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
+            phiNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
+            phiNormals = phiTangents/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
 
             // Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
-            if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct) {
+            if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct)
                 continue;
-            }else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct)) {
+            else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct))
                 assert(false);
-            }
 
             // Check if the normal vectors are not aligned and in this case neglect the interface twisting rotation continuity condition
-//            if (!(abs(condNormalTrCurveVct) > tolAngle)){
-////                WARNING_OUT("Check for trimming curve normals does not comply with the criterion!");
-////                assert(abs(condNormalTrCurveVct) > tolAngle);
-//                factorTwisting = 0.0;
-//            } else
-//                factorTwisting = 1.0;
-            factorTwisting = 0.0;
+            condAligned = phiNormals*phiNormals - 1;
+            if (abs(condAligned) < tolAngle)
+                factorTwisting = 1.0;
+            else {
+                INFO_OUT() << "Found boundaries for which the normal vectors are not aligned with angle = " << phiNormals << endl;
+                factorTwisting = 0.0;
+            }
 
             // Check if the angle between the normal vectors is 0° (have the same direction) or 180° (have opposite directions) to formulate the interface constraint
-            if(condNormalTrCurveVct > tolAngle){
+            if (abs(phiNormals - 1) < sqrt(tolAngle))
                 factorNormal = -1.0;
-            } else
+            else if (abs(phiNormals + 1) < sqrt(tolAngle))
                 factorNormal = 1.0;
+            else
+                assert(false);
 
             // Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
