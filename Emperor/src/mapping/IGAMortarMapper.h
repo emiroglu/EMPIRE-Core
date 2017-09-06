@@ -203,6 +203,9 @@ private:
     struct propWeakCurveDirichletConditions {
         bool isWeakCurveDirichletConditions;
         bool isAutomaticPenaltyParameters;
+        bool isPrimPrescribed;
+        bool isSecBendingPrescribed;
+        bool isSecTwistingPrescribed;
         double alphaPrim;
         double alphaSecBending;
         double alphaSecTwisting;
@@ -212,6 +215,7 @@ private:
     struct propWeakSurfaceDirichletConditions {
         bool isWeakSurfaceDirichletConditions;
         bool isAutomaticPenaltyParameters;
+        bool isPrimPrescribed;
         bool alphaPrim;
     } propWeakSurfaceDirichletConditions;
 
@@ -219,6 +223,9 @@ private:
     struct propWeakPatchContinuityConditions {
         bool isWeakPatchContinuityConditions;
         bool isAutomaticPenaltyParameters;
+        bool isPrimCoupled;
+        bool isSecBendingCoupled;
+        bool isSecTwistingCoupled;
         double alphaPrim;
         double alphaSecBending;
         double alphaSecTwisting;
@@ -309,33 +316,42 @@ public:
      * \brief Set the parameters for the application of weak Dirichlet boundary conditions along trimming curves
      * \param[in] _isWeakCurveDirichletConditions Flag on the application of weak Dirichlet conditions along trimming curves
      * \param[in] _isAutomaticPenaltyParameters Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _isPrimPrescribed Flag on whether the primary field is prescribed along the trimming curves
+     * \param[in] _isSecBendingPrescribed Flag on whether the bending rotation of the primary field is prescribed along the trimming curves
+     * \param[in] _isSecTwistingPrescribed Flag on whether the twisting rotation of the primary field is prescribed along the trimming curves
      * \param[in] _alphaPrim Penalty parameter for the primary field
      * \param[in] _alphaSecBending Penalty parameter for the bending rotation of the primary field
      * \param[in] _alphaSecTwisting Penalty parameter for the twisting rotation of the primary field
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     void setParametersWeakCurveDirichletConditions(bool _isWeakCurveDirichletConditions = false, bool _isAutomaticPenaltyParameters = false,
+                                                   bool _isPrimPrescribed = false, bool _isSecBendingPrescribed = false, bool _isSecTwistingPrescribed = false,
                                                    double _alphaPrim = 0.0, double _alphaSecBending = 0.0, double _alphaSecTwisting = 0.0);
 
     /***********************************************************************************************
      * \brief Set the parameters for the application of weak Dirichlet boundary conditions across surfaces
      * \param[in] _isWeakSurfaceDirichletConditions Flag on the application of weak Dirichlet conditions across surfaces
      * \param[in] _isAutomaticPenaltyFactors Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _isPrimPrescribed Flag on whether the primary field is prescribed across surfaces
      * \param[in] _alphaPrim Penalty parameter for the primary field
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
     void setParametersWeakSurfaceDirichletConditions(bool _isWeakSurfaceDirichletConditions = false, bool _isAutomaticPenaltyParameters = false,
-                                                     double _alphaPrim = 0.0);
+                                                     bool _isPrimPrescribed = false, double _alphaPrim = 0.0);
 
     /***********************************************************************************************
      * \brief Set parameter for the application of weak continuity conditions across the multipatches
-     * \param[in] _isWeakCurveDirichletConditions Flag on the application of weak continuity conditions across the multipatches
+     * \param[in] _isWeakCurveDirichletConditions Flag on the application of weak continuity conditions between the multipatches
      * \param[in] _isAutomaticPenaltyFactors Flag on whether the Penalty parameters are automatically computed
+     * \param[in] _isPrimCoupled Flag on whether the primary fields are coupled between the multipatches
+     * \param[in] _isSecBendingCoupled Flag on whether the bending rotation of the primary fields is coupled between the multipatches
+     * \param[in] _isSecTwistingCoupled Flag on whether the twisting roation of the primary fields is coupled between the multipatches
      * \param[in] _alphaPrim Penalty parameter for the primary field
      * \param[in] _alphaSecBending Penalty parameter for the bending rotation of the primary field
      * \param[in] _alphaSecTwisting Penalty parameter for the twisting rotation of the primary field
      ***********/
     void setParametersWeakPatchContinuityConditions(bool _isWeakPatchContinuityConditions = false, bool _isAutomaticPenaltyParameters = false,
+                                                    bool _isPrimCoupled = false, bool _isSecBendingCoupled = false, bool _isSecTwistingCoupled = false,
                                                     double _alphaPrim = 0.0, double _alphaSecBending = 0.0, double _alphaSecTwisting = 0.0);
 
     /***********************************************************************************************
@@ -482,6 +498,7 @@ public:
      * \param[in/out] _BOperatorOmegaT Pointer to the B-operator matrix for the bending rotational field in the global Cartesian space
      * \param[in/out] _BOperatorOmegaN Pointer to the B-operator matrix for the twisting rotational field in the global Cartesian space
      * \param[in/out] _normalTrCurveVct Pointer to the normal to the trimming curve vector which is also tangent to the surface patch
+     * \param[in/out] _surfaceNormalVct Pointer to the surface normal vector
      * \param[in] _patch Pointer to the patch for which the B-operator matrices are computed
      * \param[in] _tangentTrCurveVct Pointer to the tangent along the trimming curve vector
      * \param[in] _u The u parametric coordinate of the curve in the surface parameter space
@@ -492,8 +509,9 @@ public:
      ***********/
     void computeDisplacementAndRotationBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
                                                          double* _BOperatorOmegaN, double* _normalTrCurveVct,
-                                                         IGAPatchSurface* _patch, double* _tangentTrCurveVct,
-                                                         double _u, double _v, int _uKnotSpan, int _vKnotSpan);
+                                                         double *_surfaceNormalVct, IGAPatchSurface* _patch,
+                                                         double* _tangentTrCurveVct, double _u, double _v,
+                                                         int _uKnotSpan, int _vKnotSpan);
 
     /***********************************************************************************************
      * \brief Compute and write the penalty factors for the primary and the secondary field for the weak Dirichlet curve conditions

@@ -75,13 +75,20 @@ public:
      * \param[in] _noGPQuad The number of Gauss points when performs integration on quadrilateral
      * \param[in] _isWeakCurveDirichletConditions Flag on whether weak Dirichlet conditions along trimming curves are assumed
      * \param[in] _isAutomaticPenaltyParametersWeakCurveDirichletConditions Flag on whether the Penalty parameters for the application of weak Dirichlet conditions along trimming curves is automatic
+     * \param[in] _isPrimPrescribedWeakCurveDirichletConditions Flag on whether the primary field is prescribed along the trimming curves
+     * \param[in] _isSecBendingPrescribedWeakCurveDirichletConditions Flag on whether the bending rotation of the primary field is prescribed along the trimming curves
+     * \param[in] _isSecTwistingPrescribedWeakCurveDirichletConditions Flag on whether the twisting rotation of the primary field is prescribed along the trimming curves
      * \param[in] _alphaPrimWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the primary field condition
      * \param[in] _alphaSecBendingWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the bending rotation of the primary field condition
      * \param[in] _alphaSecTwistingWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition along trimming curves based on the twisting rotation of the primary field condition
-     * \param[in] _isWeakSurfaceDirichletConditions Flag on whether weak Dirichlet conditions across a surface
+     * \param[in] _isWeakSurfaceDirichletConditions Flag on whether weak Dirichlet conditions across a surface are assumed
+     * \param[in] _isPrimPrescribedWeakSurfaceDirichletConditions Flag on whether the primary field is prescribed along a surface
      * \param[in] _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions Flag on whether the Penalty parameters for the application of weak Dirichlet conditions across a surface is automatic
      * \param[in] _alphaPrimWeakCurveDirichletConditions Penalty parameter for the application of Dirichlet condition across a surface based on the primary field condition
      * \param[in] _isWeakPatchContinuityConditions Flag on whether across patch continuity conditions are assumed
+     * \param[in] _isPrimCoupledWeakContinuityConditions Flag on whether the primary field is coupled between multipatches
+     * \param[in] _isSecBendingCoupledWeakContinuityConditions Flag on whether the bending rotation of the primary field is coupled between multipatches
+     * \param[in] _isSecTwistingCoupledWeakContinuityConditions Flag on whether the twisting rotation of the primary field is coupled between multipatches
      * \param[in] _isAutomaticPenaltyParametersWeakContinuityConditions Flag on whether the Penalty parameters for the weak enforcement of the continuity conditions across the patches are automatically computed
      * \param[in] _alphaPrimWeakContinuityConditions Penalty parameter for the continuity of the field across the patches
      * \param[in] _alphaSecBendingWeakContinuityConditions Penalty parameter for the continuity of the bending rotation of the field across the patches
@@ -99,9 +106,9 @@ public:
                              int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
                              int _noIterationsBisection, double _tolProjectionBisection,
                              int _noGPTriangle, int _noGPQuad,
-                             bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
-                             bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
-                             bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
+                             bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, bool _isPrimPrescribedWeakCurveDirichletConditions, bool _isSecBendingPrescribedWeakCurveDirichletConditions, bool _isSecTwistingPrescribedWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
+                             bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, bool _isPrimPrescribedWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
+                             bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, bool _isPrimCoupledWeakContinuityConditions, bool _isSecBendingCoupledWeakContinuityConditions, bool _isSecTwistingCoupledWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
                              bool _isStrongCurveDirichletConditions,
                              bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError);
 

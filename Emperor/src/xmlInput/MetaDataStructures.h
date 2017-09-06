@@ -134,18 +134,26 @@ struct structMapper {
         struct propWeakCurveDirichletConditions {
                 bool isWeakCurveDirichletConditions;
                 bool isAutomaticPenaltyParameters;
+                bool isPrimPrescribed;
+                bool isSecBendingPrescribed;
+                bool isSecTwistingPrescribed;
                 double alphaPrim;
                 double alphaSecBending;
                 double alphaSecTwisting;
         } propWeakCurveDirichletConditions;
         struct propWeakSurfaceDirichletConditions {
             bool isWeakSurfaceDirichletConditions;
+            bool isPrimPrescribed;
+            bool isSecBendingPrescribed;
             bool isAutomaticPenaltyParameters;
             double alphaPrim;
         } propWeakSurfaceDirichletConditions;
         struct propWeakPatchContinuityConditions {
                 bool isWeakPatchContinuityConditions;
                 bool isAutomaticPenaltyParameters;
+                bool isPrimCoupled;
+                bool isSecBendingCoupled;
+                bool isSecTwistingCoupled;
                 double alphaPrim;
                 double alphaSecBending;
                 double alphaSecTwisting;

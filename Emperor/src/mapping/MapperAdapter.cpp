@@ -93,9 +93,9 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
                                         int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
                                         int _noIterationsBisection, double _tolProjectionBisection,
                                         int _noGPTriangle, int _noGPQuad,
-                                        bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
-                                        bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
-                                        bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
+                                        bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, bool _isPrimPrescribedWeakCurveDirichletConditions, bool _isSecBendingPrescribedWeakCurveDirichletConditions, bool _isSecTwistingPrescribedWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
+                                        bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, bool _isPrimPrescribedWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
+                                        bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, bool _isPrimCoupledWeakContinuityConditions, bool _isSecBendingCoupledWeakContinuityConditions, bool _isSecTwistingCoupledWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
                                         bool _isStrongCurveDirichletConditions,
                                         bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError) {
     bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
@@ -146,13 +146,15 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
     mapper->setParametersBisection(_noIterationsBisection, _tolProjectionBisection);
     mapper->setParametersIntegration(_noGPTriangle,_noGPQuad);
     mapper->setParametersWeakCurveDirichletConditions(_isWeakCurveDirichletConditions, _isAutomaticPenaltyParametersWeakCurveDirichletConditions,
-                                                      _alphaPrimWeakCurveDirichletConditions, _alphaSecBendingWeakCurveDirichletConditions,
-                                                      _alphaSecTwistingWeakCurveDirichletConditions);
+                                                      _isPrimPrescribedWeakCurveDirichletConditions, _isSecBendingPrescribedWeakCurveDirichletConditions,
+                                                      _isSecTwistingPrescribedWeakCurveDirichletConditions, _alphaPrimWeakCurveDirichletConditions,
+                                                      _alphaSecBendingWeakCurveDirichletConditions, _alphaSecTwistingWeakCurveDirichletConditions);
     mapper->setParametersWeakSurfaceDirichletConditions(_isWeakSurfaceDirichletConditions, _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions,
-                                                        _alphaPrimWeakSurfaceDirichletConditions);
+                                                        _isPrimPrescribedWeakSurfaceDirichletConditions, _alphaPrimWeakSurfaceDirichletConditions);
     mapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, _isAutomaticPenaltyParametersWeakContinuityConditions,
-                                                       _alphaPrimWeakContinuityConditions, _alphaSecBendingWeakContinuityConditions,
-                                                       _alphaSecTwistingWeakContinuityConditions);
+                                                       _isPrimCoupledWeakContinuityConditions, _isSecBendingCoupledWeakContinuityConditions,
+                                                       _isSecTwistingCoupledWeakContinuityConditions, _alphaPrimWeakContinuityConditions,
+                                                       _alphaSecBendingWeakContinuityConditions, _alphaSecTwistingWeakContinuityConditions);
     mapper->setParametersStrongCurveDirichletConditions(_isStrongCurveDirichletConditions);
     mapper->setParametersErrorComputation(_isErrorComputation, _isDomainError, _isCurveError, _isInterfaceError);
     mapper->buildCouplingMatrices();

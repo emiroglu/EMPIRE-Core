@@ -1309,6 +1309,8 @@ public:
         double tangentTrCurveVctSlave[noCoord];
         double normalTrCurveVctMaster[noCoord];
         double normalTrCurveVctSlave[noCoord];
+        double surfaceNormalVctMaster[noCoord];
+        double surfaceNormalVctSlave[noCoord];
 
         // Initialize pointers
         double* trCurveMasterGPs;
@@ -1470,7 +1472,8 @@ public:
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
             theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
-                                                                       patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
+                                                                       surfaceNormalVctMaster, patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster,
+                                                                       vKnotSpanMaster);
 
             // Compare the computed values against the expected ones for the master patch
             for(int i = 0; i < noCoord*noDOFsLocMaster; i++){
@@ -1483,7 +1486,8 @@ public:
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
             theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
-                                                                       patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
+                                                                       surfaceNormalVctSlave, patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave,
+                                                                       vKnotSpanSlave);
 
             // Compare the computed values against the expected ones for the slave patch
             for(int i = 0; i < noCoord*noDOFsLocSlave; i++){
@@ -1869,6 +1873,8 @@ public:
         double tangentTrCurveVctSlave[noCoord];
         double normalTrCurveVctMaster[noCoord];
         double normalTrCurveVctSlave[noCoord];
+        double surfaceNormaVctMaster[noCoord];
+        double surfaceNormaVctSlave[noCoord];
 
         // Initialize pointers
         double* trCurveMasterGPs;
@@ -1956,11 +1962,13 @@ public:
 
                 // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
                 theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
-                                                                           patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
+                                                                           surfaceNormaVctMaster, patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster,
+                                                                           vKnotSpanMaster);
 
                 // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
                 theMapper->computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
-                                                                           patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
+                                                                           surfaceNormaVctSlave, patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave,
+                                                                           vKnotSpanSlave);
             }
 
         // Delete pointers

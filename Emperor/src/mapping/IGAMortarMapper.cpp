@@ -174,25 +174,34 @@ void IGAMortarMapper::setParametersIntegration(int _noGPTriangle, int _noGPQuad)
 }
 
 void IGAMortarMapper::setParametersWeakCurveDirichletConditions(bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParameters,
+                                                                bool _isPrimPrescribed, bool _isSecBendingPrescribed, bool _isSecTwistingPrescribed,
                                                                 double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting) {
     propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = _isWeakCurveDirichletConditions;
     propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakCurveDirichletConditions.isPrimPrescribed = _isPrimPrescribed;
+    propWeakCurveDirichletConditions.isSecBendingPrescribed = _isSecBendingPrescribed;
+    propWeakCurveDirichletConditions.isSecTwistingPrescribed = _isSecTwistingPrescribed;
     propWeakCurveDirichletConditions.alphaPrim = _alphaPrim;
     propWeakCurveDirichletConditions.alphaSecBending = _alphaSecBending;
     propWeakCurveDirichletConditions.alphaSecTwisting = _alphaSecTwisting;
 }
 
 void IGAMortarMapper::setParametersWeakSurfaceDirichletConditions(bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParameters,
-                                                                  double _alphaPrim) {
+                                                                  bool _isPrimPrescribed, double _alphaPrim) {
     propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = _isWeakSurfaceDirichletConditions;
     propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakSurfaceDirichletConditions.isPrimPrescribed = _isPrimPrescribed;
     propWeakSurfaceDirichletConditions.alphaPrim = _alphaPrim;
 }
 
 void IGAMortarMapper::setParametersWeakPatchContinuityConditions(bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParameters,
+                                                                 bool _isPrimCoupled, bool _isSecBendingCoupled, bool _isSecTwistingCoupled,
                                                                  double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting) {
     propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = _isWeakPatchContinuityConditions;
     propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = _isAutomaticPenaltyParameters;
+    propWeakPatchContinuityConditions.isPrimCoupled = _isPrimCoupled;
+    propWeakPatchContinuityConditions.isSecBendingCoupled = _isSecBendingCoupled;
+    propWeakPatchContinuityConditions.isSecTwistingCoupled = _isSecTwistingCoupled;
     propWeakPatchContinuityConditions.alphaPrim = _alphaPrim;
     propWeakPatchContinuityConditions.alphaSecBending = _alphaSecBending;
     propWeakPatchContinuityConditions.alphaSecTwisting = _alphaSecTwisting;
@@ -1566,6 +1575,7 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
     double vGP;
     double tangentCurveVct[noCoord];
     double normalCurveVct[noCoord];
+    double surfaceNormalVct[noCoord];
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -1644,16 +1654,19 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
 
             // Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
-                                                                thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+                                                            surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
             // Compute the dual product matrices for the displacements
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
+            if (propWeakCurveDirichletConditions.isPrimPrescribed)
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
             // Compute the dual product matrices for the bending rotations
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
+            if (propWeakCurveDirichletConditions.isSecBendingPrescribed)
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
 
             // Compute the dual product matrices for the twisting rotations
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
+            if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
 
             // Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
@@ -1674,13 +1687,16 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
             for(int i = 0; i < noDOFsLoc; i++){
                 for(int j = 0; j < noDOFsLoc; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
+                    if (propWeakCurveDirichletConditions.isPrimPrescribed)
+                        couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryBending*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                    if (propWeakCurveDirichletConditions.isSecBendingPrescribed)
+                        couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryBending*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryTwisting*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
+                    if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
+                        couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryTwisting*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
                 }
             }
 
@@ -1758,6 +1774,7 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
     double vGP;
     double tangentCurveVct[noCoord] = {0,0,0};
     double normalCurveVct[noCoord];
+    double surfaceNormalVct[noCoord];
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -1826,10 +1843,11 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
 
             // Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
-                                                                thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+                                                            surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
             // Compute the dual product matrices for the displacements
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
+            if (propWeakSurfaceDirichletConditions.isPrimPrescribed)
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
             // Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
@@ -1847,12 +1865,13 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
             }
 
             // Assemble KPenaltyDisplacement to the global coupling matrix CNN
-            for(int i = 0; i < noDOFsLoc; i++){
-                for(int j = 0; j < noDOFsLoc; j++){
-                    // Assemble the displacement coupling entries
-                    couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*jacobianOnGP);
+            if (propWeakSurfaceDirichletConditions.isPrimPrescribed)
+                for(int i = 0; i < noDOFsLoc; i++){
+                    for(int j = 0; j < noDOFsLoc; j++){
+                        // Assemble the displacement coupling entries
+                        couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*jacobianOnGP);
+                    }
                 }
-            }
 
             //// TODO
             // Store the GP data into array for later usage in the error computation
@@ -1905,20 +1924,24 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double vGPMaster;
     double uGPSlave;
     double vGPSlave;
-    double phiTangents;
-    double phiNormals;
+    double cosPhiTangents;
+    double cosPhiNormals;
+    double cosPhiSurfaceNormals;
     double condAligned;
     double factorTangent;
     double factorNormal;
-    double factorTwisting;
     double tangentTrCurveVctMaster[noCoord];
     double tangentTrCurveVctSlave[noCoord];
     double normalTrCurveVctMaster[noCoord];
     double normalTrCurveVctSlave[noCoord];
+    double surfaceNormalVctMaster[noCoord];
+    double surfaceNormalVctSlave[noCoord];
     double normTangentTrCurveVctMaster;
     double normTangentTrCurveVctSlave;
     double normNormalTrCurveVctMaster;
     double normNormalTrCurveVctSlave;
+    double normSurfaceNormalVctMaster;
+    double normSurfaceNormalVctSlave;
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -2026,19 +2049,29 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
-                                                            patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster, vKnotSpanMaster);
+                                                            surfaceNormalVctMaster, patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster,
+                                                            vKnotSpanMaster);
 
             // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
-                                                            patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave, vKnotSpanSlave);
+                                                            surfaceNormalVctSlave, patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave,
+                                                            vKnotSpanSlave);
+
+            // Compute the angle of the surface normal vectors
+            normSurfaceNormalVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctMaster, surfaceNormalVctMaster);
+            normSurfaceNormalVctMaster = sqrt(normSurfaceNormalVctMaster);
+            normSurfaceNormalVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctSlave, surfaceNormalVctSlave);
+            normSurfaceNormalVctSlave = sqrt(normSurfaceNormalVctSlave);
+            cosPhiSurfaceNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctMaster, surfaceNormalVctSlave);
+            cosPhiSurfaceNormals = cosPhiSurfaceNormals/(normSurfaceNormalVctMaster*normSurfaceNormalVctSlave);
 
             // Determine the alignment of the tangent vectors from both patches at their common interface
             normTangentTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctMaster);
             normTangentTrCurveVctMaster = sqrt(normTangentTrCurveVctMaster);
             normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
             normTangentTrCurveVctSlave = sqrt(normTangentTrCurveVctSlave);
-            phiTangents = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
-            phiTangents = phiTangents/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
+            cosPhiTangents = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
+            cosPhiTangents = cosPhiTangents/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
 
             // Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct)
@@ -2047,17 +2080,17 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 assert(false);
 
             // Check if the tangent vectors are aligned and if not assert error
-            condAligned = phiTangents*phiTangents - 1;
+            condAligned = cosPhiTangents*cosPhiTangents - 1;
             if (abs(condAligned) > tolAngle) {
-                INFO_OUT() << "Found boundaries for which the tangent vectors are not aligned with angle = " << phiTangents << endl;
+                INFO_OUT() << "Found boundaries for which the tangent vectors are not aligned with angle = " << cosPhiTangents << endl;
             }
             assert(abs(condAligned) < tolAngle);
 
             // Check if the angle between the tangent vectors is 0° (have the same direction cos(phi) = 1) or 180° (have opposite directions cos(phi) = - 1) to formulate the interface constraint
-            if (abs(phiTangents - 1) < sqrt(tolAngle)) {
-                factorTangent = -1.0;
-            } else if (abs(phiTangents + 1) < sqrt(tolAngle)) {
-                factorTangent = 1.0;
+            if (abs(cosPhiTangents - 1) < sqrt(tolAngle)) {
+                factorTangent = - 1.0;
+            } else if (abs(cosPhiTangents + 1) < sqrt(tolAngle)) {
+                factorTangent = + 1.0;
             } else {
                 assert(false);
             }
@@ -2067,8 +2100,8 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             normNormalTrCurveVctMaster = sqrt(normNormalTrCurveVctMaster);
             normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
             normNormalTrCurveVctSlave = sqrt(normNormalTrCurveVctSlave);
-            phiNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
-            phiNormals = phiTangents/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
+            cosPhiNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
+            cosPhiNormals = cosPhiTangents/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
 
             // Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct)
@@ -2076,37 +2109,39 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct))
                 assert(false);
 
-            // Check if the normal vectors are not aligned and in this case neglect the interface twisting rotation continuity condition
-            condAligned = phiNormals*phiNormals - 1;
-            if (abs(condAligned) < tolAngle)
-                factorTwisting = 1.0;
-            else {
-                INFO_OUT() << "Found boundaries for which the normal vectors are not aligned with angle = " << phiNormals << endl;
-                factorTwisting = 0.0;
+            // Check if the boundary normal vectors have an angle of [0,90]U[270,360] meaning the the vectors are in the positive quadrant or [90,270] meaning that the vectors are in the negative quadrant
+            if (cosPhiNormals >= 0)
+                factorNormal = + 1.0;
+            else
+                factorNormal = - 1.0;
+
+            // Check whether the surface normal vectors have an angle of [0,90]U[270,360] meaning the the patches have the same normal orientation or [90,270] meaning that the patches have opossite normal orientation
+            if (cosPhiSurfaceNormals < 0) {
+                factorTangent = (-1)*factorTangent;
+                factorNormal = (-1)*factorNormal;
             }
 
-            // Check if the angle between the normal vectors is 0° (have the same direction) or 180° (have opposite directions) to formulate the interface constraint
-            if (abs(phiNormals - 1) < sqrt(tolAngle))
-                factorNormal = -1.0;
-            else if (abs(phiNormals + 1) < sqrt(tolAngle))
-                factorNormal = 1.0;
-            else
-                assert(false);
 
             // Compute the dual product matrices for the displacements
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
+            if (propWeakPatchContinuityConditions.isPrimCoupled) {
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
+            }
 
             // Compute the dual product matrices for the bending rotations
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
+            if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
+            }
 
             // Compute the dual product matrices for the twisting rotations
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
-            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
+            if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
+                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
+            }
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -2139,13 +2174,16 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocMaster; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isPrimCoupled)
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryBending*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecBendingCoupled)
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryBending*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], factorTwisting*alphaSecondaryTwisting*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryTwisting*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
@@ -2153,13 +2191,16 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocSlave; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++) {
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isPrimCoupled)
+                        couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryBending*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecBendingCoupled)
+                        couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryBending*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], factorTwisting*alphaSecondaryTwisting*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
+                        couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryTwisting*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
@@ -2167,16 +2208,22 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++){
                     // Assemble the displacement coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isPrimCoupled) {
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                        couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    }
 
                     // Assemble the bending rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                        couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    }
 
                     // Assemble the twisting rotation coupling entries
-                    couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], factorTwisting*alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
-                    couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], factorTwisting*alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
+                        couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                        couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
+                    }
                 }
             }
 
@@ -2185,7 +2232,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 // Initialize variable storing the Gauss Point data
                 std::vector<double> streamInterfaceGP;
 
-                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...) + factorTangent + factorNormal + factorTwisting
+                // elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...) + factorTangent + factorNormal
                 streamInterfaceGP.reserve(1 + 1 + 2*noLocalBasisFctsMaster + 3*noDOFsLocMaster + 1 + 2*noLocalBasisFctsSlave + 3*noDOFsLocSlave + 1 + 1);
 
                 // Save the element length on the Gauss Point
@@ -2228,7 +2275,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 // Save the factors
                 streamInterfaceGP.push_back(factorTangent);
                 streamInterfaceGP.push_back(factorNormal);
-                streamInterfaceGP.push_back(factorTwisting);
 
                 // Push back the Gauss Point values into the member variable
                 streamInterfaceGPs.push_back(streamInterfaceGP);
@@ -2256,11 +2302,12 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
 void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _BDisplacementsGC, double* _BOperatorOmegaT,
                                                                       double* _BOperatorOmegaN, double* _normalTrCurveVct,
-                                                                      IGAPatchSurface* _patch, double* _tangentTrCurveVct,
-                                                                      double _u, double _v, int _uKnotSpan, int _vKnotSpan) {
+                                                                      double* _surfaceNormalVct, IGAPatchSurface* _patch,
+                                                                      double* _tangentTrCurveVct, double _u, double _v,
+                                                                      int _uKnotSpan, int _vKnotSpan) {
     /*
      * Returns the B-operator matrix for the displacement field, the bending and the twisting rotations in the global Cartesian space.
-     * Additionally the normal to the boundary vector which is tangent to the surface patch is returned.
+     * Additionally the normal to the boundary vector which is tangent to the surface patch and the surace normal vector are returned.
      *
      * Hints on the size of the [in/out] arrays:
      *
@@ -2275,7 +2322,6 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     const int noParametricCoord = 2;
 
     // Initialize varying array sizes
-    double surfaceNormalVct[noCoord];
     double tangentTrCurveVctCov[noCoord];
     double normalTrCurveVctCov[noCoord];
     double surfNormalVctAndDervs[3*noCoord];
@@ -2329,9 +2375,9 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
 
     // Compute the normal to the boundary vector which is tangent to the surface
     for(int i = 0; i < noCoord; i++){
-        surfaceNormalVct[i] = surfNormalVctAndDervs[i];
+        _surfaceNormalVct[i] = surfNormalVctAndDervs[i];
     }
-    EMPIRE::MathLibrary::computeVectorCrossProduct(surfaceNormalVct, _tangentTrCurveVct, _normalTrCurveVct);
+    EMPIRE::MathLibrary::computeVectorCrossProduct(_surfaceNormalVct, _tangentTrCurveVct, _normalTrCurveVct);
 
     // Compute the covariant metric tensor
     _patch->computeCovariantMetricTensor(covariantMetricTensor, baseVctsAndDerivs, derivDegreeBaseVec);
@@ -2371,15 +2417,15 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     }
 
     // Compute the curvature tensor in the contravariant basis
-    _patch->computeContravariantCurvatureTensor(contravariantCurvatureTensor, surfaceNormalVct, baseVctsAndDerivs, derivDegreeBaseVec);
+    _patch->computeContravariantCurvatureTensor(contravariantCurvatureTensor, _surfaceNormalVct, baseVctsAndDerivs, derivDegreeBaseVec);
 
     // Compute the B-operator matrices for the rotation vector
     for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             dT3Cov2GC[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervs[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
     EMPIRE::MathLibrary::computeMatrixProduct(noParametricCoord, noCoord, noDOFsLoc, dT3Cov2GC, _BDisplacementsGC, commonBOperator1);
-    EMPIRE::MathLibrary::computeMatrixProduct(1, noCoord, noDOFsLoc, surfaceNormalVct, BdDisplacementsdUGC, commonBOperator2Part1);
-    EMPIRE::MathLibrary::computeMatrixProduct(1, noCoord, noDOFsLoc, surfaceNormalVct, BdDisplacementsdVGC, commonBOperator2Part2);
+    EMPIRE::MathLibrary::computeMatrixProduct(1, noCoord, noDOFsLoc, _surfaceNormalVct, BdDisplacementsdUGC, commonBOperator2Part1);
+    EMPIRE::MathLibrary::computeMatrixProduct(1, noCoord, noDOFsLoc, _surfaceNormalVct, BdDisplacementsdVGC, commonBOperator2Part2);
     for (int iDOFs = 0; iDOFs < noDOFsLoc; iDOFs++){
         commonBOperator2[0*noDOFsLoc + iDOFs] = commonBOperator2Part1[iDOFs];
         commonBOperator2[1*noDOFsLoc + iDOFs] = commonBOperator2Part2[iDOFs];
@@ -2861,7 +2907,7 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
 
     couplingMatrices->getCnn()->solve(tmpVec, const_cast<double *>(_masterField));
 
-    couplingMatrices->getCnr()->transposeMulitplyVec(tmpVec, _slaveField, numNodesMaster);
+    couplingMatrices->getCnr()->transposeMulitplyVec(tmpVec, _slaveField, size_N);
 
     delete[] tmpVec;
 }
@@ -3104,7 +3150,6 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
     int noCoord = 3;
     double factorTangent;
     double factorNormal;
-    double factorTwisting;
     double elementLengthOnGP;
     double basisFct;
     double BoperatorT;
@@ -3206,9 +3251,6 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
         factorTangent = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ];
         factorNormal = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 1];
 
-        // Get the factor on whether the twisting rotations are to be used
-        factorTwisting = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 2];
-
         // Compute the error vector for the displacements
         for(int iCoord = 0; iCoord < noCoord; iCoord++){
             errorField[iCoord] = fieldI[iCoord] - fieldJ[iCoord];
@@ -3218,7 +3260,7 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
 
         // Compute the error in terms of the rotations
         errorBendingRotation = omegaTI + factorTangent*omegaTJ;
-        errorTwistingRotation = factorTwisting*(omegaNI + factorNormal*omegaNJ);
+        errorTwistingRotation = omegaNI + factorNormal*omegaNJ;
         normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
         _errorL2Interface[1] += normRotationSquare*elementLengthOnGP;
     }

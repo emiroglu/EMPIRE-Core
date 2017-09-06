@@ -326,7 +326,7 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.type = EMPIRE_IGAMortarMapper;
             ticpp::Element *xmlIGAMortar = xmlMapper->FirstChildElement("IGAMortarMapper");
             assert(xmlIGAMortar != NULL);
-            ticpp::Element *xmlConsistency = xmlIGAMortar->FirstChildElement("propConsistency",
+            ticpp::Element *xmlConsistency = xmlIGAMortar->FirstChildElement("consistency",
                     false);
             if (xmlConsistency != NULL) {
                 if (xmlConsistency->GetAttribute<string>("enforceConsistency") == "true")
@@ -343,7 +343,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propConsistency.tolConsistency = 0.0;
             }
 
-            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("propProjection",
+            ticpp::Element *xmlProjection = xmlIGAMortar->FirstChildElement("surfaceProjection",
                     false);
             if (xmlProjection != NULL) {
                 mapper.IGAMortarMapper.propProjection.maxProjectionDistance =
@@ -359,7 +359,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         1e-3;
             }
-            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("propNewtonRaphson",
+            ticpp::Element *xmlNewtonRaphson = xmlIGAMortar->FirstChildElement("newtonRaphsonSurface",
                     false);
             if (xmlNewtonRaphson != NULL) {
                 mapper.IGAMortarMapper.propNewtonRaphson.noIterations =
@@ -370,8 +370,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propNewtonRaphson.noIterations = 20;
                 mapper.IGAMortarMapper.propNewtonRaphson.tolProjection = 1e-9;
             }
-            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement(
-                    "propNewtonRaphsonBoundary", false);
+            ticpp::Element *xmlNewtonRaphsonBoundary = xmlIGAMortar->FirstChildElement("newtonRaphsonBoundary", false);
             if (xmlNewtonRaphsonBoundary != NULL) {
                 mapper.IGAMortarMapper.propNewtonRaphsonBoundary.noIterations =
                         xmlNewtonRaphsonBoundary->GetAttribute<int>("noIterations");
@@ -381,7 +380,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propNewtonRaphsonBoundary.noIterations = 20;
                 mapper.IGAMortarMapper.propNewtonRaphsonBoundary.tolProjection = 1e-9;
             }
-            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("propBisection", false);
+            ticpp::Element *xmlBisection = xmlIGAMortar->FirstChildElement("bisectionBoundary", false);
             if (xmlBisection != NULL) {
                 mapper.IGAMortarMapper.propBisection.noIterations =
                         xmlBisection->GetAttribute<int>("noIterations");
@@ -391,7 +390,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propBisection.noIterations = 40;
                 mapper.IGAMortarMapper.propBisection.tolProjection = 1e-6;
             }
-            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("propIntegration", false);
+            ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration", false);
             if (xmlIntegration != NULL) {
                 mapper.IGAMortarMapper.propIntegration.noGPTriangle =
                         xmlIntegration->GetAttribute<int>("noGPTriangle");
@@ -401,7 +400,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGAMortarMapper.propIntegration.noGPTriangle = 16;
                 mapper.IGAMortarMapper.propIntegration.noGPQuad = 25;
             }
-            ticpp::Element *xmlWeakCurveDirichletConditions = xmlIGAMortar->FirstChildElement("propWeakCurveDirichletConditions", false);
+            ticpp::Element *xmlWeakCurveDirichletConditions = xmlIGAMortar->FirstChildElement("weakCurveDirichletConditions", false);
             if (xmlWeakCurveDirichletConditions != NULL) {
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = true;
                 if (xmlWeakCurveDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
@@ -410,20 +409,44 @@ void MetaDatabase::fillSettingMapperVec() {
                     mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = false;
                 else
                     assert(false);
-                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim =
-                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaPrim");
-                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending =
-                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecBending");
-                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting =
-                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecTwisting");
+                if (xmlWeakCurveDirichletConditions->HasAttribute("alphaPrim")) {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isPrimPrescribed = true;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim =
+                            xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaPrim");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isPrimPrescribed = false;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim = 0.0;
+                }
+                if (xmlWeakCurveDirichletConditions->HasAttribute("alphaSecBending")) {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecBendingPrescribed = true;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending =
+                            xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecBending");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecBendingPrescribed = false;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending = 0.0;
+                }
+                if (xmlWeakCurveDirichletConditions->HasAttribute("alphaSecTwisting")) {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecTwistingPrescribed = true;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting =
+                            xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaSecTwisting");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecTwistingPrescribed = false;
+                    mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting = 0.0;
+                }
             } else {
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isWeakCurveDirichletConditions = false;
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isPrimPrescribed = false;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecBendingPrescribed = false;
+                mapper.IGAMortarMapper.propWeakCurveDirichletConditions.isSecTwistingPrescribed = false;
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaPrim = 0.0;
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecBending = 0.0;
                 mapper.IGAMortarMapper.propWeakCurveDirichletConditions.alphaSecTwisting = 0.0;
             }
-            ticpp::Element *xmlWeakSurfaceDirichletConditions = xmlIGAMortar->FirstChildElement("propWeakSurfaceDirichletConditions", false);
+            ticpp::Element *xmlWeakSurfaceDirichletConditions = xmlIGAMortar->FirstChildElement("weakSurfaceDirichletConditions", false);
             if (xmlWeakSurfaceDirichletConditions != NULL) {
                 mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = true;
                 if (xmlWeakSurfaceDirichletConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
@@ -432,14 +455,22 @@ void MetaDatabase::fillSettingMapperVec() {
                     mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = false;
                 else
                     assert(false);
-                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim =
-                        xmlWeakCurveDirichletConditions->GetAttribute<double>("alphaPrim");
+                if (xmlWeakSurfaceDirichletConditions->HasAttribute("alphaPrim")) {
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isPrimPrescribed = true;
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim =
+                            xmlWeakSurfaceDirichletConditions->GetAttribute<double>("alphaPrim");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isPrimPrescribed = false;
+                    mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim = 0.0;
+                }
             } else {
                 mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions = false;
                 mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.isPrimPrescribed = false;
                 mapper.IGAMortarMapper.propWeakSurfaceDirichletConditions.alphaPrim = 0.0;
             }
-            ticpp::Element *xmlWeakPatchConinuityConditions = xmlIGAMortar->FirstChildElement("propWeakPatchContinuityConditions", false);
+            ticpp::Element *xmlWeakPatchConinuityConditions = xmlIGAMortar->FirstChildElement("weakPatchContinuityConditions", false);
             if (xmlWeakPatchConinuityConditions != NULL) {
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = true;
                 if (xmlWeakPatchConinuityConditions->GetAttribute<string>("isAutomaticPenaltyParameters") == "true")
@@ -448,28 +479,51 @@ void MetaDatabase::fillSettingMapperVec() {
                     mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = false;
                 else
                     assert(false);
-                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim =
-                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaPrim");
-                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending =
-                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecBending");
-                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting =
-                        xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecTwisting");
+                if (xmlWeakPatchConinuityConditions->HasAttribute("alphaPrim")) {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isPrimCoupled = true;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim =
+                            xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaPrim");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isPrimCoupled = false;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim = 0.0;
+                }
+                if (xmlWeakPatchConinuityConditions->HasAttribute("alphaSecBending")) {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecBendingCoupled = true;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending =
+                            xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecBending");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecBendingCoupled = false;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending = 0.0;
+                }
+                if (xmlWeakPatchConinuityConditions->HasAttribute("alphaSecTwisting")) {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecTwistingCoupled = true;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting =
+                            xmlWeakPatchConinuityConditions->GetAttribute<double>("alphaSecTwisting");
+                }
+                else {
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecTwistingCoupled = false;
+                    mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting = 0.0;
+                }
             } else {
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isWeakPatchContinuityConditions = false;
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isAutomaticPenaltyParameters = false;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isPrimCoupled = false;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecBendingCoupled = false;
+                mapper.IGAMortarMapper.propWeakPatchContinuityConditions.isSecTwistingCoupled = false;
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaPrim = 0.0;
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecBending = 0.0;
                 mapper.IGAMortarMapper.propWeakPatchContinuityConditions.alphaSecTwisting = 0.0;
             }
-            ticpp::Element *xmlStrongDirichletConditions = xmlIGAMortar->FirstChildElement("propStrongCurveDirichletConditions", false);
+            ticpp::Element *xmlStrongDirichletConditions = xmlIGAMortar->FirstChildElement("strongCurveDirichletConditions", false);
             if (xmlStrongDirichletConditions != NULL) {
                 mapper.IGAMortarMapper.propStrongCurveDirichletConditions.isStrongCurveDirichletConditions = true;
             } else {
                 mapper.IGAMortarMapper.propStrongCurveDirichletConditions.isStrongCurveDirichletConditions = false;
             }
-            ticpp::Element *xmlErrorComputation = xmlIGAMortar->FirstChildElement("propErrorComputation", false);
+            ticpp::Element *xmlErrorComputation = xmlIGAMortar->FirstChildElement("errorComputation", false);
             if (xmlErrorComputation != NULL) {
-                mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = true;
                 if (xmlErrorComputation->GetAttribute<string>("isDomainError") == "true")
                     mapper.IGAMortarMapper.propErrorComputation.isDomainError = true;
                 else if (xmlErrorComputation->GetAttribute<string>("isDomainError") == "false")
@@ -488,6 +542,12 @@ void MetaDatabase::fillSettingMapperVec() {
                     mapper.IGAMortarMapper.propErrorComputation.isInterfaceError = false;
                 else
                     assert(false);
+                if (mapper.IGAMortarMapper.propErrorComputation.isDomainError
+                        || mapper.IGAMortarMapper.propErrorComputation.isCurveError
+                        || mapper.IGAMortarMapper.propErrorComputation.isInterfaceError)
+                    mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = true;
+                else
+                    mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = false;
             } else {
                 mapper.IGAMortarMapper.propErrorComputation.isErrorComputation = false;
                 mapper.IGAMortarMapper.propErrorComputation.isDomainError = false;
@@ -498,7 +558,7 @@ void MetaDatabase::fillSettingMapperVec() {
             mapper.type = EMPIRE_IGABarycentricMapper;
             ticpp::Element *xmlIGABarycentric = xmlMapper->FirstChildElement("IGABarycentricMapper");
             assert(xmlIGABarycentric != NULL);
-            ticpp::Element *xmlProjection = xmlIGABarycentric->FirstChildElement("propProjection",
+            ticpp::Element *xmlProjection = xmlIGABarycentric->FirstChildElement("surfaceProjection",
                     false);
             if (xmlProjection != NULL) {
                 mapper.IGABarycentricMapper.propProjection.maxProjectionDistance =
@@ -514,7 +574,7 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.IGABarycentricMapper.propProjection.maxProjectionDistanceOnDifferentPatches =
                         1e-3;
             }
-            ticpp::Element *xmlNewtonRaphson = xmlIGABarycentric->FirstChildElement("newtonRaphson",
+            ticpp::Element *xmlNewtonRaphson = xmlIGABarycentric->FirstChildElement("newtonRaphsonSurface",
                     false);
             if (xmlNewtonRaphson != NULL) {
                 mapper.IGABarycentricMapper.propNewtonRaphson.noIterations =
