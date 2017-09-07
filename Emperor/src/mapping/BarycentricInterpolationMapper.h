@@ -72,6 +72,14 @@ public:
      * \author Tianyang Wang
      * ***********/
     void conservativeMapping(const double *fieldB, double *fieldA);
+
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)
+     * \param[in] fieldB the field of mesh B (e.g. x-displacements on all fluid nodes)
+     * \author Andreas Apostolatos
+     ***********/
+    void computeErrorsConsistentMapping(const double *fieldA, const double *fieldB);
 private:
     /// number of nodes of A
     int numNodesA;

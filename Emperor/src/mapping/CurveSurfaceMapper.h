@@ -115,6 +115,13 @@ public:
      * \author Tianyang Wang
      * ***********/
     void conservativeMapping(const double *surfaceForce, double *curveForceMoment);
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] curveDispRot displacements and rotations on curve nodes
+     * \param[in] surfaceDisp displacements on surface nodes
+     * \author Andreas Apostolatos
+     ***********/
+    void computeErrorsConsistentMapping(const double *curveDispRot,const double *surfaceDisp);
 
 protected:
     /// type of the CurveSurfaceMapper

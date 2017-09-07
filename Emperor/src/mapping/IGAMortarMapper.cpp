@@ -1657,16 +1657,13 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
                                                             surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
             // Compute the dual product matrices for the displacements
-            if (propWeakCurveDirichletConditions.isPrimPrescribed)
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
             // Compute the dual product matrices for the bending rotations
-            if (propWeakCurveDirichletConditions.isSecBendingPrescribed)
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
 
             // Compute the dual product matrices for the twisting rotations
-            if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
 
             // Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
@@ -2123,25 +2120,19 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 
 
             // Compute the dual product matrices for the displacements
-            if (propWeakPatchContinuityConditions.isPrimCoupled) {
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
-            }
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
 
             // Compute the dual product matrices for the bending rotations
-            if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
-            }
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
 
             // Compute the dual product matrices for the twisting rotations
-            if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
-                EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
-            }
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
+            EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
 
             // Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
@@ -2870,28 +2861,6 @@ void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_mast
     // Solve for the master field Cnn * x_master = tmpVec
     couplingMatrices->getCnn()->solve(_masterField, tmpVec);
 
-    // Compute the error in the relative L2-norm
-    if (propErrorComputation.isErrorComputation){
-        double errorL2Domain;
-        double errorL2Interface[2];
-        double errorL2Curve[2];
-        if(propErrorComputation.isDomainError)
-            errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
-        if(propErrorComputation.isInterfaceError)
-            if(isMappingIGA2FEM){
-                computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _slaveField);
-            }else{
-                computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _masterField);
-            }
-        if(propErrorComputation.isCurveError)
-            if(isMappingIGA2FEM){
-                computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _slaveField);
-            }else{
-                computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _masterField);
-            }
-        printErrorMessage(infoOut, errorL2Domain, errorL2Curve, errorL2Interface);
-    }
-
     // Delete pointers
     delete[] tmpVec;
 }
@@ -2910,6 +2879,35 @@ void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_s
     couplingMatrices->getCnr()->transposeMulitplyVec(tmpVec, _slaveField, size_N);
 
     delete[] tmpVec;
+}
+
+void IGAMortarMapper::computeErrorsConsistentMapping(const double* _slaveField, const double *_masterField) {
+    // Initialize the errors
+    double errorL2Domain;
+    double errorL2Interface[2];
+    double errorL2Curve[2];
+
+    // 1. Compute the relative error in terms of the L2 norm of the error in the domain
+    if(propErrorComputation.isDomainError)
+        errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
+
+    // 2. Compute the L2 norm of the error along the Dirichlet boundary
+    if(propErrorComputation.isCurveError)
+        if(isMappingIGA2FEM){
+            computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _slaveField);
+        }else{
+            computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _masterField);
+        }
+
+    // 3. Compute the L2 norm of the error along the patch interfaces
+    if(propErrorComputation.isInterfaceError)
+        if(isMappingIGA2FEM){
+            computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _slaveField);
+        }else{
+            computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _masterField);
+        }
+
+    printErrorMessage(infoOut, errorL2Domain, errorL2Curve, errorL2Interface);
 }
 
 double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const double *_slaveField, const double *_masterField){
@@ -2940,7 +2938,6 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     int noNodesFE;
     int noCPsIGA;
     int indexNode;
-    int indexDOF;
     int indexCP;
     int noCoord = 3;
 
@@ -2970,9 +2967,9 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
             // Get the index of the node
             indexNode = streamGPs[iGP][3 + 2*iNodesFE];
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
-                if(!isMappingIGA2FEM)
+                if(!isMappingIGA2FEM) {
                     fieldFEM[iCoord] += basisFctFEM*_slaveField[noCoord*indexNode + iCoord];
-                else
+                } else
                     fieldFEM[iCoord] += basisFctFEM*_masterField[noCoord*indexNode + iCoord];
         }
 
@@ -3057,7 +3054,7 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
     double omegaT;
     double omegaN;
     double errorBendingRotation;
-    double errorTwistingRotation;
+    double errorTwistingRotation = 0.0;
     double normRotationSquare;
     double normErrorFieldSquare;
     double errorField[3];
@@ -3103,7 +3100,8 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
 
             // Compute the tangent and the bending rotations
             omegaT += BoperatorT*_fieldIGA[indexDOF];
-            omegaN += BoperatorN*_fieldIGA[indexDOF];
+            if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
+                omegaN += BoperatorN*_fieldIGA[indexDOF];
         }
 
         // Compute the error vector for the displacements
@@ -3116,7 +3114,10 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
         // Compute the error in terms of the rotations
         errorBendingRotation = omegaT + 0.0;
         errorTwistingRotation = omegaN + 0.0;
-        normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
+        if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
+            normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
+        else
+            normRotationSquare = errorBendingRotation*errorBendingRotation;
         _errorL2Curve[1] += normRotationSquare*elementLengthOnGP;
     }
 
@@ -3161,7 +3162,7 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
     double omegaNI;
     double omegaNJ;
     double errorBendingRotation;
-    double errorTwistingRotation;
+    double errorTwistingRotation = 0.0;
     double normRotationSquare;
     double normErrorFieldSquare;
     double errorField[3];
@@ -3260,7 +3261,8 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
 
         // Compute the error in terms of the rotations
         errorBendingRotation = omegaTI + factorTangent*omegaTJ;
-        errorTwistingRotation = omegaNI + factorNormal*omegaNJ;
+        if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
+            errorTwistingRotation = omegaNI + factorNormal*omegaNJ;
         normRotationSquare = errorBendingRotation*errorBendingRotation + errorTwistingRotation*errorTwistingRotation;
         _errorL2Interface[1] += normRotationSquare*elementLengthOnGP;
     }

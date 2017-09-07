@@ -172,19 +172,27 @@ public:
 
     /***********************************************************************************************
      * \brief Perform consistent mapping from IGA to FE (map displacements)
+     * \param[in] _slaveField is the input data
+     * \param[out] _masterField is the output data
+     * \author Chenshen Wu, Apostolos Petalas
+     ***********/
+    void consistentMapping(const double *_slaveField, double *_masterField);
+
+    /***********************************************************************************************
+     * \brief Perform conservative mapping from FE to IGA (map forces)
+     * \param[in] _masterField is the input data
+     * \param[out] _slaveField is the output data
+     * \author Chenshen Wu, Apostolos Petalas
+     ***********/
+    void conservativeMapping(const double *_masterField, double *_slaveField);
+
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
      * \param[in] fieldIGA is the input data
      * \param[out] fieldFE is the output data
      * \author Chenshen Wu, Apostolos Petalas
      ***********/
-    void consistentMapping(const double *fieldIGA, double *fieldFE);
-
-    /***********************************************************************************************
-     * \brief Perform conservative mapping from FE to IGA (map forces)
-     * \param[in] fieldFE is the input data
-     * \param[out] fieldIGA is the output data
-     * \author Chenshen Wu, Apostolos Petalas
-     ***********/
-    void conservativeMapping(const double *fieldFE, double *fieldIGA);
+    void computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField);
 
     /// intern function used for mapping
 private:

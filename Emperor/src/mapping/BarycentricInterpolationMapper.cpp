@@ -87,6 +87,11 @@ void BarycentricInterpolationMapper::conservativeMapping(const double *fieldB,
     }
 }
 
+void BarycentricInterpolationMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the barycentric interpolation mapper has not been implemented" << endl;
+    exit(-1);
+}
+
 void BarycentricInterpolationMapper::buildCouplingMatrices(){
     computeNeighbors();
     computeWeights();

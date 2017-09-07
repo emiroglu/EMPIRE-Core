@@ -242,6 +242,7 @@ void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) 
 void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB) {
     assert(mapperImpl != NULL);
 
+    // 1. Do the consistent mapping
     if (dynamic_cast<CurveSurfaceMapper *>(mapperImpl) != NULL) { // CurveSurfaceMappers map DOFs together
         assert(fieldA->dimension == EMPIRE_DataField_doubleVector);
         assert(fieldB->dimension == EMPIRE_DataField_vector);
@@ -291,6 +292,10 @@ void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB
         delete[] fieldADOFi;
         delete[] fieldBDOFi;
     }
+
+    // 2. Compute the mapping error
+    if (dynamic_cast<IGAMortarMapper *>(mapperImpl) != NULL && dynamic_cast<IGAMortarMapper *>(mapperImpl)->getIsErrorComputation())
+        mapperImpl->computeErrorsConsistentMapping(fieldA->data, fieldB->data);
 }
 
 void MapperAdapter::conservativeMapping(const DataField *fieldB, DataField *fieldA) {

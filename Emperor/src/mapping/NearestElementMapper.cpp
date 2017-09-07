@@ -119,6 +119,11 @@ void NearestElementMapper::conservativeMapping(const double *fieldB, double *fie
     //      << endl;
 }
 
+void NearestElementMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the nearest element mapper has not been implemented" << endl;
+    exit(-1);
+}
+
 void NearestElementMapper::buildCouplingMatrices() {
     // compute directElemTableA
     map<int, int> *nodesIDToPosMap = new map<int, int>;

@@ -379,20 +379,28 @@ public:
     void buildCouplingMatrices();
 
     /***********************************************************************************************
-     * \brief Perform consistent mapping from IGA to FE (map displacements)
-     * \param[in] fieldIGA is the input data
-     * \param[in/out] fieldFE is the output data
-     * \author Chenshen Wu
+     * \brief Perform consistent mapping
+     * \param[in] _slaveField The reference field
+     * \param[in/out] _masterField the target field
+     * \author Andreas Apostolatos
      ***********/
-    void consistentMapping(const double *fieldIGA, double *fieldFE);
+    void consistentMapping(const double *_slaveField, double *_masterField);
 
     /***********************************************************************************************
-     * \brief Perform conservative mapping from FE to IGA (map forces)
-     * \param[in] fieldFE is the input data
-     * \param[in/out] fieldIGA is the output data
-     * \author Chenshen Wu
+     * \brief Perform conservative mapping (use it only when mapping forces)
+     * \param[in] _masterField The target field
+     * \param[in/out] _slaveField The reference field
+     * \author Andreas Apostolatos
      ***********/
-    void conservativeMapping(const double *fieldFE, double *fieldIGA);
+    void conservativeMapping(const double *_masterField, double *_slaveField);
+
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] _slaveField The reference field
+     * \param[in] _masterField The target field
+     * \author Andreas Apostolatos
+     ***********/
+    void computeErrorsConsistentMapping(const double* _slaveField, const double *_masterField);
 
     /***********************************************************************************************
      * \brief Compute the relative error in the L2 norm for the consistent mapping
@@ -738,6 +746,13 @@ public:
 
     /// Get functions
 public:
+    /***********************************************************************************************
+     * \brief Get couplingMatrices object
+     * \author Ragnar Björnsson
+     ***********/
+    IGAMortarCouplingMatrices* getCouplingMatrices() {
+        return couplingMatrices;
+    }
 
     /***********************************************************************************************
      * \brief Get flag on whether a IGA weak Dirichlet curve condition was used or not
@@ -772,14 +787,6 @@ public:
     }
 
     /***********************************************************************************************
-     * \brief Get couplingMatrices object
-     * \author Ragnar Björnsson
-     ***********/
-    IGAMortarCouplingMatrices* getCouplingMatrices() {
-        return couplingMatrices;
-    }
-
-    /***********************************************************************************************
      * \brief Get the number of the weak patch continuity conditions
      * \author Altug Emiroglu
      ***********/
@@ -793,6 +800,14 @@ public:
      ***********/
     int getNoWeakIGAPatchContinuityConditions(){
         return noWeakIGAPatchContinuityConditions;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the flag on whether error computation is enabled
+     * \author Andreas Apostolatos
+     ***********/
+    bool getIsErrorComputation() {
+        return propErrorComputation.isErrorComputation;
     }
 
     /***********************************************************************************************

@@ -103,6 +103,13 @@ public:
      * \author Tianyang Wang
      * ***********/
     void conservativeMapping(const double *masterField, double *slaveField);
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)
+     * \param[in] masterField the field of the master side (e.g. x-displacements on all fluid nodes)
+     * \author Tianyang Wang
+     ***********/
+    void computeErrorsConsistentMapping(const double *slaveField, const double *masterField);
     /// defines number of threads used for MKL routines
     static int mklSetNumThreads;
     /// defines number of threads used for mapper routines

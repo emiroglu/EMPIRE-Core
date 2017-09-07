@@ -30,6 +30,8 @@
 #include "ANN/ANN.h"
 #endif
 
+#include "Message.h"
+
 using namespace std;
 
 namespace EMPIRE {
@@ -110,7 +112,11 @@ void NearestNeighborMapper::conservativeMapping(const double *DOF_B, double *DOF
         int neighbor = neighborsTable[i];
         DOF_A[neighbor] += DOF_B[i];
     }
+}
 
+void NearestNeighborMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the nearest neighbor mapper has not been implemented" << endl;
+    exit(-1);
 }
 
 } /* namespace EMPIRE */

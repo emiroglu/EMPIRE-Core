@@ -1,9 +1,11 @@
 #include "CurveSurfaceMapper.h"
 #include "KinematicMotion.h"
+#include "Message.h"
 #include <assert.h>
 #include <map>
 #include <iostream>
 #include <math.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -1103,6 +1105,12 @@ void CurveSurfaceMapper::conservativeMapping(const double *surfaceForce, double 
         }
     }
 }
+
+void CurveSurfaceMapper::computeErrorsConsistentMapping(const double *curveDispRot, const double *surfaceDisp) {
+    ERROR_OUT() << "Error computation for the curve surface mapper has not been implemented" << endl;
+    exit(-1);
+}
+
 
 double CurveSurfaceMapper::normalizeVector(double *vector) {
     double length = sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);

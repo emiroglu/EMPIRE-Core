@@ -1174,6 +1174,11 @@ void IGABarycentricMapper::conservativeMapping(const double* _masterField, doubl
     }
 }
 
+void IGABarycentricMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the IGA barycentric mortar mapper has not been implemented" << endl;
+    exit(-1);
+}
+
 void IGABarycentricMapper::writeProjectedNodesOntoIGAMesh() {
     // Initializations
     IGAPatchSurface* IGAPatch;

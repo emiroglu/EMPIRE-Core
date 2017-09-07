@@ -225,6 +225,11 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     delete[] masterFieldCopy;
 }
 
+void MortarMapper::computeErrorsConsistentMapping(const double *slaveField, const double *masterField) {
+    ERROR_OUT() << "Error computation for the mortar mapper has not been implemented" << endl;
+    exit(-1);
+}
+
 void MortarMapper::computeC_BB() {
     // 1. compute the sparsity map
     // sparsity map has the information of a, ia, ja in a CSR formated matrix
