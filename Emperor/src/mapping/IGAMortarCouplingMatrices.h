@@ -89,6 +89,7 @@ public:
     void addCNNValue(int _row , int _column , double value) {
         (*Cnn)(_row, _column) += value;
         Cnn->setFactorization(false);
+        Cnn->setDetermined(false);
     }
 
     /***********************************************************************************************
@@ -112,6 +113,7 @@ public:
     void setValue(int _row , int _column , double value) {
         (*Cnn)(_row, _column) = value;
         Cnn->setFactorization(false);
+        Cnn->setDetermined(false);
     }
 
     /***********************************************************************************************
@@ -188,6 +190,7 @@ public:
     void deleterow(int row) {
         Cnn->deleteRow(row);
         Cnn->setFactorization(false);
+        Cnn->setDetermined(false);
     }
 };
 }

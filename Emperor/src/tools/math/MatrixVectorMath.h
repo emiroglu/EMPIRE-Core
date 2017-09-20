@@ -597,8 +597,8 @@ public:
      ***********/
     void solve(T* x, T* b) { //Computes x=A^-1 *b
 	
-	assert(x != NULL);
-	assert(b != NULL);
+        assert(x != NULL);
+        assert(b != NULL);
 
     	if(!isFactorized){
 #ifdef USE_INTEL_MKL
@@ -607,7 +607,7 @@ public:
     		eigenMat->factorize();
 #endif
     		isFactorized = true;
-    	}
+        }
 
     	// Constructing the sparse matrix entities
     	determineCSR();
@@ -713,6 +713,12 @@ public:
      * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
     inline void setFactorization(bool _flag) { isFactorized = _flag; }
+
+    /***********************************************************************************************
+     * \brief This sets the flag on the determination
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    inline void setDetermined(bool _flag) {isDetermined = _flag;}
 
     /***********************************************************************************************
      * \brief This prints the matrix in full style

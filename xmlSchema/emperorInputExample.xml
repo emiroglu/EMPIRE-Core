@@ -100,7 +100,7 @@
 	<mapper name="IGAMortar1" type="IGAMortarMapper">
                 <IGAMortarMapper>
 					<consistency enforceConsistency="true" tolConsistency="1e-6"/>
-                    <projectionProperties Distance="1.0e-2" noInitialGuess="40" maxProjectionDistanceOnDifferentPatches="1.0e-3"/>
+                    <surfaceProjection maxProjectionDistance="1.0e-2" noInitialGuess="40" maxProjectionDistanceOnDifferentPatches="1.0e-3"/>
                     <newtonRaphsonSurface noIterations="0" tolProjection="1e-1"/>
                     <newtonRaphsonBoundary noIterations="0" tolProjection="1e-1"/>
                     <bisectionBoundary noIterations="80" tolProjection="1e-5"/>

@@ -221,12 +221,12 @@ void IGAMortarMapper::setParametersErrorComputation(bool _isErrorComputation, bo
 void IGAMortarMapper::buildCouplingMatrices() {
     HEADING_OUT(3, "IGAMortarMapper", "Building coupling matrices for ("+ name +")...", infoOut);
     {
-        int nIG = meshIGA->getNumNodes();
-        int nFE = meshFE->numNodes;
-        INFO_OUT() << "Number of nodes in NURBS mesh is " << nIG << endl;
-        INFO_OUT() << "Number of nodes in FE mesh is    " << nFE << endl;
-        INFO_OUT() << "Size of matrices will be " << (isMappingIGA2FEM?nFE:nIG) << "x" << (isMappingIGA2FEM?nFE:nIG) << " and "
-                   << (isMappingIGA2FEM?nFE:nIG) << "x" << (isMappingIGA2FEM?nIG:nFE) << endl;
+        int sizeN = couplingMatrices->getSizeN();
+        int sizeR = couplingMatrices->getSizeR();
+        INFO_OUT() << "The number of DOFs in the finite element mesh is    " << sizeN << endl;
+        INFO_OUT() << "The number of DOFs in NURBS multipatch geometry is " << sizeR << endl;
+        INFO_OUT() << "The size of matrices is " << (isMappingIGA2FEM?sizeN:sizeR) << "x" << (isMappingIGA2FEM?sizeN:sizeR) << " and "
+                   << (isMappingIGA2FEM?sizeN:sizeR) << "x" << (isMappingIGA2FEM?sizeR:sizeN) << endl;
     }
 
     //Instantiate quadrature rules
@@ -321,11 +321,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if (propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
         if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters) {
-            INFO_OUT() << "Manual patch coupling penalties: alphaPrim = "<< propWeakPatchContinuityConditions.alphaPrim
+            INFO_OUT() << "Manual assignment of the penalty parameters: alphaPrim = "<< propWeakPatchContinuityConditions.alphaPrim
                        << " alphaSecBending = " <<  propWeakPatchContinuityConditions.alphaSecBending <<" alphaSecTwisting = "
                        <<  propWeakPatchContinuityConditions.alphaSecTwisting << endl;
         } else {
-            INFO_OUT() << "Automatic patch coupling penalties" << endl;
+            INFO_OUT() << "Automatic determination of the penalty parameters are assumed" << endl;
         }
         computeIGAPatchWeakContinuityConditionMatrices();
         INFO_OUT() << "Application of weak patch continuity conditions finished" << std::endl;
@@ -350,9 +350,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet curve conditions started" << endl;
         if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters) {
-            INFO_OUT() << "Manual weak Dirichlet curve condition penalties: alphaPrim = " << propWeakCurveDirichletConditions.alphaPrim << " alphaSecBending = " <<  propWeakCurveDirichletConditions.alphaSecBending << " alphaSecTwisting = " <<  propWeakCurveDirichletConditions.alphaSecTwisting << endl;
+            INFO_OUT() << "Manual assignment of the penalty parameters: alphaPrim = " << propWeakCurveDirichletConditions.alphaPrim << " alphaSecBending = " <<  propWeakCurveDirichletConditions.alphaSecBending << " alphaSecTwisting = " <<  propWeakCurveDirichletConditions.alphaSecTwisting << endl;
         } else {
-            INFO_OUT() << "Automatic weak Dirichlet curve condition penalties, use DEBUG mode to see the computed values" << endl;
+            INFO_OUT() << "Automatic determination of the penalty parameters are assumed" << endl;
         }
         computeIGAWeakDirichletCurveConditionMatrices();
         INFO_OUT() << "Application of weak Dirichlet curve conditions finished" << std::endl;
@@ -365,9 +365,9 @@ void IGAMortarMapper::buildCouplingMatrices() {
         exit(-1);
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
         if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
-            INFO_OUT() << "Manual weak Dirichlet surface condition penalties: alphaPrim = "<< propWeakSurfaceDirichletConditions.alphaPrim << " alphaSecBending = " << endl;
+            INFO_OUT() << "Manual assignment of the penalty parameters: alphaPrim = "<< propWeakSurfaceDirichletConditions.alphaPrim << " alphaSecBending = " << endl;
         } else {
-            INFO_OUT() << "Automatic weak Dirichlet surface condition penalties, use DEBUG mode to see the computed values" << endl;
+            INFO_OUT() << "Automatic determination of the penalty parameters are assumed" << endl;
         }
         computeIGAWeakDirichletSurfaceConditionMatrices();
         INFO_OUT() << "Application of weak Dirichlet surface conditions finished" << std::endl;
@@ -3489,17 +3489,21 @@ void IGAMortarMapper::enforceConsistency() {
 
     INFO_OUT() << "Checking consistency" << std::endl;
 
+    // Get the sizes of the coupling matrices
     int size_N = couplingMatrices->getSizeN();
     int size_R = couplingMatrices->getSizeR();
 
-    double ones[size_R];
+    // Create a field of ones
+    double* ones = new double[size_R];
     for(int i = 0; i < size_R; i++) {
         ones[i] = 1.0;
     }
 
-    double output[size_N];
+    // Compute the mapped field doing consistent mapping
+    double* output = new double[size_N];
     this->consistentMapping(ones, output);
 
+    // Compute the norm of the output field
     double norm = 0;
     vector<int> inconsistentDoF;
     for(int i = 0; i < size_N; i++) {
@@ -3538,6 +3542,10 @@ void IGAMortarMapper::enforceConsistency() {
         ERROR_OUT() << "Coupling matrices not consistent up to " << propConsistency.tolConsistency << "!"<<endl;
         exit(-1);
     }
+
+    // Delete pointers
+    delete ones;
+    delete output;
 }
 
 void IGAMortarMapper::getPenaltyParameterForWeakDirichletCCPrimaryField(double* _alphaPrim){
