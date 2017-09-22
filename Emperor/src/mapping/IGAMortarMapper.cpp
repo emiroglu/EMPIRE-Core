@@ -1939,6 +1939,11 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double normNormalTrCurveVctSlave;
     double normSurfaceNormalVctMaster;
     double normSurfaceNormalVctSlave;
+    double normBOperatorOmegaTMaster;
+    double normBOperatorOmegaNMaster;
+    double normBOperatorOmegaTSlave;
+    double normBOperatorOmegaNSlave;
+    double alphaLocal;
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -2054,6 +2059,32 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                                                             surfaceNormalVctSlave, patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave,
                                                             vKnotSpanSlave);
 
+            // Compute the local penalty factor for scaling the rotational contributions
+            if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
+                normBOperatorOmegaTMaster = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaTMaster, noDOFsLocMaster);
+                alphaLocal = normBOperatorOmegaTMaster;
+                normBOperatorOmegaTSlave = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaTSlave, noDOFsLocSlave);
+                if (normBOperatorOmegaTSlave > alphaLocal)
+                    alphaLocal = normBOperatorOmegaTSlave;
+            } else
+                alphaLocal = 1.0;
+
+            if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
+                normBOperatorOmegaNMaster = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaNMaster, noDOFsLocMaster);
+                if (normBOperatorOmegaNMaster > alphaLocal)
+                    alphaLocal = normBOperatorOmegaNMaster;
+                normBOperatorOmegaNSlave = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaNSlave, noDOFsLocSlave);
+                if (normBOperatorOmegaNSlave > alphaLocal)
+                    alphaLocal = normBOperatorOmegaNSlave;
+            }
+            alphaLocal = 1.0/alphaLocal;
+
+            // Scale the B-operator matrices
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaTMaster, alphaLocal, noDOFsLocMaster);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaNMaster, alphaLocal, noDOFsLocMaster);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaTSlave, alphaLocal, noDOFsLocSlave);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaNSlave, alphaLocal, noDOFsLocSlave);
+
             // Compute the angle of the surface normal vectors
             normSurfaceNormalVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctMaster, surfaceNormalVctMaster);
             normSurfaceNormalVctMaster = sqrt(normSurfaceNormalVctMaster);
@@ -2111,13 +2142,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 factorNormal = + 1.0;
             else
                 factorNormal = - 1.0;
+            factorNormal *= - 1.0;
 
             // Check whether the surface normal vectors have an angle of [0,90]U[270,360] meaning the the patches have the same normal orientation or [90,270] meaning that the patches have opossite normal orientation
-            if (cosPhiSurfaceNormals < 0) {
-                factorTangent = (-1)*factorTangent;
-                factorNormal = (-1)*factorNormal;
-            }
-
+//            if (cosPhiSurfaceNormals < 0.0) {
+//                factorTangent = (-1.0)*factorTangent;
+//                factorNormal = (-1.0)*factorNormal;
+//            }
 
             // Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
