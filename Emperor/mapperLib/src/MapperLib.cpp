@@ -776,8 +776,13 @@ void setParametersWeakDirichletConditions(char* mapperName,
         ERROR_OUT("Did nothing!");
         return;
     } else {
+        bool isPrimPrescribed = _alphaPrim > 0;
+        bool isSecBendingPrescribed = _alphaSecBending > 0;
+        bool isSecTwistingPrescribed = _alphaSecTwisting > 0;
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersWeakCurveDirichletConditions(_isCurveConditions, _isAutomaticPenaltyFactors, _alphaPrim, _alphaSecBending, _alphaSecTwisting);
+        tmpIGAMortarMapper->setParametersWeakCurveDirichletConditions(_isCurveConditions, _isAutomaticPenaltyFactors,
+                                                                      isPrimPrescribed, isSecBendingPrescribed, isSecTwistingPrescribed,
+                                                                      _alphaPrim, _alphaSecBending, _alphaSecTwisting);
         tmpIGAMortarMapper->setParametersWeakSurfaceDirichletConditions(_isSurfaceConditions, _isAutomaticPenaltyFactors, _alphaPrim);
         INFO_OUT("Dirichlet condition parameters are set for \"" +  mapperNameInMap + "\"");
     }
@@ -802,8 +807,13 @@ void setParametersWeakPatchContinuityConditions(char* mapperName,
         ERROR_OUT("Did nothing!");
         return;
     } else {
+        bool isPrimCoupled = _alphaPrim > 0;
+        bool isSecBendingCoupled = _alphaSecBending > 0;
+        bool isSecTwistingCoupled = _alphaSecTwisting > 0;
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, _isAutomaticPenaltyFactors, _alphaPrim, _alphaSecBending, _alphaSecTwisting);
+        tmpIGAMortarMapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, _isAutomaticPenaltyFactors,
+                                                                       isPrimCoupled, isSecBendingCoupled, isSecTwistingCoupled,
+                                                                       _alphaPrim, _alphaSecBending, _alphaSecTwisting);
         INFO_OUT("Patch coupling parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
