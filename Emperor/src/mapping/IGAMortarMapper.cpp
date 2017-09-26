@@ -361,8 +361,6 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
     if (propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions) {
-        ERROR_OUT() << "Function under construction" << endl;
-        exit(-1);
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
         if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
             INFO_OUT() << "Manual assignment of the penalty parameters: alphaPrim = "<< propWeakSurfaceDirichletConditions.alphaPrim << " alphaSecBending = " << endl;
@@ -1575,7 +1573,10 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
     double vGP;
     double tangentCurveVct[noCoord];
     double normalCurveVct[noCoord];
+    double normBOperatorOmegaT;
+    double normBOperatorOmegaN;
     double surfaceNormalVct[noCoord];
+    double alphaLocal;
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -1655,6 +1656,24 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
             // Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
                                                             surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+
+            // Compute the local penalty factor for scaling the rotational contributions
+            if (propWeakCurveDirichletConditions.isSecBendingPrescribed) {
+                normBOperatorOmegaT = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaT, noDOFsLoc);
+                alphaLocal = normBOperatorOmegaT;
+            } else
+                alphaLocal = 1.0;
+
+            if (propWeakCurveDirichletConditions.isSecTwistingPrescribed) {
+                normBOperatorOmegaN = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaN, noDOFsLoc);
+                if (normBOperatorOmegaN > alphaLocal)
+                    alphaLocal = normBOperatorOmegaN;
+            }
+            alphaLocal = 1.0/alphaLocal;
+
+            // Scale the B-operator matrices
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaT, alphaLocal, noDOFsLoc);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaN, alphaLocal, noDOFsLoc);
 
             // Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
