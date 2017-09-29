@@ -1,5 +1,5 @@
 /*  Copyright &copy; 2013, TU Muenchen, Chair of Structural Analysis,
- *  Fabien Pean, Andreas Apostolatos, Chenshen Wu,
+ *  Fabien Pean, Andreas Apostolatos
  *  Ragnar Björnsson, Stefan Sicklinger, Tianyang Wang, Munich
  *
  *  All rights reserved.
@@ -130,14 +130,14 @@ private:
     /// Flag on whether the expanded version of the coupling matrices is computed
     bool isExpanded;
 
-    /// Flag on the initialization of the quadrature
-    bool isGaussQuadrature;
+    /// Flag on whether the gauss rules have been created
+    bool isGaussQuadature;
 
     /// Quadrature rule over the triangulated subdomains
-    EMPIRE::MathLibrary::IGAGaussQuadratureOnTriangle *gaussTriangle;
+    EMPIRE::MathLibrary::IGAGaussQuadrature **gaussRuleOnTriangle;
 
     /// Quadrature rule over the non-triangulated subdomains
-    EMPIRE::MathLibrary::IGAGaussQuadratureOnQuad *gaussQuad;
+    EMPIRE::MathLibrary::IGAGaussQuadrature **gaussRuleOnQuadrilateral;
 
     /// The parametric coordinates of the projected nodes on the surface
     /// For each node i, for each possible patch j, store parametric coordinates of i in j
@@ -195,8 +195,10 @@ private:
 
     /// Properties for the integration
     struct propIntegration {
+        int isAutomaticNoGPTriangle;
         int noGPTriangle;
-        int noGPQuad;
+        int isAutomaticNoGPQuadrilateral;
+        int noGPQuadrilateral;
     } propIntegration;
 
     /// Properties for the application of weak Dirichlet conditions along trimming curves
@@ -252,7 +254,7 @@ public:
      * \param[in] _meshFE The FEMesh
      * \param[in] _isExpanded Flag on whether or not the coupling matrices will be expanded
      * \param[in] _isMappingIGA2FEM
-     * \author Fabien Pean, Chenshen Wu
+     * \author Andreas Apostolatos, Fabien Pean
      * \modified Altug Emiroglu (reduced the number of input arguments)
      ***********/
     IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isWeakConditions, bool _isMappingIGA2FEM);
@@ -306,11 +308,13 @@ public:
 
     /***********************************************************************************************
      * \brief Set the parameters for integration
-     * \param[in] _numGPsTriangle The number of Gauss points when performs integration on triangle
-     * \param[in] _numGPsQuad The number of Gauss points when performs integration on quadrilateral
+     * \param[in] _isAutomaticNoGPTriangle Flag on whether the Gauss rule on a triangle is automatically created or not
+     * \param[in] _noGPTriangle The number of Gauss points when performs integration on triangle
+     * \param[in] _isAutomaticNoGPQuadrilateral Flag on whether the Gauss rule on a triangle is automatically created or not
+     * \param[in] _noGPQuadrilateral The number of Gauss points when performs integration on quadrilateral
      * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void setParametersIntegration(int _noGPTriangle = 16, int _noGPQuad = 25);
+    void setParametersIntegration(bool _isAutomaticNoGPTriangle = false, int _noGPTriangle = 16, bool _isAutomaticNoGPQuadrilateral = false, int _noGPQuadrilateral = 25);
 
     /***********************************************************************************************
      * \brief Set the parameters for the application of weak Dirichlet boundary conditions along trimming curves
@@ -431,13 +435,13 @@ public:
 private:
     /***********************************************************************************************
      * \brief Initialization of the element freedom tables
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
     void initTables();
 
     /***********************************************************************************************
      * \brief Fills up the array projectedCoords by performing closest point projection
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
     void projectPointsToSurface();
 
@@ -476,11 +480,16 @@ private:
 
     /***********************************************************************************************
      * \brief Compute matrices Cnn and Cnr by looping over the FE elements and processing them
-     * \author Fabien Pean, Chenshen Wu
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
     void computeCouplingMatrices();
 
 public:
+    /***********************************************************************************************
+     * \brief Create a Gauss quadrature rule for triangles and for quadrilaterals for each patch of the B-Spline multipatch geometry
+     * \author Andreas Apostolatos
+     ***********/
+    void createGaussQuadratureRules();
 
     /***********************************************************************************************
      * \brief Compute and assemble the IGA weak Dirichlet curve condition matrices
@@ -573,14 +582,14 @@ private:
 
     /***********************************************************************************************
      * \brief Compute the projection of a line on patch boundary, display warnings and backup solution
-     * \param[in] _thePatch 	The patch to compute the coupling matrices for
-     * \param[in/out] _u 		The parameter value of the inside patch node
-     * \param[in/out] _v 		The parameter value of the inside patch node
-     * \param[in/out] _div		The ratio on the line
-     * \param[in/out] _dis		The distance of the line to the patch
-     * \param[in] _Pin			The point of the line that could have been projected in the patch
-     * ]param[in] _Pout			The point of the line that could not have been projected in the patch
-     * \return 					Flag if it has converged
+     * \param[in] _thePatch The patch to compute the coupling matrices for
+     * \param[in/out] _u The parameter value of the inside patch node
+     * \param[in/out] _v The parameter value of the inside patch node
+     * \param[in/out] _div The ratio on the line
+     * \param[in/out] _dis The distance of the line to the patch
+     * \param[in] _Pin The point of the line that could have been projected in the patch
+     * ]param[in] _Pout The point of the line that could not have been projected in the patch
+     * \return Flag if it has converged
      * \author Fabien Pean
      ***********/
     bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
@@ -596,26 +605,26 @@ private:
 
     /***********************************************************************************************
      * \brief Clip the input polygon by the patch parametric quad
-     * \param[in] _thePatch 	The patch for which boundaries are used for clipping
-     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[in] _thePatch The patch for which boundaries are used for clipping
+     * \param[in] _polygonUV An input polygon defined in parametric (i.e. 2D) space
      * \author Fabien Pean
      ***********/
     void clipByPatch(const IGAPatchSurface* _thePatch, Polygon2D& _polygonUV);
 
     /***********************************************************************************************
      * \brief Clip the input polygon by the trimming window of the patch
-     * \param[in] _thePatch 	The patch for which trimming curves are used
-     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[in] _thePatch The patch for which trimming curves are used
+     * \param[in] _polygonUV An input polygon defined in parametric (i.e. 2D) space
      * \param[out] _listPolygon	A set of polygons after application of trimming polygon
-     * \author Fabien Pean
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
     void clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV);
 
     /***********************************************************************************************
      * \brief Clip the input polygon by the trimming window of the trimming loop
      * This function does the same as above function but for a specific given trimming loop
-     * \param[in] _theTrimmingLoop 	The trimming loop for which trimming curves are used
-     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[in] _theTrimmingLoop The trimming loop for which trimming curves are used
+     * \param[in] _polygonUV An input polygon defined in parametric (i.e. 2D) space
      * \param[out] _listPolygon	A set of polygons after application of trimming polygon
      * \author Altug Emiroglu
      ***********/
@@ -623,10 +632,10 @@ private:
 
     /***********************************************************************************************
      * \brief Clip the input polygon for every knot span of the patch it is crossing
-     * \param[in] _thePatch 	The patch for which trimming curves are used
-     * \param[in] _polygonUV 	An input polygon defined in parametric (i.e. 2D) space
+     * \param[in] _thePatch The patch for which trimming curves are used
+     * \param[in] _polygonUV An input polygon defined in parametric (i.e. 2D) space
      * \param[out] _listPolygon	A set of polygons after application of knot span clipping
-     * \param[out] _listSpan	The list of span index every polygon of the list above is linked to
+     * \param[out] _listSpan The list of span index every polygon of the list above is linked to
      * \author Fabien Pean
      ***********/
     void clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan);
@@ -641,44 +650,45 @@ private:
     /***********************************************************************************************
      * \brief Subdivides the input polygon according to member numDivision and compute the canonical element
      * \param[in] _elementIndex	The element index for which the canonical space is related to
-     * \param[in] _theElement 	The polygon of the projected element
-     * \param[in] _polygonUV 	The polygon of a subelement
-     * \return					The polygon in canonical space of the polygonUV which is defined in nurbs parametric space
+     * \param[in] _theElement The polygon of the projected element
+     * \param[in] _polygonUV The polygon of a subelement
+     * \return The polygon in canonical space of the polygonUV which is defined in nurbs parametric space
      * \author Fabien Pean
      ***********/
     Polygon2D computeCanonicalElement(const int _elementIndex, const Polygon2D& _theElement, const Polygon2D& _polygonUV);
 
     /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
-     * \param[in] _igaPatchSurface 	The patch to compute the coupling matrices for
-     * \param[in] _polygonIGA 		The resulting from the clipping polygon at each knot span in the NURBS space
-     * \param[in] _spanU 			The knot span index in the u-direction where basis will be evaluated
-     * \param[in] _spanV 			The knot span index in the v-direction where basis will be evaluated
-     * \param[in] _polygonFE 		The resulting from the clipping polygon at each knot span in the bilinear/linear space
-     * \param[in] _elementIndex 	The global numbering of the element from the FE mesh the shape functions are evaluated for
-     * \author Fabien Pean, Chenshen Wu
+     * \param[in] _thePatch The patch to compute the coupling matrices for
+     * \param[in] _patchIndex The index of the patch as stored in IGAMesh
+     * \param[in] _polygonIGA The resulting from the clipping polygon at each knot span in the NURBS space
+     * \param[in] _spanU The knot span index in the u-direction where basis will be evaluated
+     * \param[in] _spanV The knot span index in the v-direction where basis will be evaluated
+     * \param[in] _polygonFE The resulting from the clipping polygon at each knot span in the bilinear/linear space
+     * \param[in] _elementIndex The global numbering of the element from the FE mesh the shape functions are evaluated for
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
-    void integrate(IGAPatchSurface* _igaPatchSurface, Polygon2D _polygonIGA,
+    void integrate(IGAPatchSurface* _thePatch, int _patchIndex, Polygon2D _polygonIGA,
                    int _spanU, int _spanV, Polygon2D _polygonFE, int _elementIndex);
 
     /// helper functions used for the computation of coupling matrix process
 private:
     /***********************************************************************************************
      * \brief Compute the span of the projected element living in _thePatch
-     * \param[in] _thePatch 	The patch to compute the coupling matrices for
-     * \param[in] _polygonUV 	The resulting from the clipping polygon at each knot span in the NURBS space
-     * \param[out] _span 		An array size 4 containing [minSpanU maxSpanU minSpanV maxSpanV]
-     * \return 					True if inside a single knot span, false otherwise
-     * \author Fabien Pean
+     * \param[in] _thePatch The patch to compute the coupling matrices for
+     * \param[in] _polygonUV The resulting from the clipping polygon at each knot span in the NURBS space
+     * \param[out] _span An array size 4 containing [minSpanU maxSpanU minSpanV maxSpanV]
+     * \return True if inside a single knot span, false otherwise
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
     bool computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span=NULL);
 
     /***********************************************************************************************
      * \brief Get the element id in the FE mesh of the neighbor of edge made up by node1 and node2
-     * \param[in] _element		The element for which we want the neighbor
-     * \param[in] _node1	 	The first node index of the edge
-     * \param[in] _node2 		The second node of the edge
-     * \return 					The index of the neighbor element, or -1 if does not exist
+     * \param[in] _element The element for which we want the neighbor
+     * \param[in] _node1 The first node index of the edge
+     * \param[in] _node2 The second node of the edge
+     * \return The index of the neighbor element, or -1 if does not exist
      * \author Fabien Pean
      ***********/
     int getNeighbourElementofEdge(int _element, int _node1, int _node2);
@@ -734,7 +744,7 @@ public:
 
     /***********************************************************************************************
      * \brief Print both coupling matrices Cnn and Cnr
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
     void printCouplingMatrices();
 
@@ -747,8 +757,16 @@ public:
     /// Get functions
 public:
     /***********************************************************************************************
+     * \brief Get the IGAMesh containing all B-Spline surface patches which form the geometry
+     * \author Andreas Apostolatos
+     ***********/
+    IGAMesh* getIGAMesh() {
+        return meshIGA;
+    }
+
+    /***********************************************************************************************
      * \brief Get couplingMatrices object
-     * \author Ragnar Björnsson
+     * \author Andreas Apostolatos
      ***********/
     IGAMortarCouplingMatrices* getCouplingMatrices() {
         return couplingMatrices;
@@ -863,6 +881,12 @@ public:
      * \author Andreas Apostolatos
      ***********/
     void printErrorMessage(Message &message, double _errorL2Domain, double* _errorL2Curve, double *_errorL2Interface);
+
+    // Constant members of the class
+private:
+    /// Tolerance for cleaning a triangle before integrating
+    static double EPS_CLEANTRIANGLE;
+    static double EPS_CLIPPING;
 
     /// unit test class
     friend class TestIGAMortarMapperTube;

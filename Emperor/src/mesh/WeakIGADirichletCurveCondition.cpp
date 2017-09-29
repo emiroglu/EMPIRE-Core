@@ -58,10 +58,8 @@ WeakIGADirichletCurveCondition::WeakIGADirichletCurveCondition(int _ID,
 }
 
 WeakIGADirichletCurveCondition::WeakIGADirichletCurveCondition(int _ID,
-                                 int _patchIndex, IGAPatchCurve* _dirichletCurve) :
-        AbstractCondition(_ID),
-        patchIndex(_patchIndex), dirichletCurve(_dirichletCurve)
-        {
+                                                               int _patchIndex, IGAPatchCurve* _dirichletCurve) :
+    AbstractCondition(_ID), patchIndex(_patchIndex), dirichletCurve(_dirichletCurve) {
 
     type = EMPIRE_WeakIGADirichletCurveCondition;
 
@@ -76,9 +74,7 @@ WeakIGADirichletCurveCondition::WeakIGADirichletCurveCondition(int _ID,
 
 WeakIGADirichletCurveCondition::WeakIGADirichletCurveCondition(int _ID,
                                  int _patchIndex, int _patchBLIndex, int _patchBLTrCurveIndex) :
-        AbstractCondition(_ID),
-        patchIndex(_patchIndex), patchBLIndex(_patchBLIndex), patchBLTrCurveIndex(_patchBLTrCurveIndex)
-        {
+        AbstractCondition(_ID), patchIndex(_patchIndex), patchBLIndex(_patchBLIndex), patchBLTrCurveIndex(_patchBLTrCurveIndex) {
 
     type = EMPIRE_WeakIGADirichletCurveCondition;
 
@@ -196,8 +192,8 @@ void WeakIGADirichletCurveCondition::createGPData(IGAPatchSurface* _patch) {
             for (int iGP = 0; iGP < numGPPerSection; iGP++) {
 
                 // Get GP coordinates and weights
-                GP = theGPQuadrature->gaussPoints[iGP];
-                GW = theGPQuadrature->weights[iGP];
+                GP = *theGPQuadrature->getGaussPoint(iGP);
+                GW = theGPQuadrature->getGaussWeight(iGP);
                 curveGPWeights[counterGP] = GW;
 
                 // Compute the image of the GP in the curve parameter space

@@ -71,8 +71,10 @@ public:
      * \param[in] _tolProjectionNewtonRaphsonBoundary The tolerance for Newton-Raphson scheme of projecting a node on a NURBS patch boundary
      * \param[in] _noIterationsBisection The number of iteration for bisection scheme of projecting a node on a NURBS patch boundary
      * \param[in] _tolProjectionBisection The tolerance for bisection scheme of projecting a node on a NURBS patch boundary
+     * \param[in] _isAutomaticNoGPTriangle Flag on whether the Gauss rule in a triangle is automatically created or not
      * \param[in] _noGPTriangle The number of Gauss points when performs integration on triangle
-     * \param[in] _noGPQuad The number of Gauss points when performs integration on quadrilateral
+     * \param[in] _isAutomaticNoGPQuadrilateral Flag on whether the Gauss rule in a quadrilateral is automatically created or not
+     * \param[in] _noGPQuadrilateral The number of Gauss points when performs integration on quadrilateral
      * \param[in] _isWeakCurveDirichletConditions Flag on whether weak Dirichlet conditions along trimming curves are assumed
      * \param[in] _isAutomaticPenaltyParametersWeakCurveDirichletConditions Flag on whether the Penalty parameters for the application of weak Dirichlet conditions along trimming curves is automatic
      * \param[in] _isPrimPrescribedWeakCurveDirichletConditions Flag on whether the primary field is prescribed along the trimming curves
@@ -105,7 +107,7 @@ public:
                              int _noIterationsNewton, double _tolProjectionNewtonRaphson,
                              int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
                              int _noIterationsBisection, double _tolProjectionBisection,
-                             int _noGPTriangle, int _noGPQuad,
+                             bool _isAutomaticNoGPTriangle, int _noGPTriangle, bool _isAutomaticNoGPQuadrilateral, int _noGPQuadrilateral,
                              bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, bool _isPrimPrescribedWeakCurveDirichletConditions, bool _isSecBendingPrescribedWeakCurveDirichletConditions, bool _isSecTwistingPrescribedWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
                              bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, bool _isPrimPrescribedWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
                              bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, bool _isPrimCoupledWeakContinuityConditions, bool _isSecBendingCoupledWeakContinuityConditions, bool _isSecTwistingCoupledWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,

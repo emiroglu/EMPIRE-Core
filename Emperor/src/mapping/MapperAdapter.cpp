@@ -92,7 +92,7 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
                                         int _noIterationsNewton, double _tolProjectionNewtonRaphson,
                                         int _noIterationsNewtonRaphsonBoundary, double _tolProjectionNewtonRaphsonBoundary,
                                         int _noIterationsBisection, double _tolProjectionBisection,
-                                        int _noGPTriangle, int _noGPQuad,
+                                        bool _isAutomaticNoGPTriangle, int _noGPTriangle, bool _isAutomaticNoGPQuadrilateral, int _noGPQuadrilateral,
                                         bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParametersWeakCurveDirichletConditions, bool _isPrimPrescribedWeakCurveDirichletConditions, bool _isSecBendingPrescribedWeakCurveDirichletConditions, bool _isSecTwistingPrescribedWeakCurveDirichletConditions, double _alphaPrimWeakCurveDirichletConditions, double _alphaSecBendingWeakCurveDirichletConditions, double _alphaSecTwistingWeakCurveDirichletConditions,
                                         bool _isWeakSurfaceDirichletConditions, bool _isAutomaticPenaltyParametersWeakSurfaceDirichletConditions, bool _isPrimPrescribedWeakSurfaceDirichletConditions, double _alphaPrimWeakSurfaceDirichletConditions,
                                         bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, bool _isPrimCoupledWeakContinuityConditions, bool _isSecBendingCoupledWeakContinuityConditions, bool _isSecTwistingCoupledWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
@@ -144,7 +144,7 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
     mapper->setParametersNewtonRaphson(_noIterationsNewton, _tolProjectionNewtonRaphson);
     mapper->setParametersNewtonRaphsonBoundary(_noIterationsNewtonRaphsonBoundary, _tolProjectionNewtonRaphsonBoundary);
     mapper->setParametersBisection(_noIterationsBisection, _tolProjectionBisection);
-    mapper->setParametersIntegration(_noGPTriangle,_noGPQuad);
+    mapper->setParametersIntegration(_isAutomaticNoGPTriangle, _noGPTriangle, _isAutomaticNoGPQuadrilateral, _noGPQuadrilateral);
     mapper->setParametersWeakCurveDirichletConditions(_isWeakCurveDirichletConditions, _isAutomaticPenaltyParametersWeakCurveDirichletConditions,
                                                       _isPrimPrescribedWeakCurveDirichletConditions, _isSecBendingPrescribedWeakCurveDirichletConditions,
                                                       _isSecTwistingPrescribedWeakCurveDirichletConditions, _alphaPrimWeakCurveDirichletConditions,

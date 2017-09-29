@@ -171,9 +171,9 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
                     }
 
                     // Loop over GPs on the triangle
-                    for (int iGP = 0; iGP < gaussTriangle->numGaussPoints; iGP++) {
+                    for (int iGP = 0; iGP < gaussTriangle->getNumGaussPoints(); iGP++) {
                         const double* GP = gaussTriangle->getGaussPoint(iGP);
-                        double GW = gaussTriangle->weights[iGP];
+                        double GW = gaussTriangle->getGaussWeight(iGP);
 
                         // Get shape function values
                         double shapeFuncs[numNodes];

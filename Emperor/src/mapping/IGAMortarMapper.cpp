@@ -25,6 +25,7 @@
 #include "WeakIGADirichletCurveCondition.h"
 #include "WeakIGADirichletSurfaceCondition.h"
 #include "WeakIGAPatchContinuityCondition.h"
+#include "IGAMortarCouplingMatrices.h"
 #include "IGAMesh.h"
 #include "FEMesh.h"
 #include "ClipperAdapter.h"
@@ -38,12 +39,14 @@
 #include <math.h>
 #include <set>
 #include <algorithm>
-#include "IGAMortarCouplingMatrices.h"
 #include <iomanip>
 
 using namespace std;
 
 namespace EMPIRE {
+
+double IGAMortarMapper::EPS_CLEANTRIANGLE = 1e-6;
+double IGAMortarMapper::EPS_CLIPPING = 1e-9;
 
 /// Declaration statement
 static const string HEADER_DECLARATION = "Author: Andreas Apostolatos";
@@ -60,6 +63,9 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
 
     // Number of Cartesian directions
     int noCoord = 3;
+
+    // Number of Patches
+    int numPatches = getIGAMesh()->getNumPatches();
 
     // Check if the FE mesh is triangulated and if not triangulate it
     if (_meshFE->triangulate() == NULL)
@@ -89,8 +95,10 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     // Initialize flag on whether the meshFEDirectElemTable was created
     isMeshFEDirectElemTable = false;
 
-    // Initialize flag on whether the Gauss quadrature has been defined
-    isGaussQuadrature = false;
+    // Initialize Gauss quadratures
+    gaussRuleOnTriangle = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
+    gaussRuleOnQuadrilateral = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
+    isGaussQuadature = false;
 
     // Get the number of weak Dirichlet curve conditions
     noWeakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions().size();
@@ -134,7 +142,7 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     if (isExpanded){
         size_N = noCoord*numNodesMaster;
         size_R = noCoord*numNodesSlave;
-    }else {
+    } else {
         size_N = numNodesMaster;
         size_R = numNodesSlave;
     }
@@ -168,9 +176,11 @@ void IGAMortarMapper::setParametersBisection(int _noIterations, double _tolProje
     propBisection.tolProjection = _tolProjection;
 }
 
-void IGAMortarMapper::setParametersIntegration(int _noGPTriangle, int _noGPQuad) {
+void IGAMortarMapper::setParametersIntegration(bool _isAutomaticNoGPTriangle, int _noGPTriangle, bool _isAutomaticNoGPQuadrilateral, int _noGPQuadrilateral) {
+    propIntegration.isAutomaticNoGPTriangle = _isAutomaticNoGPTriangle;
     propIntegration.noGPTriangle = _noGPTriangle;
-    propIntegration.noGPQuad = _noGPQuad;
+    propIntegration.isAutomaticNoGPQuadrilateral = _isAutomaticNoGPQuadrilateral;
+    propIntegration.noGPQuadrilateral = _noGPQuadrilateral;
 }
 
 void IGAMortarMapper::setParametersWeakCurveDirichletConditions(bool _isWeakCurveDirichletConditions, bool _isAutomaticPenaltyParameters,
@@ -229,10 +239,23 @@ void IGAMortarMapper::buildCouplingMatrices() {
                    << (isMappingIGA2FEM?sizeN:sizeR) << "x" << (isMappingIGA2FEM?sizeR:sizeN) << endl;
     }
 
-    //Instantiate quadrature rules
-    isGaussQuadrature = true;
-    gaussTriangle = new MathLibrary::IGAGaussQuadratureOnTriangle(propIntegration.noGPTriangle);
-    gaussQuad = new MathLibrary::IGAGaussQuadratureOnQuad(propIntegration.noGPQuad);
+    // Initialize auxiliary variables
+    int numPatches = getIGAMesh()->getNumPatches();
+
+    // Create the Gauss quadrature rules for each patch
+    createGaussQuadratureRules();
+
+    // Find the maximum number of Gauss points within an element
+    int maxNumGP = 0;
+    int numGP;
+    for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+        numGP = gaussRuleOnTriangle[iPatches]->getNumGaussPoints();
+        if (numGP > maxNumGP)
+            maxNumGP = numGP;
+        numGP = gaussRuleOnQuadrilateral[iPatches]->getNumGaussPoints();
+        if (numGP > maxNumGP)
+            maxNumGP = numGP;
+    }
 
     // Initialize a string holding the filenames
     string filename;
@@ -254,7 +277,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
 
     // Reserve some space for gauss point values in the domain
     if (propErrorComputation.isDomainError)
-        streamGPs.reserve(8*meshFE->numElems*gaussQuad->numGaussPoints);
+        streamGPs.reserve(8*meshFE->numElems*maxNumGP);
 
     // Reserve some space for the gauss point values along each trimming curve where conditions are applied
     if(propErrorComputation.isCurveError){
@@ -287,19 +310,6 @@ void IGAMortarMapper::buildCouplingMatrices() {
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
-
-    // On the application of strong Dirichlet boundary conditions
-//    bool _isdirichletBCs = false;
-//    bool isClampedDofs = false;
-//    std::vector<int> clampedIDs;
-//    if(dirichletBCs.isDirichletBCs==1) {
-//        _isdirichletBCs = true;
-//        clampedIDs = meshIGA->getClampedDofs();
-
-//        int clampedDirections = meshIGA->getClampedDirections();
-//        if(clampedDirections == 1 || clampedDirections == 2)
-//            isClampedDofs = true;
-//    }
 
     // Compute the Penalty parameters for the application of weak Dirichlet curve conditions
     if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
@@ -374,25 +384,14 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet surface conditions are assumed" << std::endl;
 
-    // this is for MapperAdapter, this makes sure that the fields in all directions are sent at the same time
-    // if it is not always clamped in all three dircetions
-//    if(isClampedDofs)
-//        isIGAPatchContinuityConditions = true;
-
-//    couplingMatrices->setIsDirichletBCs(_isdirichletBCs);
-
-//    if(dirichletBCs.isDirichletBCs == 1){
-//        INFO_OUT() << "Applying strong Dirichlet boundary conditions" << std::endl;
-//        couplingMatrices->applyDirichletBCs(clampedIDs);
-//    }
-
-//    if (isIGAWeakDirichletCurveConditions || dirichletBCs.isDirichletBCs == 1) {
-//        couplingMatrices->factorizeCnn();
-//        INFO_OUT() << "Factorize was successful" << std::endl;
-//    }
+    // Factorize Cnn matrix
+    couplingMatrices->factorizeCnn();
+    INFO_OUT() << "Factorize was successful" << std::endl;
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
+    // Auxiliary variables
+    int numPatches = getIGAMesh()->getNumPatches();
 
     // Delete the Finite Element direct element table
     if(isMeshFEDirectElemTable){
@@ -402,10 +401,13 @@ IGAMortarMapper::~IGAMortarMapper() {
     }
 
     // Delete the quadrature rules
-    if(isGaussQuadrature){
-        delete gaussTriangle;
-        delete gaussQuad;
-    }
+    if (isGaussQuadature)
+        for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+                delete gaussRuleOnTriangle[iPatches];
+                delete gaussRuleOnQuadrilateral[iPatches];
+        }
+    delete[] gaussRuleOnTriangle;
+    delete[] gaussRuleOnQuadrilateral;
 
     // Delete the coupling matrices
     delete couplingMatrices;
@@ -430,44 +432,85 @@ IGAMortarMapper::~IGAMortarMapper() {
 }
 
 void IGAMortarMapper::initTables() {
-    /* using the map to store the nodeIDs
-     * but here the "key" is the node ID, and the value is the position in nodeIDs
+    /*
+     * Create the map to store the nodeIDs but here the "key" is the node ID, and the value is the position in nodeIDs
      * the map is sorted automatically, so it is efficient for searching
+     *
+     * Function layout:
+     *
+     * 1. Initialize the direct element freedom tables for the Finite Element mesh
+     *
+     * 2. Make a map between the node ids and the local indexing
+     *
+     * 3. Loop over all elements in the Finite Element mesh
+     * ->
+     *    3i. Get the number of nodes per element for the given element
+     *   3ii. Loop over all nodes in the Finite Element
+     *   ->
+     *        3ii.1. Assert an error if an ID is not found in the map
+     *        3ii.2. Insert the id of the node in the map
+     *   <-
+     * <-
+     *
+     * 4. Loop over all nodes in the Finite Element mesh
+     * ->
+     *    4i. Loop over all elements in the Finite Element mesh
+     *    ->
+     *        4i.1. Get the number of nodes for the given element
+     *        4i.2. Find the given node in the current element
+     *        4i.3. Insert the element in the node map
+     *    <-
+     * <-
      */
 
-    // compute direct element table for fluid mesh
+    // 1. Initialize the direct element freedom tables for the Finite Element mesh
     meshFEDirectElemTable = new int*[meshFE->numElems]; // deleted
     for (int i = 0; i < meshFE->numElems; i++)
         meshFEDirectElemTable[i] = new int[meshFE->numNodesPerElem[i]];
 
+    // 2. Make a map between the node ids and the local indexing
     map<int, int> meshFENodesMap;
     for (int i = 0; i < meshFE->numNodes; i++)
         meshFENodesMap.insert(meshFENodesMap.end(), pair<int, int>(meshFE->nodeIDs[i], i));
     int count = 0;
 
+    // 3. Loop over all elements in the Finite Element mesh
     for (int i = 0; i < meshFE->numElems; i++) {
+        // 3i. Get the number of nodes per element for the given element
         const int numNodesPerElem = meshFE->numNodesPerElem[i];
 
+        // 3ii. Loop over all nodes in the Finite Element
         for (int j = 0; j < numNodesPerElem; j++) {
+            // 3ii.1. Assert an error if an ID is not found in the map
             if (meshFENodesMap.find(meshFE->elems[count + j]) == meshFENodesMap.end()) {
                 ERROR_OUT() << "Cannot find node ID " << meshFE->elems[count + j] << endl;
                 exit(-1);
             }
+
+            // 3ii.2. Insert the id of the node in the map
             meshFEDirectElemTable[i][j] = meshFENodesMap.at(meshFE->elems[count + j]);
         }
+
+        // 3iii. Updated counter
         count += numNodesPerElem;
     }
 
-    for (int node = 0; node < meshFE->numNodes; node++) {
+    // 4. Loop over all nodes in the Finite Element mesh
+    for (int iNodes = 0; iNodes < meshFE->numNodes; iNodes++) {
+        // 4i. Loop over all elements in the Finite Element mesh
         for (int elem = 0; elem < meshFE->numElems; elem++) {
+            // 4i.1. Get the number of nodes for the given element
             const int numNodesPerElem = meshFE->numNodesPerElem[elem];
-            int* out = find(meshFEDirectElemTable[elem],meshFEDirectElemTable[elem]+numNodesPerElem,node);
-            if(out != meshFEDirectElemTable[elem]+numNodesPerElem) {
-                meshFENodeToElementTable[node].push_back(elem);
+
+            // 4i.2. Find the given node in the current element
+            int* out = find(meshFEDirectElemTable[elem],meshFEDirectElemTable[elem]+numNodesPerElem,iNodes);
+
+            // 4i.3. Insert the element in the node map
+            if(out != meshFEDirectElemTable[elem] + numNodesPerElem) {
+                meshFENodeToElementTable[iNodes].push_back(elem);
             }
         }
     }
-
 }
 
 void IGAMortarMapper::projectPointsToSurface() {
@@ -493,7 +536,7 @@ void IGAMortarMapper::projectPointsToSurface() {
     double initialU, initialV;
 
     // Get the number of patches in the IGA mesh
-    int numPatches = meshIGA->getNumPatches();
+    int numPatches = getIGAMesh()->getNumPatches();
 
     // Bounding box preprocessing, assign to each node the patches to be visited
     INFO_OUT() << "Bounding box preprocessing started" << endl;
@@ -596,36 +639,55 @@ void IGAMortarMapper::projectPointsToSurface() {
 }
 
 void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, const int _elemIndex, const int _nodeIndex, double& _u, double& _v) {
+    /*
+     * Finds an initial guess for the projection of a node on the given patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Get the patch from the multipatch geometry
+     *
+     * 3. Loop over all nodes of the current element
+     * ->
+     *    3i. Get the index of the node from the direct element freedom table
+     *   3ii. Check if the node has already been projected and get its index
+     * <-
+     *
+     * 4. Check if there exist one node in the current element which was successfully projected
+     * ### If so, use result of the projected node as the initial guess for the projection step ###
+     * ### Otherwise, find the nearest knot intersection as initial guess for the projection step ###
+     */
 
-    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchIndex);
-    /// 1iii.1. Initialize the flag to false and the node id to zero
+    // 1. Initialize auxiliary arrays
     bool isNodeInsideElementProjected = false;
     int projectedNode = -1;
-    /// 1iii.2. Loop over all nodes of the current element to check if there exist one node has been projected already
-    for (int j = 0; j < meshFE->numNodesPerElem[_elemIndex]; j++) {
-        int nodeIndex = meshFEDirectElemTable[_elemIndex][j];
+
+    // 2. Get the patch from the multipatch geometry
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(_patchIndex);
+
+    // 3. Loop over all nodes of the current element
+    for (int iNodesElmnt = 0; iNodesElmnt < meshFE->numNodesPerElem[_elemIndex]; iNodesElmnt++) {
+        // 3i. Get the index of the node from the direct element freedom table
+        int nodeIndex = meshFEDirectElemTable[_elemIndex][iNodesElmnt];
+
+        // 3ii. Check if the node has already been projected and get its index
         if (projectedCoords[nodeIndex].find(_patchIndex) != projectedCoords[nodeIndex].end()) {
-            /// 1iii.2i. If the node has already been projected set projection flag to true
             isNodeInsideElementProjected = true;
-            /// 1iii.2ii. Get the global ID of the projected node
             projectedNode = nodeIndex;
-            /// 1iii.2iii. Break the loop
             break;
         }
     }
-    /// 1iii.3. Check if there exist one node in the current element has been successfully projected
-    if (isNodeInsideElementProjected) {
-        /// 1iii.3i. If so, use result of the projected node as the initial guess for the projection step
+
+    // 4. Check if there exist one node in the current element which was successfully projected
+    if (isNodeInsideElementProjected) { // ### If so, use result of the projected node as the initial guess for the projection step ###
         _u = projectedCoords[projectedNode][_patchIndex][0];
         _v = projectedCoords[projectedNode][_patchIndex][1];
-    } else {
-        /// 1iii.3ii. Otherwise, find the nearest knot intersection as initial guess for the projection step
-        // Get the Cartesian coordinates of that input node
+    } else { // ### Otherwise, find the nearest knot intersection as initial guess for the projection step ###
         double P[3];
         P[0] = meshFE->nodes[_nodeIndex * 3 + 0];
         P[1] = meshFE->nodes[_nodeIndex * 3 + 1];
         P[2] = meshFE->nodes[_nodeIndex * 3 + 2];
-        // Get accordingly an initial guess for the projection onto the NURBS patch
         thePatch->findInitialGuess4PointProjection(_u, _v, P, propProjection.noInitialGuess, propProjection.noInitialGuess);
     }
 }
@@ -781,13 +843,19 @@ void IGAMortarMapper::computeCouplingMatrices() {
         /// 2. If the current element is split in more than one patches
         // Loop over all the patches in the IGA Mesh having a part of the FE element projected inside
         for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
-            int patchIndex=*it;
+            int patchIndex = *it;
+
             IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
+
             // Stores points of the polygon clipped by the nurbs patch
             Polygon2D polygonUV;
+
             buildBoundaryParametricElement(elemIndex, numNodesElementFE, patchIndex, polygonUV);
+
             ClipperAdapter::cleanPolygon(polygonUV);
+
             bool isIntegrated = computeLocalCouplingMatrix(elemIndex, patchIndex, polygonUV);
+
             if(isIntegrated) {
                 elementIntegrated.insert(elemIndex);
                 projectedPolygons[elemIndex][patchIndex]=polygonUV;
@@ -809,19 +877,25 @@ void IGAMortarMapper::computeCouplingMatrices() {
 void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchWithFullElt, set<int>& patchWithSplitElt) {
     // Initialize the flag whether the projected FE element is located on one patch
     bool isAllNodesOnPatch = true;
+
     // Initialize the flag whether the projected FE element is not located at all on the patch
     bool isAllNodesOut= true;
+
     // Loop over all the patches
     for (int patchCount = 0; patchCount < meshIGA->getSurfacePatches().size(); patchCount++) {
         isAllNodesOnPatch = true;
         isAllNodesOut= true;
+
         // Loop over all the nodes of the unclipped element
         for (int nodeCount = 0; nodeCount < meshFE->numNodesPerElem[elemIndex]; nodeCount++) {
             // Find the index of the node in the FE mesh
+
             int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
+
             // Find whether this index is in the projected nodes array
             bool isNodeOnPatch = projectedCoords[nodeIndex].find(patchCount)
                     != projectedCoords[nodeIndex].end();
+
             // Update flag
             if (!isNodeOnPatch) {
                 isAllNodesOnPatch = false;
@@ -829,11 +903,13 @@ void IGAMortarMapper::getPatchesIndexElementIsOn(int elemIndex, set<int>& patchW
                 isAllNodesOut = false;
             }
         }
+
         // If all nodes are on the patch "patchCount", save this patch and go for next patch
         if (isAllNodesOnPatch) {
             patchWithFullElt.insert(patchCount);
             continue;
         }
+
         // If element is splitted for patch "patchCount", save this patch and go for next patch
         if(!isAllNodesOut) {
             patchWithSplitElt.insert(patchCount);
@@ -1073,23 +1149,22 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
         /// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
         for(int index=0;index<listSpan.size();index++) {
             // ClipperAdapter::cleanPolygon(listPolygonUV[index],1e-9);
-            if(listPolygonUV[index].size()<3)
+            if(listPolygonUV[index].size() < 3)
                 continue;
-            isIntegrated=true;
+            isIntegrated = true;
             ListPolygon2D triangulatedPolygons = triangulatePolygon(listPolygonUV[index]);
             /// 1.3.3 For each triangle, compute canonical element and integrate
-            for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
-                triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
+            for(ListPolygon2D::iterator triangulatedPolygon = triangulatedPolygons.begin(); triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
                 /// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
                 ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-8);
-                if(triangulatedPolygon->size()<3)
+                if(triangulatedPolygon->size() < 3)
                     continue;
                 triangulatedProjectedPolygons[_elemIndex][_patchIndex].push_back(*triangulatedPolygon);
                 triangulatedProjectedPolygons2[_patchIndex].push_back(*triangulatedPolygon);
                 // Get canonical element
                 Polygon2D polygonWZ = computeCanonicalElement(_elemIndex, _projectedElement, *triangulatedPolygon);
                 // Integrate
-                integrate(thePatch,*triangulatedPolygon,listSpan[index].first,listSpan[index].second,polygonWZ,_elemIndex);
+                integrate(thePatch, _patchIndex, *triangulatedPolygon, listSpan[index].first, listSpan[index].second, polygonWZ, _elemIndex);
             }
         }
     }
@@ -1102,22 +1177,44 @@ void IGAMortarMapper::clipByPatch(const IGAPatchSurface* _thePatch, Polygon2D& _
     const double u1 = _thePatch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
     const double v1 = _thePatch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
     Polygon2D knotSpanWindow(4);
-    knotSpanWindow[0]=make_pair(u0,v0);
-    knotSpanWindow[1]=make_pair(u1,v0);
-    knotSpanWindow[2]=make_pair(u1,v1);
-    knotSpanWindow[3]=make_pair(u0,v1);
+    knotSpanWindow[0] = make_pair(u0,v0);
+    knotSpanWindow[1] = make_pair(u1,v0);
+    knotSpanWindow[2] = make_pair(u1,v1);
+    knotSpanWindow[3] = make_pair(u0,v1);
     ClipperAdapter c;
     _polygonUV = c.clip(_polygonUV,knotSpanWindow);
 }
 
 void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
+    /*
+     * Clips a given polygon by the tirmming curves within a patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Loop over all trimming loops within the patch
+     * ->
+     *    2i. Get the linearized trimming loop
+     *   2ii. Add the trimming loop in the clipper
+     * <-
+     *
+     * 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+     */
+
+    // 1. Initialize auxiliary variables
     ClipperAdapter c;
-    // Fill clipper with trimming clipping curves
-    for(int loop=0;loop<_thePatch->getTrimming().getNumOfLoops();loop++) {
-        const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
+
+    // 2. Loop over all trimming loops within the patch
+    for(int loop = 0; loop < _thePatch->getTrimming().getNumOfLoops(); loop++) {
+        // 2i. Get the linearized trimming loop
+        const std::vector<double> clippingWindow = _thePatch->getTrimming().getLoop(loop).getPolylines();
+
+        // 2ii. Add the trimming loop in the clipper
         c.addPathClipper(clippingWindow);
     }
-    // Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+
+    // 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
     c.setFilling(ClipperAdapter::POSITIVE, 0);
     c.addPathSubject(_polygonUV);
     c.clip();
@@ -1125,51 +1222,106 @@ void IGAMortarMapper::clipByTrimming(const IGAPatchSurface* _thePatch, const Pol
 }
 
 void IGAMortarMapper::clipByTrimming(const IGAPatchSurfaceTrimmingLoop* _theTrimmingLoop, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
+    /*
+     * Clips a given polygon by the tirmming curves within a trimming loop
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Define the clipping window for the clipper
+     *
+     * 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+     */
+
+    // 1. Initialize auxiliary variables
     ClipperAdapter c;
-    // Define the clipping window for the clipper
+    ListPolygon2D tmpListPolygonUV;
+
+    // 2. Define the clipping window for the clipper
     const std::vector<double> clippingWindow = _theTrimmingLoop->getPolylines();
     c.addPathClipper(clippingWindow);
-    // Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+
+    // 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
     c.setFilling(ClipperAdapter::NEGATIVE, 0);
     c.addPathSubject(_polygonUV);
     c.clip();
-    ListPolygon2D tmpListPolygonUV;
     c.getSolution(tmpListPolygonUV);
     _listPolygonUV.insert(_listPolygonUV.end(),tmpListPolygonUV.begin(),tmpListPolygonUV.end());
 }
 
 void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan) {
-    /// 1.find the knot span which the current element located in.
-    //      from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction
+    /*
+     * Clips a given polygon by the knot spans of the given patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Get the knot vectors of the patch
+     *
+     * 3.find the knot span which the current element located in. (from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction)
+     *
+     * 4. Find the clipped polygon
+     * ->
+     *    ### If all vertices of the polygon are on same knot span then returned the same polygon as input ###
+     *    4i. Add the polygon into the list
+     *   4ii. Add the corresponding knot span indices of the knot span containing the polygon
+     *    ### Else clip the polygon for every knot span window it is crossing ###
+     *    4i. Loop over all spans in u-direction
+     *    ->
+     *        4i.1. Loop over all spans in v-direction
+     *        ->
+     *              4i.1i. Initialize a clipper adapter
+     *             4i.1ii. Clip the polygon with the knot span window
+     *             ### Check if the encountered knot span is collapsed ###
+     *             4i.1ii.1. Create the knot span window
+     *             4i.1ii.2. Clip the polygon with the knot span window (WARNING : here we assume to get only a single output polygon from the clipping!)
+     *        <-
+     *    <-
+     * <-
+     */
+
+    // 1. Initialize auxiliary variables
+    int span[4];
+
+    // 2. Get the knot vectors of the patch
     const double *knotVectorU = _thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
     const double *knotVectorV = _thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
 
-    int span[4];
+    // 3.find the knot span which the current element located in. (from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction)
     int isOnSameKnotSpan = computeKnotSpanOfProjElement(_thePatch, _polygonUV,span);
     int minSpanU = span[0];
     int maxSpanU = span[1];
     int minSpanV = span[2];
     int maxSpanV = span[3];
-    /// If on same knot span then returned the same polygon as input
-    if (isOnSameKnotSpan) {
+
+    // 4. Find the clipped polygon
+    if (isOnSameKnotSpan) { // ### If all vertices of the polygon are on same knot span then returned the same polygon as input ###
+        // 4i. Add the polygon into the list
         _listPolygon.push_back(_polygonUV);
+
+        // 4ii. Add the corresponding knot span indices of the knot span containing the polygon
         _listSpan.push_back(make_pair(minSpanU,minSpanV));
-        /// Else clip the polygon for every knot span window it is crossing
-    } else {
+    } else { // ### Else clip the polygon for every knot span window it is crossing ###
+        // 4i. Loop over all spans in u-direction
         for (int spanU = minSpanU; spanU <= maxSpanU; spanU++) {
+            // 4i.1. Loop over all spans in v-direction
             for (int spanV = minSpanV; spanV <= maxSpanV; spanV++) {
-                /// WARNING hard coded tolerance. Uses reduced clipping tolerance (initially 1e-12). Avoid numerical instability on knot span inside/outside.
-                ClipperAdapter c(1e-9);
-                if (knotVectorU[spanU] != knotVectorU[spanU + 1]
-                        && knotVectorV[spanV] != knotVectorV[spanV + 1]) {
+                // 4i.1i. Initialize a clipper adapter
+                ClipperAdapter c(EPS_CLIPPING);
+
+                // 4i.1ii. Clip the polygon with the knot span window
+                if (knotVectorU[spanU] != knotVectorU[spanU + 1] && knotVectorV[spanV] != knotVectorV[spanV + 1]) { // ### Check if the encountered knot span is collapsed ###
+                    // 4i.1ii.1. Create the knot span window
                     Polygon2D knotSpanWindow(4);
                     knotSpanWindow[0] = make_pair(knotVectorU[spanU],knotVectorV[spanV]);
-                    knotSpanWindow[1] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
-                    knotSpanWindow[2] = make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
-                    knotSpanWindow[3] = make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
-                    /// WARNING design. Here we assume to get only a single output polygon from the clipping !
-                    Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
+                    knotSpanWindow[1] = make_pair(knotVectorU[spanU + 1],knotVectorV[spanV]);
+                    knotSpanWindow[2] = make_pair(knotVectorU[spanU + 1],knotVectorV[spanV + 1]);
+                    knotSpanWindow[3] = make_pair(knotVectorU[spanU],knotVectorV[spanV + 1]);
 
+                    // 4i.1ii.2. Clip the polygon with the knot span window (WARNING : here we assume to get only a single output polygon from the clipping!)
+                    Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
                     /// Store polygon and its knot span for integration
                     _listPolygon.push_back(solution);
                     _listSpan.push_back(make_pair(spanU,spanV));
@@ -1180,69 +1332,163 @@ void IGAMortarMapper::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Pol
 }
 
 IGAMortarMapper::ListPolygon2D IGAMortarMapper::triangulatePolygon(const Polygon2D& _polygonUV) {
-    // If already easily integrable by quadrature rule, do nothing
-    if(_polygonUV.size()<4)
+    /*
+     * Triangulates given polygon
+     *
+     * Function layout :
+     *
+     * 1. If the polygon is already a triangle do nothing
+     *
+     * 2. Initialize triangulator
+     *
+     * 3. Loop over all segments of the given polygon and add its ends into the triangulator
+     *
+     * 4. Triangulate the polygon
+     *
+     * 5. Fill the output list of the newly generated polygons
+     *
+     * 6. Return the updated list of the triangulated polygons
+     */
+
+    // 1. If the polygon is already a triangle do nothing
+    if(_polygonUV.size() < 4)
         return ListPolygon2D(1,_polygonUV);
-    // Otherwise triangulate polygon
+
+    // 2. Initialize triangulator
     TriangulatorAdaptor triangulator;
-    // Fill adapter
-    for(Polygon2D::const_iterator it=_polygonUV.begin();it!=_polygonUV.end();it++)
+
+    // 3. Loop over all segments of the given polygon and add its ends into the triangulator
+    for(Polygon2D::const_iterator it = _polygonUV.begin(); it!=_polygonUV.end(); it++)
         triangulator.addPoint(it->first,it->second,0);
-    // Triangulate
+
+    // 4. Triangulate the polygon
     int numTriangles = _polygonUV.size() - 2;
     int triangleIndexes[3 * numTriangles];
-    bool triangulated=triangulator.triangulate(triangleIndexes);
+    bool triangulated = triangulator.triangulate(triangleIndexes);
     if(!triangulated)
         return ListPolygon2D();
-    // Fill output structure
+
+    // 5. Fill the output list of the newly generated polygons
     ListPolygon2D out(numTriangles, Polygon2D(3));
     for(int i = 0; i < numTriangles; i++)
-        for(int j=0;j<3;j++)
-            out[i][j]=_polygonUV[triangleIndexes[3*i + j]];
+        for(int j = 0; j < 3; j++)
+            out[i][j] = _polygonUV[triangleIndexes[3*i + j]];
+
+    // 6. Return the updated list of the triangulated polygons
     return out;
 }
 
 IGAMortarMapper::Polygon2D IGAMortarMapper::computeCanonicalElement(const int _elementIndex, const Polygon2D& _theElement, const Polygon2D& _polygonUV) {
+    /*
+     *  Finds the vertices of the clipped in the parameter space element in the canonical space and stores them the returned polygon
+     *
+     * Function layout:
+     *
+     * 1. Define auxiliary variables
+     *
+     * 2. Loop over all vertices of the clipped element in the parameter space of the patch and create a polygon
+     *
+     * 3. Loop over all vertices of the polygon in the parameter space of the patch
+     * ->
+     *    3i. Get the coordinates of a segment in the polygon
+     *   3ii. Compute the local coordinates in the patch given the type of the canonical element
+     *  3iii. Push back the coordinates of the element in the canonical space
+     * <-
+     *
+     * 4. Return the newly created polygon containing the image of the clipped Finite Element in the canonical space
+     */
+
+    // 1. Define auxiliary variables
     int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
-    double elementFEUV[8], coordsNodeFEUV[2], coordsNodeFEWZ[2];
-    for(int i = 0; i < numNodesElementFE; i++) {
-        elementFEUV[2*i]   = _theElement[i].first;
-        elementFEUV[2*i+1] = _theElement[i].second;
-    }
-    // Compute canonical coordinates polygon using parametric space
+    double elementFEUV[8];
+    double coordsNodeFEUV[2];
+    double coordsNodeFEWZ[2];
     Polygon2D polygonWZ;
-    for(int i=0; i<_polygonUV.size(); i++) {
-        coordsNodeFEUV[0] = _polygonUV[i].first;
-        coordsNodeFEUV[1] = _polygonUV[i].second;
+
+    // 2. Loop over all vertices of the clipped element in the parameter space of the patch and create a polygon
+    for(int iNodes = 0; iNodes < numNodesElementFE; iNodes++) {
+        elementFEUV[2*iNodes] = _theElement[iNodes].first;
+        elementFEUV[2*iNodes + 1] = _theElement[iNodes].second;
+    }
+
+    // 3. Loop over all vertices of the polygon in the parameter space of the patch
+    for(int iVertices = 0; iVertices < _polygonUV.size(); iVertices++) {
+        // 3i. Get the coordinates of a segment in the polygon
+        coordsNodeFEUV[0] = _polygonUV[iVertices].first;
+        coordsNodeFEUV[1] = _polygonUV[iVertices].second;
+
+        // 3ii. Compute the local coordinates in the patch given the type of the canonical element
         if(numNodesElementFE == 3)
             MathLibrary::computeLocalCoordsInTriangle(elementFEUV, coordsNodeFEUV, coordsNodeFEWZ);
-        else
+        else if (numNodesElementFE == 4)
             MathLibrary::computeLocalCoordsInQuad(elementFEUV, coordsNodeFEUV, coordsNodeFEWZ);
+        else {
+            ERROR_OUT() << "The canonical element can only be a triangle or a quadrilateral" << endl;
+            exit(-1);
+        }
+
+        // 3iii. Push back the coordinates of the element in the canonical space
         polygonWZ.push_back(make_pair(coordsNodeFEWZ[0],coordsNodeFEWZ[1]));
     }
+
+    // 4. Return the newly created polygon containing the image of the clipped Finite Element in the canonical space
     return polygonWZ;
 }
 
-void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV,
+void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Polygon2D _polygonUV,
                                 int _spanU, int _spanV, Polygon2D _polygonWZ, int _elementIndex) {
     /*
-     * 1. Divide the polygon into several quadratures(triangle or quadriliteral) for integration
-     * 2. Loop through each quadrature
-     *   2.1 Choose a Gauss quadrature (triangle or quadriliteral)
-     *   2.2 Loop throught each Gauss point
-     *       2.2.1 compute shape functions from Gauss points
-     *       2.2.2 evaluate the coordinates in IGA patch from shape functions
-     *       2.2.3 evaluate the coordinates in the linear element from shape functions
-     *       2.2.4 compute the shape functions in the linear element for the current integration point
-     *       2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
-     *       2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
-     *       2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
-     *       2.2.8 integrate the shape function product for Cnn(Linear shape function multiply linear shape function)
-     *       2.2.9 integrate the shape function product for Cnr(Linear shape function multiply IGA shape function)
-     * 3. Assemble the element coupling matrix to the global coupling matrix.
+     * Compute and assembles the element contributions to the global Cnn and Cnr matrices
+     *
+     * Function layout:
+     *
+     * 1. Read input
+     *
+     * 2. Get the corresponding quadrature rule depending on the integration domain
+     *
+     * 3. Find the number of the master and the slave DOFs
+     *
+     * 4. Create an element freedom table for the isogeometric field
+     *
+     * 5. Copy input polygon into contiguous C format
+     *
+     * 6. Loop over all Gauss points
+     * ->
+     *    6i. Get the Gauss point coordinates in the integration space
+     *   6ii. Get the Gauss point weight
+     *  6iii. Compute the basis functions describing parametrically the integration domain
+     *   6iv. Compute the image of the gauss point in the NURBS parameter space
+     *    6v. Compute the image of the Gauss point in the low order Finite Element
+     *   6vi. Compute the basis functions of the low order Finite Element
+     *  6vii. Compute the local NURBS basis functions and their first order derivatives
+     * 6viii. Compute the base vectors and their first derivatives
+     *   6ix. Compute the surface normal vector at the Gauss point
+     *    6x. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
+     *   6xi. Compute the determinant of the Jacobian of the transformation from the NURBS parameter space to the canonical space
+     *  6xii. Compute the product of the determinants of the Jacobian matrices
+     * 6xiii. Loop over all local basis functions in the master side
+     * ->
+     *        6xiii.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
+     *        ->
+     *                 6xiii.1i. Compute the product of the basis functions
+     *                6xiii.1ii. Compute the integrand on the Gauss point times the Gauss weight
+     *               6xiii.1iii. Find the DOF numbering of the dual basis functions product
+     *                6xiii.1iv. Assemble the element contributions to the global Cnn matrix
+     *        <-
+     *
+     *        6xiii.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
+     *        ->
+     *                 6xiii.2i. Compute the integrand on the Gauss point times the Gauss weight
+     *                6xiii.2ii. Find the DOF numbering of the dual basis functions product
+     *               6xiii.2iii. Assemble the element contributions to the global Cnr matrix
+     *        <-
+     * <-
+     *
+     *  6xiv. Save the gauss point data for the computation of the L2 norm of the error
+     * <-
      */
 
-    // Read input
+    // 1. Read input
     assert(!_polygonUV.empty());
     assert(!_polygonWZ.empty());
     int numNodesUV=_polygonUV.size();
@@ -1252,253 +1498,249 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, Polygon2D _polygonUV
     assert(numNodesWZ > 2);
     assert(numNodesWZ < 5);
 
-    // Number of Cartesian directions
-    int noCoord = 3;
+    // 2. Get the corresponding quadrature rule depending on the integration domain
+    EMPIRE::MathLibrary::IGAGaussQuadrature* theGaussQuadrature;
+    int nNodesQuadrature = numNodesUV;
+    if (nNodesQuadrature == 3)
+        theGaussQuadrature = gaussRuleOnTriangle[_patchIndex];
+    else if (nNodesQuadrature == 4)
+        theGaussQuadrature = gaussRuleOnQuadrilateral[_patchIndex];
+    else {
+        ERROR_OUT() << "Only triangles and quadrilaterals are expected as integration domains";
+        exit(-1);
+    }
 
-    // Definitions
+    // 2. Initialize auxiliary variables
+    int noCoord = 3;
+    int derivDegree = 1;
     int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
     int numNodesElMaster = 0;
     int numNodesElSlave = 0;
-
+    int dof1;
+    int dof2;
     int pDegree = _thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
     int qDegree = _thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-    int nShapeFuncsIGA = (pDegree + 1) * (qDegree + 1);
+    int numBasisFunctionsIGA = (pDegree + 1) * (qDegree + 1);
+    double basisFunctions[nNodesQuadrature];
+    double basisFunctionsFE[numNodesElementFE];
+    double uv[2];
+    double wz[2];
+    double baseVectors[6];
+    double baseVectorU[3];
+    double baseVectorV[3];
+    double surfaceNormalTilde[3];
+    double gaussWeight;
+    double JacobianUVToPhysical;
+    double JacobianCanonicalToUV;
+    double JacobianProduct;
+    double dudx;
+    double dudy;
+    double dvdx;
+    double dvdy;
+    double IGABasisFctsI;
+    double IGABasisFctsJ;
+    double basisFctsMaster;
+    double basisFctsSlave;
+    double basisFunctionsProduct;
+    double integrand;
+    double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2) * numBasisFunctionsIGA / 2];
 
+    // 3. Find the number of the master and the slave DOFs
     if (isMappingIGA2FEM) {
         numNodesElMaster = numNodesElementFE;
-        numNodesElSlave = nShapeFuncsIGA;
+        numNodesElSlave = numBasisFunctionsIGA;
     } else {
-        numNodesElMaster = nShapeFuncsIGA;
+        numNodesElMaster = numBasisFunctionsIGA;
         numNodesElSlave = numNodesElementFE;
     }
-    // Initialize element matrix
-    double elementCouplingMatrixNN[numNodesElMaster * (numNodesElMaster + 1) / 2];
-    double elementCouplingMatrixNR[numNodesElSlave * numNodesElMaster];
 
-    for (int arrayIndex = 0; arrayIndex < numNodesElMaster * (numNodesElMaster + 1) / 2;
-         arrayIndex++)
-        elementCouplingMatrixNN[arrayIndex] = 0;
-
-    for (int arrayIndex = 0; arrayIndex < numNodesElSlave * numNodesElMaster; arrayIndex++)
-        elementCouplingMatrixNR[arrayIndex] = 0;
-
-    int dofIGA[nShapeFuncsIGA];
+    // 4. Create an element freedom table for the isogeometric field
+    int dofIGA[numBasisFunctionsIGA];
     _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
-
-    for (int i = 0; i < nShapeFuncsIGA; i++)
+    for (int i = 0; i < numBasisFunctionsIGA; i++)
         dofIGA[i] = _thePatch->getControlPointNet()[dofIGA[i]]->getDofIndex();
 
-    /// 1. Copy input polygon into contiguous C format
+    // 5. Copy input polygon into contiguous C format
     double nodesUV[8];
     double nodesWZ[8];
     for (int i = 0; i < numNodesUV; i++) {
-        nodesUV[i*2]=_polygonUV[i].first;
-        nodesUV[i*2+1]=_polygonUV[i].second;
-        nodesWZ[i*2]=_polygonWZ[i].first;
-        nodesWZ[i*2+1]=_polygonWZ[i].second;
+        nodesUV[i*2] = _polygonUV[i].first;
+        nodesUV[i*2 + 1] = _polygonUV[i].second;
+        nodesWZ[i*2] = _polygonWZ[i].first;
+        nodesWZ[i*2 + 1] = _polygonWZ[i].second;
     }
 
-    /// 2. Loop through each quadrature
-    /// 2.1 Choose gauss triangle or gauss quadriliteral
-    MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
-    int nNodesQuadrature=numNodesUV;
-    if (nNodesQuadrature == 3)
-        theGaussQuadrature = gaussTriangle;
-    else
-        theGaussQuadrature = gaussQuad;
+    // 6. Loop over all Gauss points
+    for (int iGP = 0; iGP < theGaussQuadrature->getNumGaussPoints(); iGP++) {
+        // 6i. Get the Gauss point coordinates in the integration space
+        const double *gaussPoint = theGaussQuadrature->getGaussPoint(iGP);
 
-    double *quadratureUV = nodesUV;
-    double *quadratureWZ = nodesWZ;
+        // 6ii. Get the Gauss point weight
+        gaussWeight = theGaussQuadrature->getGaussWeight(iGP);
 
-    /// 2.2 Loop throught each Gauss point
-    for (int GPCount = 0; GPCount < theGaussQuadrature->numGaussPoints; GPCount++) {
+        // 6iii. Compute the basis functions describing parametrically the integration domain
+        MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, gaussPoint, basisFunctions);
 
-        /// 2.2.1 compute shape functions from Gauss points(in the quadrature).
-        const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
+        // 6iv. Compute the image of the gauss point in the NURBS parameter space
+        MathLibrary::computeLinearCombination(nNodesQuadrature, 2, nodesUV, basisFunctions, uv);
 
-        double shapeFuncs[nNodesQuadrature];
-        MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
+        // 6v. Compute the image of the Gauss point in the low order Finite Element
+        MathLibrary::computeLinearCombination(nNodesQuadrature, 2, nodesWZ, basisFunctions, wz);
 
-        /// 2.2.2 evaluate the coordinates in IGA patch from shape functions
-        double GPIGA[2];
-        MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
-                                              GPIGA);
+        // 6vi. Compute the basis functions of the low order Finite Element
+        MathLibrary::computeLowOrderShapeFunc(numNodesElementFE, wz, basisFunctionsFE);
 
-        /// 2.2.3 evaluate the coordinates in the linear element from shape functions
-        double GPFE[2];
-        MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureWZ, shapeFuncs,
-                                              GPFE);
+        // 6vii. Compute the local NURBS basis functions and their first order derivatives
+        _thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(localBasisFunctionsAndDerivatives,
+                                                                           derivDegree, uv[0], _spanU, uv[1], _spanV);
 
-        /// 2.2.4 compute the shape function(in the linear element) of the current integration point
-        double shapeFuncsFE[numNodesElementFE];
-        MathLibrary::computeLowOrderShapeFunc(numNodesElementFE, GPFE, shapeFuncsFE);
+        // 6viii. Compute the base vectors and their first derivatives
+        _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU, _spanV);
+        for (int iCoord = 0; iCoord < noCoord; iCoord++) {
+            baseVectorU[iCoord] = baseVectors[iCoord];
+            baseVectorV[iCoord] = baseVectors[noCoord + 1 + iCoord];
+        }
 
-        int derivDegree = 1;
+        // 6ix. Compute the surface normal vector at the Gauss point
+        MathLibrary::computeVectorCrossProduct(baseVectorU, baseVectorV, surfaceNormalTilde);
 
-        /// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
-        double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2)
-                * nShapeFuncsIGA / 2];
+        // 6x. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
+        JacobianUVToPhysical = MathLibrary::vector2norm(surfaceNormalTilde, noCoord);
 
-        _thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
-                    localBasisFunctionsAndDerivatives, derivDegree, GPIGA[0], _spanU, GPIGA[1],
-                _spanV);
-
-        /// 2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
-        double baseVectors[6];
-        _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
-                                      _spanV);
-
-        double JacobianUVToPhysical = MathLibrary::computeAreaTriangle(baseVectors[0],
-                baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
-                * 2;
-
-        /// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
-        double JacobianCanonicalToUV;
+        // 6xi. Compute the determinant of the Jacobian of the transformation from the NURBS parameter space to the canonical space
         if (nNodesQuadrature == 3) {
-            JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(
-                        quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
-                    quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
+            JacobianCanonicalToUV = MathLibrary::computeAreaTriangle( nodesUV[2] - nodesUV[0], nodesUV[3] - nodesUV[1], 0,
+                                                                      nodesUV[4] - nodesUV[0], nodesUV[5] - nodesUV[1], 0)*2.0;;
         } else {
-            double dudx = .25
-                    * (-(1 - GP[2]) * quadratureUV[0] + (1 - GP[2]) * quadratureUV[2]
-                    + (1 + GP[2]) * quadratureUV[4] - (1 + GP[2]) * quadratureUV[6]);
-            double dudy = .25
-                    * (-(1 - GP[1]) * quadratureUV[0] - (1 + GP[1]) * quadratureUV[2]
-                    + (1 + GP[1]) * quadratureUV[4] + (1 - GP[1]) * quadratureUV[6]);
-            double dvdx = .25
-                    * (-(1 - GP[2]) * quadratureUV[1] + (1 - GP[2]) * quadratureUV[3]
-                    + (1 + GP[2]) * quadratureUV[5] - (1 + GP[2]) * quadratureUV[7]);
-            double dvdy = .25
-                    * (-(1 - GP[1]) * quadratureUV[1] - (1 + GP[1]) * quadratureUV[3]
-                    + (1 + GP[1]) * quadratureUV[5] + (1 - GP[1]) * quadratureUV[7]);
+            dudx = .25 * (-(1 - gaussPoint[2]) * nodesUV[0] + (1 - gaussPoint[2]) * nodesUV[2]
+                       + (1 + gaussPoint[2]) * nodesUV[4] - (1 + gaussPoint[2]) * nodesUV[6]);
+            dudy = .25 * (-(1 - gaussPoint[1]) * nodesUV[0] - (1 + gaussPoint[1]) * nodesUV[2]
+                       + (1 + gaussPoint[1]) * nodesUV[4] + (1 - gaussPoint[1]) * nodesUV[6]);
+            dvdx = .25 * (-(1 - gaussPoint[2]) * nodesUV[1] + (1 - gaussPoint[2]) * nodesUV[3]
+                       + (1 + gaussPoint[2]) * nodesUV[5] - (1 + gaussPoint[2]) * nodesUV[7]);
+            dvdy = .25 * (-(1 - gaussPoint[1]) * nodesUV[1] - (1 + gaussPoint[1]) * nodesUV[3]
+                       + (1 + gaussPoint[1]) * nodesUV[5] + (1 - gaussPoint[1]) * nodesUV[7]);
             JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
         }
-        double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
 
-        /// 2.2.8 integrate the shape function product for Cnn(Linear shape function multiply linear shape function)
-        int count = 0;
+        // 6xii. Compute the product of the determinants of the Jacobian matrices
+        JacobianProduct = JacobianUVToPhysical * JacobianCanonicalToUV;
+
+        // 6xiii. Loop over all local basis functions in the master side
         for (int i = 0; i < numNodesElMaster; i++) {
-            for (int j = i; j < numNodesElMaster; j++) {
+            // 6xiii.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
+            for (int j = i; j < numNodesElMaster; j++) { // Starts from i because of computing only the upper triangular entries of the matrix
+                // 6xiii.1i. Compute the product of the basis functions
                 if (isMappingIGA2FEM)
-                    elementCouplingMatrixNN[count++] += shapeFuncsFE[i] * shapeFuncsFE[j]
-                            * Jacobian * theGaussQuadrature->weights[GPCount];
+                    basisFunctionsProduct = basisFunctionsFE[i] * basisFunctionsFE[j];
                 else {
-                    double IGABasisFctsI =
-                            localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                1, 0, 0, i)];
-                    double IGABasisFctsJ =
-                            localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                1, 0, 0, j)];
-                    elementCouplingMatrixNN[count++] += IGABasisFctsI * IGABasisFctsJ * Jacobian
-                            * theGaussQuadrature->weights[GPCount];
+                    IGABasisFctsI = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, i)];
+                    IGABasisFctsJ = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, j)];
+                    basisFunctionsProduct = IGABasisFctsI*IGABasisFctsJ;
+                }
+
+                // 6xiii.1ii. Compute the integrand on the Gauss point times the Gauss weight
+                integrand = basisFunctionsProduct*JacobianProduct*theGaussQuadrature->getGaussWeight(iGP);
+
+                // 6xiii.1iii. Find the DOF numbering of the dual basis functions product
+                if (isMappingIGA2FEM) {
+                    dof1 = meshFEDirectElemTable[_elementIndex][i];
+                    dof2 = meshFEDirectElemTable[_elementIndex][j];
+                } else {
+                    dof1 = dofIGA[i];
+                    dof2 = dofIGA[j];
+                }
+
+                // 6xiii.1iv. Assemble the element contributions to the global Cnn matrix
+                if (!isExpanded){
+                    couplingMatrices->addCNNValue(dof1, dof2, integrand);
+                    if (dof1 != dof2)
+                        couplingMatrices->addCNNValue(dof2, dof1, integrand);
+                } else {
+                    for(int iCoord = 0; iCoord < noCoord; iCoord++){
+                        couplingMatrices->addCNNValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, integrand);
+                        if (dof1 != dof2)
+                            couplingMatrices->addCNNValue(noCoord*dof2 + iCoord, noCoord*dof1 + iCoord, integrand);
+                    }
+                }
+            }
+
+            // 6xiii.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
+            for (int j = 0; j < numNodesElSlave; j++) {
+                // 6xiii.2i. Compute the integrand on the Gauss point times the Gauss weight
+                if (isMappingIGA2FEM) {
+                    basisFctsMaster = basisFunctionsFE[i];
+                    basisFctsSlave = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, j)];
+                } else {
+                    basisFctsMaster = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, i)];
+                    basisFctsSlave = basisFunctionsFE[j];
+                }
+                integrand = basisFctsMaster*basisFctsSlave*JacobianProduct*theGaussQuadrature->getGaussWeight(iGP);
+
+                // 6xiii.2ii. Find the DOF numbering of the dual basis functions product
+                if (isMappingIGA2FEM) {
+                    dof1 = meshFEDirectElemTable[_elementIndex][i];
+                    dof2 = dofIGA[j];
+                } else {
+                    dof1 = dofIGA[i];
+                    dof2 = meshFEDirectElemTable[_elementIndex][j];
+                }
+
+                // 6xiii.2iii. Assemble the element contributions to the global Cnr matrix
+                if (!isExpanded){
+                    couplingMatrices->addCNRValue(dof1, dof2, integrand);
+                } else {
+                    for(int iCoord = 0; iCoord < noCoord; iCoord++)
+                        couplingMatrices->addCNRValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, integrand);
                 }
             }
         }
 
-        /// Save GP data
+        // 6xiv. Save the gauss point data for the computation of the L2 norm of the error
         if(propErrorComputation.isDomainError){
             std::vector<double> streamGP;
-            // weight + jacobian + nShapeFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
-            streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*nShapeFuncsIGA);
-            streamGP.push_back(theGaussQuadrature->weights[GPCount]);
-            streamGP.push_back(Jacobian);
+            // weight + JacobianProduct + numBasisFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+            streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*numBasisFunctionsIGA);
+            streamGP.push_back(theGaussQuadrature->getGaussWeight(iGP));
+            streamGP.push_back(JacobianProduct);
             streamGP.push_back(numNodesElementFE);
             for (int i = 0; i < numNodesElementFE; i++) {
                 streamGP.push_back(meshFEDirectElemTable[_elementIndex][i]);
-                streamGP.push_back(shapeFuncsFE[i]);
+                streamGP.push_back(basisFunctionsFE[i]);
             }
-            streamGP.push_back(nShapeFuncsIGA);
-            for (int i = 0; i < nShapeFuncsIGA; i++) {
-                double IGABasisFctsI =
-                        localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                            1, 0, 0, i)];
+            streamGP.push_back(numBasisFunctionsIGA);
+            for (int i = 0; i < numBasisFunctionsIGA; i++) {
+                double IGABasisFctsI = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, i)];
                 streamGP.push_back(dofIGA[i]);
                 streamGP.push_back(IGABasisFctsI);
             }
             streamGPs.push_back(streamGP);
         }
-
-        /// 2.2.9 integrate the shape function product for C_NR(Linear shape function multiply IGA shape function)
-        count = 0;
-        for (int i = 0; i < numNodesElMaster; i++) {
-            for (int j = 0; j < numNodesElSlave; j++) {
-                double basisFctsMaster;
-                double basisFctsSlave;
-                if (isMappingIGA2FEM) {
-                    basisFctsMaster = shapeFuncsFE[i];
-                    basisFctsSlave =
-                            localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                1, 0, 0, j)];
-                } else {
-                    basisFctsMaster =
-                            localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-                                1, 0, 0, i)];
-                    basisFctsSlave = shapeFuncsFE[j];
-                }
-                elementCouplingMatrixNR[count++] += basisFctsMaster * basisFctsSlave * Jacobian
-                        * theGaussQuadrature->weights[GPCount];
-            }
-        }
-    }
-
-    /// 3.Assemble the element coupling matrix to the global coupling matrix.
-    ///Create new scope
-    {
-        int dofIGA[nShapeFuncsIGA];
-        _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
-
-        for (int i = 0; i < nShapeFuncsIGA; i++)
-            dofIGA[i] = _thePatch->getControlPointNet()[dofIGA[i]]->getDofIndex();
-
-        int count = 0;
-        int dof1, dof2;
-        /// 3.1 Assemble Cnn
-        for (int i = 0; i < numNodesElMaster; i++)
-            for (int j = i; j < numNodesElMaster; j++) {
-                if (isMappingIGA2FEM) {
-                    dof1 = meshFEDirectElemTable[_elementIndex][i];
-                    dof2 = meshFEDirectElemTable[_elementIndex][j];
-                } else {
-                    dof1 = dofIGA[i];
-                    dof2 = dofIGA[j];
-                }
-                if (!isExpanded){
-                    couplingMatrices->addCNNValue(dof1, dof2, elementCouplingMatrixNN[count]);
-                    if (dof1 != dof2)
-                        couplingMatrices->addCNNValue(dof2, dof1, elementCouplingMatrixNN[count]);
-                } else {
-                    for(int iCoord = 0; iCoord < noCoord; iCoord++){
-                        couplingMatrices->addCNNValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, elementCouplingMatrixNN[count]);
-                        if (dof1 != dof2)
-                            couplingMatrices->addCNNValue(noCoord*dof2 + iCoord, noCoord*dof1 + iCoord, elementCouplingMatrixNN[count]);
-                    }
-                }
-                count++;
-            }
-
-        count = 0;
-        /// 3.1 Assemble Cnr
-        for (int i = 0; i < numNodesElMaster; i++)
-            for (int j = 0; j < numNodesElSlave; j++) {
-                if (isMappingIGA2FEM) {
-                    dof1 = meshFEDirectElemTable[_elementIndex][i];
-                    dof2 = dofIGA[j];
-                } else {
-                    dof1 = dofIGA[i];
-                    dof2 = meshFEDirectElemTable[_elementIndex][j];
-                }
-                if (!isExpanded){
-                    couplingMatrices->addCNRValue(dof1, dof2, elementCouplingMatrixNR[count]);
-                } else {
-                    for(int iCoord = 0; iCoord < noCoord; iCoord++)
-                        couplingMatrices->addCNRValue(noCoord*dof1 + iCoord, noCoord*dof2 + iCoord, elementCouplingMatrixNR[count]);
-                }
-                count ++;
-            }
     }
 }
 
 bool IGAMortarMapper::computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span) {
+    /*
+     * Returns the knot span bounds in terms of knot span indices where the given polygon belongs to
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Loop over all the segments of the given polygon
+     * ->
+     *    2i. Get the (u,v) parameters of the vertex of the polygon
+     *   2ii. Update the bounding values accordingly
+     * <-
+     *
+     * 3. flag on whether all vertices of the polygon are found in the same knot span
+     *
+     * 4. Fill up the span pointer with the span bounding values
+     *
+     * 5. Return the flag
+     */
+
+    // 1. Initialize auxiliary variables
     int minSpanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(
                 _polygonUV[0].first);
     int minSpanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(
@@ -1506,10 +1748,13 @@ bool IGAMortarMapper::computeKnotSpanOfProjElement(const IGAPatchSurface* _thePa
     int maxSpanU = minSpanU;
     int maxSpanV = minSpanV;
 
+    // 2. Loop over all the segments of the given polygon
     for (int nodeCount = 1; nodeCount < _polygonUV.size(); nodeCount++) {
+        // 2i. Get the (u,v) parameters of the vertex of the polygon
         int spanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_polygonUV[nodeCount].first);
         int spanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_polygonUV[nodeCount].second);
 
+        // 2ii. Update the bounding values accordingly
         if (spanU < minSpanU)
             minSpanU = spanU;
         if (spanU > maxSpanU)
@@ -1520,47 +1765,236 @@ bool IGAMortarMapper::computeKnotSpanOfProjElement(const IGAPatchSurface* _thePa
             maxSpanV = spanV;
     }
 
-    bool OnSameKnotSpan=(minSpanU == maxSpanU && minSpanV == maxSpanV);
-    if(_span!=NULL) {
-        _span[0]=minSpanU;
-        _span[1]=maxSpanU;
-        _span[2]=minSpanV;
-        _span[3]=maxSpanV;
+    // 3. flag on whether all vertices of the polygon are found in the same knot span
+    bool OnSameKnotSpan = (minSpanU == maxSpanU && minSpanV == maxSpanV);
+
+    // 4. Fill up the span pointer with the span bounding values
+    if(_span != NULL) {
+        _span[0] = minSpanU;
+        _span[1] = maxSpanU;
+        _span[2] = minSpanV;
+        _span[3] = maxSpanV;
     }
+
+    // 5. Return the flag
     return OnSameKnotSpan;
 }
 
 int IGAMortarMapper::getNeighbourElementofEdge(int _element, int _node1, int _node2) {
-    for(int i=0; i<meshFE->numElems;i++) {
-        bool isNode1=false;
-        bool isNode2=false;
-        for(int j=0;j<meshFE->numNodesPerElem[i];j++) {
-            if(isNode1==false)
-                isNode1=(meshFEDirectElemTable[i][j]==_node1)?true:false;
-            if(isNode2==false)
-                isNode2=(meshFEDirectElemTable[i][j]==_node2)?true:false;
-            if(_element!=i && isNode1 && isNode2) {
+    /*
+     * Return the index of the element neighbouring the segment defined by thw two given nodes
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxilary variables
+     *
+     * 2. Loop over all the elements in the Finite Element mesh
+     * ->
+     *    2i. Initialize the flags to false
+     *   2ii. Loop over all nodes of the element
+     *   ->
+     *        2ii.1. Check if first vertex is found in the given element
+     *        2ii.2. Check if first vertex is found in the given element
+     *        2ii.3. If both vertices are found return the index of the element
+     *   <-
+     * <-
+     *
+     * 3. If polygon is on boundary of mesh, can occur
+     */
+
+    // 1. Initialize auxilary variables
+    bool isNode1;
+    bool isNode2;
+
+    // 2. Loop over all the elements in the Finite Element mesh
+    for(int i = 0; i < meshFE->numElems; i++) {
+        // 2i. Initialize the flags to false
+        isNode1 = false;
+        isNode2 = false;
+
+        // 2ii. Loop over all nodes of the element
+        for(int j = 0; j < meshFE->numNodesPerElem[i]; j++) {
+            // 2ii.1. Check if first vertex is found in the given element
+            if (isNode1 == false)
+                isNode1 = (meshFEDirectElemTable[i][j] == _node1)?true:false;
+
+            // 2ii.2. Check if first vertex is found in the given element
+            if (isNode2 == false)
+                isNode2 = (meshFEDirectElemTable[i][j] == _node2)?true:false;
+
+            // 2ii.3. If both vertices are found return the index of the element
+            if(_element != i && isNode1 && isNode2) {
                 return i;
             }
         }
     }
-    // If polygon is on boundary of mesh, can occur
+
+    // 3. If polygon is on boundary of mesh, can occur
     return -1;
+}
+
+void IGAMortarMapper::createGaussQuadratureRules() {
+    /*
+     * Creates a Gauss quadrature rule for quadrilaterals and for triangles at each patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Set flag of Gauss quadratures to true (needed for the destructor of the class)
+     *
+     * 3. Get the number of the patches
+     *
+     * 4. Loop over all patches
+     * ->
+     *    4i. Get the polynomial order of the patch
+     *   4ii. Find the polynomial degree of the integrands when a triangle is considered
+     *  4iii. Find the number of Gauss points when a triangle is considered
+     *   4iv. Instantiate the corresponding Gauss quadrature on triangle
+     *    4v. Find the polynomial degree of the integrands when a quadrilateral is considered
+     *   4vi. Compute the number of Gauss points when a quadrilateral is considered
+     *  4vii. Instantiate the corresponding Gauss quadrature on quadrilateral
+     * <-
+     */
+
+    // 1. Initialize auxiliary variables
+    int pDegree;
+    int qDegree;
+    int polOrder;
+    int pTilde;
+    int numGPs;
+    int numGPsPerPolOrder[8] = {1, 3, 4, 6, 7, 12, 13, 16};
+
+    // 2. Set flag of Gauss quadratures to true (needed for the destructor of the class)
+    isGaussQuadature = true;
+
+    // 3. Get the number of the patches
+    int numPatches = getIGAMesh()->getNumPatches();
+
+    // 4. Loop over all patches
+    for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+        // 4i. Get the polynomial order of the patch
+        pDegree = meshIGA->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qDegree = meshIGA->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // 4ii. Find the polynomial degree of the integrands when a triangle is considered
+        if (!propIntegration.isAutomaticNoGPTriangle) // User defined quadrature rule
+            numGPs = propIntegration.noGPTriangle;
+        else { // Automatic definition of the quadrature rule
+            if (isMappingIGA2FEM) // When mapping from IGA to FEM integrals \int_{\Omega} N_i*N_i d\Omega and \int_{\Omega} N_i*R_i d\Omega are computed within the same loop
+                if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand N_i*N_i has higher polynomial order than N_i*R_i
+                    polOrder = 2;
+                    if (polOrder > 8)
+                        pTilde = 1;
+                } else { // Integrand N_i*R_i has higher polynomial order than N_i*N_i
+                    polOrder = 1 + pDegree + qDegree;
+                    if (polOrder > 8)
+                        pTilde = std::max(pDegree, qDegree) + 1;
+                }
+            else // When mapping from FEM to IGA integrals \int_{\Omega} R_i*R_i d\Omega and \int_{\Omega} R_i*N_i d\Omega are computed within the same loop
+                if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand N_i*R_i has higher polynomial order than R_i*R_i
+                    polOrder = pDegree + qDegree + 1;
+                    if (polOrder > 8)
+                        pTilde = std::max(pDegree, qDegree) + 1;
+                } else { // Integrand R_i*R_i has higher polynomial order than N_i*R_i
+                    polOrder = 2*(pDegree + qDegree);
+                    if (polOrder > 8)
+                        pTilde = 2*std::max(pDegree, qDegree);
+                }
+
+        // 4iii. Find the number of Gauss points when a triangle is considered
+        if (polOrder <= 8) { // Use the Gauss quadrature over the triangle with the symmetric rule
+            if (polOrder == 0)
+                numGPs = numGPsPerPolOrder[0];
+            else
+                numGPs = numGPsPerPolOrder[polOrder - 1];
+        } else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+            numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+        }
+
+        // 4iv. Instantiate the corresponding Gauss quadrature on triangle
+        if (polOrder <= 8) // Use the Gauss quadrature over the triangle with the symmetric rule
+            gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangle(numGPs);
+        else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+            gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral(numGPs);
+
+        // 4v. Find the polynomial degree of the integrands when a quadrilateral is considered
+        if (!propIntegration.isAutomaticNoGPQuadrilateral) // User defined quadrature rule
+            numGPs = propIntegration.noGPQuadrilateral;
+        else // Automatic definition of the quadrature rule
+            if (isMappingIGA2FEM) // When mapping from IGA to FEM integrals \int_{\Omega} N_i*N_i d\Omega and \int_{\Omega} N_i*R_i d\Omega are computed within the same loop
+                if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand N_i*N_i has higher polynomial order than N_i*R_i
+                    pTilde = 2;
+                } else { // Integrand N_i*R_i has higher polynomial order than N_i*N_i
+                    pTilde = std::max(pDegree, qDegree) + 2;
+                }
+            else // When mapping from FEM to IGA integrals \int_{\Omega} R_i*R_i d\Omega and \int_{\Omega} R_i*N_i d\Omega are computed within the same loop
+                if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand R_i*N_i has higher polynomial order than R_i*R_i
+                    pTilde = std::max(pDegree, qDegree) + 2;
+                } else {
+                    pTilde = 2*std::max(pDegree, qDegree);
+                }
+
+        // 4vi. Compute the number of Gauss points when a quadrilateral is considered
+        numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+
+        // 4vii. Instantiate the corresponding Gauss quadrature on quadrilateral
+        gaussRuleOnQuadrilateral[iPatches] = new MathLibrary::IGAGaussQuadratureOnBiunitQuadrilateral(numGPs);
+    }
 }
 
 void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
     /*
-     * Computes and assembles the patch weak Dirichlet curve conditions.
+     * Computes and assembles the patch weak Dirichlet curve conditions' contributions.
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Get the weak Dirichlet curve conditions
+     *
+     * 3. Loop over all the conditions for the application of weak Dirichlet conditions
+     * ->
+     *    3i. Get the penalty factors for the primary and the secondary field
+     *   3ii. Get the index of the patch
+     *  3iii. Get the number of Gauss Points for the given condition
+     *   3iv. Get the parametric coordinates of the Gauss Points
+     *    3v. Get the corresponding Gauss weights
+     *   3vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+     *  3vii. Get the product of the Jacobian transformations
+     * 3viii. Get the patch
+     *   3ix. Get the polynomial orders of the master and the slave patch
+     *    3x. get the number of local basis functions
+     *   3xi. get the number of the local DOFs for the patch
+     *  3xii. Initialize pointers
+     * 3xiii. Loop over all the Gauss Points of the given condition
+     * ->
+     *        3xiii.1. Get the parametric coordinates of the Gauss Point on the patch
+     *        3xiii.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
+     *        3xiii.3. Get the tangent to the boundary vector on the patch
+     *        3xiii.4. compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+     *        3xiii.5. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
+     *        3xiii.6. Compute the dual product matrices for the displacements
+     *        3xiii.7. Compute the dual product matrices for the bending rotations
+     *        3xiii.8. Compute the dual product matrices for the twisting rotations
+     *        3xiii.9. Compute the element index tables for the patch
+     *       3xiii.10. Compute the element freedom tables for the patch
+     *       3xiii.11. Loop over all DOFs to assemble the contributions of the weak Dirichlet conditions into the Cnn
+     *       ->
+     *                 3xiii.11i. Assemble the displacement coupling entries
+     *                3xiii.11ii. Assemble the bending rotation coupling entries
+     *               3xiii.11iii. Assemble the twisting rotation coupling entries
+     *       <-
+     *       3xiii.12. Store the Gauss point values necessary for the error computation
+     * <-
+     *  3xiv. Delete pointers
+     * <-
+     *
      */
 
-    // Get the weak Dirichlet curve conditions
-    std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
-
-    // Initialize constant array sizes
+    // 1. Initialize auxiliary variables
     const int noCoordParam = 2;
     const int noCoord = 3;
-
-    // Initialize varying array sizes
     int patchIndex;
     int counter;
     int p;
@@ -1580,53 +2014,54 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
     double elementLengthOnGP;
-
-    // Initialize pointers
     double* curveGPs;
     double* curveGPWeights;
     double* curveGPTangents;
     double* curveGPJacobianProducts;
     IGAPatchSurface* thePatch;
 
-    // Loop over all the conditions for the application of weak Dirichlet conditions
+    // 2. Get the weak Dirichlet curve conditions
+    std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
+
+    // 3. Loop over all the conditions for the application of weak Dirichlet conditions
     for (int iDCC = 0; iDCC < weakIGADirichletCurveConditions.size(); iDCC++){
-        // Get the penalty factors for the primary and the secondary field
+        // 3i. Get the penalty factors for the primary and the secondary field
         alphaPrimary = weakDirichletCCAlphaPrimary[iDCC];
         alphaSecondaryBending = weakDirichletCCAlphaSecondaryBending[iDCC];
         alphaSecondaryTwisting = weakDirichletCCAlphaSecondaryTwisting[iDCC];
 
-        // Get the index of the patch
+        // 3ii. Get the index of the patch
         patchIndex = weakIGADirichletCurveConditions[iDCC]->getPatchIndex();
 
-        // Get the number of Gauss Points for the given condition
+        // 3iii. Get the number of Gauss Points for the given condition
         noGPsOnCond = weakIGADirichletCurveConditions[iDCC]->getCurveNumGP();
 
-        // Get the parametric coordinates of the Gauss Points
+        // 3iv. Get the parametric coordinates of the Gauss Points
         curveGPs = weakIGADirichletCurveConditions[iDCC]->getCurveGPs();
 
-        // Get the corresponding Gauss weights
+        // 3v. Get the corresponding Gauss weights
         curveGPWeights = weakIGADirichletCurveConditions[iDCC]->getCurveGPWeights();
 
-        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        // 3vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
         curveGPTangents = weakIGADirichletCurveConditions[iDCC]->getCurveGPTangents();
 
-        // Get the product of the Jacobian transformations
+        // 3vii. Get the product of the Jacobian transformations
         curveGPJacobianProducts = weakIGADirichletCurveConditions[iDCC]->getCurveGPJacobianProducts();
 
-        // Get the patch
+        // 3viii. Get the patch
         thePatch = meshIGA->getSurfacePatch(patchIndex);
 
-        // Get the polynomial orders of the master and the slave patch
+        // 3ix. Get the polynomial orders of the master and the slave patch
         p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
-        // get the number of local basis functions
+        // 3x. get the number of local basis functions
         noLocalBasisFcts = (p + 1)*(q + 1);
 
-        // get the number of the local DOFs for the patch
+        // 3xi. get the number of the local DOFs for the patch
         noDOFsLoc = noCoord*noLocalBasisFcts;
 
-        // Initialize pointers
+        // 3xii. Initialize pointers
         double* BDisplacementsGC = new double[noCoord*noDOFsLoc];
         double* BOperatorOmegaT = new double[noDOFsLoc];
         double* BOperatorOmegaN = new double[noDOFsLoc];
@@ -1634,42 +2069,41 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
         double* KPenaltyBendingRotation = new double[noDOFsLoc*noDOFsLoc];
         double* KPenaltyTwistingRotation = new double[noDOFsLoc*noDOFsLoc];
 
-        // Loop over all the Gauss Points of the given condition
+        // 3xiii. Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnCond; iGP++){
-
-            // Get the parametric coordinates of the Gauss Point on the patch
+            // 3xiii.1. Get the parametric coordinates of the Gauss Point on the patch
             uGP = curveGPs[iGP*noCoordParam];
             vGP = curveGPs[iGP*noCoordParam + 1];
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the patch
+            // 3xiii.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
             uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
             vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
 
-            // Get the tangent to the boundary vector on the patch
+            // 3xiii.3. Get the tangent to the boundary vector on the patch
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 tangentCurveVct[iCoord] = curveGPTangents[iGP*noCoord + iCoord];
 
-            // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            // 3xiii.4. compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
             elementLengthOnGP = curveGPJacobianProducts[iGP];
 
-            // Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
+            // 3xiii.5. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
                                                             surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
-            // Compute the dual product matrices for the displacements
+            // 3xiii.6. Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
-            // Compute the dual product matrices for the bending rotations
+            // 3xiii.7. Compute the dual product matrices for the bending rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaT, BOperatorOmegaT, KPenaltyBendingRotation);
 
-            // Compute the dual product matrices for the twisting rotations
+            // 3xiii.8. Compute the dual product matrices for the twisting rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLoc, noDOFsLoc, BOperatorOmegaN, BOperatorOmegaN, KPenaltyTwistingRotation);
 
-            // Compute the element index tables for the patch
+            // 3xiii.9. Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
             thePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan, vKnotSpan, CPIndex);
 
-            // Compute the element freedom tables for the patch
+            // 3xiii.10. Compute the element freedom tables for the patch
             int EFT[noDOFsLoc];
             counter = 0;
             for (int i = 0; i < noLocalBasisFcts; i++){
@@ -1680,24 +2114,24 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
                 }
             }
 
-            // Assemble KPenaltyDisplacement to the global coupling matrix CNN
+            // 3xiii.11. Loop over all DOFs to assemble the contributions of the weak Dirichlet conditions into the Cnn
             for(int i = 0; i < noDOFsLoc; i++){
                 for(int j = 0; j < noDOFsLoc; j++){
-                    // Assemble the displacement coupling entries
+                    // 3xiii.11i. Assemble the displacement coupling entries
                     if (propWeakCurveDirichletConditions.isPrimPrescribed)
                         couplingMatrices->addCNNValue(EFT[i], EFT[i], alphaPrimary*KPenaltyDisplacement[i*noDOFsLoc + i]*elementLengthOnGP);
 
-                    // Assemble the bending rotation coupling entries
+                    // 3xiii.11ii. Assemble the bending rotation coupling entries
                     if (propWeakCurveDirichletConditions.isSecBendingPrescribed)
                         couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryBending*KPenaltyBendingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
 
-                    // Assemble the twisting rotation coupling entries
+                    // 3xiii.11iii. Assemble the twisting rotation coupling entries
                     if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
                         couplingMatrices->addCNNValue(EFT[i], EFT[j], alphaSecondaryTwisting*KPenaltyTwistingRotation[i*noDOFsLoc + j]*elementLengthOnGP);
                 }
             }
 
-            // Compute the error along the trimming curves where constraints are applied
+            // 3xiii.12. Store the Gauss point values necessary for the error computation
             if(propErrorComputation.isCurveError){
                 // Initialize variable storing the Gauss Point data
                 std::vector<double> streamCurveGP;
@@ -1731,7 +2165,7 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
 
         } // End of Gauss Point loop
 
-        // Delete pointers
+        // 3xiv. Delete pointers
         delete[] BDisplacementsGC;
         delete[] BOperatorOmegaT;
         delete[] BOperatorOmegaN;

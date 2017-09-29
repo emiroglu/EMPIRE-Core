@@ -18,6 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
+
 #include <fstream>
 #include <vector>
 #include <cstdlib>
@@ -31,15 +32,6 @@
 
 namespace EMPIRE {
 namespace MathLibrary {
-
-// Variables
-// %%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
-// Methods
-// %%%%%%%%%%%%%%%%%%%%%%%%%
 
 /***********************************************************************************************
  * \brief Compute mass matrix of a triangle element
@@ -151,6 +143,7 @@ bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNo
  * \param[in] _nNodes The number of nodes in the element level
  * \param[in] _coords The coordinates of the point where to evaluate the shape functions
  * \param[in/out] _shapeFuncs The evaluated shape functions
+ * \author Chenshen Wu
  ***********/
 void computeLowOrderShapeFunc(int _nNodes, const double* _coords, double* _shapeFuncs);
 
@@ -165,12 +158,6 @@ void computeLowOrderShapeFunc(int _nNodes, const double* _coords, double* _shape
  ***********/
 void computeLinearCombination(int _nNodes, int _nValue, const double * _values,
         const double *_shapeFuncs, double* _returnValue);
-
-
-
-
-// Classes
-// %%%%%%%%%%%%%%%%%%%%%%%%%
 
 /********//**
  * \brief Class IntegrandFunction is the mother class of all integrand functions
@@ -196,10 +183,33 @@ public:
  ***********/
 class GaussQuadratureOnTriangle {
 public:
+    /***********************************************************************************************
+     * \brief constructor of the class GaussQuadratureOnTriangle
+     * \param[in] _triangle triangle to integrate on
+     * \param[in] _nGaussPoints number of gauss points
+     * \author Tianyang Wang
+     ***********/
     GaussQuadratureOnTriangle(double *_triangle, int _numGaussPoints);
+
+    /***********************************************************************************************
+     * \brief Destructor of the class.
+     * \author Tianyang Wang
+     ***********/
     virtual ~GaussQuadratureOnTriangle();
+
+    /***********************************************************************************************
+     * \brief To define the integrand function
+     * \param[in] _integrandFunc Object of the class integrand functions
+     * \author Tianyang Wang
+     ***********/
     void setIntegrandFunc(IntegrandFunction *_integrandFunc);
+
+    /***********************************************************************************************
+     * \brief To Compute integral on the triangle
+     * \author Tianyang Wang
+     ***********/
     double computeIntegral();
+
     const int numGaussPoints;
     double *gaussPointsGlobal;
 private:
@@ -216,10 +226,33 @@ private:
  ***********/
 class GaussQuadratureOnQuad {
 public:
+    /***********************************************************************************************
+     * \brief constructor of the class GaussQuadratureOnQuad
+     * \param[in] _quad quad to integrate on
+     * \param[in] _nGaussPoints number of gauss points
+     * \author Tianyang Wang
+     ***********/
     GaussQuadratureOnQuad(double *_quad, int _numGaussPoints);
+
+    /***********************************************************************************************
+     * \brief Destructor
+     * \author Tianyang Wang
+     ***********/
     virtual ~GaussQuadratureOnQuad();
+
+    /***********************************************************************************************
+     * \brief To define the integrand function
+     * \param[in] _integrandFunc Object of the class integrand functions
+     * \author Tianyang Wang
+     ***********/
     void setIntegrandFunc(IntegrandFunction *_integrandFunc);
+
+    /***********************************************************************************************
+     * \brief To Compute integral on the quad
+     * \author Tianyang Wang
+     ***********/
     double computeIntegral();
+
     const int numGaussPoints;
     double *gaussPointsGlobal;
 private:
@@ -235,13 +268,16 @@ private:
 
 /********//**
  * \brief Class GaussQuadrature base class for general quadrature
- * \author Chenshen Wu
+ * \author Andreas Apostolatos
  ***********/
 class IGAGaussQuadrature {
 
-public:
+private:
     // The number of Gauss Points
     int numGaussPoints;
+
+    // Number of dimensions
+    int numDimensions;
 
     // Array containing the Gauss Point locations in the quadrature space
     const double *gaussPoints;
@@ -254,74 +290,105 @@ public:
     /***********************************************************************************************
      * \brief Constructor
      * \param[in] _numGaussPoints, number of Gauss points
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
-    IGAGaussQuadrature(int _numGaussPoints) :
-            numGaussPoints(_numGaussPoints) {
+    IGAGaussQuadrature(int _numGaussPoints, int _numDimensions) :
+            numGaussPoints(_numGaussPoints), numDimensions(_numDimensions) {
     }
 
+    /***********************************************************************************************
+     * \brief Destructor
+     * \author Andreas Apostolatos
+     ***********/
     virtual ~IGAGaussQuadrature() {
     }
 
     /// Get and set functions
 public:
     /***********************************************************************************************
-     * \brief Returns the coordinates of the Gauss point
-     * \param[in] _index the Gauss point to be returned
-     * \author Chenshen Wu
+     * \brief Returns the number of Gauss points
+     * \author Andreas Apostolatos
      ***********/
-    virtual const double* getGaussPoint(int _index) = 0;
+    double getNumGaussPoints() {
+        return numGaussPoints;
+    }
+
+    /***********************************************************************************************
+     * \brief Returns the coordinates of the Gauss point
+     * \param[in] _index Index to the Gauss point
+     * \author Andreas Apostolatos
+     ***********/
+    const double* getGaussPoint(int _index) {
+        return &gaussPoints[_index * numDimensions];
+    }
+
+    /***********************************************************************************************
+     * \brief Returns the weight of the Gauss point
+     * \param[in] _index Index to the Gauss weight
+     * \author Andreas Apostolatos
+     ***********/
+    double getGaussWeight(int _index) {
+        return weights[_index];
+    }
+
+    /***********************************************************************************************
+     * \brief Sets the coordinates of the Gauss points
+     * \param[in] _values Pointer to the array with the values
+     * \author Andreas Apostolatos
+     ***********/
+    void setGaussPoints(const double* _values) {
+        gaussPoints = _values;
+    }
+
+    /***********************************************************************************************
+     * \brief Sets the Gauss weights
+     * \param[in] _values Pointer to the array with the values
+     * \author Andreas Apostolatos
+     ***********/
+    void setGaussWeights(const double* _values) {
+        weights = _values;
+    }
 };
 
 /********//**
- * \brief Class GaussQuadratureOnTriangle performs Gauss quadrature on triangle
- * \author Chenshen Wu
+ * \brief Class GaussQuadratureOnTriangle performs Gauss quadrature on triangle using a symmetric rule
+ * \author Andreas Apostolatos
  ***********/
 class IGAGaussQuadratureOnTriangle: public IGAGaussQuadrature {
 public:
     /***********************************************************************************************
      * \brief Constructor
      * param[in] _numGaussPoints, number of Gauss points
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
     IGAGaussQuadratureOnTriangle(int _numGaussPoints);
-    virtual ~IGAGaussQuadratureOnTriangle() {
-    }
 
     /***********************************************************************************************
-     * \brief Returns the coordinates of the Gauss point
-     * \param[in] _index the Gauss point to be returned
-     * \author Chenshen Wu
+     * \brief Destructor
+     * \author Andreas Apostolatos
      ***********/
-    const double* getGaussPoint(int _index) {
-        return &gaussPoints[_index * 2];
+    virtual ~IGAGaussQuadratureOnTriangle() {
     }
-
 };
 
-/**********
- * \brief Class GaussQuadratureOnQuad performs Gauss quadrature on quad
- * \author Chenshen Wu
+/********//**
+ * \brief Class GaussQuadratureOnTriangle performs Gauss quadrature on canonical triangle using the degenerated quadrilateral
+ * \author Andreas Apostolatos
  ***********/
-class IGAGaussQuadratureOnQuad: public IGAGaussQuadrature {
+class IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral: public IGAGaussQuadrature {
 public:
     /***********************************************************************************************
      * \brief Constructor
      * param[in] _numGaussPoints, number of Gauss points
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
-    IGAGaussQuadratureOnQuad(int _numGaussPoints);
-
-    virtual ~IGAGaussQuadratureOnQuad() {
-    }
+    IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral(int _numGaussPoints);
 
     /***********************************************************************************************
-     * \brief Returns the coordinates of the Gauss point
-     * \param[in] _index the Gauss point to be returned
-     * \author Chenshen Wu
+     * \brief Destructor
+     * \author Andreas Apostolatos
      ***********/
-    const double* getGaussPoint(int _index) {
-        return &gaussPoints[_index * 2];
+    virtual ~IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral() {
     }
 };
 
@@ -334,23 +401,38 @@ public:
     /***********************************************************************************************
      * \brief Constructor
      * param[in] _numGaussPoints, number of Gauss points
-     * \author Chenshen Wu
+     * \author Andreas Apostolatos
      ***********/
     IGAGaussQuadratureOnBiunitInterval(int _numGaussPoints);
 
-    virtual ~IGAGaussQuadratureOnBiunitInterval() {
-    }
-
     /***********************************************************************************************
-     * \brief Returns the coordinates of the Gauss point
-     * \param[in] _index the Gauss point to be returned
-     * \author Andreas Apostolatos, Altug Emiroglu
+     * \brief Destructor
+     * \author Andreas Apostolatos
      ***********/
-    const double* getGaussPoint(int _index) {
-        return &gaussPoints[_index * 2];
+    virtual ~IGAGaussQuadratureOnBiunitInterval() {
     }
 };
 
+/**********
+ * \brief Class GaussQuadratureOnQuad performs Gauss quadrature on quad
+ * \author Andreas Apostolatos
+ ***********/
+class IGAGaussQuadratureOnBiunitQuadrilateral: public IGAGaussQuadrature {
+public:
+    /***********************************************************************************************
+     * \brief Constructor
+     * param[in] _numGaussPoints, number of Gauss points
+     * \author Andreas Apostolatos
+     ***********/
+    IGAGaussQuadratureOnBiunitQuadrilateral(int _numGaussPoints);
+
+    /***********************************************************************************************
+     * \brief Destructor
+     * \author Andreas Apostolatos
+     ***********/
+    virtual ~IGAGaussQuadratureOnBiunitQuadrilateral() {
+    }
+};
 
 }
 }

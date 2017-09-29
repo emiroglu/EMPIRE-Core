@@ -46,12 +46,11 @@ double IGAPatchSurface::REL_TOL_ORTHOGONALITY = 1e-1;
 double IGAPatchSurface::TOL_DISTANCE = 1e-5;
 double IGAPatchSurface::REL_TOL_DISTANCE = 1e-1;
 
-const char IGAPatchSurface::EDGE_U0=1<<0;
-const char IGAPatchSurface::EDGE_UN=1<<1;
-const char IGAPatchSurface::EDGE_V0=1<<2;
-const char IGAPatchSurface::EDGE_VN=1<<3;
-const char IGAPatchSurface::EDGES[4]={EDGE_U0,EDGE_UN,EDGE_V0,EDGE_VN};
-
+const char IGAPatchSurface::EDGE_U0 = 1 << 0;
+const char IGAPatchSurface::EDGE_UN = 1 << 1;
+const char IGAPatchSurface::EDGE_V0 = 1 << 2;
+const char IGAPatchSurface::EDGE_VN = 1 << 3;
+const char IGAPatchSurface::EDGES[4] = {EDGE_U0, EDGE_UN, EDGE_V0, EDGE_VN};
 
 IGAPatchSurface::IGAPatchSurface(int _IDBasis, int _pDegree, int _uNoKnots, double* _uKnotVector,
         int _qDegree, int _vNoKnots, double* _vKnotVector, int _uNoControlPoints,
@@ -457,7 +456,6 @@ void IGAPatchSurface::computeBaseVectors(double* _baseVectors,
     // Compute the local basis functions in the vicinity of the point
     int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
     int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
-    int noLocalBasisFcts = (pDegree + 1) * (qDegree + 1);
 
     // Initialize the Control Point index
     int CPindex = 0;

@@ -29,76 +29,235 @@
 
 namespace EMPIRE {
 
+double DataFieldIntegrationNURBS::EPS_CLEANTRIANGLE = 1e-6;
+double DataFieldIntegrationNURBS::EPS_CLIPPING = 1e-9;
+
 using std::make_pair;
 
-const int DataFieldIntegrationNURBS::numGPsMassMatrixTri =  16;
-const int DataFieldIntegrationNURBS::numGPsMassMatrixQuad = 25;
+DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh): meshIGA(_mesh) {
 
-DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh) {
-	numNodes=_mesh->getNumNodes();
+    // Get the number of patches
+    int numPatches = meshIGA->getNumPatches();
+
+    // Get the number of control points
+    numNodes = meshIGA->getNumNodes();
+
+    // Initialize the mass matrix
     massMatrix = new EMPIRE::MathLibrary::SparseMatrix<double>(numNodes,false);
 
-    /// 1. Loop over every patch to compute the matrix
-	for(unsigned int i=0; i< _mesh->getNumPatches(); i++) {
-		IGAPatchSurface* patch = _mesh->getSurfacePatch(i);
-		Polygon2D polygonUV(4);
-		{
-			const double u0 = patch->getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
-			const double v0 = patch->getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
-			const double u1 = patch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
-			const double v1 = patch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
-			polygonUV[0]=make_pair(u0,v0);
-			polygonUV[1]=make_pair(u1,v0);
-			polygonUV[2]=make_pair(u1,v1);
-			polygonUV[3]=make_pair(u0,v1);
-		}
-		/**************************/
-		/// WARNING change order, clip by knot span first and then by trimming ///
-		/**************************/
+    // Initialize the Gauss quadrature rules
+    gaussRuleOnTriangle = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
+    gaussRuleOnQuadrilateral = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
 
-		/// 1.1 Clip by knot span
-		Polygon2D listSpan;
-		ListPolygon2D listKnotPolygonUV;
-		clipByKnotSpan(patch,polygonUV,listKnotPolygonUV,listSpan);
-		/// 1.3 For each subelement output of the trimmed polygon, clip by knot span
-		for(int index=0;index<listSpan.size();index++) {
-			ClipperAdapter::cleanPolygon(listKnotPolygonUV[index]);
-			if(listKnotPolygonUV[index].size()<3)
-				continue;
-			/// 1.3.1 Init list of trimmed polyggons in case patch is not trimmed
-			ListPolygon2D listTrimmedPolygonUV(1, listKnotPolygonUV[index]);
-			/// 1.3.2 Apply trimming
-			if(patch->isTrimmed())
-				clipByTrimming(patch,listKnotPolygonUV[index],listTrimmedPolygonUV);
-			/// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
-			for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
-				ClipperAdapter::cleanPolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
-				if(listTrimmedPolygonUV[trimmedPolygonIndex].size()<3)
-					continue;
-				ListPolygon2D triangulatedPolygons = triangulatePolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
-				for(ListPolygon2D::iterator triangulatedPolygon=triangulatedPolygons.begin();
-						triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
-					/// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
-					ClipperAdapter::cleanPolygon(*triangulatedPolygon,1e-6);
-					if(triangulatedPolygon->size()<3)
-						continue;
-					assemble(patch,*triangulatedPolygon,listSpan[index].first,listSpan[index].second);
-				}
-			}
-		}
-	}
+    // Create the Gauss quadrature rules for all patches
+    createGaussQuadratureRules();
+
+    // Compute the mass matrix
+    computeMassMatrix();
+
+    // Enforce flying nodes in Cnn
+    enforceCnn();
 }
 
 DataFieldIntegrationNURBS::~DataFieldIntegrationNURBS() {
+    // Initialize auxiliary arrays
+    int numPatches = meshIGA->getNumPatches();
+
+    // Delete the quadrature rules
+    for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+        delete[] gaussRuleOnTriangle[iPatches];
+        delete[] gaussRuleOnQuadrilateral[iPatches];
+    }
+    delete[] gaussRuleOnTriangle;
+    delete[] gaussRuleOnQuadrilateral;
+}
+
+void DataFieldIntegrationNURBS::createGaussQuadratureRules() {
+    /*
+     * Creates a Gauss quadrature rule for quadrilaterals and for triangles at each patch
+     */
+
+    // Initialize variables
+    int pDegree;
+    int qDegree;
+    int polOrder;
+    int pTilde;
+    int numGPs;
+    int numGPsPerPolOrder[8] = {1, 3, 4, 6, 7, 12, 13, 16};
+
+    // Number of patches
+    int numPatches = getIGAMesh()->getNumPatches();
+
+    // Loop over all patches
+    for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+        // Get the polynomial order of the patches
+        pDegree = meshIGA->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qDegree = meshIGA->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // Find the polynomial degree of the integrand \int_{\Omega} R_i*R_i d\Omega when a triangle is considered
+        polOrder = 2*(pDegree + qDegree);
+        if (polOrder > 8)
+            pTilde = 2*std::max(pDegree, qDegree);
+
+        // Find the number of Gauss points when a triangle is considered
+        if (polOrder <= 8) { // Use the Gauss quadrature over the triangle with the symmetric rule
+            if (polOrder == 0)
+                numGPs = numGPsPerPolOrder[0];
+            else
+                numGPs = numGPsPerPolOrder[polOrder - 1];
+        } else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+            numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+
+        // Instantiate the corresponding Gauss quadrature on triangle
+        if (polOrder <= 8) // Use the Gauss quadrature over the triangle with the symmetric rule
+            gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangle(numGPs);
+        else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+            gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral(numGPs);
+
+        // Find the polynomial degree of the integrand \int_{\Omega} R_i*R_i d\Omega when a quadrilateral is considered
+        pTilde = 2*std::max(pDegree, qDegree);
+
+        // Find the number of Gauss points when a quadrilateral is considered
+        numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+
+        // Instantiate the corresponding Gauss quadrature on quadrilateral
+        gaussRuleOnQuadrilateral[iPatches] = new MathLibrary::IGAGaussQuadratureOnBiunitQuadrilateral(numGPs);
+    }
+}
+
+void DataFieldIntegrationNURBS::computeMassMatrix() {
+    /*
+     * Compute the mass matrix of the multipatch B-Spline geometry
+     *
+     * Function layout :
+     *
+     * 1. Loop over all patches
+     * ->
+     *    1i. Get the surface patch
+     *   1ii. Get the boundaries of the parameter space
+     *  1iii. Clip the parameter space by the knot spans
+     *   1iv. Loop over all the generated polygons
+     *   ->
+     *        1iv.1. Clean the polygon
+     *        1iv.2. Check if the polygon has less than 3 vertices and if yes continue
+     *        1iv.3. Initialize list of trimmed polygons in case patch is not trimmed
+     *        1iv.4. Clip the polygon by trimming if the patch is trimmed
+     *        1iv.5. Loop over all generated subpolygons
+     *        ->
+     *               1iv.5i. Clean the polygon
+     *              1iv.5ii. Check if the polygon has less than 3 vertices and if yes continue
+     *             1iv.5iii. Triangulate the generated polygon
+     *              1iv.5iv. Loop over all triangles of the triangulation
+     *              ->
+     *                       1iv.5iv.1. Clean triangle
+     *                       1iv.5iv.2. Check if the triangle after cleaning is no more a triangle
+     *                       1iv.5iv.3. Pass the triangle into the integration function
+     *              <-
+     *        <-
+     * <-
+     */
+
+    // Initialize auxiliary arrays
+    int numPatches = meshIGA->getNumPatches();
+
+    // 1. Loop over all patches
+    for(unsigned int iPatches = 0; iPatches < numPatches; iPatches++) {
+        // 1i. Get the surface patch
+        IGAPatchSurface* patch = meshIGA->getSurfacePatch(iPatches);
+
+        // 1ii. Get the boundaries of the parameter space
+        Polygon2D polygonUV(4);
+        {
+            const double u0 = patch->getIGABasis()->getUBSplineBasis1D()->getFirstKnot();
+            const double v0 = patch->getIGABasis()->getVBSplineBasis1D()->getFirstKnot();
+            const double u1 = patch->getIGABasis()->getUBSplineBasis1D()->getLastKnot();
+            const double v1 = patch->getIGABasis()->getVBSplineBasis1D()->getLastKnot();
+            polygonUV[0] = make_pair(u0,v0);
+            polygonUV[1] = make_pair(u1,v0);
+            polygonUV[2] = make_pair(u1,v1);
+            polygonUV[3] = make_pair(u0,v1);
+        }
+
+        // 1iii. Clip the parameter space by the knot spans
+        Polygon2D listSpan;
+        ListPolygon2D listKnotPolygonUV;
+        clipByKnotSpan(patch,polygonUV,listKnotPolygonUV,listSpan);
+
+        // 1iv. Loop over all the generated polygons
+        for(int index = 0;index < listSpan.size(); index++) {
+            // 1iv.1. Clean the polygon
+            ClipperAdapter::cleanPolygon(listKnotPolygonUV[index]);
+
+            // 1iv.2. Check if the polygon has less than 3 vertices and if yes continue
+            if(listKnotPolygonUV[index].size() < 3)
+                continue;
+
+            // 1iv.3. Initialize list of trimmed polygons in case patch is not trimmed
+            ListPolygon2D listTrimmedPolygonUV(1, listKnotPolygonUV[index]);
+
+            // 1iv.4. Clip the polygon by trimming if the patch is trimmed
+            if(patch->isTrimmed())
+                clipByTrimming(patch,listKnotPolygonUV[index], listTrimmedPolygonUV);
+
+            // 1iv.5. Loop over all generated subpolygons
+            for(int trimmedPolygonIndex = 0; trimmedPolygonIndex < listTrimmedPolygonUV.size(); trimmedPolygonIndex++) {
+                // 1iv.5i. Clean the polygon
+                ClipperAdapter::cleanPolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
+
+                // 1iv.5ii. Check if the polygon has less than 3 vertices and if yes continue
+                if(listTrimmedPolygonUV[trimmedPolygonIndex].size()<3)
+                    continue;
+
+                // 1iv.5iii. Triangulate the generated polygon
+                ListPolygon2D triangulatedPolygons = triangulatePolygon(listTrimmedPolygonUV[trimmedPolygonIndex]);
+
+                // 1iv.5iv. Loop over all triangles of the triangulation
+                for(ListPolygon2D::iterator triangulatedPolygon = triangulatedPolygons.begin(); triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
+                    // 1iv.5iv.1. Clean triangle
+                    ClipperAdapter::cleanPolygon(*triangulatedPolygon,EPS_CLEANTRIANGLE);
+
+                    // 1iv.5iv.2. Check if the triangle after cleaning is no more a triangle
+                    if(triangulatedPolygon->size() < 3)
+                        continue;
+
+                    // 1iv.5iv.3. Pass the triangle into the integration function
+                    integrate(patch, iPatches, *triangulatedPolygon, listSpan[index].first, listSpan[index].second);
+                }
+            }
+        }
+    }
 }
 
 void DataFieldIntegrationNURBS::clipByTrimming(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygonUV) {
+    /*
+     * Clips a given polygon by the tirmming curves within a patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Loop over all trimming loops within the patch
+     * ->
+     *    2i. Get the linearized trimming loop
+     *   2ii. Add the trimming loop in the clipper
+     * <-
+     *
+     * 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+     */
+
+    // 1. Initialize auxiliary variables
 	ClipperAdapter c;
-	for(int loop=0;loop<_thePatch->getTrimming().getNumOfLoops();loop++) {
-		const std::vector<double> clippingWindow=_thePatch->getTrimming().getLoop(loop).getPolylines();
+
+    // 2. Loop over all trimming loops within the patch
+    for(int iLoop = 0; iLoop < _thePatch->getTrimming().getNumOfLoops(); iLoop++) {
+        // 2i. Get the linearized trimming loop
+        const std::vector<double> clippingWindow = _thePatch->getTrimming().getLoop(iLoop).getPolylines();
+
+        // 2ii. Add the trimming loop in the clipper
 		c.addPathClipper(clippingWindow);
 	}
-	// Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
+
+    // 3. Setup filling rule to have for sure clockwise loop as hole and counterclockwise as boundaries
 	c.setFilling(ClipperAdapter::POSITIVE, 0);
 	c.addPathSubject(_polygonUV);
 	c.clip();
@@ -106,17 +265,37 @@ void DataFieldIntegrationNURBS::clipByTrimming(const IGAPatchSurface* _thePatch,
 }
 
 bool DataFieldIntegrationNURBS::computeKnotSpanOfProjElement(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, int* _span) {
-	int minSpanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(
-            _polygonUV[0].first);
-    int minSpanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(
-            _polygonUV[0].second);
+    /*
+     * Clips a given polygon by the knot spans in the given patch
+     *
+     * Function layout:
+     *
+     * 1. Find minimum and maximum knot span indices in u- and v-directions
+     *
+     * 2. Loop over all nodes in the given polygon
+     * ->
+     *    2i. Find the knot span indices where the nodes belong into
+     *   2ii. Clamp the knot span indices in case the image of the node is outside the knot limits
+     * <-
+     *
+     * 3. Flag on whether all nodes of the polygon are in the same knot span
+     *
+     * 4. Return the flag
+     */
+
+    // 1. Find minimum and maximum knot span indices in u- and v-directions
+    int minSpanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_polygonUV[0].first);
+    int minSpanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_polygonUV[0].second);
     int maxSpanU = minSpanU;
     int maxSpanV = minSpanV;
 
-    for (int nodeCount = 1; nodeCount < _polygonUV.size(); nodeCount++) {
-        int spanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_polygonUV[nodeCount].first);
-        int spanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_polygonUV[nodeCount].second);
+    // 2. Loop over all nodes in the given polygon
+    for (int iNodes = 1; iNodes < _polygonUV.size(); iNodes++) {
+        // 2i. Find the knot span indices where the nodes belong into
+        int spanU = _thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(_polygonUV[iNodes].first);
+        int spanV = _thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(_polygonUV[iNodes].second);
 
+        // 2ii. Clamp the knot span indices in case the image of the node is outside the knot limits
         if (spanU < minSpanU)
             minSpanU = spanU;
         if (spanU > maxSpanU)
@@ -127,45 +306,90 @@ bool DataFieldIntegrationNURBS::computeKnotSpanOfProjElement(const IGAPatchSurfa
             maxSpanV = spanV;
     }
 
-    bool OnSameKnotSpan=(minSpanU == maxSpanU && minSpanV == maxSpanV);
+    // 3. Flag on whether all nodes of the polygon are in the same knot span
+    bool OnSameKnotSpan = (minSpanU == maxSpanU && minSpanV == maxSpanV);
     if(_span!=NULL) {
-		_span[0]=minSpanU;
-		_span[1]=maxSpanU;
-		_span[2]=minSpanV;
-		_span[3]=maxSpanV;
+        _span[0] = minSpanU;
+        _span[1] = maxSpanU;
+        _span[2] = minSpanV;
+        _span[3] = maxSpanV;
     }
+
+    // 4. Return the flag
     return OnSameKnotSpan;
 }
 
 void DataFieldIntegrationNURBS::clipByKnotSpan(const IGAPatchSurface* _thePatch, const Polygon2D& _polygonUV, ListPolygon2D& _listPolygon, Polygon2D& _listSpan) {
-	/// 1.find the knot span which the current element located in.
-	//      from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction
+    /*
+     * Clips a given polygon by the knot spans of the given patch
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Get the knot vectors of the patch
+     *
+     * 3.find the knot span which the current element located in. (from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction)
+     *
+     * 4. Find the clipped polygon
+     * ->
+     *    ### If all vertices of the polygon are on same knot span then returned the same polygon as input ###
+     *    4i. Add the polygon into the list
+     *   4ii. Add the corresponding knot span indices of the knot span containing the polygon
+     *    ### Else clip the polygon for every knot span window it is crossing ###
+     *    4i. Loop over all spans in u-direction
+     *    ->
+     *        4i.1. Loop over all spans in v-direction
+     *        ->
+     *              4i.1i. Initialize a clipper adapter
+     *             4i.1ii. Clip the polygon with the knot span window
+     *             ### Check if the encountered knot span is collapsed ###
+     *             4i.1ii.1. Create the knot span window
+     *             4i.1ii.2. Clip the polygon with the knot span window (WARNING : here we assume to get only a single output polygon from the clipping!)
+     *        <-
+     *    <-
+     * <-
+     */
+
+    // 1. Initialize auxiliary variables
+    int span[4];
+
+    // 2. Get the knot vectors of the patch
     const double *knotVectorU = _thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
     const double *knotVectorV = _thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
 
-	int span[4];
+    // 3.find the knot span which the current element located in. (from minSpanu to maxSpanu in U-direction, and from minSpanV to max SpanV in V-direction)
 	int isOnSameKnotSpan = computeKnotSpanOfProjElement(_thePatch, _polygonUV,span);
-	int minSpanU = span[0];
-	int maxSpanU = span[1];
-	int minSpanV = span[2];
-	int maxSpanV = span[3];
-	/// If on same knot span then returned the same polygon as input
-	if (isOnSameKnotSpan) {
+    int minSpanU = span[0];
+    int maxSpanU = span[1];
+    int minSpanV = span[2];
+    int maxSpanV = span[3];
+
+    // 4. Find the clipped polygon
+    if (isOnSameKnotSpan) { // ### If all vertices of the polygon are on same knot span then returned the same polygon as input ###
+        // 4i. Add the polygon into the list
 		_listPolygon.push_back(_polygonUV);
+
+        // 4ii. Add the corresponding knot span indices of the knot span containing the polygon
 		_listSpan.push_back(make_pair(minSpanU,minSpanV));
-	/// Else clip the polygon for every knot span window it is crossing
-	} else {
+    } else { // ### Else clip the polygon for every knot span window it is crossing ###
+        // 4i. Loop over all spans in u-direction
 		for (int spanU = minSpanU; spanU <= maxSpanU; spanU++) {
+            // 4i.1. Loop over all spans in v-direction
 			for (int spanV = minSpanV; spanV <= maxSpanV; spanV++) {
-				ClipperAdapter c(1e-9);
-				if (knotVectorU[spanU] != knotVectorU[spanU + 1]
-						&& knotVectorV[spanV] != knotVectorV[spanV + 1]) {
+                // 4i.1i. Initialize a clipper adapter
+                ClipperAdapter c(EPS_CLIPPING);
+
+                // 4i.1ii. Clip the polygon with the knot span window
+                if (knotVectorU[spanU] != knotVectorU[spanU + 1] && knotVectorV[spanV] != knotVectorV[spanV + 1]) { // ### Check if the encountered knot span is collapsed ###
+                    // 4i.1ii.1. Create the knot span window
 					Polygon2D knotSpanWindow(4);
-					knotSpanWindow[0]=make_pair(knotVectorU[spanU],knotVectorV[spanV]);
-					knotSpanWindow[1]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV]);
-					knotSpanWindow[2]=make_pair(knotVectorU[spanU+1],knotVectorV[spanV+1]);
-					knotSpanWindow[3]=make_pair(knotVectorU[spanU],knotVectorV[spanV+1]);
-					// WARNING : here we assume to get only a single output polygon from the clipping !
+                    knotSpanWindow[0] = make_pair(knotVectorU[spanU],knotVectorV[spanV]);
+                    knotSpanWindow[1] = make_pair(knotVectorU[spanU + 1],knotVectorV[spanV]);
+                    knotSpanWindow[2] = make_pair(knotVectorU[spanU + 1],knotVectorV[spanV + 1]);
+                    knotSpanWindow[3] = make_pair(knotVectorU[spanU],knotVectorV[spanV + 1]);
+
+                    // 4i.1ii.2. Clip the polygon with the knot span window (WARNING : here we assume to get only a single output polygon from the clipping!)
 					Polygon2D solution = c.clip(_polygonUV,knotSpanWindow);
 					/// Store polygon and its knot span for integration
 					_listPolygon.push_back(solution);
@@ -177,167 +401,216 @@ void DataFieldIntegrationNURBS::clipByKnotSpan(const IGAPatchSurface* _thePatch,
 }
 
 DataFieldIntegrationNURBS::ListPolygon2D DataFieldIntegrationNURBS::triangulatePolygon(const Polygon2D& _polygonUV) {
-	// If already easily integrable by quadrature rule, do nothing
-	if(_polygonUV.size()<4)
+    /*
+     * Triangulates given polygon
+     *
+     * Function layout :
+     *
+     * 1. If the polygon is already a triangle do nothing
+     *
+     * 2. Initialize triangulator
+     *
+     * 3. Loop over all segments of the given polygon and add its ends into the triangulator
+     *
+     * 4. Triangulate the polygon
+     *
+     * 5. Fill the output list of the newly generated polygons
+     *
+     * 6. Return the updated list of the triangulated polygons
+     */
+
+    // 1. If the polygon is already a triangle do nothing
+    if(_polygonUV.size() < 4)
 		return ListPolygon2D(1,_polygonUV);
-	// Otherwise triangulate polygon
+
+    // 2. Initialize triangulator
 	TriangulatorAdaptor triangulator;
-	// Fill adapter
-	for(Polygon2D::const_iterator it=_polygonUV.begin();it!=_polygonUV.end();it++)
+
+    // 3. Loop over all segments of the given polygon and add its ends into the triangulator
+    for(Polygon2D::const_iterator it = _polygonUV.begin(); it!=_polygonUV.end(); it++)
 		triangulator.addPoint(it->first,it->second,0);
-	// Triangulate
+
+    // 4. Triangulate the polygon
 	int numTriangles = _polygonUV.size() - 2;
 	int triangleIndexes[3 * numTriangles];
-	bool triangulated=triangulator.triangulate(triangleIndexes);
+    bool triangulated = triangulator.triangulate(triangleIndexes);
 	if(!triangulated)
 		return ListPolygon2D();
-	// Fill output structure
+
+    // 5. Fill the output list of the newly generated polygons
 	ListPolygon2D out(numTriangles, Polygon2D(3));
 	for(int i = 0; i < numTriangles; i++)
-		for(int j=0;j<3;j++)
-			out[i][j]=_polygonUV[triangleIndexes[3*i + j]];
+        for(int j = 0; j < 3; j++)
+            out[i][j] = _polygonUV[triangleIndexes[3*i + j]];
+
+    // 6. Return the updated list of the triangulated polygons
 	return out;
 }
 
-void DataFieldIntegrationNURBS::assemble(IGAPatchSurface* _thePatch, Polygon2D _polygonUV,
-        int _spanU, int _spanV) {
+void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _indexPatch, Polygon2D _polygonUV, int _spanU, int _spanV) {
+    /*
+     * Integrates the triangulated polygons and assembles the mass matrix
+     *
+     * Function layout :
+     *
+     * 1. Check input
+     *
+     * 2. Get the corresponding quadrature rule depending on the integration domain
+     *
+     * 3. Initialize auxiliary variables
+     *
+     * 4. Create an element freedom table
+     *
+     * 5. Copy input polygon into contiguous C format
+     *
+     * 6. Loop over all Gauss points
+     * ->
+     *    6i. Get the Gauss point coordinates in the integration space
+     *   6ii. Get the Gauss point weight
+     *  6iii. Compute the basis functions describing parametrically the integration domain
+     *   6iv. Compute the image of the gauss point in the NURBS parameter space
+     *    6v. Compute the local basis functions and their first derivatives at the Gauss point
+     *   6vi. Compute the base vectors at the Gauss point
+     *  6vii. Compute the surface normal vector at the Gauss point
+     * 6viii. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
+     *   6ix. Compute the Jacobian of the transformation from the NURBS parameter space to the integration space
+     *    6x. Compute the Jacobian products
+     *   6xi. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
+     *   ->
+     *        6xi.1. Compute the local basis functions of the dual product RI*RJ
+     *        6xi.2. Compute and add the local mass matrix contributions
+     *   <-
+     * <-
+     */
+
+    // 1. Check input
     assert(!_polygonUV.empty());
-    int numNodesUV=_polygonUV.size();
-    assert(numNodesUV>2);
-    assert(numNodesUV<5);
+    int numNodesUV = _polygonUV.size();
+    assert(numNodesUV > 2);
+    assert(numNodesUV < 5);
 
-    // Definitions
-    int numNodesElMaster = 0;
+    // 2. Get the corresponding quadrature rule depending on the integration domain
+    EMPIRE::MathLibrary::IGAGaussQuadrature* theGaussQuadrature;
+    int numNodesQuadrature = numNodesUV;
+    if (numNodesQuadrature == 3)
+        theGaussQuadrature = gaussRuleOnTriangle[_indexPatch];
+    else if (numNodesQuadrature == 4)
+        theGaussQuadrature = gaussRuleOnQuadrilateral[_indexPatch];
+    else {
+        ERROR_OUT() << "Only triangles and quadrilaterals are expected as integration domains";
+        exit(-1);
+    }
 
+    // 3. Initialize auxiliary variables
+    double shapeFuncs[numNodesQuadrature];
+    double uv[2];
+    double baseVectors[6];
+    double baseVectorU[3];
+    double baseVectorV[3];
+    double surfaceNormalTilde[3];
+    double gaussWeight;
+    double IGABasisFctsI;
+    double IGABasisFctsJ;
+    double JacobianUVToPhysical;
+    double JacobianCanonicalToUV;
+    double Jacobian;
+    double dudx;
+    double dudy;
+    double dvdx;
+    double dvdy;
+    int derivDegree = 1;
+    int noCoord = 3;
     int pDegree = _thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
     int qDegree = _thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-    int nShapeFuncsIGA = (pDegree + 1) * (qDegree + 1);
+    int numBasisFunctions = (pDegree + 1) * (qDegree + 1);
+    double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2) * numBasisFunctions / 2];
 
-    numNodesElMaster = nShapeFuncsIGA;
+    // 4. Create an element freedom table
+    int dofIGA[numBasisFunctions];
+    _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
+    for (int i = 0; i < numBasisFunctions; i++)
+        dofIGA[i] = _thePatch->getControlPointNet()[dofIGA[i]]->getDofIndex();
 
-    // Initialize element matrix
-    double elementCouplingMatrixNN[numNodesElMaster * (numNodesElMaster + 1) / 2];
-
-    for (int arrayIndex = 0; arrayIndex < numNodesElMaster * (numNodesElMaster + 1) / 2;
-            arrayIndex++)
-        elementCouplingMatrixNN[arrayIndex] = 0;
-
-/// 1. Copy input polygon into contiguous C format
+    // 5. Copy input polygon into contiguous C format
 	double nodesUV[8];
 	for (int i = 0; i < numNodesUV; i++) {
-		nodesUV[i*2]=_polygonUV[i].first;
-		nodesUV[i*2+1]=_polygonUV[i].second;
+        nodesUV[i*2] = _polygonUV[i].first;
+        nodesUV[i*2+1] = _polygonUV[i].second;
 	}
 
-/// 2. Loop through each quadrature
-/// 2.1 Choose gauss triangle or gauss quadriliteral
-	MathLibrary::IGAGaussQuadrature *theGaussQuadrature;
-	int nNodesQuadrature=numNodesUV;
-	if (nNodesQuadrature == 3)
-		theGaussQuadrature = new MathLibrary::IGAGaussQuadratureOnTriangle(numGPsMassMatrixTri);
-	else
-		theGaussQuadrature = new MathLibrary::IGAGaussQuadratureOnQuad(numGPsMassMatrixQuad);
+    // 6. Loop over all Gauss points
+    for (int iGP = 0; iGP < theGaussQuadrature->getNumGaussPoints(); iGP++) {
+        // 6i. Get the Gauss point coordinates in the integration space
+        const double *gaussPoint = theGaussQuadrature->getGaussPoint(iGP);
 
-	double *quadratureUV = nodesUV;
+        // 6ii. Get the Gauss point weight
+        gaussWeight = theGaussQuadrature->getGaussWeight(iGP);
 
-/// 2.2 Loop throught each Gauss point
-	for (int GPCount = 0; GPCount < theGaussQuadrature->numGaussPoints; GPCount++) {
+        // 6iii. Compute the basis functions describing parametrically the integration domain
+        MathLibrary::computeLowOrderShapeFunc(numNodesQuadrature, gaussPoint, shapeFuncs);
 
-		/// 2.2.1 compute shape functions from Gauss points(in the quadrature).
-		const double *GP = theGaussQuadrature->getGaussPoint(GPCount);
+        // 6iv. Compute the image of the gauss point in the NURBS parameter space
+        MathLibrary::computeLinearCombination(numNodesQuadrature, 2, nodesUV, shapeFuncs, uv);
 
-		double shapeFuncs[nNodesQuadrature];
-		MathLibrary::computeLowOrderShapeFunc(nNodesQuadrature, GP, shapeFuncs);
+        // 6v. Compute the local basis functions and their first derivatives at the Gauss point
+        _thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+                (localBasisFunctionsAndDerivatives, derivDegree, uv[0], _spanU, uv[1], _spanV);
 
-		/// 2.2.2 evaluate the coordinates in IGA patch from shape functions
-		double GPIGA[2];
-		MathLibrary::computeLinearCombination(nNodesQuadrature, 2, quadratureUV, shapeFuncs,
-				GPIGA);
+        // 6vi. Compute the base vectors at the Gauss point
+        _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU, _spanV);
+        for (int iCoord = 0; iCoord < noCoord; iCoord++) {
+            baseVectorU[iCoord] = baseVectors[iCoord];
+            baseVectorV[iCoord] = baseVectors[noCoord + 1 + iCoord];
+        }
 
-		int derivDegree = 1;
+        // 6vii. Compute the surface normal vector at the Gauss point
+        MathLibrary::computeVectorCrossProduct(baseVectorU, baseVectorV, surfaceNormalTilde);
 
-		/// 2.2.5 Compute the local basis functions(shape functions of IGA) and their derivatives(for Jacobian)
-		double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2)
-				* nShapeFuncsIGA / 2];
+        // 6viii. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
+        JacobianUVToPhysical = MathLibrary::vector2norm(surfaceNormalTilde, noCoord);
 
-		_thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
-				localBasisFunctionsAndDerivatives, derivDegree, GPIGA[0], _spanU, GPIGA[1],
-				_spanV);
-
-		/// 2.2.6 Compute the Jacobian from parameter space on IGA patch to physical
-		double baseVectors[6];
-		_thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU,
-				_spanV);
-
-		double JacobianUVToPhysical = MathLibrary::computeAreaTriangle(baseVectors[0],
-				baseVectors[1], baseVectors[2], baseVectors[3], baseVectors[4], baseVectors[5])
-				* 2;
-
-		/// 2.2.7 Compute the Jacobian from the canonical space to the parameter space of IGA patch
-		double JacobianCanonicalToUV;
-		if (nNodesQuadrature == 3) {
-			JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(
-					quadratureUV[2] - quadratureUV[0], quadratureUV[3] - quadratureUV[1], 0,
-					quadratureUV[4] - quadratureUV[0], quadratureUV[5] - quadratureUV[1], 0);
-		} else {
-			double dudx = .25
-					* (-(1 - GP[2]) * quadratureUV[0] + (1 - GP[2]) * quadratureUV[2]
-							+ (1 + GP[2]) * quadratureUV[4] - (1 + GP[2]) * quadratureUV[6]);
-			double dudy = .25
-					* (-(1 - GP[1]) * quadratureUV[0] - (1 + GP[1]) * quadratureUV[2]
-							+ (1 + GP[1]) * quadratureUV[4] + (1 - GP[1]) * quadratureUV[6]);
-			double dvdx = .25
-					* (-(1 - GP[2]) * quadratureUV[1] + (1 - GP[2]) * quadratureUV[3]
-							+ (1 + GP[2]) * quadratureUV[5] - (1 + GP[2]) * quadratureUV[7]);
-			double dvdy = .25
-					* (-(1 - GP[1]) * quadratureUV[1] - (1 + GP[1]) * quadratureUV[3]
-							+ (1 + GP[1]) * quadratureUV[5] + (1 - GP[1]) * quadratureUV[7]);
+        // 6ix. Compute the Jacobian of the transformation from the NURBS parameter space to the integration space
+        if (numNodesQuadrature == 3) {
+            JacobianCanonicalToUV = MathLibrary::computeAreaTriangle(nodesUV[2] - nodesUV[0], nodesUV[3] - nodesUV[1], 0,
+                                                                     nodesUV[4] - nodesUV[0], nodesUV[5] - nodesUV[1], 0)*2.0;
+        } else {
+            dudx = .25 * (-(1 - gaussPoint[2]) * nodesUV[0] + (1 - gaussPoint[2]) * nodesUV[2]
+                       + (1 + gaussPoint[2]) * nodesUV[4] - (1 + gaussPoint[2]) * nodesUV[6]);
+            dudy = .25 * (-(1 - gaussPoint[1]) * nodesUV[0] - (1 + gaussPoint[1]) * nodesUV[2]
+                       + (1 + gaussPoint[1]) * nodesUV[4] + (1 - gaussPoint[1]) * nodesUV[6]);
+            dvdx = .25 * (-(1 - gaussPoint[2]) * nodesUV[1] + (1 - gaussPoint[2]) * nodesUV[3]
+                       + (1 + gaussPoint[2]) * nodesUV[5] - (1 + gaussPoint[2]) * nodesUV[7]);
+            dvdy = .25 * (-(1 - gaussPoint[1]) * nodesUV[1] - (1 + gaussPoint[1]) * nodesUV[3]
+                       + (1 + gaussPoint[1]) * nodesUV[5] + (1 - gaussPoint[1]) * nodesUV[7]);
 			JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
 		}
-		double Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
-		/// 2.2.8 integrate the shape function product for C_NN(Linear shape function multiply linear shape function)
-		int count = 0;
-		for (int i = 0; i < numNodesElMaster; i++) {
-			for (int j = i; j < numNodesElMaster; j++) {
-					double IGABasisFctsI =
-							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-									1, 0, 0, i)];
-					double IGABasisFctsJ =
-							localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(
-									1, 0, 0, j)];
-					elementCouplingMatrixNN[count++] += IGABasisFctsI * IGABasisFctsJ * Jacobian
-							* theGaussQuadrature->weights[GPCount];
+
+        // 6x. Compute the Jacobian products
+        Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
+
+        // 6xi. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
+        for (int i = 0; i < numBasisFunctions; i++) {
+            for (int j = i; j < numBasisFunctions; j++) { // Starts from i because of computing only the upper triangular entries of the matrix
+                    // 6xi.1. Compute the local basis functions of the dual product RI*RJ
+                    IGABasisFctsI = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, i)];
+                    IGABasisFctsJ = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, j)];
+
+                    // 6xi.2. Compute and add the local mass matrix contributions
+                    (*massMatrix)(dofIGA[i], dofIGA[j]) += IGABasisFctsI * IGABasisFctsJ * Jacobian * gaussWeight;
+                    if(dofIGA[i] != dofIGA[j]) // Because matrix not instantiated as symmetric
+                        (*massMatrix)(dofIGA[j], dofIGA[i]) += IGABasisFctsI * IGABasisFctsJ * Jacobian * gaussWeight;
 			}
 		}
 	}
-/// 3.Assemble the element coupling matrix to the global coupling matrix.
-    int dofIGA[nShapeFuncsIGA];
-    _thePatch->getIGABasis()->getBasisFunctionsIndex(_spanU, _spanV, dofIGA);
-
-    for (int i = 0; i < nShapeFuncsIGA; i++)
-        dofIGA[i] = _thePatch->getControlPointNet()[dofIGA[i]]->getDofIndex();
-
-    int count = 0;
-    int dof1, dof2;
-    for (int i = 0; i < numNodesElMaster; i++) {
-        for (int j = i; j < numNodesElMaster; j++) {
-			dof1 = dofIGA[i];
-			dof2 = dofIGA[j];
-			//Because matrix not instantiated as symmetric !!!
-            //if (dof1 < dof2)
-                (*massMatrix)(dof1, dof2) += elementCouplingMatrixNN[count];
-            //else
-            if(dof1 != dof2) // if different from main diagonal add symmetric value
-                (*massMatrix)(dof2, dof1) += elementCouplingMatrixNN[count];
-            count++;
-        }
-    }
 }
 
 void DataFieldIntegrationNURBS::enforceCnn() {
-	for(int i=0;i<numNodes;i++) {
+    /*
+     * Fixes the flying nodes to zero value
+     */
+    for(int i = 0; i < numNodes; i++) {
 		if(massMatrix->isRowEmpty(i))
-			(*massMatrix)(i,i)=1;
+            (*massMatrix)(i,i) = 1;
 	}
 }
 

@@ -224,8 +224,8 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
         for (int iGP = 0; iGP < numGPPerSection; iGP++) {
 
             // Get GP coordinates and weights
-            GP = theGPQuadrature->gaussPoints[iGP];
-            GW = theGPQuadrature->weights[iGP];
+            GP = *theGPQuadrature->getGaussPoint(iGP);
+            GW = theGPQuadrature->getGaussWeight(iGP);
 
             // Compute the image of the GP in the curve parameter space
             masterGPUTilde = ((1.0 - GP)*masterUTildesMerged[iSection] + (1.0 + GP)*masterUTildesMerged[iSection + 1])/2.0;

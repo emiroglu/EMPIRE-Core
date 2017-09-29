@@ -30,18 +30,6 @@ using namespace std;
 namespace EMPIRE {
 namespace MathLibrary {
 
-
-
-// Methods
-
-/***********************************************************************************************
- * \brief Compute mass matrix of a triangle element
- * \param[in] triangle the triangle
- * \param[in] numGaussPoints number of Gauss points used in the Gauss quadrature
- * \param[in] dual whether dual or not
- * \param[out] mass matrix (3x3)
- * \author Tianyang Wang
- ***********/
 void computeMassMatrixOfTrianlge(const double *triangle, int numGaussPoints, bool dual,
         double *massMatrix) {
     const double *gaussPointsLocal;
@@ -94,14 +82,6 @@ void computeMassMatrixOfTrianlge(const double *triangle, int numGaussPoints, boo
     }
 }
 
-/***********************************************************************************************
- * \brief Compute mass matrix of a quad element
- * \param[in] quad the quad
- * \param[in] numGaussPoints number of Gauss points used in the Gauss quadrature
- * \param[in] dual whether dual or not
- * \param[out] mass matrix (4x4)
- * \author Tianyang Wang
- ***********/
 void computeMassMatrixOfQuad(const double *quad, int numGaussPoints, bool dual,
         double *massMatrix) {
     const double *gaussPointsLocal;
@@ -158,12 +138,6 @@ void computeMassMatrixOfQuad(const double *quad, int numGaussPoints, bool dual,
     }
 }
 
-/***********************************************************************************************
- * \brief Compute the shape function value by local coordinates in a quadrilateral
- * \param[in] xi_eta local coordinates
- * \param[out] shapeFuncValues shape function values of xi_eta
- * \author Tianyang Wang
- ***********/
 void computeShapeFuncOfQuad(const double *xi_eta, double *shapeFuncValues) {
     shapeFuncValues[0] = 0.25 * (1.0 - xi_eta[0]) * (1.0 - xi_eta[1]);
     shapeFuncValues[1] = 0.25 * (1.0 + xi_eta[0]) * (1.0 - xi_eta[1]);
@@ -171,13 +145,6 @@ void computeShapeFuncOfQuad(const double *xi_eta, double *shapeFuncValues) {
     shapeFuncValues[3] = 0.25 * (1.0 - xi_eta[0]) * (1.0 + xi_eta[1]);
 }
 
-/***********************************************************************************************
- * \brief Compute the determinant of Jocobian matrix by local coordinates in a quadrilateral
- * \param[in] quad the quadrilateral
- * \param[in] xi_eta local coordinates
- * \return determinant of Jocobian matrix
- * \author Tianyang Wang
- ***********/
 double computeDetJOfQuad(const double *quad, const double *xi_eta) {
     // d_N_d_xi[4] contains the partial derivative w.r.t. xi of the shape functions
     double d_N_d_xi[4];
@@ -210,13 +177,6 @@ double computeDetJOfQuad(const double *quad, const double *xi_eta) {
     return EMPIRE::MathLibrary::computeVectorLength(crossProduct);
 }
 
-/***********************************************************************************************
- * \brief Compute global coordinates of a point in a triangle
- * \param[in] triangle the triangle
- * \param[in] localCoor local coordinates of the point
- * \param[out] globalCoor global coordinates of the point
- * \author Tianyang Wang
- ***********/
 void computeGlobalCoorInTriangle(const double *triangle, const double *localCoor,
         double *globalCoor) {
     for (int i = 0; i < 3; i++) {
@@ -226,13 +186,6 @@ void computeGlobalCoorInTriangle(const double *triangle, const double *localCoor
     }
 }
 
-/***********************************************************************************************
- * \brief Compute global coordinates of a point in a quad
- * \param[in] quad the quad
- * \param[in] localCoor local coordinates of the point
- * \param[out] globalCoor global coordinates of the point
- * \author Tianyang Wang
- ***********/
 void computeGlobalCoorInQuad(const double *quad, const double *localCoor, double *globalCoor) {
     double shapeFuncValues[4];
     computeShapeFuncOfQuad(localCoor, shapeFuncValues);
@@ -246,15 +199,6 @@ void computeGlobalCoorInQuad(const double *quad, const double *localCoor, double
     }
 }
 
-/***********************************************************************************************
- * \brief Compute local coordinates of a point in a triangle
- * \param[in] triangle the triangle
- * \param[in] planeToProject project to plane (case: {2:x-y ; 0:y-z ;1: z-x} )
- * \param[in] point the point
- * \param[out] localCoor local coordinates of the point
- * \return a boolean saying whether the point is inside the triangle or not (true of false)
- * \author Tianyang Wang
- ***********/
 bool computeLocalCoorInTriangle(const double *triangle, int planeToProject, const double *point,
         double *localCoor) {
     /* Normally, the local coordinates can be solved by:
@@ -309,16 +253,6 @@ bool computeLocalCoorInTriangle(const double *triangle, int planeToProject, cons
     return true;
 }
 
-
-/***********************************************************************************************
- * \brief Compute local coordinates of a point in a quadrilateral
- * \param[in] quad the quadrilateral
- * \param[in] planeToProject project to plane (case: {2:x-y ; 0:y-z ;1: z-x} )
- * \param[in] point the point
- * \param[out] localCoor local coordinates of the point
- * \return a boolean saying whether the point is inside the quadrilateral or not (true of false)
- * \author Tianyang Wang
- ***********/
 bool computeLocalCoorInQuad(const double *quad, int planeToProject, const double *point,
         double *localCoor) {
     /*
@@ -406,16 +340,6 @@ bool computeLocalCoorInQuad(const double *quad, int planeToProject, const double
     return true;
 }
 
-
-// Class Methods
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-/***********************************************************************************************
- * \brief constructor of the class GaussQuadratureOnTriangle
- * \param[in] _triangle triangle to integrate on
- * \param[in] _nGaussPoints number of gauss points
- * \author Tianyang Wang
- ***********/
 GaussQuadratureOnTriangle::GaussQuadratureOnTriangle(double *_triangle, int _numGaussPoints) :
         triangle(_triangle), numGaussPoints(_numGaussPoints) {
     if (numGaussPoints == 3) {
@@ -440,28 +364,14 @@ GaussQuadratureOnTriangle::GaussQuadratureOnTriangle(double *_triangle, int _num
     area = EMPIRE::MathLibrary::computeAreaOfTriangle(triangle);
 }
 
-
-/***********************************************************************************************
- * \brief Destructor of the class.
- * \author Tianyang Wang
- ***********/
 GaussQuadratureOnTriangle::~GaussQuadratureOnTriangle() {
     delete[] gaussPointsGlobal;
 }
 
-/***********************************************************************************************
- * \brief To define the integrand function
- * \param[in] _integrandFunc Object of the class integrand functions
- * \author Tianyang Wang
- ***********/
 void GaussQuadratureOnTriangle::setIntegrandFunc(IntegrandFunction *_integrandFunc) {
     integrandFunc = _integrandFunc;
 }
 
-/***********************************************************************************************
- * \brief To Compute integral on the triangle
- * \author Tianyang Wang
- ***********/
 double GaussQuadratureOnTriangle::computeIntegral() {
     double toReturn = 0;
     for (int i = 0; i < numGaussPoints; i++)
@@ -470,12 +380,6 @@ double GaussQuadratureOnTriangle::computeIntegral() {
     return toReturn;
 }
 
-/***********************************************************************************************
- * \brief constructor of the class GaussQuadratureOnQuad
- * \param[in] _quad quad to integrate on
- * \param[in] _nGaussPoints number of gauss points
- * \author Tianyang Wang
- ***********/
 GaussQuadratureOnQuad::GaussQuadratureOnQuad(double *_quad, int _numGaussPoints) :
         quad(_quad), numGaussPoints(_numGaussPoints) {
     if (numGaussPoints == 1) {
@@ -509,19 +413,10 @@ GaussQuadratureOnQuad::~GaussQuadratureOnQuad() {
     delete[] detJ;
 }
 
-/***********************************************************************************************
- * \brief To define the integrand function
- * \param[in] _integrandFunc Object of the class integrand functions
- * \author Tianyang Wang
- ***********/
 void GaussQuadratureOnQuad::setIntegrandFunc(IntegrandFunction *_integrandFunc) {
     integrandFunc = _integrandFunc;
 }
 
-/***********************************************************************************************
- * \brief To Compute integral on the quad
- * \author Tianyang Wang
- ***********/
 double GaussQuadratureOnQuad::computeIntegral() {
     double toReturn = 0;
     for (int i = 0; i < numGaussPoints; i++)
@@ -529,15 +424,6 @@ double GaussQuadratureOnQuad::computeIntegral() {
     return toReturn;
 }
 
-/***********************************************************************************************
- * \brief Returns the scalar/vector value from the linear combination of the values on the vertices of the element with the shape functions
- * \param[in] _nNodes The number of nodes of the element
- * \param[in] _nValue Takes value 1 for a scalar, or the values 2-3 for a vector
- * \param[in] _values The values on the nodes of the element
- * \param[in] _coords The coordinates in the element
- * \param[in/out] _returnValue The resulting linear combination of the nodal values
- * \author Chenshen Wu
- ***********/
 void computeLinearCombinationValueFromVerticesValues(int _nNodes, int _nValue,
         const double *_values, const double* _coords, double *_returnValue) {
     double shapeFuncs[4];
@@ -545,15 +431,6 @@ void computeLinearCombinationValueFromVerticesValues(int _nNodes, int _nValue,
     computeLinearCombination(_nNodes, _nValue, _values, shapeFuncs, _returnValue);
 }
 
-/***********************************************************************************************
- * \brief Computes the value of a data field in the interior of an element
- * \param[in] _nNodes The number of nodes of the element
- * \param[in] _nValue Takes value 1 for a scalar, or the values 2-3 for a vector
- * \param[in] _values The values on the nodes of the element
- * \param[in] _shapeFuncs The values of the shape functions at the interior of the element
- * \param[in/out] _returnValue The resulting linear combination of the nodal values
- * \author Chenshen Wu
- ***********/
 void computeLinearCombination(int _nNodes, int _nValue, const double *_values,
         const double *_shapeFuncs, double *_returnValue) {
 
@@ -565,13 +442,6 @@ void computeLinearCombination(int _nNodes, int _nValue, const double *_values,
 
 }
 
-/***********************************************************************************************
- * \brief Computes the values of the low order shape functions (linear for triangle and bilinear
- *        for the quadrilateral)
- * \param[in] _nNodes The number of nodes in the element level
- * \param[in] _coords The coordinates of the point where to evaluate the shape functions
- * \param[in/out] _shapeFuncs The evaluated shape functions
- ***********/
 void computeLowOrderShapeFunc(int _nNodes, const double *_coords, double *_shapeFuncs) {
     assert(_coords!=NULL);
     assert(_shapeFuncs!=NULL);
@@ -579,23 +449,17 @@ void computeLowOrderShapeFunc(int _nNodes, const double *_coords, double *_shape
         _shapeFuncs[0] = 1 - _coords[0] - _coords[1];
         _shapeFuncs[1] = _coords[0];
         _shapeFuncs[2] = _coords[1];
-    } else {
+    } else if (_nNodes == 4) {
         _shapeFuncs[0] = (1 - _coords[0]) / 2 * (1 - _coords[1]) / 2;
         _shapeFuncs[1] = (1 + _coords[0]) / 2 * (1 - _coords[1]) / 2;
         _shapeFuncs[2] = (1 + _coords[0]) / 2 * (1 + _coords[1]) / 2;
         _shapeFuncs[3] = (1 - _coords[0]) / 2 * (1 + _coords[1]) / 2;
+    } else {
+        ERROR_OUT() << "Low order basis functions are computed for only triangles or quadrilaterals" << endl;
+        exit(-1);
     }
-
 }
 
-/***********************************************************************************************
- * \brief Compute local coordinates of a point in a triangle in a 2D space
- * \param[in] _coordsTriangle, coordinates of the triangle. double[6].
- * \param[in] _coordsNode, coordinates of the point. double[2].
- * \param[out] _localCoords, local coordinates of the point. double[3]
- * \return a boolean saying whether the point is inside the triangle or not (true of false)
- * \author Chenshen Wu
- ***********/
 bool computeLocalCoordsInTriangle(const double *_coordsTri, const double *_coordsNode,
         double* _localCoords) {
     assert(_coordsTri!=NULL);
@@ -617,15 +481,6 @@ bool computeLocalCoordsInTriangle(const double *_coordsTri, const double *_coord
     return true;
 }
 
-/***********************************************************************************************
- * \brief Compute local coordinates of a point in a quadriliteral in a 2D space by solving a nonlinear
- *        system using the Newton-Raphson scheme
- * \param[in] _coordsQuad Coordinates of the quadriliteral. double[8].
- * \param[in] _coordsNode Coordinates of the point. double[2].
- * \param[out] _localCoords local coordinates of the point. double[2]
- * \return a boolean saying whether the point is inside the quadriliteral or not (true of false)
- * \author Chenshen Wu
- ***********/
 bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNode,
         double* _localCoords) {
     /*
@@ -698,299 +553,350 @@ bool computeLocalCoordsInQuad(const double *_coordsQuad, const double *_coordsNo
     return true;
 }
 
-// IGA Integration
-
-/***********************************************************************************************
- * \brief Constructor
- * param[in] _numGaussPoints, number of Gauss points
- * \author Chenshen Wu
- ***********/
 IGAGaussQuadratureOnTriangle::IGAGaussQuadratureOnTriangle(int _numGaussPoints) :
-        IGAGaussQuadrature(_numGaussPoints) {
+        IGAGaussQuadrature(_numGaussPoints, 2) {
     switch (_numGaussPoints) {
     case 1:
-        gaussPoints = IGAtriGaussPoints1;
-        weights = IGAtriWeights1;
+        setGaussPoints(IGACanonicalTriangleGaussPoints1);
+        setGaussWeights(IGACanonicalTriangleWeights1);
         break;
     case 3:
-        gaussPoints = IGAtriGaussPoints3;
-        weights = IGAtriWeights3;
+        setGaussPoints(IGACanonicalTriangleGaussPoints3);
+        setGaussWeights(IGACanonicalTriangleWeights3);
         break;
     case 4:
-        gaussPoints = IGAtriGaussPoints4;
-        weights = IGAtriWeights4;
+        setGaussPoints(IGACanonicalTriangleGaussPoints4);
+        setGaussWeights(IGACanonicalTriangleWeights4);
         break;
     case 6:
-        gaussPoints = IGAtriGaussPoints6;
-        weights = IGAtriWeights6;
+        setGaussPoints(IGACanonicalTriangleGaussPoints6);
+        setGaussWeights(IGACanonicalTriangleWeights6);
         break;
     case 7:
-        gaussPoints = IGAtriGaussPoints7;
-        weights = IGAtriWeights7;
+        setGaussPoints(IGACanonicalTriangleGaussPoints7);
+        setGaussWeights(IGACanonicalTriangleWeights7);
         break;
     case 12:
-        gaussPoints = IGAtriGaussPoints12;
-        weights = IGAtriWeights12;
+        setGaussPoints(IGACanonicalTriangleGaussPoints12);
+        setGaussWeights(IGACanonicalTriangleWeights12);
         break;
     case 13:
-        gaussPoints = IGAtriGaussPoints13;
-        weights = IGAtriWeights13;
+        setGaussPoints(IGACanonicalTriangleGaussPoints13);
+        setGaussWeights(IGACanonicalTriangleWeights13);
         break;
     case 16:
-        gaussPoints = IGAtriGaussPoints16;
-        weights = IGAtriWeights16;
+        setGaussPoints(IGACanonicalTriangleGaussPoints16);
+        setGaussWeights(IGACanonicalTriangleWeights16);
         break;
     default:
-        ERROR_OUT()<<"Number of Gauss Points for Triangle = " << numGaussPoints << "doesn't exist! Please choose from 1,3,4,6,7,12,13,16." << std::endl;
-        exit(EXIT_FAILURE);
-
-    }
-}
-
-/***********************************************************************************************
- * \brief Constructor
- * param[in] _numGaussPoints, number of Gauss points
- * \author Chenshen Wu
- ***********/
-IGAGaussQuadratureOnQuad::IGAGaussQuadratureOnQuad(int _numGaussPoints) :
-        IGAGaussQuadrature(_numGaussPoints) {
-    switch (_numGaussPoints) {
-    case 1:
-        gaussPoints = IGAquadGaussPoints1;
-        weights = IGAquadWeights1;
-        break;
-    case 4:
-        gaussPoints = IGAquadGaussPoints4;
-        weights = IGAquadWeights4;
-        break;
-    case 9:
-        gaussPoints = IGAquadGaussPoints9;
-        weights = IGAquadWeights9;
-        break;
-    case 16:
-        gaussPoints = IGAquadGaussPoints16;
-        weights = IGAquadWeights16;
-        break;
-    case 25:
-        gaussPoints = IGAquadGaussPoints25;
-        weights = IGAquadWeights25;
-        break;
-    default:
-        ERROR_OUT()<<"Number of Gauss Points for Quadrilateral = " << numGaussPoints << "doesn't exist! Please choose from 1,4,9,16,25." << std::endl;
+        ERROR_OUT() << "Selected number of Gauss points for triangle with symmetric locations = " << getNumGaussPoints() << " doesn't exist! Please choose from 1,3,4,6,7,12,13,16." << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
-/***********************************************************************************************
- * \brief Constructor
- * param[in] _numGaussPoints, number of Gauss points
- * \author Andreas Apostolatos, Altug
- ***********/
-IGAGaussQuadratureOnBiunitInterval::IGAGaussQuadratureOnBiunitInterval(int _numGaussPoints) :
-    IGAGaussQuadrature(_numGaussPoints) {
+IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral::IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral(int _numGaussPoints) :
+        IGAGaussQuadrature(_numGaussPoints, 2) {
     switch (_numGaussPoints) {
     case 1:
-        gaussPoints = IGABiunitIntervalGaussPoints1;
-        weights = IGABiunitIntervalGaussWeights1;
-        break;
-    case 2:
-        gaussPoints = IGABiunitIntervalGaussPoints2;
-        weights = IGABiunitIntervalGaussWeights2;
-        break;
-    case 3:
-        gaussPoints = IGABiunitIntervalGaussPoints3;
-        weights = IGABiunitIntervalGaussWeights3;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints1);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights1);
         break;
     case 4:
-        gaussPoints = IGABiunitIntervalGaussPoints4;
-        weights = IGABiunitIntervalGaussWeights4;
-        break;
-    case 5:
-        gaussPoints = IGABiunitIntervalGaussPoints5;
-        weights = IGABiunitIntervalGaussWeights5;
-        break;
-    case 6:
-        gaussPoints = IGABiunitIntervalGaussPoints6;
-        weights = IGABiunitIntervalGaussWeights6;
-        break;
-    case 7:
-        gaussPoints = IGABiunitIntervalGaussPoints7;
-        weights = IGABiunitIntervalGaussWeights7;
-        break;
-    case 8:
-        gaussPoints = IGABiunitIntervalGaussPoints8;
-        weights = IGABiunitIntervalGaussWeights8;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints4);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights4);
         break;
     case 9:
-        gaussPoints = IGABiunitIntervalGaussPoints9;
-        weights = IGABiunitIntervalGaussWeights9;
-        break;
-    case 10:
-        gaussPoints = IGABiunitIntervalGaussPoints10;
-        weights = IGABiunitIntervalGaussWeights10;
-        break;
-    case 11:
-        gaussPoints = IGABiunitIntervalGaussPoints11;
-        weights = IGABiunitIntervalGaussWeights11;
-        break;
-    case 12:
-        gaussPoints = IGABiunitIntervalGaussPoints12;
-        weights = IGABiunitIntervalGaussWeights12;
-        break;
-    case 13:
-        gaussPoints = IGABiunitIntervalGaussPoints13;
-        weights = IGABiunitIntervalGaussWeights13;
-        break;
-    case 14:
-        gaussPoints = IGABiunitIntervalGaussPoints14;
-        weights = IGABiunitIntervalGaussWeights14;
-        break;
-    case 15:
-        gaussPoints = IGABiunitIntervalGaussPoints15;
-        weights = IGABiunitIntervalGaussWeights15;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints9);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights9);
         break;
     case 16:
-        gaussPoints = IGABiunitIntervalGaussPoints16;
-        weights = IGABiunitIntervalGaussWeights16;
-        break;
-    case 17:
-        gaussPoints = IGABiunitIntervalGaussPoints17;
-        weights = IGABiunitIntervalGaussWeights17;
-        break;
-    case 18:
-        gaussPoints = IGABiunitIntervalGaussPoints18;
-        weights = IGABiunitIntervalGaussWeights18;
-        break;
-    case 19:
-        gaussPoints = IGABiunitIntervalGaussPoints19;
-        weights = IGABiunitIntervalGaussWeights19;
-        break;
-    case 20:
-        gaussPoints = IGABiunitIntervalGaussPoints20;
-        weights = IGABiunitIntervalGaussWeights20;
-        break;
-    case 21:
-        gaussPoints = IGABiunitIntervalGaussPoints21;
-        weights = IGABiunitIntervalGaussWeights21;
-        break;
-    case 22:
-        gaussPoints = IGABiunitIntervalGaussPoints22;
-        weights = IGABiunitIntervalGaussWeights22;
-        break;
-    case 23:
-        gaussPoints = IGABiunitIntervalGaussPoints23;
-        weights = IGABiunitIntervalGaussWeights23;
-        break;
-    case 24:
-        gaussPoints = IGABiunitIntervalGaussPoints24;
-        weights = IGABiunitIntervalGaussWeights24;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints16);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights16);
         break;
     case 25:
-        gaussPoints = IGABiunitIntervalGaussPoints25;
-        weights = IGABiunitIntervalGaussWeights25;
-        break;
-    case 26:
-        gaussPoints = IGABiunitIntervalGaussPoints26;
-        weights = IGABiunitIntervalGaussWeights26;
-        break;
-    case 27:
-        gaussPoints = IGABiunitIntervalGaussPoints27;
-        weights = IGABiunitIntervalGaussWeights27;
-        break;
-    case 28:
-        gaussPoints = IGABiunitIntervalGaussPoints28;
-        weights = IGABiunitIntervalGaussWeights28;
-        break;
-    case 29:
-        gaussPoints = IGABiunitIntervalGaussPoints29;
-        weights = IGABiunitIntervalGaussWeights29;
-        break;
-    case 30:
-        gaussPoints = IGABiunitIntervalGaussPoints30;
-        weights = IGABiunitIntervalGaussWeights30;
-        break;
-    case 31:
-        gaussPoints = IGABiunitIntervalGaussPoints31;
-        weights = IGABiunitIntervalGaussWeights31;
-        break;
-    case 32:
-        gaussPoints = IGABiunitIntervalGaussPoints32;
-        weights = IGABiunitIntervalGaussWeights32;
-        break;
-    case 33:
-        gaussPoints = IGABiunitIntervalGaussPoints33;
-        weights = IGABiunitIntervalGaussWeights33;
-        break;
-    case 34:
-        gaussPoints = IGABiunitIntervalGaussPoints34;
-        weights = IGABiunitIntervalGaussWeights34;
-        break;
-    case 35:
-        gaussPoints = IGABiunitIntervalGaussPoints35;
-        weights = IGABiunitIntervalGaussWeights35;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints25);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights25);
         break;
     case 36:
-        gaussPoints = IGABiunitIntervalGaussPoints36;
-        weights = IGABiunitIntervalGaussWeights36;
-        break;
-    case 37:
-        gaussPoints = IGABiunitIntervalGaussPoints37;
-        weights = IGABiunitIntervalGaussWeights37;
-        break;
-    case 38:
-        gaussPoints = IGABiunitIntervalGaussPoints38;
-        weights = IGABiunitIntervalGaussWeights38;
-        break;
-    case 39:
-        gaussPoints = IGABiunitIntervalGaussPoints39;
-        weights = IGABiunitIntervalGaussWeights39;
-        break;
-    case 40:
-        gaussPoints = IGABiunitIntervalGaussPoints40;
-        weights = IGABiunitIntervalGaussWeights40;
-        break;
-    case 41:
-        gaussPoints = IGABiunitIntervalGaussPoints41;
-        weights = IGABiunitIntervalGaussWeights41;
-        break;
-    case 42:
-        gaussPoints = IGABiunitIntervalGaussPoints42;
-        weights = IGABiunitIntervalGaussWeights42;
-        break;
-    case 43:
-        gaussPoints = IGABiunitIntervalGaussPoints43;
-        weights = IGABiunitIntervalGaussWeights43;
-        break;
-    case 44:
-        gaussPoints = IGABiunitIntervalGaussPoints44;
-        weights = IGABiunitIntervalGaussWeights44;
-        break;
-    case 45:
-        gaussPoints = IGABiunitIntervalGaussPoints45;
-        weights = IGABiunitIntervalGaussWeights45;
-        break;
-    case 46:
-        gaussPoints = IGABiunitIntervalGaussPoints46;
-        weights = IGABiunitIntervalGaussWeights46;
-        break;
-    case 47:
-        gaussPoints = IGABiunitIntervalGaussPoints47;
-        weights = IGABiunitIntervalGaussWeights47;
-        break;
-    case 48:
-        gaussPoints = IGABiunitIntervalGaussPoints48;
-        weights = IGABiunitIntervalGaussWeights48;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints36);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights36);
         break;
     case 49:
-        gaussPoints = IGABiunitIntervalGaussPoints49;
-        weights = IGABiunitIntervalGaussWeights49;
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints49);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights49);
         break;
-    case 50:
-        gaussPoints = IGABiunitIntervalGaussPoints50;
-        weights = IGABiunitIntervalGaussWeights50;
+    case 64:
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints64);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights64);
+        break;
+    case 81:
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints81);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights81);
+        break;
+    case 100:
+        setGaussPoints(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussPoints100);
+        setGaussWeights(IGACanonicalTriangleUsingDegeneratedQuadrilateralGaussWeights100);
         break;
     default:
-        ERROR_OUT()<<"Number of Gauss Points for biunit interval = " << numGaussPoints << "doesn't exist! Please choose from 1,...,50." << std::endl;
+        ERROR_OUT() << "Selected number of Gauss points for triangle using degenerated quadrilateral = " << getNumGaussPoints() << " doesn't exist! Please choose from 1, 4, 9, 16, 25, 36, 49, 64, 81, 100." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+IGAGaussQuadratureOnBiunitInterval::IGAGaussQuadratureOnBiunitInterval(int _numGaussPoints) :
+    IGAGaussQuadrature(_numGaussPoints, 1) {
+    switch (_numGaussPoints) {
+    case 1:
+        setGaussPoints(IGABiunitIntervalGaussPoints1);
+        setGaussWeights(IGABiunitIntervalGaussWeights1);
+        break;
+    case 2:
+        setGaussPoints(IGABiunitIntervalGaussPoints2);
+        setGaussWeights(IGABiunitIntervalGaussWeights2);
+        break;
+    case 3:
+        setGaussPoints(IGABiunitIntervalGaussPoints3);
+        setGaussWeights(IGABiunitIntervalGaussWeights3);
+        break;
+    case 4:
+        setGaussPoints(IGABiunitIntervalGaussPoints4);
+        setGaussWeights(IGABiunitIntervalGaussWeights4);
+        break;
+    case 5:
+        setGaussPoints(IGABiunitIntervalGaussPoints5);
+        setGaussWeights(IGABiunitIntervalGaussWeights5);
+        break;
+    case 6:
+        setGaussPoints(IGABiunitIntervalGaussPoints6);
+        setGaussWeights(IGABiunitIntervalGaussWeights6);
+        break;
+    case 7:
+        setGaussPoints(IGABiunitIntervalGaussPoints7);
+        setGaussWeights(IGABiunitIntervalGaussWeights7);
+        break;
+    case 8:
+        setGaussPoints(IGABiunitIntervalGaussPoints8);
+        setGaussWeights(IGABiunitIntervalGaussWeights8);
+        break;
+    case 9:
+        setGaussPoints(IGABiunitIntervalGaussPoints9);
+        setGaussWeights(IGABiunitIntervalGaussWeights9);
+        break;
+    case 10:
+        setGaussPoints(IGABiunitIntervalGaussPoints10);
+        setGaussWeights(IGABiunitIntervalGaussWeights10);
+        break;
+    case 11:
+        setGaussPoints(IGABiunitIntervalGaussPoints11);
+        setGaussWeights(IGABiunitIntervalGaussWeights11);
+        break;
+    case 12:
+        setGaussPoints(IGABiunitIntervalGaussPoints12);
+        setGaussWeights(IGABiunitIntervalGaussWeights12);
+        break;
+    case 13:
+        setGaussPoints(IGABiunitIntervalGaussPoints13);
+        setGaussWeights(IGABiunitIntervalGaussWeights13);
+        break;
+    case 14:
+        setGaussPoints(IGABiunitIntervalGaussPoints14);
+        setGaussWeights(IGABiunitIntervalGaussWeights14);
+        break;
+    case 15:
+        setGaussPoints(IGABiunitIntervalGaussPoints15);
+        setGaussWeights(IGABiunitIntervalGaussWeights15);
+        break;
+    case 16:
+        setGaussPoints(IGABiunitIntervalGaussPoints16);
+        setGaussWeights(IGABiunitIntervalGaussWeights16);
+        break;
+    case 17:
+        setGaussPoints(IGABiunitIntervalGaussPoints17);
+        setGaussWeights(IGABiunitIntervalGaussWeights17);
+        break;
+    case 18:
+        setGaussPoints(IGABiunitIntervalGaussPoints18);
+        setGaussWeights(IGABiunitIntervalGaussWeights18);
+        break;
+    case 19:
+        setGaussPoints(IGABiunitIntervalGaussPoints19);
+        setGaussWeights(IGABiunitIntervalGaussWeights19);
+        break;
+    case 20:
+        setGaussPoints(IGABiunitIntervalGaussPoints20);
+        setGaussWeights(IGABiunitIntervalGaussWeights20);
+        break;
+    case 21:
+        setGaussPoints(IGABiunitIntervalGaussPoints21);
+        setGaussWeights(IGABiunitIntervalGaussWeights21);
+        break;
+    case 22:
+        setGaussPoints(IGABiunitIntervalGaussPoints22);
+        setGaussWeights(IGABiunitIntervalGaussWeights22);
+        break;
+    case 23:
+        setGaussPoints(IGABiunitIntervalGaussPoints23);
+        setGaussWeights(IGABiunitIntervalGaussWeights23);
+        break;
+    case 24:
+        setGaussPoints(IGABiunitIntervalGaussPoints24);
+        setGaussWeights(IGABiunitIntervalGaussWeights24);
+        break;
+    case 25:
+        setGaussPoints(IGABiunitIntervalGaussPoints25);
+        setGaussWeights(IGABiunitIntervalGaussWeights25);
+        break;
+    case 26:
+        setGaussPoints(IGABiunitIntervalGaussPoints26);
+        setGaussWeights(IGABiunitIntervalGaussWeights26);
+        break;
+    case 27:
+        setGaussPoints(IGABiunitIntervalGaussPoints27);
+        setGaussWeights(IGABiunitIntervalGaussWeights27);
+        break;
+    case 28:
+        setGaussPoints(IGABiunitIntervalGaussPoints28);
+        setGaussWeights(IGABiunitIntervalGaussWeights28);
+        break;
+    case 29:
+        setGaussPoints(IGABiunitIntervalGaussPoints29);
+        setGaussWeights(IGABiunitIntervalGaussWeights29);
+        break;
+    case 30:
+        setGaussPoints(IGABiunitIntervalGaussPoints30);
+        setGaussWeights(IGABiunitIntervalGaussWeights30);
+        break;
+    case 31:
+        setGaussPoints(IGABiunitIntervalGaussPoints31);
+        setGaussWeights(IGABiunitIntervalGaussWeights31);
+        break;
+    case 32:
+        setGaussPoints(IGABiunitIntervalGaussPoints32);
+        setGaussWeights(IGABiunitIntervalGaussWeights32);
+        break;
+    case 33:
+        setGaussPoints(IGABiunitIntervalGaussPoints33);
+        setGaussWeights(IGABiunitIntervalGaussWeights33);
+        break;
+    case 34:
+        setGaussPoints(IGABiunitIntervalGaussPoints34);
+        setGaussWeights(IGABiunitIntervalGaussWeights34);
+        break;
+    case 35:
+        setGaussPoints(IGABiunitIntervalGaussPoints35);
+        setGaussWeights(IGABiunitIntervalGaussWeights35);
+        break;
+    case 36:
+        setGaussPoints(IGABiunitIntervalGaussPoints36);
+        setGaussWeights(IGABiunitIntervalGaussWeights36);
+        break;
+    case 37:
+        setGaussPoints(IGABiunitIntervalGaussPoints37);
+        setGaussWeights(IGABiunitIntervalGaussWeights37);
+        break;
+    case 38:
+        setGaussPoints(IGABiunitIntervalGaussPoints38);
+        setGaussWeights(IGABiunitIntervalGaussWeights38);
+        break;
+    case 39:
+        setGaussPoints(IGABiunitIntervalGaussPoints39);
+        setGaussWeights(IGABiunitIntervalGaussWeights39);
+        break;
+    case 40:
+        setGaussPoints(IGABiunitIntervalGaussPoints40);
+        setGaussWeights(IGABiunitIntervalGaussWeights40);
+        break;
+    case 41:
+        setGaussPoints(IGABiunitIntervalGaussPoints41);
+        setGaussWeights(IGABiunitIntervalGaussWeights41);
+        break;
+    case 42:
+        setGaussPoints(IGABiunitIntervalGaussPoints42);
+        setGaussWeights(IGABiunitIntervalGaussWeights42);
+        break;
+    case 43:
+        setGaussPoints(IGABiunitIntervalGaussPoints43);
+        setGaussWeights(IGABiunitIntervalGaussWeights43);
+        break;
+    case 44:
+        setGaussPoints(IGABiunitIntervalGaussPoints44);
+        setGaussWeights(IGABiunitIntervalGaussWeights44);
+        break;
+    case 45:
+        setGaussPoints(IGABiunitIntervalGaussPoints45);
+        setGaussWeights(IGABiunitIntervalGaussWeights45);
+        break;
+    case 46:
+        setGaussPoints(IGABiunitIntervalGaussPoints46);
+        setGaussWeights(IGABiunitIntervalGaussWeights46);
+        break;
+    case 47:
+        setGaussPoints(IGABiunitIntervalGaussPoints47);
+        setGaussWeights(IGABiunitIntervalGaussWeights47);
+        break;
+    case 48:
+        setGaussPoints(IGABiunitIntervalGaussPoints48);
+        setGaussWeights(IGABiunitIntervalGaussWeights48);
+        break;
+    case 49:
+        setGaussPoints(IGABiunitIntervalGaussPoints49);
+        setGaussWeights(IGABiunitIntervalGaussWeights49);
+        break;
+    case 50:
+        setGaussPoints(IGABiunitIntervalGaussPoints50);
+        setGaussWeights(IGABiunitIntervalGaussWeights50);
+        break;
+    default:
+        ERROR_OUT() << "Number of Gauss Points for biunit interval = " << getNumGaussPoints() << "doesn't exist! Please choose from 1,...,50." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+IGAGaussQuadratureOnBiunitQuadrilateral::IGAGaussQuadratureOnBiunitQuadrilateral(int _numGaussPoints) :
+        IGAGaussQuadrature(_numGaussPoints, 2) {
+    switch (_numGaussPoints) {
+    case 1:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints1);
+        setGaussWeights(IGABiunitQuadrilateralWeights1);
+        break;
+    case 4:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints4);
+        setGaussWeights(IGABiunitQuadrilateralWeights4);
+        break;
+    case 9:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints9);
+        setGaussWeights(IGABiunitQuadrilateralWeights9);
+        break;
+    case 16:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints16);
+        setGaussWeights(IGABiunitQuadrilateralWeights16);
+        break;
+    case 25:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints25);
+        setGaussWeights(IGABiunitQuadrilateralWeights25);
+        break;
+    case 36:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints36);
+        setGaussWeights(IGABiunitQuadrilateralWeights36);
+        break;
+    case 49:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints49);
+        setGaussWeights(IGABiunitQuadrilateralWeights49);
+        break;
+    case 64:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints64);
+        setGaussWeights(IGABiunitQuadrilateralWeights64);
+        break;
+    case 81:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints81);
+        setGaussWeights(IGABiunitQuadrilateralWeights81);
+        break;
+    case 100:
+        setGaussPoints(IGABiunitQuadrilateralGaussPoints100);
+        setGaussWeights(IGABiunitQuadrilateralWeights100);
+        break;
+    default:
+        ERROR_OUT() << "Selected number of Gauss points for quadrilateral = " << getNumGaussPoints() << "doesn't exist! Please choose from 1, 4, 9, 16, 25, 49, 64, 81, 100." << std::endl;
         exit(EXIT_FAILURE);
     }
 }

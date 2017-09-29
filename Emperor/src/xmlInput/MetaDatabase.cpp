@@ -392,13 +392,21 @@ void MetaDatabase::fillSettingMapperVec() {
             }
             ticpp::Element *xmlIntegration = xmlIGAMortar->FirstChildElement("integration", false);
             if (xmlIntegration != NULL) {
-                mapper.IGAMortarMapper.propIntegration.noGPTriangle =
-                        xmlIntegration->GetAttribute<int>("noGPTriangle");
-                mapper.IGAMortarMapper.propIntegration.noGPQuad = xmlIntegration->GetAttribute<int>(
-                        "noGPQuad");
+                if (xmlIntegration->HasAttribute("noGPTriangle")) {
+                    mapper.IGAMortarMapper.propIntegration.noGPTriangle = xmlIntegration->GetAttribute<int>("noGPTriangle");
+                    mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPTriangle = false;
+                }
+                else
+                    mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPTriangle = true;
+                if (xmlIntegration->HasAttribute("noGPQuadrilateral")) {
+                    mapper.IGAMortarMapper.propIntegration.noGPQuadrilateral = xmlIntegration->GetAttribute<int>("noGPQuadrilateral");
+                    mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPQuadrilateral = false;
+                }
+                else
+                    mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPQuadrilateral = true;
             } else {
-                mapper.IGAMortarMapper.propIntegration.noGPTriangle = 16;
-                mapper.IGAMortarMapper.propIntegration.noGPQuad = 25;
+                mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPTriangle = true;
+                mapper.IGAMortarMapper.propIntegration.isAutomaticNoGPQuadrilateral = true;
             }
             ticpp::Element *xmlWeakCurveDirichletConditions = xmlIGAMortar->FirstChildElement("weakCurveDirichletConditions", false);
             if (xmlWeakCurveDirichletConditions != NULL) {

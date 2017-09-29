@@ -128,8 +128,10 @@ struct structMapper {
             double tolProjection;
         } propNewtonRaphson, propNewtonRaphsonBoundary, propBisection;
         struct propIntegration {
+            bool isAutomaticNoGPTriangle;
             int noGPTriangle;
-            int noGPQuad;
+            bool isAutomaticNoGPQuadrilateral;
+            int noGPQuadrilateral;
         } propIntegration;
         struct propWeakCurveDirichletConditions {
                 bool isWeakCurveDirichletConditions;
