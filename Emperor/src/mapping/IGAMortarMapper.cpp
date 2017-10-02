@@ -51,27 +51,37 @@ double IGAMortarMapper::EPS_CLIPPING = 1e-9;
 /// Declaration statement
 static const string HEADER_DECLARATION = "Author: Andreas Apostolatos";
 
-IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE,
-                                 bool _isWeakConditions, bool _isMappingIGA2FEM) :
-    name(_name), meshIGA(_meshIGA), isMappingIGA2FEM(_isMappingIGA2FEM) {
+IGAMortarMapper::IGAMortarMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB): name(_name) {
 
     // Check input
-    assert(_meshIGA != NULL);
-    assert(_meshFE != NULL);
-    assert(_meshIGA->type == EMPIRE_Mesh_IGAMesh);
-    assert(_meshFE->type == EMPIRE_Mesh_FEMesh);
+    assert(_meshA != NULL);
+    assert(_meshB != NULL);
 
-    // Number of Cartesian directions
-    int noCoord = 3;
+    bool isMeshAIGA = (_meshA->type == EMPIRE_Mesh_IGAMesh);
+    bool isMeshBIGA = (_meshB->type == EMPIRE_Mesh_IGAMesh);
+
+    if (isMeshAIGA && !isMeshBIGA) {
+        assert(_meshB->type == EMPIRE_Mesh_FEMesh || _meshB->type == EMPIRE_Mesh_SectionMesh);
+        meshIGA = dynamic_cast<IGAMesh *>(_meshA);
+        if (dynamic_cast<FEMesh *>(_meshB)->triangulate() == NULL)
+            meshFE = dynamic_cast<FEMesh *>(_meshB);
+        else
+            meshFE = dynamic_cast<FEMesh *>(_meshB)->triangulate();
+        isMappingIGA2FEM = true;
+    } else if (!isMeshAIGA && isMeshBIGA) {
+        assert(_meshA->type == EMPIRE_Mesh_FEMesh || _meshA->type == EMPIRE_Mesh_SectionMesh);
+        if (dynamic_cast<FEMesh *>(_meshA)->triangulate() == NULL)
+            meshFE = dynamic_cast<FEMesh *>(_meshA);
+        else
+            meshFE = dynamic_cast<FEMesh *>(_meshA)->triangulate();
+        meshIGA = dynamic_cast<IGAMesh *>(_meshB);
+        isMappingIGA2FEM = false;
+    } else {
+        ERROR_BLOCK_OUT("IGAMortarMapper","IGAMortarMapper","Wrong type of mesh! Put a NURBS mesh and a FE mesh!");
+    }
 
     // Number of Patches
     int numPatches = getIGAMesh()->getNumPatches();
-
-    // Check if the FE mesh is triangulated and if not triangulate it
-    if (_meshFE->triangulate() == NULL)
-        meshFE = _meshFE;
-    else
-        meshFE = _meshFE->triangulate();
 
     // Assign the mapper type
     mapperType = EMPIRE_IGAMortarMapper;
@@ -89,11 +99,14 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
         numNodesMaster = meshIGA->getNumNodes();
     }
 
-    // Flag on whether the expanded version of the coupling matrices is assumed
-    isExpanded = _isWeakConditions && ~isMappingIGA2FEM;
-
     // Initialize flag on whether the meshFEDirectElemTable was created
     isMeshFEDirectElemTable = false;
+
+    // Initialize flag on the expansion of the coupling matrices
+    isExpanded = false;
+
+    // Initialize flag on the initialization of the coupling matrices
+    isCouplingMatrices = false;
 
     // Initialize Gauss quadratures
     gaussRuleOnTriangle = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
@@ -135,18 +148,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_
     setParametersWeakSurfaceDirichletConditions();
     setParametersWeakPatchContinuityConditions();
     setParametersErrorComputation();
-
-    // Initialize coupling matrices taking into consideration whether the expanded coupling matrices are assumed or not
-    int size_N;
-    int size_R;
-    if (isExpanded){
-        size_N = noCoord*numNodesMaster;
-        size_R = noCoord*numNodesSlave;
-    } else {
-        size_N = numNodesMaster;
-        size_R = numNodesSlave;
-    }
-    couplingMatrices = new IGAMortarCouplingMatrices(size_N, size_R, isExpanded);
 }
 
 void IGAMortarMapper::setParametersConsistency(bool _enforceConsistency, double _tolConsistency) {
@@ -229,23 +230,108 @@ void IGAMortarMapper::setParametersErrorComputation(bool _isErrorComputation, bo
 }
 
 void IGAMortarMapper::buildCouplingMatrices() {
+    /*
+     * Builds the coupling matrices Cnn and Cnr for the isogeometric mortar-based mapper.
+     *
+     * Function layout :
+     *
+     * 0. Print message
+     *
+     * 1. Check input
+     *
+     * 2. Initialize coupling matrices
+     *
+     * 3. Initialize auxiliary variables
+     *
+     * 4. Create the Gauss quadrature rules for each patch
+     *
+     * 5. Find the maximum number of Gauss points within an element
+     *
+     * 6. Project the FE nodes onto the multipatch trimmed geometry
+     *
+     * 7. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
+     *
+     * 8. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
+     *
+     * 9. Reserve space for the gauss point values along each trimming curve where conditions are applied
+     *
+     * 10. Reserve space for the interface gauss point values
+     *
+     * 11. Compute mortar coupling matrices
+     *
+     * 12. Write the gauss point and the coupling matrices data in files
+     *
+     * 13. Write polygon net of projected elements to a vtk file
+     *
+     * 14. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+     *
+     * 15. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+     *
+     * 16. Compute the Penalty parameters for the application of weak patch continuity conditions
+     *
+     * 17. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+     *
+     * 18. Remove empty rows and columns from system (flying nodes)
+     *
+     * 19. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
+     *
+     * 20. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+     *
+     * 21. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+     *
+     * 22. Factorize Cnn matrix
+     */
+
+    // 0. Print message
     HEADING_OUT(3, "IGAMortarMapper", "Building coupling matrices for ("+ name +")...", infoOut);
     {
         int sizeN = couplingMatrices->getSizeN();
         int sizeR = couplingMatrices->getSizeR();
-        INFO_OUT() << "The number of DOFs in the finite element mesh is    " << sizeN << endl;
-        INFO_OUT() << "The number of DOFs in NURBS multipatch geometry is " << sizeR << endl;
-        INFO_OUT() << "The size of matrices is " << (isMappingIGA2FEM?sizeN:sizeR) << "x" << (isMappingIGA2FEM?sizeN:sizeR) << " and "
-                   << (isMappingIGA2FEM?sizeN:sizeR) << "x" << (isMappingIGA2FEM?sizeR:sizeN) << endl;
+        if (isExpanded) {
+            INFO_OUT() << "The number of DOFs in the finite element mesh is " << (isMappingIGA2FEM?sizeN:sizeR) << endl;
+            INFO_OUT() << "The number of DOFs in NURBS multipatch geometry is " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
+            INFO_OUT() << "Isogeometric mortar-based mapping for all Cartesian components simultaneously" << endl;
+        } else {
+            INFO_OUT() << "The number of nodes in the finite element mesh is " << (isMappingIGA2FEM?sizeN:sizeR) << endl;
+            INFO_OUT() << "The number of Control Points in the NURBS multipatch geometry is " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
+            INFO_OUT() << "Isogeometric mortar-based mapping per each Cartesian component seperately" << endl;
+        }
+        INFO_OUT() << "The size of matrices is " << "Cnn: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeN:sizeR) << " and "
+                   << "Cnr: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
     }
 
-    // Initialize auxiliary variables
-    int numPatches = getIGAMesh()->getNumPatches();
+    // 1. Check input
+    if (propErrorComputation.isErrorComputation)
+        if (propErrorComputation.isCurveError && !propWeakCurveDirichletConditions.isWeakCurveDirichletConditions){
+            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
+            ERROR_OUT() << "Error computation along trimming curves is requested but no conditions along trimming curves are prescribed" << endl;
+            exit(-1);
+        }
+        if (propErrorComputation.isInterfaceError && !propWeakPatchContinuityConditions.isWeakPatchContinuityConditions) {
+            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
+            ERROR_OUT() << "Error computation along patch interfaces is requested but no conditions along the patch interfaces are prescribed" << endl;
+            exit(-1);
+        }
+    if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
+        assert(isExpanded);
+    }
+    if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
+        assert(isExpanded);
+    }
 
-    // Create the Gauss quadrature rules for each patch
+    // 2. Initialize coupling matrices
+    initialize();
+
+    // 3. Initialize auxiliary variables
+    int numPatches = getIGAMesh()->getNumPatches();
+    string filename; // String holding the mapper names
+    IGAPatchSurface::MAX_NUM_ITERATIONS = propNewtonRaphson.noIterations; // Set default scheme values
+    IGAPatchSurface::TOL_ORTHOGONALITY = propNewtonRaphson.tolProjection; // Set default scheme values
+
+    // 4. Create the Gauss quadrature rules for each patch
     createGaussQuadratureRules();
 
-    // Find the maximum number of Gauss points within an element
+    // 5. Find the maximum number of Gauss points within an element
     int maxNumGP = 0;
     int numGP;
     for (int iPatches = 0; iPatches < numPatches; iPatches++) {
@@ -257,29 +343,18 @@ void IGAMortarMapper::buildCouplingMatrices() {
             maxNumGP = numGP;
     }
 
-    // Initialize a string holding the filenames
-    string filename;
-
-    // Set default scheme values
-    IGAPatchSurface::MAX_NUM_ITERATIONS = propNewtonRaphson.noIterations;
-    IGAPatchSurface::TOL_ORTHOGONALITY = propNewtonRaphson.tolProjection;
-
-    // Compute the EFT for the FE mesh
-    initTables();
-    isMeshFEDirectElemTable = true;
-
-    // Project the FE nodes onto the multipatch trimmed geometry
+    // 6. Project the FE nodes onto the multipatch trimmed geometry
     projectPointsToSurface();
 
-    // Write the projected points on to a file only in DEBUG mode to be used in MATLAB
+    // 7. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
     if (Message::isDebugMode())
         writeProjectedNodesOntoIGAMesh();
 
-    // Reserve some space for gauss point values in the domain
+    // 8. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
     if (propErrorComputation.isDomainError)
         streamGPs.reserve(8*meshFE->numElems*maxNumGP);
 
-    // Reserve some space for the gauss point values along each trimming curve where conditions are applied
+    // 9. Reserve space for the gauss point values along each trimming curve where conditions are applied
     if(propErrorComputation.isCurveError){
         int noCurveGPs = 0;
         std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
@@ -288,7 +363,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
         }
         streamInterfaceGPs.reserve(noCurveGPs);
     }
-    // Reserve some space for the interface gauss point values
+    // 10. Reserve space for the interface gauss point values
     if(propErrorComputation.isInterfaceError){
         int noInterfaceGPs = 0;
         std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
@@ -298,36 +373,38 @@ void IGAMortarMapper::buildCouplingMatrices() {
         streamInterfaceGPs.reserve(noInterfaceGPs);
     }
 
-    // Compute CNN and CNR
+    // 11. Compute mortar coupling matrices
     computeCouplingMatrices();
 
-    // Write the gauss point data into an csl file
-    if(Message::isDebugMode())
+    // 12. Write the gauss point and the coupling matrices data in files
+    if(Message::isDebugMode()) {
         writeGaussPointData();
+        writeCouplingMatricesToFile();
+    }
 
-    // Write polygon net of projected elements to a vtk file
+    // 13. Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
 
-    // Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+    // 14. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
     if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakDirichletConditions.txt";
         computePenaltyParametersForWeakDirichletCurveConditions(filename);
     }
 
-    // Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+    // 15. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
     if(propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions && !isMappingIGA2FEM)
         computePenaltyParametersForWeakDirichletSurfaceConditions();
 
-    // Compute the Penalty parameters for the application of weak patch continuity conditions
+    // 16. Compute the Penalty parameters for the application of weak patch continuity conditions
     if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakContinuityConditions.txt";
         computePenaltyParametersForPatchContinuityConditions(filename);
     }
 
-    // Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+    // 17. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
     if (propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
         if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters) {
@@ -342,21 +419,17 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak patch continuity conditions is assumed" << std::endl;
 
-    // Remove empty rows and columns from system in case consistent mapping for the traction from FE Mesh to IGA multipatch geometry is required
+    // 18. Remove empty rows and columns from system (flying nodes)
     if(!isMappingIGA2FEM){
         INFO_OUT() << "Enforcing flying nodes in Cnn" << std::endl;
         couplingMatrices->enforceCnn();
     }
 
-    // Write the coupling matrices in files
-    if(Message::isDebugMode())
-        writeCouplingMatricesToFile();
-
-    // Check and enforce consistency in Cnn. This has to be done before the application of the Dirichlet conditions in general.
+    // 19. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
     if (propConsistency.enforceConsistency)
         enforceConsistency();
 
-    // Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+    // 20. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
     if (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet curve conditions started" << endl;
         if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters) {
@@ -369,10 +442,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet curve conditions are assumed" << std::endl;
 
-    // Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+    // 21. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
     if (propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions) {
-        ERROR_OUT() << "Function under construction" << endl;
-        exit(-1);
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
         if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
             INFO_OUT() << "Manual assignment of the penalty parameters: alphaPrim = "<< propWeakSurfaceDirichletConditions.alphaPrim << " alphaSecBending = " << endl;
@@ -384,13 +455,13 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet surface conditions are assumed" << std::endl;
 
-    // Factorize Cnn matrix
+    // 22. Factorize Cnn matrix
     couplingMatrices->factorizeCnn();
     INFO_OUT() << "Factorize was successful" << std::endl;
 }
 
 IGAMortarMapper::~IGAMortarMapper() {
-    // Auxiliary variables
+    // Initialize auxiliary variables
     int numPatches = getIGAMesh()->getNumPatches();
 
     // Delete the Finite Element direct element table
@@ -410,7 +481,8 @@ IGAMortarMapper::~IGAMortarMapper() {
     delete[] gaussRuleOnQuadrilateral;
 
     // Delete the coupling matrices
-    delete couplingMatrices;
+    if (isCouplingMatrices)
+        delete couplingMatrices;
 
     // Delete the penalty parameters for the application of weak Dirichlet conditions along trimming curves
     delete[] weakDirichletCCAlphaPrimary;
@@ -461,6 +533,8 @@ void IGAMortarMapper::initTables() {
      *        4i.3. Insert the element in the node map
      *    <-
      * <-
+     *
+     * 5. Set flag of the initialization of the flag
      */
 
     // 1. Initialize the direct element freedom tables for the Finite Element mesh
@@ -511,7 +585,72 @@ void IGAMortarMapper::initTables() {
             }
         }
     }
+
+    // 5. Set flag of the initialization of the flag
+    isMeshFEDirectElemTable = true;
 }
+
+void IGAMortarMapper::initCouplingMatrices() {
+    /*
+     * Initialize the coupling matrices.
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Get the number of rows and columns of the coupling matrices
+     *
+     * 3. Initialize coupling matrices
+     *
+     * 4. Set flag on the initialization of the coupling matrices accordingly
+     */
+
+    // 1. Initialize auxiliary arrays
+    int noCoord = 3;
+
+    // 2. Get the number of rows and columns of the coupling matrices
+    int size_N;
+    int size_R;
+    if (isExpanded){
+        size_N = noCoord*numNodesMaster;
+        size_R = noCoord*numNodesSlave;
+    } else {
+        size_N = numNodesMaster;
+        size_R = numNodesSlave;
+    }
+
+    // 3. Initialize coupling matrices
+    couplingMatrices = new IGAMortarCouplingMatrices(size_N, size_R, isExpanded);
+
+    // 4. Set flag on the initialization of the coupling matrices accordingly
+    isCouplingMatrices = true;
+}
+
+void IGAMortarMapper::initialize() {
+    /*
+     * Initialize the freedom tables and the coupling matrices.
+     *
+     * Function layout :
+     *
+     * 1. Initialize freedom tables
+     *
+     * 2. Assign flag on whether the expanded version of the coupling matrices is assumed
+     *
+     * 3. Initialize coupling matrices
+     */
+
+    // 1. Initialize freedom tables
+    initTables();
+
+    // 2. Assign flag on whether the expanded version of the coupling matrices is assumed
+    isExpanded = (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions ||
+                  propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions ||
+                  propWeakPatchContinuityConditions.isWeakPatchContinuityConditions) && ~isMappingIGA2FEM;
+
+    // 3. Initialize coupling matrices
+    initCouplingMatrices();
+}
+
 
 void IGAMortarMapper::projectPointsToSurface() {
     // Time stamps
@@ -1878,9 +2017,7 @@ void IGAMortarMapper::createGaussQuadratureRules() {
         qDegree = meshIGA->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
         // 4ii. Find the polynomial degree of the integrands when a triangle is considered
-        if (!propIntegration.isAutomaticNoGPTriangle) // User defined quadrature rule
-            numGPs = propIntegration.noGPTriangle;
-        else { // Automatic definition of the quadrature rule
+        if (propIntegration.isAutomaticNoGPTriangle)  { // Automatic definition of the quadrature rule
             if (isMappingIGA2FEM) // When mapping from IGA to FEM integrals \int_{\Omega} N_i*N_i d\Omega and \int_{\Omega} N_i*R_i d\Omega are computed within the same loop
                 if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand N_i*N_i has higher polynomial order than N_i*R_i
                     polOrder = 2;
@@ -1903,25 +2040,30 @@ void IGAMortarMapper::createGaussQuadratureRules() {
                 }
 
         // 4iii. Find the number of Gauss points when a triangle is considered
-        if (polOrder <= 8) { // Use the Gauss quadrature over the triangle with the symmetric rule
-            if (polOrder == 0)
-                numGPs = numGPsPerPolOrder[0];
-            else
-                numGPs = numGPsPerPolOrder[polOrder - 1];
-        } else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
-            numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
-        }
+        if (propIntegration.isAutomaticNoGPTriangle)
+            if (polOrder <= 8) { // Use the Gauss quadrature over the triangle with the symmetric rule
+                if (polOrder == 0)
+                    numGPs = numGPsPerPolOrder[0];
+                else
+                    numGPs = numGPsPerPolOrder[polOrder - 1];
+            } else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+                numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+            }
+        else if (!propIntegration.isAutomaticNoGPTriangle)
+            numGPs = propIntegration.noGPTriangle;
+        else
+            ERROR_BLOCK_OUT("createGaussQuadratureRules","IGAMortarMapper","Found corner case not encountered before related to the integration over a triangle!");
 
         // 4iv. Instantiate the corresponding Gauss quadrature on triangle
-        if (polOrder <= 8) // Use the Gauss quadrature over the triangle with the symmetric rule
+        if ((propIntegration.isAutomaticNoGPTriangle && polOrder <= 8) || !propIntegration.isAutomaticNoGPTriangle && numGPs <= 16) // Use the Gauss quadrature over the triangle with the symmetric rule
             gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangle(numGPs);
-        else // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
+        else if ((propIntegration.isAutomaticNoGPTriangle && polOrder > 8) || !propIntegration.isAutomaticNoGPTriangle && numGPs > 16) // Use the Gauss quadrature over the triangle with the degenerated quadrilateral
             gaussRuleOnTriangle[iPatches] = new MathLibrary::IGAGaussQuadratureOnTriangleUsingDegeneratedQuadrilateral(numGPs);
+        else
+            ERROR_BLOCK_OUT("createGaussQuadratureRules","IGAMortarMapper","Found corner case not encountered before related to the integration over a triangle!");
 
         // 4v. Find the polynomial degree of the integrands when a quadrilateral is considered
-        if (!propIntegration.isAutomaticNoGPQuadrilateral) // User defined quadrature rule
-            numGPs = propIntegration.noGPQuadrilateral;
-        else // Automatic definition of the quadrature rule
+        if (propIntegration.isAutomaticNoGPQuadrilateral) // Automatic definition of the quadrature rule
             if (isMappingIGA2FEM) // When mapping from IGA to FEM integrals \int_{\Omega} N_i*N_i d\Omega and \int_{\Omega} N_i*R_i d\Omega are computed within the same loop
                 if ((pDegree == 0 && qDegree == 0) || (pDegree == 1 && qDegree == 0) || (pDegree == 0 && qDegree == 1)) { // Integrand N_i*N_i has higher polynomial order than N_i*R_i
                     pTilde = 2;
@@ -1936,7 +2078,12 @@ void IGAMortarMapper::createGaussQuadratureRules() {
                 }
 
         // 4vi. Compute the number of Gauss points when a quadrilateral is considered
-        numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+        if (propIntegration.isAutomaticNoGPQuadrilateral)
+            numGPs = pow(std::ceil((pTilde + 1)/2.0), 2.0);
+        else if (!propIntegration.isAutomaticNoGPQuadrilateral)
+            numGPs = propIntegration.noGPQuadrilateral;
+        else
+            ERROR_BLOCK_OUT("createGaussQuadratureRules","IGAMortarMapper","Found corner case not encountered before related to the integration over a quadrilateral!");
 
         // 4vii. Instantiate the corresponding Gauss quadrature on quadrilateral
         gaussRuleOnQuadrilateral[iPatches] = new MathLibrary::IGAGaussQuadratureOnBiunitQuadrilateral(numGPs);
@@ -1974,22 +2121,23 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
      *        3xiii.3. Get the tangent to the boundary vector on the patch
      *        3xiii.4. compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
      *        3xiii.5. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
-     *        3xiii.6. Compute the dual product matrices for the displacements
-     *        3xiii.7. Compute the dual product matrices for the bending rotations
-     *        3xiii.8. Compute the dual product matrices for the twisting rotations
-     *        3xiii.9. Compute the element index tables for the patch
-     *       3xiii.10. Compute the element freedom tables for the patch
-     *       3xiii.11. Loop over all DOFs to assemble the contributions of the weak Dirichlet conditions into the Cnn
+     *        3xiii.6. Compute the local penalty factor for scaling the rotational contributions
+     *        3xiii.7. Scale the B-operator matrices
+     *        3xiii.8. Compute the dual product matrices for the displacements
+     *        3xiii.9. Compute the dual product matrices for the bending rotations
+     *       3xiii.10. Compute the dual product matrices for the twisting rotations
+     *       3xiii.11. Compute the element index tables for the patch
+     *       3xiii.12. Compute the element freedom tables for the patch
+     *       3xiii.13. Loop over all DOFs to assemble the contributions of the weak Dirichlet conditions into the Cnn
      *       ->
-     *                 3xiii.11i. Assemble the displacement coupling entries
-     *                3xiii.11ii. Assemble the bending rotation coupling entries
-     *               3xiii.11iii. Assemble the twisting rotation coupling entries
+     *                 3xiii.13i. Assemble the displacement coupling entries
+     *                3xiii.13ii. Assemble the bending rotation coupling entries
+     *               3xiii.13iii. Assemble the twisting rotation coupling entries
      *       <-
-     *       3xiii.12. Store the Gauss point values necessary for the error computation
+     *       3xiii.14. Store the Gauss point values necessary for the error computation
      * <-
      *  3xiv. Delete pointers
      * <-
-     *
      */
 
     // 1. Initialize auxiliary variables
@@ -2009,7 +2157,10 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
     double vGP;
     double tangentCurveVct[noCoord];
     double normalCurveVct[noCoord];
+    double normBOperatorOmegaT;
+    double normBOperatorOmegaN;
     double surfaceNormalVct[noCoord];
+    double alphaLocal;
     double alphaPrimary;
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
@@ -2089,6 +2240,24 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
             // 3xiii.5. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
                                                             surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
+
+            // 3xiii.6. Compute the local penalty factor for scaling the rotational contributions
+            if (propWeakCurveDirichletConditions.isSecBendingPrescribed) {
+                normBOperatorOmegaT = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaT, noDOFsLoc);
+                alphaLocal = normBOperatorOmegaT;
+            } else
+                alphaLocal = - 1.0;
+
+            if (propWeakCurveDirichletConditions.isSecTwistingPrescribed) {
+                normBOperatorOmegaN = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaN, noDOFsLoc);
+                if (normBOperatorOmegaN > alphaLocal)
+                    alphaLocal = normBOperatorOmegaN;
+            }
+            alphaLocal = 1.0/abs(alphaLocal);
+
+            // 3xiii.7. Scale the B-operator matrices
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaT, alphaLocal, noDOFsLoc);
+            EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaN, alphaLocal, noDOFsLoc);
 
             // 3xiii.6. Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
@@ -2179,18 +2348,44 @@ void IGAMortarMapper::computeIGAWeakDirichletCurveConditionMatrices() {
 void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
     /*
      * Computes and assembles the patch weak Dirichlet surface conditions.
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Get the weak Dirichlet surface conditions
+     *
+     * 3. Loop over all the conditions for the application of weak Dirichlet conditions over surfaces
+     * ->
+     *    3i. Get the penalty factors for the primary field
+     *   3ii. Get the index of the patch
+     *  3iii. Get the number of Gauss Points for the given condition
+     *   3iv. Get the parametric coordinates of the Gauss Points
+     *    3v. Get the corresponding Gauss weights
+     *   3vi. Get the Jacobian products
+     *  3vii. Get the patch
+     * 3viii. Get the polynomial orders of the master and the slave patch
+     *   3ix. get the number of local basis functions
+     *    3x. get the number of the local DOFs for the patch
+     *   3xi. Initialize pointers
+     *  3xii. Loop over all the Gauss Points of the given condition
+     *  ->
+     *        3xii.1. Get the parametric coordinates of the Gauss Point on the patch
+     *        3xii.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
+     *        3xii.3. compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+     *        3xii.4. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
+     *        3xii.5. Compute the dual product matrices for the displacements
+     *        3xii.6. Compute the element index tables for the patch
+     *        3xii.7. Compute the element freedom tables for the patch
+     *        3xii.8. Assemble KPenaltyDisplacement to the global coupling matrix CNN
+     *  <-
+     * 3xiii. Delete pointers
+     * <-
      */
-    ERROR_OUT() << "Function under construction" << endl;
-    exit(-1);
 
-    // Get the weak Dirichlet curve conditions
-    std::vector<WeakIGADirichletSurfaceCondition*> weakIGADirichletSurfaceConditions = meshIGA->getWeakIGADirichletSurfaceConditions();
-
-    // Initialize constant array sizes
+    // 1. Initialize auxiliary variables
     const int noCoordParam = 2;
     const int noCoord = 3;
-
-    // Initialize varying array sizes
     int patchIndex;
     int counter;
     int p;
@@ -2207,84 +2402,80 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
     double normalCurveVct[noCoord];
     double surfaceNormalVct[noCoord];
     double alphaPrimary;
-    double alphaSecondaryBending;
-    double alphaSecondaryTwisting;
     double jacobianOnGP;
-
-    // Initialize pointers
     double* surfaceGPs;
     double* surfaceGPWeights;
     double* surfaceGPJacobians;
     IGAPatchSurface* thePatch;
 
-    // Loop over all the conditions for the application of weak Dirichlet conditions
-    for (int iDSC = 0; iDSC < weakIGADirichletSurfaceConditions.size(); iDSC++){
-        // Get the penalty factors for the primary and the secondary field
-        alphaPrimary = weakDirichletSCAlphaPrimary[iDSC];
-        alphaSecondaryBending = weakDirichletSCAlphaSecondaryBending[iDSC];
-        alphaSecondaryTwisting = weakDirichletSCAlphaSecondaryTwisting[iDSC];
+    // 2. Get the weak Dirichlet surface conditions
+    std::vector<WeakIGADirichletSurfaceCondition*> weakIGADirichletSurfaceConditions = meshIGA->getWeakIGADirichletSurfaceConditions();
 
-        // Get the index of the patch
+    // 3. Loop over all the conditions for the application of weak Dirichlet conditions over surfaces
+    for (int iDSC = 0; iDSC < weakIGADirichletSurfaceConditions.size(); iDSC++){
+        // 3i. Get the penalty factors for the primary field
+        alphaPrimary = weakDirichletSCAlphaPrimary[iDSC];
+
+        // 3ii. Get the index of the patch
         patchIndex = weakIGADirichletSurfaceConditions[iDSC]->getPatchIndex();
 
-        // Get the number of Gauss Points for the given condition
+        // 3iii. Get the number of Gauss Points for the given condition
         noGPsOnCond = weakIGADirichletSurfaceConditions[iDSC]->getSurfaceNumGP();
 
-        // Get the parametric coordinates of the Gauss Points
+        // 3iv. Get the parametric coordinates of the Gauss Points
         surfaceGPs = weakIGADirichletSurfaceConditions[iDSC]->getSurfaceGPs();
 
-        // Get the corresponding Gauss weights
+        // 3v. Get the corresponding Gauss weights
         surfaceGPWeights = weakIGADirichletSurfaceConditions[iDSC]->getSurfaceGPWeights();
 
-        // Get the Jacobians
+        // 3vi. Get the Jacobian products
         surfaceGPJacobians = weakIGADirichletSurfaceConditions[iDSC]->getSurfaceGPJacobians();
 
-        // Get the patch
+        // 3vii. Get the patch
         thePatch = meshIGA->getSurfacePatch(patchIndex);
 
-        // Get the polynomial orders of the master and the slave patch
+        // 3viii. Get the polynomial orders of the master and the slave patch
         p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
-        // get the number of local basis functions
+        // 3ix. get the number of local basis functions
         noLocalBasisFcts = (p + 1)*(q + 1);
 
-        // get the number of the local DOFs for the patch
+        // 3x. get the number of the local DOFs for the patch
         noDOFsLoc = noCoord*noLocalBasisFcts;
 
-        // Initialize pointers
+        // 3xi. Initialize pointers
         double* BDisplacementsGC = new double[noCoord*noDOFsLoc];
         double* BOperatorOmegaT = new double[noDOFsLoc];
         double* BOperatorOmegaN = new double[noDOFsLoc];
         double* KPenaltyDisplacement = new double[noDOFsLoc*noDOFsLoc];
 
-        // Loop over all the Gauss Points of the given condition
+        // 3xii. Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnCond; iGP++){
-
-            // Get the parametric coordinates of the Gauss Point on the patch
+            // 3xii.1. Get the parametric coordinates of the Gauss Point on the patch
             uGP = surfaceGPs[iGP*noCoordParam];
             vGP = surfaceGPs[iGP*noCoordParam + 1];
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the patch
+            // 3xii.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
             uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
             vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
 
-            // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            // 3xii.3. compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
             jacobianOnGP = surfaceGPJacobians[iGP];
 
-            // Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
+            // 3xii.4. Compute the B-operator matrices needed for the computation of the patch weak Dirichlet conditions at the patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGC, BOperatorOmegaT, BOperatorOmegaN, normalCurveVct,
                                                             surfaceNormalVct, thePatch, tangentCurveVct, uGP, vGP, uKnotSpan, vKnotSpan);
 
-            // Compute the dual product matrices for the displacements
+            // 3xii.5. Compute the dual product matrices for the displacements
             if (propWeakSurfaceDirichletConditions.isPrimPrescribed)
                 EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLoc,noDOFsLoc,BDisplacementsGC,BDisplacementsGC,KPenaltyDisplacement);
 
-            // Compute the element index tables for the patch
+            // 3xii.6. Compute the element index tables for the patch
             int CPIndex[noLocalBasisFcts];
             thePatch->getIGABasis()->getBasisFunctionsIndex(uKnotSpan, vKnotSpan, CPIndex);
 
-            // Compute the element freedom tables for the patch
+            // 3xii.7. Compute the element freedom tables for the patch
             int EFT[noDOFsLoc];
             counter = 0;
             for (int i = 0; i < noLocalBasisFcts; i++){
@@ -2295,7 +2486,7 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
                 }
             }
 
-            // Assemble KPenaltyDisplacement to the global coupling matrix CNN
+            // 3xii.8. Assemble KPenaltyDisplacement to the global coupling matrix CNN
             if (propWeakSurfaceDirichletConditions.isPrimPrescribed)
                 for(int i = 0; i < noDOFsLoc; i++){
                     for(int j = 0; j < noDOFsLoc; j++){
@@ -2304,11 +2495,10 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
                     }
                 }
 
-            //// TODO
-            // Store the GP data into array for later usage in the error computation
+            //// 3xii.9. TODO Store the GP data into array for later usage in the error computation
         } // End of Gauss Point loop
 
-        // Delete pointers
+        // 3xiii. Delete pointers
         delete[] BDisplacementsGC;
         delete[] BOperatorOmegaT;
         delete[] BOperatorOmegaN;
@@ -2320,20 +2510,81 @@ void IGAMortarMapper::computeIGAWeakDirichletSurfaceConditionMatrices() {
 void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     /*
      * Computes and assembles the patch weak continuity conditions.
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Get the weak patch continuity conditions
+     *
+     * 3. Loop over all the conditions for the application of weak continuity across patch interfaces
+     * ->
+     *    3i. Get the penalty factors for the primary and the secondary field
+     *   3ii. Get the index of the master and slave patches
+     *  3iii. Get the number of Gauss Points for the given condition
+     *   3iv. Get the parametric coordinates of the Gauss Points
+     *    3v. Get the corresponding Gauss weights
+     *   3vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+     *  3vii. Get the product of the Jacobian transformations
+     * 3viii. Get the master and the slave patch
+     *   3ix. Get the polynomial orders of the master and the slave patch
+     *    3x. get the number of local basis functions for master and slave patch
+     *   3xi. get the number of the local DOFs for the master and slave patch
+     *  3xii. Initialize pointers
+     * 3xiii. Loop over all the Gauss Points of the given condition
+     * ->
+     *        3xiii.1. Get the parametric coordinates of the Gauss Point on the master patch
+     *        3xiii.2. Get the parametric coordinates of the Gauss Point on the slave patch
+     *        3xiii.3. Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+     *        3xiii.4. Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+     *        3xiii.5. Get the tangent to the boundary vector on the master and the slave patch
+     *        3xiii.6. Compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+     *        3xiii.7. Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
+     *        3xiii.8. Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
+     *        3xiii.9. Compute the local penalty factor for scaling the rotational contributions
+     *       3xiii.10. Scale the B-operator matrices
+     *       3xiii.11. Compute the angle of the surface normal vectors
+     *       3xiii.12. Determine the alignment of the tangent vectors from both patches at their common interface
+     *       3xiii.13. Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
+     *       3xiii.14. Check if the tangent vectors are aligned and if not assert error
+     *       3xiii.15. Check if the angle between the tangent vectors is 0° (have the same direction cos(phi) = 1) or 180° (have opposite directions cos(phi) = - 1) to formulate the interface constraint
+     *       3xiii.16. Determine the alignment of the normal vectors from both patches at their common interface
+     *       3xiii.17. Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
+     *       3xiii.18. Check if the boundary normal vectors have an angle of [0,90]U[270,360] meaning the the vectors are in the positive quadrant or [90,270] meaning that the vectors are in the negative quadrant
+     *       3xiii.19. Compute the dual product matrices for the displacements
+     *       3xiii.20. Compute the dual product matrices for the bending rotations
+     *       3xiii.21. Compute the dual product matrices for the twisting rotations
+     *       3xiii.22. Compute the element index tables for the master and slave patch
+     *       3xiii.23. Compute the element freedom tables for the master and the slave patch
+     *       3xiii.24. Loop over all DOFs of the master patch to assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
+     *       ->
+     *                 3xiii.24i. Assemble the displacement coupling entries
+     *                3xiii.24ii. Assemble the bending rotation coupling entries
+     *               3xiii.24iii. Assemble the twisting rotation coupling entries
+     *       <-
+     *       3xiii.25. Loop over all DOFs of the slave patch to assemble KPenaltyDisplacementSlave to the global coupling matrix CNN
+     *       ->
+     *                 3xiii.25i. Assemble the displacement coupling entries
+     *                3xiii.25ii. Assemble the bending rotation coupling entries
+     *               3xiii.25iii. Assemble the twisting rotation coupling entries
+     *       <-
+     *       3xiii.26. Loop over all DOFs of the master/slave patches to assemble CPenaltyDisplacement to the global coupling matrix CNN
+     *       ->
+     *                 3xiii.26i. Assemble the displacement coupling entries
+     *                3xiii.26ii. Assemble the bending rotation coupling entries
+     *               3xiii.26iii. Assemble the twisting rotation coupling entries
+     *       <-
+     *       3xiii.27. Save the Gauss point data for further computation of the error in the L2 norm
+     * <-
+     *  3xiv. Delete pointers
+     * <-
      */
 
-    // Get the weak patch continuity conditions
-    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
-
-    // Define tolerances
+    // 1. Initialize auxiliary variables
     const double tolAngle = 1e-1;
     const double tolVct = 1e-4;
-
-    // Initialize constant array sizes
     const int noCoordParam = 2;
     const int noCoord = 3;
-
-    // Initialize varying array sizes
     int indexMaster;
     int indexSlave;
     int counter;
@@ -2382,8 +2633,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     double alphaSecondaryBending;
     double alphaSecondaryTwisting;
     double elementLengthOnGP;
-
-    // Initialize pointers
     double* trCurveMasterGPs;
     double* trCurveSlaveGPs;
     double* trCurveGPWeights;
@@ -2393,53 +2642,56 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
     IGAPatchSurface* patchMaster;
     IGAPatchSurface* patchSlave;
 
-    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    // 2. Get the weak patch continuity conditions
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
+
+    // 3. Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
-        // Get the penalty factors for the primary and the secondary field
+        // 3i. Get the penalty factors for the primary and the secondary field
         alphaPrimary = weakPatchContinuityAlphaPrimaryIJ[iWCC];
         alphaSecondaryBending = weakPatchContinuityAlphaSecondaryBendingIJ[iWCC];
         alphaSecondaryTwisting = weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC];
 
-        // Get the index of the master and slave patches
+        // 3ii. Get the index of the master and slave patches
         indexMaster = weakIGAPatchContinuityConditions[iWCC]->getMasterPatchIndex();
         indexSlave = weakIGAPatchContinuityConditions[iWCC]->getSlavePatchIndex();
 
-        // Get the number of Gauss Points for the given condition
+        // 3iii. Get the number of Gauss Points for the given condition
         noGPsOnContCond = weakIGAPatchContinuityConditions[iWCC]->getTrCurveNumGP();
 
-        // Get the parametric coordinates of the Gauss Points
+        // 3iv. Get the parametric coordinates of the Gauss Points
         trCurveMasterGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPs();
         trCurveSlaveGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPs();
 
-        // Get the corresponding Gauss weights
+        // 3v. Get the corresponding Gauss weights
         trCurveGPWeights = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPWeights();
 
-        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        // 3vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
         trCurveMasterGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPTangents();
         trCurveSlaveGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPTangents();
 
-        // Get the product of the Jacobian transformations
+        // 3vii. Get the product of the Jacobian transformations
         trCurveGPJacobianProducts = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPJacobianProducts();
 
-        // Get the master and the slave patch
+        // 3viii. Get the master and the slave patch
         patchMaster = meshIGA->getSurfacePatch(indexMaster);
         patchSlave = meshIGA->getSurfacePatch(indexSlave);
 
-        // Get the polynomial orders of the master and the slave patch
+        // 3ix. Get the polynomial orders of the master and the slave patch
         pMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         qMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
         pSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         qSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
 
-        // get the number of local basis functions for master and slave patch
+        // 3x. get the number of local basis functions for master and slave patch
         noLocalBasisFctsMaster = (pMaster + 1)*(qMaster + 1);
         noLocalBasisFctsSlave = (pSlave + 1)*(qSlave + 1);
 
-        // get the number of the local DOFs for the master and slave patch
+        // 3xi. get the number of the local DOFs for the master and slave patch
         noDOFsLocMaster = noCoord*noLocalBasisFctsMaster;
         noDOFsLocSlave = noCoord*noLocalBasisFctsSlave;
 
-        // Initialize pointers
+        // 3xii. Initialize pointers
         double* BDisplacementsGCMaster = new double[noCoord*noDOFsLocMaster];
         double* BDisplacementsGCSlave = new double[noCoord*noDOFsLocSlave];
         double* BOperatorOmegaTMaster = new double[noDOFsLocMaster];
@@ -2456,44 +2708,44 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
         double* KPenaltyTwistingRotationSlave = new double[noDOFsLocSlave*noDOFsLocSlave];
         double* CPenaltyTwistingRotation = new double[noDOFsLocMaster*noDOFsLocSlave];
 
-        // Loop over all the Gauss Points of the given condition
+        // 3xiii. Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
-            // Get the parametric coordinates of the Gauss Point on the master patch
+            // 3xiii.1. Get the parametric coordinates of the Gauss Point on the master patch
             uGPMaster = trCurveMasterGPs[iGP*noCoordParam];
             vGPMaster = trCurveMasterGPs[iGP*noCoordParam + 1];
 
-            // Get the parametric coordinates of the Gauss Point on the slave patch
+            // 3xiii.2. Get the parametric coordinates of the Gauss Point on the slave patch
             uGPSlave = trCurveSlaveGPs[iGP*noCoordParam];
             vGPSlave = trCurveSlaveGPs[iGP*noCoordParam + 1];
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+            // 3xiii.3. Find the knot span indices of the Gauss point locations in the parameter space of the master patch
             uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
             vKnotSpanMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPMaster);
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+            // 3xiii.4. Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
             uKnotSpanSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPSlave);
             vKnotSpanSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPSlave);
 
-            // Get the tangent to the boundary vector on the master and the slave patch
+            // 3xiii.5. Get the tangent to the boundary vector on the master and the slave patch
             for(int iCoord = 0; iCoord < noCoord; iCoord++){
                 tangentTrCurveVctMaster[iCoord] = trCurveMasterGPTangents[iGP*noCoord + iCoord];
                 tangentTrCurveVctSlave[iCoord] = trCurveSlaveGPTangents[iGP*noCoord + iCoord];
             }
 
-            // compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
+            // 3xiii.6. Compute elementLength on GP. The weight is already included in variable trCurveGPJacobianProducts
             elementLengthOnGP = trCurveGPJacobianProducts[iGP];
 
-            // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
+            // 3xiii.7. Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the master patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCMaster, BOperatorOmegaTMaster, BOperatorOmegaNMaster, normalTrCurveVctMaster,
                                                             surfaceNormalVctMaster, patchMaster, tangentTrCurveVctMaster, uGPMaster, vGPMaster, uKnotSpanMaster,
                                                             vKnotSpanMaster);
 
-            // Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
+            // 3xiii.8. Compute the B-operator matrices needed for the computation of the patch weak continuity contributions at the slave patch
             computeDisplacementAndRotationBOperatorMatrices(BDisplacementsGCSlave, BOperatorOmegaTSlave, BOperatorOmegaNSlave, normalTrCurveVctSlave,
                                                             surfaceNormalVctSlave, patchSlave, tangentTrCurveVctSlave, uGPSlave, vGPSlave, uKnotSpanSlave,
                                                             vKnotSpanSlave);
 
-            // Compute the local penalty factor for scaling the rotational contributions
+            // 3xiii.9. Compute the local penalty factor for scaling the rotational contributions
             if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
                 normBOperatorOmegaTMaster = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaTMaster, noDOFsLocMaster);
                 alphaLocal = normBOperatorOmegaTMaster;
@@ -2501,7 +2753,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 if (normBOperatorOmegaTSlave > alphaLocal)
                     alphaLocal = normBOperatorOmegaTSlave;
             } else
-                alphaLocal = 1.0;
+                alphaLocal = - 1.0;
 
             if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
                 normBOperatorOmegaNMaster = EMPIRE::MathLibrary::vector2norm(BOperatorOmegaNMaster, noDOFsLocMaster);
@@ -2511,15 +2763,15 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 if (normBOperatorOmegaNSlave > alphaLocal)
                     alphaLocal = normBOperatorOmegaNSlave;
             }
-            alphaLocal = 1.0/alphaLocal;
+            alphaLocal = 1.0/abs(alphaLocal);
 
-            // Scale the B-operator matrices
+            // 3xiii.10. Scale the B-operator matrices
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaTMaster, alphaLocal, noDOFsLocMaster);
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaNMaster, alphaLocal, noDOFsLocMaster);
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaTSlave, alphaLocal, noDOFsLocSlave);
             EMPIRE::MathLibrary::computeDenseVectorMultiplicationScalar(BOperatorOmegaNSlave, alphaLocal, noDOFsLocSlave);
 
-            // Compute the angle of the surface normal vectors
+            // 3xiii.11. Compute the angle of the surface normal vectors
             normSurfaceNormalVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctMaster, surfaceNormalVctMaster);
             normSurfaceNormalVctMaster = sqrt(normSurfaceNormalVctMaster);
             normSurfaceNormalVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctSlave, surfaceNormalVctSlave);
@@ -2527,7 +2779,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             cosPhiSurfaceNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, surfaceNormalVctMaster, surfaceNormalVctSlave);
             cosPhiSurfaceNormals = cosPhiSurfaceNormals/(normSurfaceNormalVctMaster*normSurfaceNormalVctSlave);
 
-            // Determine the alignment of the tangent vectors from both patches at their common interface
+            // 3xiii.12. Determine the alignment of the tangent vectors from both patches at their common interface
             normTangentTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctMaster);
             normTangentTrCurveVctMaster = sqrt(normTangentTrCurveVctMaster);
             normTangentTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctSlave,tangentTrCurveVctSlave);
@@ -2535,20 +2787,20 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             cosPhiTangents = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,tangentTrCurveVctMaster,tangentTrCurveVctSlave);
             cosPhiTangents = cosPhiTangents/(normTangentTrCurveVctMaster*normTangentTrCurveVctSlave);
 
-            // Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
+            // 3xiii.13. Check if the tangent vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave < tolVct)
                 continue;
             else if((normTangentTrCurveVctMaster < tolVct && normTangentTrCurveVctSlave > tolVct) || (normTangentTrCurveVctMaster > tolVct && normTangentTrCurveVctSlave < tolVct))
                 assert(false);
 
-            // Check if the tangent vectors are aligned and if not assert error
+            // 3xiii.14. Check if the tangent vectors are aligned and if not assert error
             condAligned = cosPhiTangents*cosPhiTangents - 1;
             if (abs(condAligned) > tolAngle) {
                 INFO_OUT() << "Found boundaries for which the tangent vectors are not aligned with angle = " << cosPhiTangents << endl;
             }
             assert(abs(condAligned) < tolAngle);
 
-            // Check if the angle between the tangent vectors is 0° (have the same direction cos(phi) = 1) or 180° (have opposite directions cos(phi) = - 1) to formulate the interface constraint
+            // 3xiii.15. Check if the angle between the tangent vectors is 0° (have the same direction cos(phi) = 1) or 180° (have opposite directions cos(phi) = - 1) to formulate the interface constraint
             if (abs(cosPhiTangents - 1) < sqrt(tolAngle)) {
                 factorTangent = - 1.0;
             } else if (abs(cosPhiTangents + 1) < sqrt(tolAngle)) {
@@ -2557,7 +2809,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 assert(false);
             }
 
-            // Determine the alignment of the normal vectors from both patches at their common interface
+            // 3xiii.16. Determine the alignment of the normal vectors from both patches at their common interface
             normNormalTrCurveVctMaster = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctMaster);
             normNormalTrCurveVctMaster = sqrt(normNormalTrCurveVctMaster);
             normNormalTrCurveVctSlave = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctSlave,normalTrCurveVctSlave);
@@ -2565,13 +2817,13 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             cosPhiNormals = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,normalTrCurveVctMaster,normalTrCurveVctSlave);
             cosPhiNormals = cosPhiTangents/(normNormalTrCurveVctMaster*normNormalTrCurveVctSlave);
 
-            // Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
+            // 3xiii.17. Check if the normal vectors at the coupled trimming curves are zero and if yes go to the next Gauss point
             if(normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave < tolVct)
                 continue;
             else if((normNormalTrCurveVctMaster < tolVct && normNormalTrCurveVctSlave > tolVct) || (normNormalTrCurveVctMaster > tolVct && normNormalTrCurveVctSlave < tolVct))
                 assert(false);
 
-            // Check if the boundary normal vectors have an angle of [0,90]U[270,360] meaning the the vectors are in the positive quadrant or [90,270] meaning that the vectors are in the negative quadrant
+            // 3xiii.18. Check if the boundary normal vectors have an angle of [0,90]U[270,360] meaning the the vectors are in the positive quadrant or [90,270] meaning that the vectors are in the negative quadrant
             if (cosPhiNormals >= 0)
                 factorNormal = + 1.0;
             else
@@ -2584,28 +2836,28 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
 //                factorNormal = (-1.0)*factorNormal;
 //            }
 
-            // Compute the dual product matrices for the displacements
+            // 3xiii.19. Compute the dual product matrices for the displacements
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocMaster,BDisplacementsGCMaster,BDisplacementsGCMaster,KPenaltyDisplacementMaster);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocSlave,noDOFsLocSlave,BDisplacementsGCSlave,BDisplacementsGCSlave,KPenaltyDisplacementSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(noCoord,noDOFsLocMaster,noDOFsLocSlave,BDisplacementsGCMaster,BDisplacementsGCSlave,CPenaltyDisplacement);
 
-            // Compute the dual product matrices for the bending rotations
+            // 3xiii.20. Compute the dual product matrices for the bending rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaTMaster, BOperatorOmegaTMaster, KPenaltyBendingRotationMaster);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaTSlave, BOperatorOmegaTSlave, KPenaltyBendingRotationSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaTMaster, BOperatorOmegaTSlave,CPenaltyBendingRotation);
 
-            // Compute the dual product matrices for the twisting rotations
+            // 3xiii.21. Compute the dual product matrices for the twisting rotations
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocMaster ,BOperatorOmegaNMaster, BOperatorOmegaNMaster, KPenaltyTwistingRotationMaster);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocSlave, noDOFsLocSlave, BOperatorOmegaNSlave, BOperatorOmegaNSlave, KPenaltyTwistingRotationSlave);
             EMPIRE::MathLibrary::computeTransposeMatrixProduct(1, noDOFsLocMaster, noDOFsLocSlave, BOperatorOmegaNMaster, BOperatorOmegaNSlave,CPenaltyTwistingRotation);
 
-            // Compute the element index tables for the master and slave patch
+            // 3xiii.22. Compute the element index tables for the master and slave patch
             int CPIndexMaster[noLocalBasisFctsMaster];
             int CPIndexSlave[noLocalBasisFctsSlave];
             patchMaster->getIGABasis()->getBasisFunctionsIndex(uKnotSpanMaster, vKnotSpanMaster, CPIndexMaster);
             patchSlave->getIGABasis()->getBasisFunctionsIndex(uKnotSpanSlave, vKnotSpanSlave, CPIndexSlave);
 
-            // Compute the element freedom tables for the master and the slave patch
+            // 3xiii.23. Compute the element freedom tables for the master and the slave patch
             int EFTMaster[noDOFsLocMaster];
             counter = 0;
             for (int i = 0; i < noLocalBasisFctsMaster ; i++){
@@ -2615,7 +2867,6 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                     counter++;
                 }
             }
-
             counter = 0;
             int EFTSlave[noDOFsLocSlave];
             for (int i = 0; i < noLocalBasisFctsSlave ; i++){
@@ -2626,56 +2877,56 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 }
             }
 
-            // Assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
+            // 3xiii.24. Loop over all DOFs of the master patch to assemble KPenaltyDisplacementMaster to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocMaster; j++){
-                    // Assemble the displacement coupling entries
+                    // 3xiii.24i. Assemble the displacement coupling entries
                     if (propWeakPatchContinuityConditions.isPrimCoupled)
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaPrimary*KPenaltyDisplacementMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
-                    // Assemble the bending rotation coupling entries
+                    // 3xiii.24ii. Assemble the bending rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecBendingCoupled)
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryBending*KPenaltyBendingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
 
-                    // Assemble the twisting rotation coupling entries
+                    // 3xiii.24iii. Assemble the twisting rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTMaster[j], alphaSecondaryTwisting*KPenaltyTwistingRotationMaster[i*noDOFsLocMaster + j]*elementLengthOnGP);
                 }
             }
 
-            // Assemble KPenaltyDisplacementSlave to the global coupling matrix CNN
+            // 3xiii.25. Loop over all DOFs of the slave patch to assemble KPenaltyDisplacementSlave to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocSlave; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++) {
-                    // Assemble the displacement coupling entries
+                    // 3xiii.25i. Assemble the displacement coupling entries
                     if (propWeakPatchContinuityConditions.isPrimCoupled)
                         couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaPrimary*KPenaltyDisplacementSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
-                    // Assemble the bending rotation coupling entries
+                    // 3xiii.25ii. Assemble the bending rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecBendingCoupled)
                         couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryBending*KPenaltyBendingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
 
-                    // Assemble the twisting rotation coupling entries
+                    // 3xiii.25iii. Assemble the twisting rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
                         couplingMatrices->addCNNValue(EFTSlave[i], EFTSlave[j], alphaSecondaryTwisting*KPenaltyTwistingRotationSlave[i*noDOFsLocSlave + j]*elementLengthOnGP);
                 }
             }
 
-            // Assemble CPenaltyDisplacement to the global coupling matrix CNN
+            // 3xiii.26. Loop over all DOFs of the master/slave patches to assemble CPenaltyDisplacement to the global coupling matrix CNN
             for(int i = 0; i < noDOFsLocMaster; i++){
                 for(int j = 0; j < noDOFsLocSlave; j++){
-                    // Assemble the displacement coupling entries
+                    // 3xiii.26i. Assemble the displacement coupling entries
                     if (propWeakPatchContinuityConditions.isPrimCoupled) {
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
                         couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaPrimary*(-1.0)*CPenaltyDisplacement[i*noDOFsLocSlave + j]*elementLengthOnGP);
                     }
 
-                    // Assemble the bending rotation coupling entries
+                    // 3xiii.26ii. Assemble the bending rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecBendingCoupled) {
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                         couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryBending*factorTangent*CPenaltyBendingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                     }
 
-                    // Assemble the twisting rotation coupling entries
+                    // 3xiii.26iii. Assemble the twisting rotation coupling entries
                     if (propWeakPatchContinuityConditions.isSecTwistingCoupled) {
                         couplingMatrices->addCNNValue(EFTMaster[i], EFTSlave[j], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
                         couplingMatrices->addCNNValue(EFTSlave[j], EFTMaster[i], alphaSecondaryTwisting*factorNormal*CPenaltyTwistingRotation[i*noDOFsLocSlave + j]*elementLengthOnGP);
@@ -2683,7 +2934,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
                 }
             }
 
-
+            // 3xiii.27. Save the Gauss point data for further computation of the error in the L2 norm
             if(propErrorComputation.isInterfaceError){
                 // Initialize variable storing the Gauss Point data
                 std::vector<double> streamInterfaceGP;
@@ -2737,7 +2988,7 @@ void IGAMortarMapper::computeIGAPatchWeakContinuityConditionMatrices() {
             }
         } // End of Gauss Point loop
 
-        // Delete pointers
+        // 3xiv. Delete pointers
         delete[] BDisplacementsGCMaster;
         delete[] BDisplacementsGCSlave;
         delete[] BOperatorOmegaTMaster;
@@ -2771,13 +3022,39 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
      * double* _BOperatorOmegaT = new double[noDOFsLoc]
      * double* _BOperatorOmegaN = new double[noDOFsLoc]
      * double _normalTrCurveVct[noCoord]
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Compute the basis functions and their derivatives
+     *
+     * 3. Compute the base vectors and their derivatives
+     *
+     * 4. Compute the derivatives of the surface normal vector
+     *
+     * 5. Compute the normal to the boundary vector which is tangent to the surface
+     *
+     * 6. Compute the covariant metric tensor
+     *
+     * 7. Compute the contravariant base vectors of the master patch
+     *
+     * 8. Initialize the B-operator matrix for the displacement field
+     *
+     * 9. Compute the B-operator matrix for the displacement field and its parametric derivatives
+     *
+     * 10. Transform the normal and the tangent vectors to the covariant base for the master patch
+     *
+     * 11. Compute the curvature tensor in the contravariant basis
+     *
+     * 12. Compute the B-operator matrices for the rotation vector
+     *
+     * 13. Delete pointers
      */
 
-    // Initialize constant array sizes
+    // 1. Initialize auxiliary arrays
     const int noCoord = 3;
     const int noParametricCoord = 2;
-
-    // Initialize varying array sizes
     double tangentTrCurveVctCov[noCoord];
     double normalTrCurveVctCov[noCoord];
     double surfNormalVctAndDervs[3*noCoord];
@@ -2793,18 +3070,10 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     int indexBasis;
     int indexBasisDerivU;
     int indexBasisDerivV;
-
-    // Get the polynomial orders of the basis
     int p = _patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
     int q = _patch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-
-    // Get the number of the basis functions affecting the current knot span
     int noLocalBasisFcts = (p + 1)*(q + 1);
-
-    // get the number of the local DOFs
     int noDOFsLoc = noCoord*noLocalBasisFcts;
-
-    // Initialize pointers
     double* basisFctsAndDerivs = new double[(derivDegreeBasis + 1) * (derivDegreeBasis + 2)
             * noLocalBasisFcts / 2];
     double* baseVctsAndDerivs = new double[(derivDegreeBaseVec + 1)
@@ -2818,37 +3087,37 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     double* commonBOperator3 = new double[noParametricCoord*noDOFsLoc];
     double* commonBOperator = new double[noParametricCoord*noDOFsLoc];
 
-    // Compute the basis functions and their derivatives
+    // 2. Compute the basis functions and their derivatives
     _patch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(basisFctsAndDerivs, derivDegreeBasis, _u, _uKnotSpan,
                                                                     _v, _vKnotSpan);
 
-    // Compute the base vectors and their derivatives
+    // 3. Compute the base vectors and their derivatives
     _patch->computeBaseVectorsAndDerivatives(baseVctsAndDerivs, basisFctsAndDerivs, derivDegreeBaseVec,
                                              _uKnotSpan, _vKnotSpan);
 
-    // Compute the derivatives of the surface normal vector
+    // 4. Compute the derivatives of the surface normal vector
     _patch->computeSurfaceNormalVectorAndDerivatives(surfNormalVctAndDervs, baseVctsAndDerivs, derivDegreeBaseVec);
 
-    // Compute the normal to the boundary vector which is tangent to the surface
+    // 5. Compute the normal to the boundary vector which is tangent to the surface
     for(int i = 0; i < noCoord; i++){
         _surfaceNormalVct[i] = surfNormalVctAndDervs[i];
     }
     EMPIRE::MathLibrary::computeVectorCrossProduct(_surfaceNormalVct, _tangentTrCurveVct, _normalTrCurveVct);
 
-    // Compute the covariant metric tensor
+    // 6. Compute the covariant metric tensor
     _patch->computeCovariantMetricTensor(covariantMetricTensor, baseVctsAndDerivs, derivDegreeBaseVec);
 
-    // Compute the contravariant base vectors of the master patch
+    // 7. Compute the contravariant base vectors of the master patch
     _patch->computeContravariantBaseVectors(contravariantBaseVcts, covariantMetricTensor, baseVctsAndDerivs, derivDegreeBaseVec);
 
-    // Initialize the B-operator matrix for the displacement field
+    // 8. Initialize the B-operator matrix for the displacement field
     for(int iBF = 0; iBF < noCoord*noDOFsLoc; iBF++){
         _BDisplacementsGC[iBF] = 0.0;
         BdDisplacementsdUGC[iBF] = 0.0;
         BdDisplacementsdVGC[iBF] = 0.0;
     }
 
-    // Compute the B-operator matrix for the displacement field
+    // 9. Compute the B-operator matrix for the displacement field and its parametric derivatives
     for(int iBF = 0; iBF < noLocalBasisFcts; iBF++){
         indexBasis = _patch->getIGABasis()->indexDerivativeBasisFunction(derivDegreeBasis,0,0,iBF);
         _BDisplacementsGC[0*noDOFsLoc + 3*iBF + 0] = basisFctsAndDerivs[indexBasis];
@@ -2864,7 +3133,7 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
         BdDisplacementsdVGC[2*noDOFsLoc + 3*iBF + 2] = basisFctsAndDerivs[indexBasisDerivV];
     }
 
-    // Transform the normal and the tangent vectors to the covariant base for the master patch
+    // 10. Transform the normal and the tangent vectors to the covariant base for the master patch
     for(int iCov = 0; iCov < noParametricCoord; iCov++){
         for (int iCoord = 0; iCoord < noCoord; iCoord++)
             contravariantBaseVct[iCoord] = contravariantBaseVcts[noCoord*iCov + iCoord];
@@ -2872,10 +3141,10 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
         normalTrCurveVctCov[iCov] = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord,contravariantBaseVct,_normalTrCurveVct);
     }
 
-    // Compute the curvature tensor in the contravariant basis
+    // 11. Compute the curvature tensor in the contravariant basis
     _patch->computeContravariantCurvatureTensor(contravariantCurvatureTensor, _surfaceNormalVct, baseVctsAndDerivs, derivDegreeBaseVec);
 
-    // Compute the B-operator matrices for the rotation vector
+    // 12. Compute the B-operator matrices for the rotation vector
     for(int iCovCoord = 0; iCovCoord < noParametricCoord; iCovCoord++)
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             dT3Cov2GC[iCovCoord*noCoord + iCoord] = surfNormalVctAndDervs[noCoord*(iCovCoord + 1) + iCoord]; // Parametric derivatives of the transformation matrix from the covariant to the global Cartesian basis
@@ -2894,7 +3163,7 @@ void IGAMortarMapper::computeDisplacementAndRotationBOperatorMatrices(double* _B
     EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, 1, noDOFsLoc, normalTrCurveVctCov, commonBOperator, _BOperatorOmegaT);
     EMPIRE::MathLibrary::computeTransposeMatrixProduct(noParametricCoord, 1, noDOFsLoc, tangentTrCurveVctCov, commonBOperator, _BOperatorOmegaN);
 
-    // Delete pointers
+    // 13. Delete pointers
     delete[] basisFctsAndDerivs;
     delete[] baseVctsAndDerivs;
     delete[] BdDisplacementsdUGC;
@@ -2911,9 +3180,48 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(st
     /*
      * Compute the penalty factors related to the application of weak Dirichlet curve conditions
      * as a function of the minimum element edge size across interface.
+     *
+     * Function layout:
+     *
+     * 1. Initialize a file stream to write out the Penalty parameters
+     *
+     * 2. Initialize auxiliary arrays
+     *
+     * 3. Get the weak patch continuity conditions
+     *
+     * 4. Loop over all the conditions for the application of weak continuity across patch interfaces
+     * ->
+     *    4i. Check if penalty factors are to be assigned manually in the xml file
+     *   4ii. Get the index of the patch
+     *  4iii. Get the number of Gauss Points for the given condition
+     *   4iv. Get the parametric coordinates of the Gauss Points
+     *    4v. Get the corresponding Gauss weights
+     *   4vi. Get the tangent vectors at the curve of the given condition in the Cartesian space
+     *  4vii. Get the product of the Jacobian transformations
+     * 4viii. Get the master and the slave patch
+     *   4ix. Get the polynomial orders of the patch
+     *    4x. Get the number of local basis functions for the patch
+     *   4xi. Get the number of the local DOFs for the patch
+     *  4xii. Initialize flags on whether an element has been changed while looping over the Gauss Points
+     * 4xiii. Initialize the element edge sizes
+     *  4xiv. Loop over all the Gauss Points of the given condition
+     *  ->
+     *        4xiv.1. Get the parametric coordinates of the Gauss Point on the patch
+     *        4xiv.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
+     *        4xiv.3. Initialize the saved knot span indices
+     *        4xiv.4. Initialize element edge sizes if an element has been crossed
+     *        4xiv.5. Add the contribution from the Gauss Point to the element edge sizes
+     *        4xiv.6. Save the knot span indices
+     *  <-
+     *   4xv. Check the element sizes for the last elements
+     *  4xvi. Compute correspondingly the penalty factors
+     * 4xvii. Write the Penalty parameters into a file
+     * <-
+     *
+     * 5. Close file
      */
 
-    // Initialize a file stream to write out the Penalty parameters
+    // 1. Initialize a file stream to write out the Penalty parameters
     std::ofstream ofs;
     if (!_filename.empty()) {
         ofs.open(_filename.c_str(), std::ofstream::out);
@@ -2921,13 +3229,8 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(st
         ofs << std::endl;
     }
 
-    // Get the weak patch continuity conditions
-    std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
-
-    // Initialize constant array sizes
+    // 2. Initialize auxiliary arrays
     const int noCoord = 3;
-
-    // Initialize varying array sizes
     bool isElementChanged;
     int patchIndex;
     int p;
@@ -2946,17 +3249,18 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(st
     double minElEdgeSize;
     double alphaPrim;
     double alphaSec;
-
-    // Initialize pointers
     double* curveGPs;
     double* curveGPWeights;
     double* curveGPTangents;
     double* curveGPJacobianProducts;
     IGAPatchSurface* thePatch;
 
-    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    // 3. Get the weak patch continuity conditions
+    std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
+
+    // 4. Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWDCC = 0; iWDCC < weakIGADirichletCurveConditions.size(); iWDCC++){
-        // Check if penalty factors are to be assigned manually in the xml file
+        // 4i. Check if penalty factors are to be assigned manually in the xml file
         if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters){
             weakDirichletCCAlphaPrimary[iWDCC] = propWeakCurveDirichletConditions.alphaPrim;
             weakDirichletCCAlphaSecondaryBending[iWDCC] = propWeakCurveDirichletConditions.alphaSecBending;
@@ -2964,99 +3268,96 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(st
             continue;
         }
 
-        // Get the index of the patch
+        // 4ii. Get the index of the patch
         patchIndex = weakIGADirichletCurveConditions[iWDCC]->getPatchIndex();
 
-        // Get the number of Gauss Points for the given condition
+        // 4iii. Get the number of Gauss Points for the given condition
         noGPsOnCond = weakIGADirichletCurveConditions[iWDCC]->getCurveNumGP();
 
-        // Get the parametric coordinates of the Gauss Points
+        // 4iv. Get the parametric coordinates of the Gauss Points
         curveGPs = weakIGADirichletCurveConditions[iWDCC]->getCurveGPs();
 
-        // Get the corresponding Gauss weights
+        // 4v. Get the corresponding Gauss weights
         curveGPWeights = weakIGADirichletCurveConditions[iWDCC]->getCurveGPWeights();
 
-        // Get the tangent vectors at the curve of the given condition in the Cartesian space
+        // 4vi. Get the tangent vectors at the curve of the given condition in the Cartesian space
         curveGPTangents = weakIGADirichletCurveConditions[iWDCC]->getCurveGPTangents();
 
-        // Get the product of the Jacobian transformations
+        // 4vii. Get the product of the Jacobian transformations
         curveGPJacobianProducts = weakIGADirichletCurveConditions[iWDCC]->getCurveGPJacobianProducts();
 
-        // Get the master and the slave patch
+        // 4viii. Get the master and the slave patch
         thePatch = meshIGA->getSurfacePatch(patchIndex);
 
-        // Get the polynomial orders of the patch
+        // 4ix. Get the polynomial orders of the patch
         p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
         pMax = std::max(p, q);
 
-        // get the number of local basis functions for the patch
+        // 4x. Get the number of local basis functions for the patch
         noLocalBasisFcts = (p + 1)*(q + 1);
 
-        // get the number of the local DOFs for the patch
+        // 4xi. Get the number of the local DOFs for the patch
         noDOFsLoc = noCoord*noLocalBasisFcts;
 
-        // Initialize flags on whether an element has been changed while looping over the Gauss Points
+        // 4xii. Initialize flags on whether an element has been changed while looping over the Gauss Points
         isElementChanged = false;
 
-        // Initialize the element edge sizes
+        // 4xiii. Initialize the element edge sizes
         elEdgeSize = 0.0;
         minElEdgeSize = std::numeric_limits<double>::max();
 
-        // Loop over all the Gauss Points of the given condition
+        // 4xiv. Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnCond; iGP++){
-
-            // Get the parametric coordinates of the Gauss Point on the patch
+            // 4xiv.1. Get the parametric coordinates of the Gauss Point on the patch
             uGP = curveGPs[2*iGP];
             vGP = curveGPs[2*iGP + 1];
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the patch
+            // 4xiv.2. Find the knot span indices of the Gauss point locations in the parameter space of the patch
             uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGP);
             vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGP);
 
-            // Initialize the saved knot span indices
+            // 4xiv.3. Initialize the saved knot span indices
             if(iGP == 0){
                 uKnotSpanSaved = uKnotSpan;
                 vKnotSpanSaved = vKnotSpan;
             }
 
-            // Initialize element edge sizes if an element has been crossed
+            // 4xiv.4. Initialize element edge sizes if an element has been crossed
             if(uKnotSpan != uKnotSpanSaved || vKnotSpan != vKnotSpanSaved){
                 if(elEdgeSize < minElEdgeSize)
                     minElEdgeSize = elEdgeSize;
                 elEdgeSize = 0.0;
             }
 
-            // Add the contribution from the Gauss Point to the element edge sizes
+            // 4xiv.5. Add the contribution from the Gauss Point to the element edge sizes
             elEdgeSize += curveGPJacobianProducts[iGP];
 
-            // Save the knot span indices
+            // 4xiv.6. Save the knot span indices
             uKnotSpanSaved = uKnotSpan;
             vKnotSpanSaved = vKnotSpan;
 
         } // End of Gauss Point loop
 
-        // Check the element sizes for the last elements
+        // 4xv. Check the element sizes for the last elements
         if(elEdgeSize < minElEdgeSize)
             minElEdgeSize = elEdgeSize;
 
-        // Compute correspondingly the penalty factors
+        // 4xvi. Compute correspondingly the penalty factors
         alphaPrim = pMax/minElEdgeSize;
         alphaSec = pMax/sqrt(minElEdgeSize);
         weakDirichletCCAlphaPrimary[iWDCC] = alphaPrim;
-        weakDirichletCCAlphaSecondaryBending[iWDCC] = alphaSec;
-        weakDirichletCCAlphaSecondaryTwisting[iWDCC] = alphaSec;
+        weakDirichletCCAlphaSecondaryBending[iWDCC] = alphaPrim;
 
-        // Write the Penalty parameters into a file
+        // 4xvii. Write the Penalty parameters into a file
         if (!_filename.empty()) {
             ofs << "Weak Dirichlet curve condition on patch[" << patchIndex << "] :" << std::endl;
-            ofs << "weakDirichletCCAlphaPrimary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaPrim << std::endl;
-            ofs << "weakDirichletCCAlphaSecondary[" << iWDCC << "] = " << scientific << setprecision(15) << alphaSec << std::endl;
+            ofs << "weakDirichletCCAlpha[" << iWDCC << "] = " << scientific << setprecision(15) << alphaPrim << std::endl;
             ofs << std::endl;
         }
     } // End of weak Dirichlet curve condition loop
 
-    // Close file
+    // 5. Close file
     if (!_filename.empty())
         ofs.close();
 }
@@ -3082,21 +3383,58 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletSurfaceConditions(
             DEBUG_OUT() << std::endl;
             DEBUG_OUT() << "Weak Dirichlet surface condition on patch[" << patchIndex << "] :" << std::endl;
             DEBUG_OUT() << "weakDirichletSCAlphaPrimary[" << iWDSC << "] = " << scientific << setprecision(15) << weakDirichletSCAlphaPrimary[iWDSC] << std::endl;
-            DEBUG_OUT() << "weakDirichletSCAlphaSecondaryBending[" << iWDSC << "] = " << scientific << setprecision(15) << weakDirichletSCAlphaSecondaryBending[iWDSC] << std::endl;
-            DEBUG_OUT() << "weakDirichletSCAlphaSecondaryTwisting[" << iWDSC << "] = " << scientific << setprecision(15) << weakDirichletSCAlphaSecondaryTwisting[iWDSC] << std::endl;
             DEBUG_OUT() << std::endl;
         }
     }
-
 }
 
 void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::string _filename){
     /*
      * Compute the penalty factors related to the application of weak patch continuity conditions
      * as a function of the minimum element edge size across each interface.
+     *
+     * 1. Initialize a file stream to write out the Penalty parameters
+     *
+     * 2. Initialize auxiliary variables
+     *
+     * 3. Get the weak patch continuity conditions
+     *
+     * 4. Loop over all the conditions for the application of weak continuity across patch interfaces
+     * ->
+     *    4i. Check if penalty factors are to be assigned manually in the xml file
+     *   4ii. Get the index of the master and slave patches
+     *  4iii. Get the number of Gauss Points for the given condition
+     *   4iv. Get the parametric coordinates of the Gauss Points
+     *    4v. Get the corresponding Gauss weights
+     *   4vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+     *  4vii. Get the product of the Jacobian transformations
+     * 4viii. Get the master and the slave patch
+     *   4ix. Get the polynomial orders of the master and the slave patch
+     *    4x. Get the number of local basis functions for master and slave patch
+     *   4xi. Get the number of the local DOFs for the master and slave patch
+     *  4xii. Initialize flags on whether an element has been changed while looping over the Gauss Points
+     * 4xiii. Initialize the element edge sizes
+     *  4xiv. Loop over all the Gauss Points of the given condition
+     *  ->
+     *        4xiv.1. Get the parametric coordinates of the Gauss Point on the master patch
+     *        4xiv.2. Get the parametric coordinates of the Gauss Point on the slave patch
+     *        4xiv.3. Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+     *        4xiv.4. Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+     *        4xiv.5. Initialize the saved knot span indices
+     *        4xiv.6. Initialize element edge sizes if an element has been crossed
+     *        4xiv.7. Add the contribution from the Gauss Point to the element edge sizes
+     *        4xiv.8. Save the knot span indices
+     *  <-
+     *   4xv. Check the element sizes for the last elements
+     *  4xvi. Get the minimum of the minimum element edge sizes between both patches
+     * 4xvii. Compute correspondingly the penalty factors
+     *4xviii. Write the Penalty parameters into a file
+     * <-
+     *
+     * 5. Close file
      */
 
-    // Initialize a file stream to write out the Penalty parameters
+    // 1. Initialize a file stream to write out the Penalty parameters
     std::ofstream ofs;
     if (!_filename.empty()) {
         ofs.open(_filename.c_str(), std::ofstream::out);
@@ -3104,13 +3442,8 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
         ofs << std::endl;
     }
 
-    // Get the weak patch continuity conditions
-    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
-
-    // Initialize constant array sizes
+    // 2. Initialize auxiliary variables
     const int noCoord = 3;
-
-    // Initialize varying array sizes
     bool isElementMasterChanged;
     bool isElementSlaveChanged;
     int indexMaster;
@@ -3144,10 +3477,7 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
     double minElEdgeSizeMaster;
     double minElEdgeSizeSlave;
     double minElEdgeSize;
-    double alphaSec;
-    double alphaPrim;
-
-    // Initialize pointers
+    double alphaBar;
     double* trCurveMasterGPs;
     double* trCurveSlaveGPs;
     double* trCurveGPWeights;
@@ -3157,9 +3487,12 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
     IGAPatchSurface* patchMaster;
     IGAPatchSurface* patchSlave;
 
-    // Loop over all the conditions for the application of weak continuity across patch interfaces
+    // 3. Get the weak patch continuity conditions
+    std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
+
+    // 4. Loop over all the conditions for the application of weak continuity across patch interfaces
     for (int iWCC = 0; iWCC < weakIGAPatchContinuityConditions.size(); iWCC++){
-        // Check if penalty factors are to be assigned manually in the xml file
+        // 4i. Check if penalty factors are to be assigned manually in the xml file
         if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters){
             weakPatchContinuityAlphaPrimaryIJ[iWCC] = propWeakPatchContinuityConditions.alphaPrim;
             weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = propWeakPatchContinuityConditions.alphaSecBending;
@@ -3167,32 +3500,32 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
             continue;
         }
 
-        // Get the index of the master and slave patches
+        // 4ii. Get the index of the master and slave patches
         indexMaster = weakIGAPatchContinuityConditions[iWCC]->getMasterPatchIndex();
         indexSlave = weakIGAPatchContinuityConditions[iWCC]->getSlavePatchIndex();
 
-        // Get the number of Gauss Points for the given condition
+        // 4iii. Get the number of Gauss Points for the given condition
         noGPsOnContCond = weakIGAPatchContinuityConditions[iWCC]->getTrCurveNumGP();
 
-        // Get the parametric coordinates of the Gauss Points
+        // 4iv. Get the parametric coordinates of the Gauss Points
         trCurveMasterGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPs();
         trCurveSlaveGPs = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPs();
 
-        // Get the corresponding Gauss weights
+        // 4v. Get the corresponding Gauss weights
         trCurveGPWeights = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPWeights();
 
-        // Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
+        // 4vi. Get the tangent vectors at the trimming curve of the given condition in the Cartesian space
         trCurveMasterGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveMasterGPTangents();
         trCurveSlaveGPTangents = weakIGAPatchContinuityConditions[iWCC]->getTrCurveSlaveGPTangents();
 
-        // Get the product of the Jacobian transformations
+        // 4vii. Get the product of the Jacobian transformations
         trCurveGPJacobianProducts = weakIGAPatchContinuityConditions[iWCC]->getTrCurveGPJacobianProducts();
 
-        // Get the master and the slave patch
+        // 4viii. Get the master and the slave patch
         patchMaster = meshIGA->getSurfacePatch(indexMaster);
         patchSlave = meshIGA->getSurfacePatch(indexSlave);
 
-        // Get the polynomial orders of the master and the slave patch
+        // 4ix. Get the polynomial orders of the master and the slave patch
         pMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
         qMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
         pSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
@@ -3207,44 +3540,43 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
         if(pMaxMaster < pMaxSlave)
             pMax = pMaxSlave;
 
-        // get the number of local basis functions for master and slave patch
+        // 4x. Get the number of local basis functions for master and slave patch
         noLocalBasisFctsMaster = (pMaster + 1)*(qMaster + 1);
         noLocalBasisFctsSlave = (pSlave + 1)*(qSlave + 1);
 
-        // get the number of the local DOFs for the master and slave patch
+        // 4xi. Get the number of the local DOFs for the master and slave patch
         noDOFsLocMaster = noCoord*noLocalBasisFctsMaster;
         noDOFsLocSlave = noCoord*noLocalBasisFctsSlave;
 
-        // Initialize flags on whether an element has been changed while looping over the Gauss Points
+        // 4xii. Initialize flags on whether an element has been changed while looping over the Gauss Points
         isElementMasterChanged = false;
         isElementSlaveChanged = false;
 
-        // Initialize the element edge sizes
+        // 4xiii. Initialize the element edge sizes
         elEdgeSizeMaster = 0.0;
         elEdgeSizeSlave = 0.0;
         minElEdgeSizeMaster = std::numeric_limits<double>::max();
         minElEdgeSizeSlave = std::numeric_limits<double>::max();
 
-        // Loop over all the Gauss Points of the given condition
+        // 4xiv. Loop over all the Gauss Points of the given condition
         for(int iGP = 0; iGP < noGPsOnContCond; iGP++){
-
-            // Get the parametric coordinates of the Gauss Point on the master patch
+            // 4xiv.1. Get the parametric coordinates of the Gauss Point on the master patch
             uGPMaster = trCurveMasterGPs[2*iGP];
             vGPMaster = trCurveMasterGPs[2*iGP + 1];
 
-            // Get the parametric coordinates of the Gauss Point on the slave patch
+            // 4xiv.2. Get the parametric coordinates of the Gauss Point on the slave patch
             uGPSlave = trCurveSlaveGPs[2*iGP];
             vGPSlave = trCurveSlaveGPs[2*iGP + 1];
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the master patch
+            // 4xiv.3. Find the knot span indices of the Gauss point locations in the parameter space of the master patch
             uKnotSpanMaster = patchMaster->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPMaster);
             vKnotSpanMaster = patchMaster->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPMaster);
 
-            // Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
+            // 4xiv.4. Find the knot span indices of the Gauss point locations in the parameter space of the slave patch
             uKnotSpanSlave = patchSlave->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uGPSlave);
             vKnotSpanSlave = patchSlave->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(vGPSlave);
 
-            // Initialize the saved knot span indices
+            // 4xiv.5. Initialize the saved knot span indices
             if(iGP == 0){
                 uKnotSpanMasterSaved = uKnotSpanMaster;
                 vKnotSpanMasterSaved = vKnotSpanMaster;
@@ -3252,7 +3584,7 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
                 vKnotSpanSlaveSaved = vKnotSpanSlave;
             }
 
-            // Initialize element edge sizes if an element has been crossed
+            // 4xiv.6. Initialize element edge sizes if an element has been crossed
             if(uKnotSpanMaster != uKnotSpanMasterSaved || vKnotSpanMaster != vKnotSpanMasterSaved){
                 if(elEdgeSizeMaster < minElEdgeSizeMaster)
                     minElEdgeSizeMaster = elEdgeSizeMaster;
@@ -3264,99 +3596,139 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
                 elEdgeSizeSlave = 0.0;
             }
 
-            // Add the contribution from the Gauss Point to the element edge sizes
+            // 4xiv.7. Add the contribution from the Gauss Point to the element edge sizes
             elEdgeSizeMaster += trCurveGPJacobianProducts[iGP];
             elEdgeSizeSlave += trCurveGPJacobianProducts[iGP];
 
-            // Save the knot span indices
+            // 4xiv.8. Save the knot span indices
             uKnotSpanMasterSaved = uKnotSpanMaster;
             vKnotSpanMasterSaved = vKnotSpanMaster;
             uKnotSpanSlaveSaved = uKnotSpanSlave;
             vKnotSpanSlaveSaved = vKnotSpanSlave;
         } // End of Gauss Point loop
 
-        // Check the element sizes for the last elements
+        // 4xv. Check the element sizes for the last elements
         if(elEdgeSizeMaster < minElEdgeSizeMaster)
             minElEdgeSizeMaster = elEdgeSizeMaster;
         if(elEdgeSizeSlave < minElEdgeSizeSlave)
             minElEdgeSizeSlave = elEdgeSizeSlave;
 
-        // Get the minimum of the minimum element edge sizes between both patches
+        // 4xvi. Get the minimum of the minimum element edge sizes between both patches
         minElEdgeSize = minElEdgeSizeMaster;
         if(minElEdgeSizeSlave < minElEdgeSize){
             minElEdgeSize = minElEdgeSizeSlave;
         }
 
-        // Compute correspondingly the penalty factors
-        alphaPrim = pMax/minElEdgeSize;
-        alphaSec = pMax/sqrt(minElEdgeSize);
-        weakPatchContinuityAlphaPrimaryIJ[iWCC] = alphaPrim;
-        weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = alphaSec;
-        weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC] = alphaSec;
+        // 4xvii. Compute correspondingly the penalty factors
+        alphaBar = pMax/minElEdgeSize;
+        weakPatchContinuityAlphaPrimaryIJ[iWCC] = alphaBar;
+        weakPatchContinuityAlphaSecondaryBendingIJ[iWCC] = alphaBar;
+        weakPatchContinuityAlphaSecondaryTwistingIJ[iWCC] = alphaBar;
 
-        // Write the Penalty parameters into a file
+        // 4xviii. Write the Penalty parameters into a file
         if (!_filename.empty()) {
             ofs << "Coupling between patch[" << indexMaster << "] and patch[" << indexSlave << "]:" << std::endl;
-            ofs << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << alphaPrim << std::endl;
-            ofs << "weakPatchContinuityAlphaSecondaryIJ[" << iWCC << "] = " << alphaSec << std::endl;
+            ofs << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << alphaBar << std::endl;
             ofs << std::endl;
         }
     } // End of weak continuity condition loop
 
-    // Close file
+    // 5. Close file
     if (!_filename.empty())
         ofs.close();
 }
 
 void IGAMortarMapper::consistentMapping(const double* _slaveField, double *_masterField) {
     /*
-     * Mapping of the
+     * Computes the master field given the slave field using the isogeometric mortar based method,
      * Cnn * x_master = Cnr * x_slave
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary variables
+     *
+     * 2. Compute the right hand side of the isogeometric mortar-based mapping method, C_NR * x_slave = tmpVec
+     *
+     * 3. Solve for the master field using the isogeometric mortar-based mapping method, Cnn * x_master = tmpVec
+     *
+     * 4. Delete pointers
      */
 
-    // Get the appropriate sizes of the matrices
+    // 1. Initialize auxiliary variables
     int size_N = couplingMatrices->getSizeN();
-
-    // Initialize right hand side vector
     double* tmpVec = new double[size_N]();
 
-    // C_NR * x_slave = tmpVec
+    // 2. Compute the right hand side of the isogeometric mortar-based mapping method, C_NR * x_slave = tmpVec
     couplingMatrices->getCnr()->mulitplyVec(false,const_cast<double *>(_slaveField), tmpVec, size_N);
 
-    // Solve for the master field Cnn * x_master = tmpVec
+    // 3. Solve for the master field using the isogeometric mortar-based mapping method, Cnn * x_master = tmpVec
     couplingMatrices->getCnn()->solve(_masterField, tmpVec);
 
-    // Delete pointers
+    // 4. Delete pointers
     delete[] tmpVec;
 }
 
 void IGAMortarMapper::conservativeMapping(const double* _masterField, double *_slaveField) {
     /*
-     * Mapping of the
+     * Computes the slave field given the master field using the transpose transformation matrix
+     * from the isogeometric mortar-based method as,
+     *
      * f_slave = (Cnn^(-1) * Cnr)^T * f_master
+     *
+     * This transformation is only valid when mapping forces (conservative mapping)
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Compute the transformation matrix corresponding to the isogeometric mortar-based mapping
+     *
+     * 3. Tranpose multiply the right-hand side with the mortar tranformation matrix
+     *
+     * 4. Delete pointers
      */
-    int size_N = couplingMatrices->getSizeN();
 
+    // 1. Initialize auxiliary arrays
+    int size_N = couplingMatrices->getSizeN();
     double* tmpVec = new double[size_N];
 
+    // 2. Compute the transformation matrix corresponding to the isogeometric mortar-based mapping
     couplingMatrices->getCnn()->solve(tmpVec, const_cast<double *>(_masterField));
 
+    // 3. Tranpose multiply the right-hand side with the mortar tranformation matrix
     couplingMatrices->getCnr()->transposeMulitplyVec(tmpVec, _slaveField, size_N);
 
+    // 4. Delete pointers
     delete[] tmpVec;
 }
 
 void IGAMortarMapper::computeErrorsConsistentMapping(const double* _slaveField, const double *_masterField) {
-    // Initialize the errors
+    /*
+     * Computes the domain, interface and boundary errors corresponding to the isogeometric mortar-based mapping
+     *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Compute the relative error in terms of the L2 norm of the error in the domain
+     *
+     * 3. Compute the L2 norm of the error along the Dirichlet boundary
+     *
+     * 4. Compute the L2 norm of the error along the patch interfaces
+     *
+     * 5. Print messages on the errors
+     */
+
+    // 1. Initialize auxiliary arrays
     double errorL2Domain;
     double errorL2Interface[2];
     double errorL2Curve[2];
 
-    // 1. Compute the relative error in terms of the L2 norm of the error in the domain
+    // 2. Compute the relative error in terms of the L2 norm of the error in the domain
     if(propErrorComputation.isDomainError)
         errorL2Domain = computeDomainErrorInL2Norm4ConsistentMapping(_slaveField, _masterField);
 
-    // 2. Compute the L2 norm of the error along the Dirichlet boundary
+    // 3. Compute the L2 norm of the error along the Dirichlet boundary
     if(propErrorComputation.isCurveError)
         if(isMappingIGA2FEM){
             computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _slaveField);
@@ -3364,7 +3736,7 @@ void IGAMortarMapper::computeErrorsConsistentMapping(const double* _slaveField, 
             computeIGADirichletCurveErrorInL2Norm(errorL2Curve, _masterField);
         }
 
-    // 3. Compute the L2 norm of the error along the patch interfaces
+    // 4. Compute the L2 norm of the error along the patch interfaces
     if(propErrorComputation.isInterfaceError)
         if(isMappingIGA2FEM){
             computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _slaveField);
@@ -3372,6 +3744,7 @@ void IGAMortarMapper::computeErrorsConsistentMapping(const double* _slaveField, 
             computeIGAPatchInterfaceErrorInL2Norm(errorL2Interface, _masterField);
         }
 
+    // 5. Print messages on the errors
     printErrorMessage(infoOut, errorL2Domain, errorL2Curve, errorL2Interface);
 }
 
@@ -3384,12 +3757,41 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
      *
      * weight + jacobian + nShapeFuncsFE + (#dof, shapefuncValue,...) + nShapeFuncsIGA + (#dof, shapefuncValue,...)
      *
+     * Function layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Loop over all the Gauss Points
+     * ->
+     *    2i. Get the Gauss Point Weight
+     *   2ii. Get the product of the Jacobian transformations at the Gauss point
+     *  2iii. Get the number of the basis functions of the finite element
+     *   2iv. Initialize the field on the finite element mesh at the Gauss point
+     *    2v. Loop over the nodes of the finite element
+     *    ->
+     *        2v.1. Get the value of the basis function
+     *        2v.2. Get the index of the node
+     *    <-
+     *   2vi. Get the number of basis functions of the isogeometric discretization
+     *  2vii. Initialize the field on the isogeometric discretization at the Gauss point
+     * 2viii. Loop over the Control Points of the isogeometric discretization
+     * ->
+     *        2viii.1. Get the value of the basis function
+     *        2viii.2. Get the index of the CP
+     * <-
+     *   2ix. Compute the difference of the vectors on the Gauss Point
+     *    2x. Compute the norm of the difference of the fields at the Gauss Point
+     *   2xi. Compute the norm of the reference field at the Gauss Point
+     *  2xii. Add the contributions from the Gauss Point
+     * <-
+     *
+     * 3. Compute the relative L2 norm of the mapping error
+     *
+     * 4. Return the relative L2 norm of the mapping error
      */
 
-    // Initialize output array
+    // 1. Initialize auxiliary arrays
     double errorL2Domain = 0.0;
-
-    // Initialize auxiliary arrays
     double slaveFieldL2Domain = 0.0;
     double slaveFieldNorm;
     double JacobianProducts;
@@ -3405,31 +3807,29 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     int indexNode;
     int indexCP;
     int noCoord = 3;
-
-    // Define tolerance
     double tolNormSlaveField = 1e-6;
 
-    // Loop over all the Gauss Points
+    // 2. Loop over all the Gauss Points
     for(int iGP = 0; iGP < streamGPs.size(); iGP++){
-        // Get the Gauss Point Weight
+        // 2i. Get the Gauss Point Weight
         GW = streamGPs[iGP][0];
 
-        // Get the product of the Jacobian transformations at the Gauss point
+        // 2ii. Get the product of the Jacobian transformations at the Gauss point
         JacobianProducts = streamGPs[iGP][1];
 
-        // Get the number of the basis functions of the finite element
+        // 2iii. Get the number of the basis functions of the finite element
         noNodesFE = streamGPs[iGP][2];
 
-        // Initialize the field on the finite element mesh at the Gauss point
+        // 2iv. Initialize the field on the finite element mesh at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             fieldFEM[iCoord] = 0.0;
 
-        // Loop over the nodes of the finite element
+        // 2v. Loop over the nodes of the finite element
         for(int iNodesFE = 0; iNodesFE < noNodesFE; iNodesFE++){
-            // Get the value of the basis function
+            // 2v.1. Get the value of the basis function
             basisFctFEM = streamGPs[iGP][3 + 2*iNodesFE + 1];
 
-            // Get the index of the node
+            // 2v.2. Get the index of the node
             indexNode = streamGPs[iGP][3 + 2*iNodesFE];
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 if(!isMappingIGA2FEM) {
@@ -3438,19 +3838,19 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
                     fieldFEM[iCoord] += basisFctFEM*_masterField[noCoord*indexNode + iCoord];
         }
 
-        // Get the number of basis functions of the isogeometric discretization
+        // 2vi. Get the number of basis functions of the isogeometric discretization
         noCPsIGA = streamGPs[iGP][3 + 2*noNodesFE];
 
-        // Initialize the field on the isogeometric discretization at the Gauss point
+        // 2vii. Initialize the field on the isogeometric discretization at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             fieldIGA[iCoord] = 0.0;
 
-        // Loop over the Control Points of the isogeometric discretization
+        // 2viii. Loop over the Control Points of the isogeometric discretization
         for(int iCPsIGA = 0; iCPsIGA < noCPsIGA; iCPsIGA++){
-            // Get the value of the basis function
+            // 2viii.1. Get the value of the basis function
             basisFctIGA = streamGPs[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 2];
 
-            // Get the index of the CP
+            // 2viii.2. Get the index of the CP
             indexCP = streamGPs[iGP][3 + 2*noNodesFE + 2*iCPsIGA + 1];
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 if(!isMappingIGA2FEM)
@@ -3459,25 +3859,25 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
                     fieldIGA[iCoord] += basisFctIGA*_slaveField[noCoord*indexCP + iCoord];
         }
 
-        // Compute the difference of the vectors on the Gauss Point
+        // 2ix. Compute the difference of the vectors on the Gauss Point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             errorVct[iCoord] = fieldFEM[iCoord] - fieldIGA[iCoord];
 
-        // Compute the norm of the difference of the fields at the Gauss Point
+        // 2x. Compute the norm of the difference of the fields at the Gauss Point
         errorGPSquare = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, errorVct, errorVct);
 
-        // Compute the norm of the reference field at the Gauss Point
+        // 2xi. Compute the norm of the reference field at the Gauss Point
         if(!isMappingIGA2FEM)
             slaveFieldNorm = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, fieldFEM, fieldFEM);
         else
             slaveFieldNorm = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, fieldIGA, fieldIGA);
 
-        // Add the contributions from the Gauss Point
+        // 2xii. Add the contributions from the Gauss Point
         errorL2Domain += errorGPSquare*JacobianProducts*GW;
         slaveFieldL2Domain += slaveFieldNorm*JacobianProducts*GW;
     }
 
-    // Compute the relative L2 norm of the mapping error
+    // 3. Compute the relative L2 norm of the mapping error
     errorL2Domain = sqrt(errorL2Domain);
     slaveFieldL2Domain = sqrt(slaveFieldL2Domain);
     if (slaveFieldL2Domain > tolNormSlaveField)
@@ -3485,7 +3885,7 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     else
         WARNING_OUT() << "The norm of the slave field is smaller than the tolerance, no division of the mapping error is made" << std::endl;
 
-    // Return the relative L2 norm of the mapping error
+    // 4. Return the relative L2 norm of the mapping error
     return errorL2Domain;
 }
 
@@ -3498,14 +3898,39 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
      * in the following sequence,
      *
      * elementLengthOnGP + noBasisFuncs + (#indexCP, basisFuncValue,...) + (#indexDOF, BtValue, BnValue,...)
+     *
+     * Function layout :
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Loop over all the Gauss Points
+     * ->
+     *    2i. Get the element length on the Gauss Point
+     *   2ii. Get the number of basis functions of patch
+     *  2iii. Initialize the field and its rotations on the isogeometric discretization at the Gauss point
+     *   2iv. Loop over all basis functions of the patch and compute the field at the Gauss Point
+     *   ->
+     *        2iv.1. Get the index of the Control Point
+     *        2iv.2. Get the value of the basis function
+     *        2iv.3. Loop over all the Cartesian coordinates
+     *   <-
+     *    2v. Loop over all the DOFs of the patch and compute the rotations of the field at the Gauss point
+     *    ->
+     *        2v.1. Get the index of the DOF
+     *        2v.2. Get the value of the B-operator for the bending rotation
+     *        2v.3. Get the value of the B-operator for the twisting rotation
+     *        2v.4. Compute the tangent and the bending rotations
+     *    <-
+     *   2vi. Compute the error vector for the displacements
+     *  2vii. Compute the error in terms of the rotations
+     * <-
+     *
+     * 3. Take the necessary for the norm square roots
      */
 
-    // Initialize output array
-    for(int i = 0; i < 2; i++){
+    // 1. Initialize auxiliary arrays
+    for(int i = 0; i < 2; i++)
         _errorL2Curve[i] = 0.0;
-    }
-
-    // Initialize auxiliary arrays
     int noCPs;
     int noDOFs;
     int indexCP;
@@ -3524,59 +3949,59 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
     double normErrorFieldSquare;
     double errorField[3];
 
-    // Loop over all the Gauss Points
+    // 2. Loop over all the Gauss Points
     for(int iGP = 0; iGP < streamCurveGPs.size(); iGP++){
-        // Get the element length on the Gauss Point
+        // 2i. Get the element length on the Gauss Point
         elementLengthOnGP = streamCurveGPs[iGP][0];
 
-        // Get the number of basis functions of patch
+        // 2ii. Get the number of basis functions of patch
         noCPs = streamCurveGPs[iGP][1];
         noDOFs = 3*noCPs;
 
-        // Initialize the field and its rotations on the isogeometric discretization at the Gauss point
+        // 2iii. Initialize the field and its rotations on the isogeometric discretization at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++)
             field[iCoord] = 0.0;
         omegaT = 0.0;
         omegaN = 0.0;
 
-        // Loop over all basis functions of the patch and compute the field at the Gauss Point
+        // 2iv. Loop over all basis functions of the patch and compute the field at the Gauss Point
         for(int iBFs = 0; iBFs < noCPs; iBFs++){
-            // Get the index of the Control Point
+            // 2iv.1. Get the index of the Control Point
             indexCP = streamCurveGPs[iGP][1 + 1 + 2*iBFs];
 
-            // Get the value of the basis function
+            // 2iv.2. Get the value of the basis function
             basisFct = streamCurveGPs[iGP][1 + 1 + 2*iBFs + 1];
 
-            // Loop over all the Cartesian coordinates
+            // 2iv.3. Loop over all the Cartesian coordinates
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 field[iCoord] += basisFct*_fieldIGA[noCoord*indexCP + iCoord];
         }
 
-        // Loop over all the DOFs of the patch and compute the rotations of the field at the Gauss point
+        // 2v. Loop over all the DOFs of the patch and compute the rotations of the field at the Gauss point
         for(int iDOFs = 0; iDOFs < noDOFs; iDOFs++){
-            // Get the index of the DOF
+            // 2v.1. Get the index of the DOF
             indexDOF = streamCurveGPs[iGP][1 + 1 + 2*noCPs + 3*iDOFs];
 
-            // Get the value of the B-operator for the bending rotation
+            // 2v.2. Get the value of the B-operator for the bending rotation
             BoperatorT = streamCurveGPs[iGP][1 + 1 + 2*noCPs + 3*iDOFs + 1];
 
-            // Get the value of the B-operator for the twisting rotation
+            // 2v.3. Get the value of the B-operator for the twisting rotation
             BoperatorN = streamCurveGPs[iGP][1 + 1 + 2*noCPs + 3*iDOFs + 2];
 
-            // Compute the tangent and the bending rotations
+            // 2v.4. Compute the tangent and the bending rotations
             omegaT += BoperatorT*_fieldIGA[indexDOF];
             if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
                 omegaN += BoperatorN*_fieldIGA[indexDOF];
         }
 
-        // Compute the error vector for the displacements
+        // 2vi. Compute the error vector for the displacements
         for(int iCoord = 0; iCoord < noCoord; iCoord++){
             errorField[iCoord] = field[iCoord] - 0.0;
         }
         normErrorFieldSquare = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, errorField, errorField);
         _errorL2Curve[0] += normErrorFieldSquare*elementLengthOnGP;
 
-        // Compute the error in terms of the rotations
+        // 2vii. Compute the error in terms of the rotations
         errorBendingRotation = omegaT + 0.0;
         errorTwistingRotation = omegaN + 0.0;
         if (propWeakCurveDirichletConditions.isSecTwistingPrescribed)
@@ -3586,7 +4011,7 @@ void IGAMortarMapper::computeIGADirichletCurveErrorInL2Norm(double* _errorL2Curv
         _errorL2Curve[1] += normRotationSquare*elementLengthOnGP;
     }
 
-    // Take the necessary for the norm square roots
+    // 3. Take the necessary for the norm square roots
     for(int i = 0; i < 2; i++)
         _errorL2Curve[i] = sqrt(_errorL2Curve[i]);
 }
@@ -3599,14 +4024,54 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
      * in the following sequence,
      *
      * elementLengthOnGP + noBasisFuncsI + (#indexCP, basisFuncValueI,...) + (#indexDOF, BtValueI, BnValueI,...) + noBasisFuncsJ + (#indexCP, basisFuncValueJ,...) + (#indexDOF, BtValueJ, BnValueJ,...)
+     *
+     * Functions layout:
+     *
+     * 1. Initialize auxiliary arrays
+     *
+     * 2. Loop over all the Gauss Points
+     * ->
+     *    2i. Get the element length on the Gauss Point
+     *   2ii. Get the number of basis functions of patch I
+     *  2iii. Initialize the field and its rotations on the isogeometric discretization at the Gauss point
+     *   2iv. Loop over all basis functions of patch I and compute the field at the Gauss Point
+     *   ->
+     *        2iv.1. Get the index of the Control Point
+     *        2iv.2. Get the value of the basis function
+     *        2iv.3. Loop over all the Cartesian coordinates
+     *   <-
+     *    2v. Loop over all the DOFs of patch I and compute the rotations of the field at the Gauss point
+     *    ->
+     *        2v.1. Get the index of the DOF
+     *        2v.2. Get the value of the B-operator for the bending rotation
+     *        2v.3. Get the value of the B-operator for the twisting rotation
+     *        2v.4. Compute the tangent and the bending rotations
+     *    <-
+     *   2vi. Get the number of basis functions of patch J
+     *  2vii. Loop over all basis functions of patch J and compute the field at the Gauss Point
+     *  ->
+     *        2vii.1. Get the index of the Control Point
+     *        2vii.2. Get the value of the basis function
+     *        2vii.3. Loop over all the Cartesian coordinates
+     *  <-
+     * 2viii. Loop over all the DOFs of patch J and compute the rotations of the field at the Gauss point
+     * ->
+     *        2viii.1. Get the index of the DOF
+     *        2viii.2. Get the value of the B-operator for the bending rotation
+     *        2viii.3. Get the value of the B-operator for the twisting rotation
+     *        2viii.4. Compute the tangent and the bending rotations
+     * <-
+     *   2ix. Get the factors for the bending and the twisting rotation
+     *    2x. Compute the error vector for the displacements
+     *   2xi. Compute the error in terms of the rotations
+     * <-
+     *
+     * 3. Take the necessary for the norm square roots
      */
 
-    // Initialize output array
-    for(int i = 0; i < 2; i++){
+    // 1. Initialize auxiliary arrays
+    for(int i = 0; i < 2; i++)
         _errorL2Interface[i] = 0.0;
-    }
-
-    // Initialize auxiliary arrays
     int noCPsI;
     int noCPsJ;
     int noDOFsI;
@@ -3632,16 +4097,16 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
     double normErrorFieldSquare;
     double errorField[3];
 
-    // Loop over all the Gauss Points
+    // 2. Loop over all the Gauss Points
     for(int iGP = 0; iGP < streamInterfaceGPs.size(); iGP++){
-        // Get the element length on the Gauss Point
+        // 2i. Get the element length on the Gauss Point
         elementLengthOnGP = streamInterfaceGPs[iGP][0];
 
-        // Get the number of basis functions of patch I
+        // 2ii. Get the number of basis functions of patch I
         noCPsI = streamInterfaceGPs[iGP][1];
         noDOFsI = 3*noCPsI;
 
-        // Initialize the field and its rotations on the isogeometric discretization at the Gauss point
+        // 2iii. Initialize the field and its rotations on the isogeometric discretization at the Gauss point
         for(int iCoord = 0; iCoord < noCoord; iCoord++){
             fieldI[iCoord] = 0.0;
             fieldJ[iCoord] = 0.0;
@@ -3651,80 +4116,80 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
         omegaNI = 0.0;
         omegaNJ = 0.0;
 
-        // Loop over all basis functions of patch I and compute the field at the Gauss Point
+        // 2iv. Loop over all basis functions of patch I and compute the field at the Gauss Point
         for(int iBFs = 0; iBFs < noCPsI; iBFs++){
-            // Get the index of the Control Point
+            // 2iv.1. Get the index of the Control Point
             indexCP = streamInterfaceGPs[iGP][1 + 1 + 2*iBFs];
 
-            // Get the value of the basis function
+            // 2iv.2. Get the value of the basis function
             basisFct = streamInterfaceGPs[iGP][1 + 1 + 2*iBFs + 1];
 
-            // Loop over all the Cartesian coordinates
+            // 2iv.3. Loop over all the Cartesian coordinates
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 fieldI[iCoord] += basisFct*_fieldIGA[noCoord*indexCP + iCoord];
         }
 
-        // Loop over all the DOFs of patch I and compute the rotations of the field at the Gauss point
+        // 2v. Loop over all the DOFs of patch I and compute the rotations of the field at the Gauss point
         for(int iDOFs = 0; iDOFs < noDOFsI; iDOFs++){
-            // Get the index of the DOF
+            // 2v.1. Get the index of the DOF
             indexDOF = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs];
 
-            // Get the value of the B-operator for the bending rotation
+            // 2v.2. Get the value of the B-operator for the bending rotation
             BoperatorT = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs + 1];
 
-            // Get the value of the B-operator for the twisting rotation
+            // 2v.3. Get the value of the B-operator for the twisting rotation
             BoperatorN = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*iDOFs + 2];
 
-            // Compute the tangent and the bending rotations
+            // 2v.4. Compute the tangent and the bending rotations
             omegaTI += BoperatorT*_fieldIGA[indexDOF];
             omegaNI += BoperatorN*_fieldIGA[indexDOF];
         }
 
-        // Get the number of basis functions of patch J
+        // 2vi. Get the number of basis functions of patch J
         noCPsJ = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI];
         noDOFsJ = 3*noCPsJ;
 
-        // Loop over all basis functions of patch J and compute the field at the Gauss Point
+        // 2vii. Loop over all basis functions of patch J and compute the field at the Gauss Point
         for(int iBFs = 0; iBFs < noCPsJ; iBFs++){
-            // Get the index of the Control Point
+            // 2vii.1. Get the index of the Control Point
             indexCP = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*iBFs];
 
-            // Get the value of the basis function
+            // 2vii.2. Get the value of the basis function
             basisFct = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*iBFs + 1];
 
-            // Loop over all the Cartesian coordinates
+            // 2vii.3. Loop over all the Cartesian coordinates
             for(int iCoord = 0; iCoord < noCoord; iCoord++)
                 fieldJ[iCoord] += basisFct*_fieldIGA[noCoord*indexCP + iCoord];
         }
 
-        // Loop over all the DOFs of patch J and compute the rotations of the field at the Gauss point
+        // 2viii. Loop over all the DOFs of patch J and compute the rotations of the field at the Gauss point
         for(int iDOFs = 0; iDOFs < noDOFsJ; iDOFs++){
-            // Get the index of the DOF
+            // 2viii.1. Get the index of the DOF
             indexDOF = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs];
 
-            // Get the value of the B-operator for the bending rotation
+            // 2viii.2. Get the value of the B-operator for the bending rotation
             BoperatorT = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs + 1];
 
-            // Get the value of the B-operator for the twisting rotation
+            // 2viii.3. Get the value of the B-operator for the twisting rotation
             BoperatorN = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*iDOFs + 2];
 
-            // Compute the tangent and the bending rotations
+            // 2viii.4. Compute the tangent and the bending rotations
             omegaTJ += BoperatorT*_fieldIGA[indexDOF];
             omegaNJ += BoperatorN*_fieldIGA[indexDOF];
         }
 
-        // Get the factors for the bending and the twisting rotation
+        // 2ix. Get the factors for the bending and the twisting rotation
         factorTangent = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ];
         factorNormal = streamInterfaceGPs[iGP][1 + 1 + 2*noCPsI + 3*noDOFsI + 1 + 2*noCPsJ + 3*noDOFsJ + 1];
 
-        // Compute the error vector for the displacements
+        // 2x. Compute the error vector for the displacements
         for(int iCoord = 0; iCoord < noCoord; iCoord++){
             errorField[iCoord] = fieldI[iCoord] - fieldJ[iCoord];
         }
         normErrorFieldSquare = EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, errorField, errorField);
         _errorL2Interface[0] += normErrorFieldSquare*elementLengthOnGP;
 
-        // Compute the error in terms of the rotations
+        // 2xi. Compute the error in terms of the rotations
         errorBendingRotation = omegaTI + factorTangent*omegaTJ;
         if (propWeakPatchContinuityConditions.isSecTwistingCoupled)
             errorTwistingRotation = omegaNI + factorNormal*omegaNJ;
@@ -3732,7 +4197,7 @@ void IGAMortarMapper::computeIGAPatchInterfaceErrorInL2Norm(double* _errorL2Inte
         _errorL2Interface[1] += normRotationSquare*elementLengthOnGP;
     }
 
-    // Take the necessary for the norm square roots
+    // 3. Take the necessary for the norm square roots
     for(int i = 0; i < 2; i++)
         _errorL2Interface[i] = sqrt(_errorL2Interface[i]);
 }
@@ -3950,26 +4415,55 @@ void IGAMortarMapper::enforceConsistency() {
      * The function checks the consistency up to the specified tolerance when mapping a unit field and if the consistency up
      * to the specified tolerance is violated then it is being enforced. In case after enforcing the consistency the mapping
      * of a unit field still violates the specified consistency tolerance an error is asserted.
+     *
+     * Function layout:
+     *
+     * 1. Print message
+     *
+     * 2. Initialize auxiliary arrays
+     *
+     * 3. Create a field of ones to be mapped with the isogeometric mortar-based method
+     *
+     * 4. Compute the mapped field using the isogeometric mortar-based method
+     *
+     * 5. Compute the norm of the mapped field
+     *
+     * 6. Replace each row which's sum is not equal to 1.0 +- epsilon by sum value of Cnr
+     * ### If the array of the inconsistent DOFs is not zero ###
+     *    6i. Print info message
+     *   6ii. Factorize Cnn
+     *  6iii. Perform the consistent mapping using the unit field after enforcing consistency
+     *   6iv. Compute the norm of the mapped field
+     * ### If the array of the inconsistent DOFs not zero ###
+     *
+     * 7. Compute the norm of the mapped field
+     *
+     * 8. Print info message on the consistency check
+     *
+     * 9. Delete pointers
      */
 
+    // 1. Print message
     INFO_OUT() << "Checking consistency" << std::endl;
 
-    // Get the sizes of the coupling matrices
+    // 2. Initialize auxiliary arrays
+    int denom;
     int size_N = couplingMatrices->getSizeN();
     int size_R = couplingMatrices->getSizeR();
+    double norm;
 
-    // Create a field of ones
+    // 3. Create a field of ones to be mapped with the isogeometric mortar-based method
     double* ones = new double[size_R];
     for(int i = 0; i < size_R; i++) {
         ones[i] = 1.0;
     }
 
-    // Compute the mapped field doing consistent mapping
+    // 4. Compute the mapped field using the isogeometric mortar-based method
     double* output = new double[size_N];
     this->consistentMapping(ones, output);
 
-    // Compute the norm of the output field
-    double norm = 0;
+    // 5. Compute the norm of the mapped field
+    norm = 0;
     vector<int> inconsistentDoF;
     for(int i = 0; i < size_N; i++) {
         if(fabs(output[i] - 1) > propConsistency.tolConsistency && output[i] != 0)
@@ -3977,8 +4471,9 @@ void IGAMortarMapper::enforceConsistency() {
         norm += output[i]*output[i];
     }
 
-    // Replace badly conditioned row of Cnn by sum value of Cnr
-    if(!inconsistentDoF.empty()) {
+    // 6. Replace each row which's sum is not equal to 1.0 +- epsilon by sum value of Cnr
+    if(!inconsistentDoF.empty()) { // ### If the array of the inconsistent DOFs is not zero ###
+        // 6i. Print info message
         INFO_OUT() << "Mapping found inconsistent up to specified tolerance" << std::endl;
         INFO_OUT() << "inconsistent DOF size = " << inconsistentDoF.size() << std::endl;
         INFO_OUT() << "Enforcing consistency" << std::endl;
@@ -3987,20 +4482,25 @@ void IGAMortarMapper::enforceConsistency() {
             couplingMatrices->addCNNValue(*it ,*it , couplingMatrices->getCnr()->getRowSum(*it));
         }
 
+        // 6ii. Factorize Cnn
         couplingMatrices->factorizeCnn();
-        this->consistentMapping(ones, output);
-        norm = 0;
 
+        // 6iii. Perform the consistent mapping using the unit field after enforcing consistency
+        this->consistentMapping(ones, output);
+
+        // 6iv. Compute the norm of the mapped field
+        norm = 0;
         for(int i = 0; i < size_N; i++) {
             norm += output[i]*output[i];
         }
-    } else
+    } else // ### If the array of the inconsistent DOFs not zero ###
         INFO_OUT() << "Mapping found consistent up to specified tolerance" << std::endl;
 
-    int denom = size_N - couplingMatrices->getIndexEmptyRowCnn().size();
-
+    // 7. Compute the norm of the mapped field
+    denom = size_N - couplingMatrices->getIndexEmptyRowCnn().size();
     norm = sqrt(norm/denom);
 
+    // 8. Print info message on the consistency check
     DEBUG_OUT() << "Checking consistency after enforcement"<<endl;
     DEBUG_OUT() << "Deviation from unit field : "<< fabs(norm - 1.0) << endl;
     if(fabs(norm - 1.0) > propConsistency.tolConsistency) {
@@ -4008,7 +4508,7 @@ void IGAMortarMapper::enforceConsistency() {
         exit(-1);
     }
 
-    // Delete pointers
+    // 9. Delete pointers
     delete ones;
     delete output;
 }
@@ -4075,6 +4575,9 @@ void IGAMortarMapper::getPenaltyParameterForPatchContinuitySecondaryFieldTwistin
 }
 
 void IGAMortarMapper::printErrorMessage(Message &message, double _errorL2Domain, double* _errorL2Curve, double* _errorL2Interface){
+    /*
+     * Print message containing the errors in the L2 norm
+     */
     message << std::endl;
     message() << "\t+" << "Mapping error: " << std::endl;
     if(propErrorComputation.isDomainError)

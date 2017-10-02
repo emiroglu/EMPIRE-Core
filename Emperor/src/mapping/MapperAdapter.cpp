@@ -98,46 +98,11 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
                                         bool _isWeakPatchContinuityConditions, bool _isAutomaticPenaltyParametersWeakContinuityConditions, bool _isPrimCoupledWeakContinuityConditions, bool _isSecBendingCoupledWeakContinuityConditions, bool _isSecTwistingCoupledWeakContinuityConditions, double _alphaPrimWeakContinuityConditions, double _alphaSecBendingWeakContinuityConditions, double _alphaSecTwistingWeakContinuityConditions,
                                         bool _isStrongCurveDirichletConditions,
                                         bool _isErrorComputation, bool _isDomainError, bool _isCurveError, bool _isInterfaceError) {
-    bool meshAIGA = (meshA->type == EMPIRE_Mesh_IGAMesh);
-    bool meshBIGA = (meshB->type == EMPIRE_Mesh_IGAMesh);
-    bool isExpanded = _isWeakCurveDirichletConditions || _isWeakSurfaceDirichletConditions || _isWeakPatchContinuityConditions;
-    bool isMappingIGA2FEM;
-    if (meshAIGA && !meshBIGA) {
-        assert(meshB->type == EMPIRE_Mesh_FEMesh || meshB->type == EMPIRE_Mesh_SectionMesh);
-        isMappingIGA2FEM = true;
-        mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshA),
-                dynamic_cast<FEMesh *>(meshB), isExpanded, isMappingIGA2FEM);
-    } else if (!meshAIGA && meshBIGA) {
-        assert(meshA->type == EMPIRE_Mesh_FEMesh || meshA->type == EMPIRE_Mesh_SectionMesh);
-        isMappingIGA2FEM = false;
-        mapperImpl = new IGAMortarMapper(name, dynamic_cast<IGAMesh *>(meshB),
-                dynamic_cast<FEMesh *>(meshA), isExpanded, isMappingIGA2FEM);
-    } else {
-        ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
-        ERROR_OUT() << "Wrong type of mesh! Put a NURBS mesh and a FE mesh!" << endl;
-        exit(-1);
-    }
 
-    // Check input
-    if (_isErrorComputation)
-        if (_isCurveError && !_isWeakCurveDirichletConditions){
-            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
-            ERROR_OUT() << "Error computation along trimming curves is requested but no conditions along trimming curves are prescribed" << endl;
-            exit(-1);
-        }
-        if (_isInterfaceError && !_isWeakPatchContinuityConditions) {
-            ERROR_OUT() << "Error in MapperAdapter::initIGAMortarMapper" << endl;
-            ERROR_OUT() << "Error computation along patch interfaces is requested but no conditions along the patch interfaces are prescribed" << endl;
-            exit(-1);
-        }
-    if(_isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
-        assert(isExpanded);
-    }
-    if(_isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
-        assert(isExpanded);
-    }
+    assert((meshA->type == EMPIRE_Mesh_FEMesh && meshB->type == EMPIRE_Mesh_IGAMesh) ||
+           (meshB->type == EMPIRE_Mesh_FEMesh && meshA->type == EMPIRE_Mesh_IGAMesh));
 
-    // Initialize the IGA mortar mapper
+    mapperImpl = new IGAMortarMapper(name, meshA, meshB);
     IGAMortarMapper* mapper = dynamic_cast<IGAMortarMapper*>(mapperImpl);
     mapper->setParametersConsistency(_enforceConsistency, _tolConsistency);
     mapper->setParametersProjection(_maxProjectionDistance, _noInitialGuess, _maxProjectionDistanceOnDifferentPatches);
@@ -157,6 +122,7 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
                                                        _alphaSecBendingWeakContinuityConditions, _alphaSecTwistingWeakContinuityConditions);
     mapper->setParametersStrongCurveDirichletConditions(_isStrongCurveDirichletConditions);
     mapper->setParametersErrorComputation(_isErrorComputation, _isDomainError, _isCurveError, _isInterfaceError);
+    mapper->initialize();
     mapper->buildCouplingMatrices();
 }
 

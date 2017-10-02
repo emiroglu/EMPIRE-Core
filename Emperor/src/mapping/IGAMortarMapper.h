@@ -88,6 +88,9 @@ private:
     /// Indices for rows which are identically zero in the mass matrix
     std::vector<int> indexEmptyRowCnn;
 
+    /// Flag on whether the coupling matrices are initialized
+    bool isCouplingMatrices;
+
     /// The isogeometric coupling matrices
     IGAMortarCouplingMatrices *couplingMatrices;
 
@@ -250,20 +253,25 @@ public:
     /***********************************************************************************************
      * \brief Constructor
      * \param[in] _name The name of the mapper
-     * \param[in] _meshIGA The IGAMesh
-     * \param[in] _meshFE The FEMesh
+     * \param[in] _meshA Mesh A (either IGA or FEM mesh)
+     * \param[in] _meshB Mesh B (either IGA or FEM mesh)
      * \param[in] _isExpanded Flag on whether or not the coupling matrices will be expanded
      * \param[in] _isMappingIGA2FEM
-     * \author Andreas Apostolatos, Fabien Pean
-     * \modified Altug Emiroglu (reduced the number of input arguments)
+     * \author Andreas Apostolatos, Altug Emiroglu, Fabien Pean
      ***********/
-    IGAMortarMapper(std::string _name, IGAMesh *_meshIGA, FEMesh *_meshFE, bool _isWeakConditions, bool _isMappingIGA2FEM);
+    IGAMortarMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB);
 
     /***********************************************************************************************
      * \brief Destructor
-     * \author Fabien Pean
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
     virtual ~IGAMortarMapper();
+
+    /***********************************************************************************************
+     * \brief Initialization of the mapper
+     * \author Andreas Apostolatos
+     ***********/
+    void initialize();
 
     /***********************************************************************************************
      * \brief Set the the parameters for the consistency enforcement
@@ -438,6 +446,12 @@ private:
      * \author Andreas Apostolatos
      ***********/
     void initTables();
+
+    /***********************************************************************************************
+     * \brief Initialization of the coupling matrices
+     * \author Andreas Apostolatos
+     ***********/
+    void initCouplingMatrices();
 
     /***********************************************************************************************
      * \brief Fills up the array projectedCoords by performing closest point projection
@@ -750,7 +764,7 @@ public:
 
     /***********************************************************************************************
      * \brief Check and enforce consistency of the mapper based on the mapping of a unit field
-     * \author Fabien Pean
+     * \author Andreas Apostolatos, Fabien Pean
      ***********/
     void enforceConsistency();
 

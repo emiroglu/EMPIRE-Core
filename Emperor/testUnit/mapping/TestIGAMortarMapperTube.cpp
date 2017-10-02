@@ -56,10 +56,9 @@ private:
 public:
     void setUp() {
 
+        // Initialize tolerance
         TolMatrix = 1e-10;
         Tol = 1e-13;
-        // Provide an id for the basis
-        int id_basis = 1;
 
         // The polynomial degrees
         int p = 2;
@@ -2357,9 +2356,7 @@ public:
         theFEMesh->nodes[263 * 3 + 1] = 1.311111111111110e+00;
         theFEMesh->nodes[263 * 3 + 2] = 9.800000000000004e+00;
 
-        bool isMappingIGA2FEM = true;
-        bool isWeakConditions = false;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Tube", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Tube", theIGAMesh, theFEMesh);
         theMapper->buildCouplingMatrices();
 //		theMapper->printCouplingMatrices();
 //		exit(-1);

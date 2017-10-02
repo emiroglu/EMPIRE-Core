@@ -59,8 +59,6 @@ private:
 
 public:
     void setUp() {
-        isMappingIGA2FEM = false;
-        isWeakConditions = true;
 
         // Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB)
         Tol = 1e-15;
@@ -999,7 +997,7 @@ public:
         theFEMesh->elems[29 * 4 + 3] = 61;
 
         // Initialize the isogeometric mortar-based mapper
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMesh, theFEMesh);
 
         // Assign the mapper's properties
         theMapper->setParametersProjection(0.05, 2, 1e-3);
@@ -1535,13 +1533,11 @@ public:
 
         // Define the expected solution in terms of the Penalty parameters
         double expectedAlphaPrimaryIJ = 5.527399039185964e+01;
-        double expectedAlphaSecondaryBendingIJ = 1.051417998627184e+01;
-        double expectedAlphaSecondaryTwistingIJ = 1.051417998627184e+01;
 
         // Check if the computed Penalty parameters match the expected ones
         CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaPrimaryIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
-        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryBendingIJ[0] - expectedAlphaSecondaryBendingIJ ) <= Tol);
-        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryTwistingIJ[0] - expectedAlphaSecondaryTwistingIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryBendingIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
+        CPPUNIT_ASSERT(fabs( weakPatchContinuityAlphaSecondaryTwistingIJ[0] - expectedAlphaPrimaryIJ ) <= Tol);
 
         // Delete pointers
         delete[] weakPatchContinuityAlphaPrimaryIJ;

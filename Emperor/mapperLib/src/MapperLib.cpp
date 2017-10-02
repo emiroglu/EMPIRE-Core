@@ -565,7 +565,7 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
     }
 }
 
-void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isWeakConditions, bool isMappingIGA2FEM){
+void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName){
 
     std::string mapperNameToMap = std::string(mapperName);
     std::string IGAMeshNameInMap = std::string(IGAMeshName);
@@ -609,8 +609,31 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, 
         if (!tmpIGAMesh->boundingBox.isComputed()) tmpIGAMesh->computeBoundingBox();
         if (!tmpFEMesh->boundingBox.isComputed()) tmpFEMesh->computeBoundingBox();
 
-        mapperList[mapperNameToMap] = new IGAMortarMapper(mapperNameToMap, tmpIGAMesh, tmpFEMesh, isWeakConditions, isMappingIGA2FEM);
+        mapperList[mapperNameToMap] = new IGAMortarMapper(mapperNameToMap, tmpIGAMesh, tmpFEMesh);
         INFO_OUT("Generated \"" +  mapperNameToMap + "\"");
+    }
+}
+
+void setParametersConsistency(char* mapperName,
+                              bool _enforceConsistency, double _tolConsistency){
+
+    std::string mapperNameInMap = std::string(mapperName);
+
+    IGAMortarMapper *tmpIGAMortarMapper;
+
+    // check if the mapper with the given name is generated and is of correct type
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else {
+        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
+        tmpIGAMortarMapper->setParametersConsistency(_enforceConsistency, _tolConsistency);
+        INFO_OUT("Enforce consistency parameter is set for \"" +  mapperNameInMap + "\"");
     }
 }
 
@@ -735,9 +758,10 @@ void setParametersIntegration(char* mapperName,
     }
 }
 
-void setParametersConsistency(char* mapperName,
-                              bool _enforceConsistency, double _tolConsistency){
-
+void setParametersWeakDirichletConditions(char* mapperName,
+                                          bool _isCurveConditions, bool _isSurfaceConditions,
+                                          bool _isAutomaticPenaltyFactors,
+                                          double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting) {
     std::string mapperNameInMap = std::string(mapperName);
 
     IGAMortarMapper *tmpIGAMortarMapper;
@@ -752,40 +776,23 @@ void setParametersConsistency(char* mapperName,
         ERROR_OUT("Did nothing!");
         return;
     } else {
+        bool isPrimPrescribed = _alphaPrim > 0;
+        bool isSecBendingPrescribed = _alphaSecBending > 0;
+        bool isSecTwistingPrescribed = _alphaSecTwisting > 0;
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersConsistency(_enforceConsistency, _tolConsistency);
-        INFO_OUT("Enforce consistency parameter is set for \"" +  mapperNameInMap + "\"");
-    }
-}
-
-void setParametersIgaWeakDirichletConditions(char* mapperName,
-                                             bool _isCurveConditions, bool _isSurfaceConditions,
-                                             double _alphaPrim, double _alphaSecBending, double _alphaSecTwisting,
-                                             int _isAutomaticPenaltyFactors) {
-    std::string mapperNameInMap = std::string(mapperName);
-
-    IGAMortarMapper *tmpIGAMortarMapper;
-
-    // check if the mapper with the given name is generated and is of correct type
-    if (!mapperList.count( mapperNameInMap )){
-        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
-        ERROR_OUT("Did nothing!");
-        return;
-    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_IGAMortarMapper){
-        ERROR_OUT(mapperNameInMap + " is not a type of IGAMortarMapper");
-        ERROR_OUT("Did nothing!");
-        return;
-    } else {
-        tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersWeakCurveDirichletConditions(_isCurveConditions, _isAutomaticPenaltyFactors, _alphaPrim, _alphaSecBending, _alphaSecTwisting);
+        tmpIGAMortarMapper->setParametersWeakCurveDirichletConditions(_isCurveConditions, _isAutomaticPenaltyFactors,
+                                                                      isPrimPrescribed, isSecBendingPrescribed, isSecTwistingPrescribed,
+                                                                      _alphaPrim, _alphaSecBending, _alphaSecTwisting);
         tmpIGAMortarMapper->setParametersWeakSurfaceDirichletConditions(_isSurfaceConditions, _isAutomaticPenaltyFactors, _alphaPrim);
         INFO_OUT("Dirichlet condition parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
-void setParametersIgaPatchCoupling(char* mapperName,
-                                   bool _isWeakPatchContinuityConditions, double _alphaPrim,
-                                   double _alphaSecBending, double _alphaSecTwisting, int isAutomaticPenaltyFactors) {
+void setParametersWeakPatchContinuityConditions(char* mapperName,
+                                                bool _isWeakPatchContinuityConditions,
+                                                bool _isAutomaticPenaltyFactors,
+                                                double _alphaPrim,
+                                                double _alphaSecBending, double _alphaSecTwisting) {
     std::string mapperNameInMap = std::string(mapperName);
 
     IGAMortarMapper *tmpIGAMortarMapper;
@@ -800,8 +807,13 @@ void setParametersIgaPatchCoupling(char* mapperName,
         ERROR_OUT("Did nothing!");
         return;
     } else {
+        bool isPrimCoupled = _alphaPrim > 0;
+        bool isSecBendingCoupled = _alphaSecBending > 0;
+        bool isSecTwistingCoupled = _alphaSecTwisting > 0;
         tmpIGAMortarMapper = dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]);
-        tmpIGAMortarMapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, isAutomaticPenaltyFactors, _alphaPrim, _alphaSecBending, _alphaSecTwisting);
+        tmpIGAMortarMapper->setParametersWeakPatchContinuityConditions(_isWeakPatchContinuityConditions, _isAutomaticPenaltyFactors,
+                                                                       isPrimCoupled, isSecBendingCoupled, isSecTwistingCoupled,
+                                                                       _alphaPrim, _alphaSecBending, _alphaSecTwisting);
         INFO_OUT("Patch coupling parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
@@ -854,38 +866,26 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const d
         ERROR_OUT("Mapping not performed!");
         return;
     } else {
-        // if a vector field is to be mapped x, y, z components are extracted
-        if (dimension == 3){
-            int sizeDataToMap = dataSizeA/dimension;
-            int sizeDataToWrite = dataSizeB/dimension;
-
-            double** dataAtoMap = new double*[dimension];
-            double** dataBtoWrite = new double*[dimension];
-
-            for (int i=0; i<dimension ; i++){
-                dataAtoMap[i]=new double[sizeDataToMap];
-                dataBtoWrite[i]=new double[sizeDataToWrite];
-            }
-            for (int i=0 ; i<dimension ; i++){
-                for (int j=0 ; j<sizeDataToMap; j++){
-                    dataAtoMap[i][j] = dataA[j*dimension+i];
-                }
-
-                mapperList[mapperNameToMap]->consistentMapping(dataAtoMap[i], dataBtoWrite[i]);
-                for (int j=0 ; j<sizeDataToWrite; j++){
-                    dataB[j*dimension+i] = dataBtoWrite[i][j];
-                }
-            }
-            for (int i = 0; i<dimension; i++){
-                delete[] dataAtoMap[i];
-                delete[] dataBtoWrite[i];
-            }
-            delete[] dataAtoMap;
-            delete[] dataBtoWrite;
-        }
-        // else field is mapped as it is
-        else {
+        if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameToMap]) != NULL && dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameToMap])->getIsExpanded() ) {
+            // if the matrices contain coupling entries between x,y,z components then the fields are mapped as they are
             mapperList[mapperNameToMap]->consistentMapping(dataA, dataB);
+        }
+        else {
+            // else the field is mapped componentwise
+            int numLocationsA = dataSizeA/dimension;
+            int numLocationsB = dataSizeB/dimension;
+
+            double *fieldADOFi = new double[numLocationsA];
+            double *fieldBDOFi = new double[numLocationsB];
+            for (int i = 0; i < dimension; i++) {
+                for (int j = 0; j < numLocationsA; j++)
+                    fieldADOFi[j] = dataA[j * dimension + i];
+                mapperList[mapperNameToMap]->consistentMapping(fieldADOFi, fieldBDOFi);
+                for (int j = 0; j < numLocationsB; j++)
+                    dataB[j * dimension + i] = fieldBDOFi[j];
+            }
+            delete[] fieldADOFi;
+            delete[] fieldBDOFi;
         }
     }
 }

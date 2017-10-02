@@ -48,8 +48,6 @@ private:
     IGAMortarMapper* theMapperM;
     IGAMesh* theIGAMeshM;
     FEMesh* theFEMeshM;
-    bool isMappingIGA2FEM;
-    bool isWeakConditions;
 
     IGAMortarMapper* theMapperS;
     IGAMesh* theIGAMeshS;
@@ -60,8 +58,6 @@ private:
 
 public:
     void setUp() {
-        isMappingIGA2FEM = true;
-        isWeakConditions = false;
 
         Tol = 1e-13;
 
@@ -254,8 +250,7 @@ public:
         theFEMeshM->nodes[3 * 3 + 1] = 0.3;
         theFEMeshM->nodes[3 * 3 + 2] = 1.0e-06;
 
-        theMapperM = new IGAMortarMapper("Test IGA Mortar Mapper Multi Patch", theIGAMeshM,
-                theFEMeshM, isWeakConditions, isMappingIGA2FEM);
+        theMapperM = new IGAMortarMapper("Test IGA Mortar Mapper Multi Patch", theIGAMeshM, theFEMeshM);
 
         theMapperM->buildCouplingMatrices();
 
@@ -377,7 +372,7 @@ public:
         theFEMeshS->nodes[3 * 3 + 1] = 0.3;
         theFEMeshS->nodes[3 * 3 + 2] = 1.0e-06;
 
-        theMapperS = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS, theFEMeshS, isWeakConditions, isMappingIGA2FEM);
+        theMapperS = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS, theFEMeshS);
         theMapperS->buildCouplingMatrices();
     }
 
@@ -407,7 +402,7 @@ public:
     void testLeakage() {
         for (int i = 0; i < 100000000; i++) {
             IGAMortarMapper* theMapper = new IGAMortarMapper("Test IGA Mortar Mapper", theIGAMeshS,
-                    theFEMeshS, isWeakConditions, isMappingIGA2FEM);
+                    theFEMeshS);
             theMapper->buildCouplingMatrices();
             delete theMapper;
         }

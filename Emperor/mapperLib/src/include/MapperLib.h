@@ -313,12 +313,19 @@ void initFEMMortarMapper(char* mapperName,
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
  * \param[in] IGAMeshName a previously initialized IGAMeshName name
- * \param[in] isWeakConditions
  * \param[in] FEMeshName a previously initialized FEMeshName name
- * \param[in] isMappingIGA2FEM direction of the mapping to be generated (true=IGA->FEM or false=FEM->IGA)
  * \author Altug Emiroglu
  ***********/
-void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName, bool isWeakConditions, bool isMappingIGA2FEM);
+void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName);
+
+/***********************************************************************************************
+ * \brief Set the flag for enforcing consistency
+ * \param[in] _enforceConsistency The consistency flag
+ * \param[in] _tolConsistency The consistency tolerance
+ * \author Altug Emiroglu
+ ***********/
+void setParametersConsistency(char* mapperName,
+                              bool _enforceConsistency = false, double _tolConsistency = 0.0);
 
 /***********************************************************************************************
  * \brief Set parameter for the projection of mesh onto the NURBS surface
@@ -373,27 +380,18 @@ void setParametersIntegration(char* mapperName,
                               int numGPTriangle = 16, int numGPQuad = 25);
 
 /***********************************************************************************************
- * \brief Set the flag for enforcing consistency
- * \param[in] _enforceConsistency The consistency flag
- * \param[in] _tolConsistency The consistency tolerance
- * \author Altug Emiroglu
- ***********/
-void setParametersConsistency(char* mapperName,
-                              bool _enforceConsistency = false, double _tolConsistency = 0.0);
-
-/***********************************************************************************************
  * \brief Set parameter for the application of weak Dirichlet Curve conditions with penalty method
  * \param[in] _isCurveConditions Flag on whether general curve conditions are applied
  * \param[in] _isSurfaceConditions Flag on whether general surface conditions are applied
  * \param[in] _alphaPrim The Penalty factor for the primary field
  * \param[in] _alphaSecBending The Penalty factor for the bending rotation of the primary field
  * \param[in] _alphaSecTwisting The Penalty factor for the twisting rotation of the primary field
- * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+ * \param[in] _isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
  ***********/
-void setParametersIgaWeakDirichletConditions(char* mapperName,
-                                             bool _isCurveConditions = false, bool _isSurfaceConditions = false,
-                                             double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0,
-                                             int _isAutomaticPenaltyFactors = 0);
+void setParametersWeakDirichletConditions(char* mapperName,
+                                          bool _isCurveConditions = false, bool _isSurfaceConditions = false,
+                                          bool _isAutomaticPenaltyFactors = false,
+                                          double _alphaPrim = 0, double _alphaSecBending = 0, double _alphaSecTwisting = 0);
 
 /***********************************************************************************************
  * \brief Set parameter for penalty coupling
@@ -402,11 +400,12 @@ void setParametersIgaWeakDirichletConditions(char* mapperName,
  * \param[in] _alphaPrim The Penalty factor for the primary field
  * \param[in] _alphaSecBending The Penalty factor for the bending rotation of the primary field
  * \param[in] _alphaSecTwisting The Penalty factor for the twisting rotation of the primary field
- * \param[in] isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
+ * \param[in] _isAutomaticPenaltyFactors flag whether to compute penalty factors automatically or not
  ***********/
-void setParametersIgaPatchCoupling(char* mapperName, bool _isWeakPatchContinuityConditions = false,
-                                   double _alphaPrim = 0, double _alphaSecBending = 0,
-                                   double _alphaSecTwisting = 0, int isAutomaticPenaltyFactors = 0);
+void setParametersWeakPatchContinuityConditions(char* mapperName, bool _isWeakPatchContinuityConditions = false,
+                                                bool _isAutomaticPenaltyFactors = false,
+                                                double _alphaPrim = 0, double _alphaSecBending = 0,
+                                                double _alphaSecTwisting = 0);
 
 /***********************************************************************************************
  * \brief Set parameters for the error computation

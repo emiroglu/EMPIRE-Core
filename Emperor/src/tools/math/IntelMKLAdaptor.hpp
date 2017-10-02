@@ -227,8 +227,7 @@ public:
 			pardiso_neq = m; // number of rows
 			pardiso_nrhs = 1; // number of right hand side
 			pardiso_phase = 12; // analysis and factorization
-			pardiso_error = 0;
-			//cout<<"factorizing"<<endl;
+            pardiso_error = 0;
 			mkl_set_num_threads(1);
 			pardiso(pardiso_pt, &pardiso_maxfct, &pardiso_mnum, &pardiso_mtype, &pardiso_phase,
 					&pardiso_neq, mat_values, rowIndex, columns, &pardiso_idum,

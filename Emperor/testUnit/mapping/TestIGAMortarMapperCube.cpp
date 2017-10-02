@@ -219,9 +219,7 @@ public:
         theFEMesh->nodes[5 * 3 + 1] = 0.95;
         theFEMesh->nodes[5 * 3 + 2] = 0.95;
 
-        bool isMappingIGA2FEM = true;
-        bool isWeakConditions = false;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper for Cube", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper for Cube", theIGAMesh, theFEMesh);
         theMapper->buildCouplingMatrices();
 
     }

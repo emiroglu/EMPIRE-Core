@@ -285,9 +285,7 @@ public:
         for (int i = 0; i < numElemsFE * 4; i++)
             theFEMesh->elems[i] = elems[i];
 
-        bool isMappingIGA2FEM = true;
-        bool isWeakConditions = false;
-        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Cylinder", theIGAMesh, theFEMesh, isWeakConditions, isMappingIGA2FEM);
+        theMapper = new IGAMortarMapper("Test IGA Mortar Mapper Cylinder", theIGAMesh, theFEMesh);
         theMapper->buildCouplingMatrices();
 
     }
