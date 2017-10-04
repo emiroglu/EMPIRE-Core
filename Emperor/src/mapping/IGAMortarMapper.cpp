@@ -20,6 +20,9 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
+
+#include "flann/flann.hpp"
+
 #include "IGAMortarMapper.h"
 #include "IGAPatchSurface.h"
 #include "WeakIGADirichletCurveCondition.h"
@@ -653,6 +656,9 @@ void IGAMortarMapper::initialize() {
 
 
 void IGAMortarMapper::projectPointsToSurface() {
+
+    int numCoord = 3;
+
     // Time stamps
     time_t timeStart, timeEnd;
 
@@ -668,103 +674,167 @@ void IGAMortarMapper::projectPointsToSurface() {
     // Keep track of the point on patch related to minimum distance
     vector<vector<double> > minProjectionPoint(meshFE->numNodes);
 
-    // List of patch to try a projection for every node
-    vector<set<int> > patchToProcessPerNode(meshFE->numNodes);
+    // Get the number of patches in the IGA mesh
+    int numPatches = getIGAMesh()->getNumPatches();
+
+    // Lists to keep track of projection nodes and patches
+    vector<set<int> > patchIndicesToProcessPerNode(meshFE->numNodes);
+    vector<set<int> > nodeIndicesToProcessPerPatch(numPatches);
+    vector<vector< double > > nodeCoordsToProcessPerPatch(numPatches);
+    set<int> notProjectedNodeIndices;
 
     // Initial guess for projection onto the NURBS patch
     double initialU, initialV;
 
-    // Get the number of patches in the IGA mesh
-    int numPatches = getIGAMesh()->getNumPatches();
+    // Variables for generating initial guesses both in the patch parametric spaces and in the physical space
+    int numUCP, numVCP;
+    double* candidatesU;
+    double* candidatesV;
+    double* candidatesXYZ;
+    double tmpUV[2];
+    double* P;
 
-    // Bounding box preprocessing, assign to each node the patches to be visited
+    // Pointer to the patch to process
+    IGAPatchSurface* thePatch;
+
     INFO_OUT() << "Bounding box preprocessing started" << endl;
     time(&timeStart);
-    for (int i = 0; i < meshFE->numNodes; i++) {
-        double P[3];
-        P[0] = meshFE->nodes[3 * i + 0];
-        P[1] = meshFE->nodes[3 * i + 1];
-        P[2] = meshFE->nodes[3 * i + 2];
-        for(int patchCount = 0; patchCount < numPatches; patchCount++) {
-            IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchCount);
+    for (int iPatch = 0; iPatch < numPatches; iPatch++) {
+        thePatch = meshIGA->getSurfacePatch(iPatch);
+        for (int iNode = 0; iNode < meshFE->numNodes; iNode++) {
+            P = &meshFE->nodes[numCoord * iNode];
             bool isInside = thePatch->getBoundingBox().isPointInside(P, propProjection.maxProjectionDistance);
-            if(isInside)
-                patchToProcessPerNode[i].insert(patchCount);
+            if(isInside) {
+                nodeIndicesToProcessPerPatch[iPatch].insert(iNode);
+                std::copy(P, P + numCoord, std::back_inserter(nodeCoordsToProcessPerPatch[iPatch]));
+                patchIndicesToProcessPerNode[iNode].insert(iPatch);
+            }
         }
-        if(patchToProcessPerNode[i].empty()) {
+        if(nodeIndicesToProcessPerPatch[iPatch].empty()) {
             stringstream msg;
-            msg << "Node [" << i << "] is not in any bounding box of NURBS patches ! Increase maxProjectionDistance !";
+            msg << "Patch [" << iPatch << "] does not have any nodes in its bounding box! Increase maxProjectionDistance !";
             ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
         }
     }
     time(&timeEnd);
     INFO_OUT()<<"Bounding box preprocessing done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
-    // Project the node for every patch's bounding box the node lies into
-    // or on every patch if not found in a single bounding box
+
     INFO_OUT()<<"First pass projection started"<<endl;
     time(&timeStart);
-    for(int i = 0; i < meshFE->numElems; i++) {
-        int numNodesInElem = meshFE->numNodesPerElem[i];
-        for(int patchIndex = 0; patchIndex < numPatches; patchIndex++) {
-            bool initialGuessComputed = false;
-            for(int j = 0; j < numNodesInElem; j++) {
-                int nodeIndex = meshFEDirectElemTable[i][j];
-                // If already projected, go to next node
-                if(projectedCoords[nodeIndex].find(patchIndex) != projectedCoords[nodeIndex].end())
-                    continue;
-                // If node in BBox of patch
-                if(patchToProcessPerNode[nodeIndex].find(patchIndex) != patchToProcessPerNode[nodeIndex].end()) {
-                    if(!initialGuessComputed) {
-                        computeInitialGuessForProjection(patchIndex, i, nodeIndex, initialU, initialV);
-                        initialGuessComputed = true;
-                    }
-                    bool flagProjected = projectPointOnPatch(patchIndex, nodeIndex, initialU, initialV, minProjectionDistance[nodeIndex], minProjectionPoint[nodeIndex]);
-                    isProjected[nodeIndex] = isProjected[nodeIndex] || flagProjected;
-                }
+    for (int iPatch = 0; iPatch < numPatches; iPatch++) {
+        // Get the patch to project points onto
+        thePatch = meshIGA->getSurfacePatch(iPatch);
+
+        // Generate candidate points for initial guesses in the patch parameter space using the Greville abcissae
+        numUCP = thePatch->getUNoControlPoints();
+        numVCP = thePatch->getVNoControlPoints();
+
+        candidatesU = new double[numUCP];
+        for (int iUCP = 0; iUCP < numUCP; iUCP++)
+            candidatesU[iUCP] = thePatch->getIGABasis(0)->computeGrevilleAbscissae(iUCP);
+
+        candidatesV = new double[numVCP];
+        for (int iVCP = 0; iVCP < numVCP; iVCP++)
+            candidatesV[iVCP] = thePatch->getIGABasis(1)->computeGrevilleAbscissae(iVCP);
+
+        // Compute the physical coordinates of the initial guess points
+        candidatesXYZ = new double[numUCP*numVCP*numCoord];
+        for (int iVCP = 0; iVCP < numVCP; iVCP++) {
+            tmpUV[1] = candidatesV[iVCP];
+            for (int iUCP = 0; iUCP < numUCP; iUCP++) {
+                tmpUV[0] = candidatesU[iUCP];
+                thePatch->computeCartesianCoordinates(&candidatesXYZ[(iVCP*numUCP+iUCP)*numCoord],tmpUV);
             }
         }
+
+        #ifdef ANN
+            double dummy;
+            int* patchCandidateIndices[nodeIndicesToProcessPerPatch[iPatch].size()];
+            ANNkd_tree ANNKdTree(candidatesXYZ, numUCP*numVCP, numCoord);
+            ANNKdTree->annkSearch(&nodeCoordsToProcessPerPatch[iPatch][0], 1, patchCandidateIndices, &dummy);
+        #endif
+
+        #ifdef FLANN
+            // Store the nodes inside the bounding box of the current patch and the initial guess candidates in FLANN types
+            flann::Matrix<double> FLANNpatchNodesXYZ(&nodeCoordsToProcessPerPatch[iPatch][0], nodeIndicesToProcessPerPatch[iPatch].size(), numCoord);
+            flann::Matrix<double> FLANNcandidatesXYZ(candidatesXYZ, numUCP*numVCP, numCoord);
+
+            // Construct the FLANN KDTree search tree
+            flann::Index<flann::L2<double> > FLANNKdTree(FLANNcandidatesXYZ, flann::KDTreeSingleIndexParams(1));
+            FLANNKdTree.buildIndex();
+
+            // Find the initial guess indices for each node inside the current patch bounding box
+            vector<vector<int> > patchCandidateIndices;
+            vector<vector<double> > dummyDistances;
+            FLANNKdTree.knnSearch(FLANNpatchNodesXYZ, patchCandidateIndices, dummyDistances, 1, flann::SearchParams(1));
+            dummyDistances.clear();
+        #endif
+
+        // Retrieve the initial guess coordinates from the patch parametric space(UV)
+        std::div_t dv{};
+        int patchNodeIndex = 0;
+        // Loop over the nodes in the current patch bounding box
+        for(set<int>::iterator iNode = nodeIndicesToProcessPerPatch[iPatch].begin(); iNode != nodeIndicesToProcessPerPatch[iPatch].end(); iNode++) {
+            // The quotient = iVCP, remainder = iUCP, since the ordering of the initial guesses were done in such order. See the ordering of "candidatesXYZ" above.
+            #ifdef ANN
+                dv = std::div(patchCandidateIndices[patchNodeIndex], numUCP);
+            #endif
+            #ifdef FLANN
+                dv = std::div(patchCandidateIndices[patchNodeIndex][0], numUCP);
+            #endif
+
+            initialU = candidatesU[dv.rem];
+            initialV = candidatesV[dv.quot];
+            bool flagProjected = projectPointOnPatch(iPatch, *iNode, initialU, initialV, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+            isProjected[*iNode] = isProjected[*iNode] || flagProjected;
+
+            patchNodeIndex++;
+        }
+
+        delete[] candidatesU;
+        delete[] candidatesV;
+        delete[] candidatesXYZ;
     }
     time(&timeEnd);
     INFO_OUT()<<"First pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
+
     int missing = 0;
-    for (int i = 0; i < meshFE->numNodes; i++) {
-        if(!isProjected[i]) {
+    for (int iNode = 0; iNode < meshFE->numNodes; iNode++) {
+        if(!isProjected[iNode]) {
             missing++;
-            WARNING_OUT()<<"Node not projected at first pass ["<<i<<"] of coordinates "<<meshFE->nodes[3*i]<<","<<meshFE->nodes[3*i+1]<<","<<meshFE->nodes[3*i+2]<<endl;
+            notProjectedNodeIndices.insert(iNode);
+            WARNING_OUT()<<"Node ["<<iNode<<"] not projected at first pass with coordinates "<<meshFE->nodes[numCoord*iNode]<<","<<meshFE->nodes[numCoord*iNode+1]<<","<<meshFE->nodes[numCoord*iNode+2]<<endl;
+
         }
     }
-    INFO_OUT()<<meshFE->numNodes - missing << " nodes over " << meshFE->numNodes <<" could be projected during first pass" << endl;
-    double initialTolerance = propNewtonRaphson.tolProjection;
 
     // Second pass projection --> relax Newton-Rapshon tolerance and if still fails refine the sampling points for the Newton-Raphson initial guesses
     if(missing) {
+        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could not be projected during first pass" << endl;
         INFO_OUT()<<"Second pass projection started"<<endl;
+        double initialTolerance = propNewtonRaphson.tolProjection;
         time(&timeStart);
         missing = 0;
-        for (int i = 0; i < meshFE->numNodes; i++) {
-            if(!isProjected[i]) {
-                propNewtonRaphson.tolProjection = 10*propNewtonRaphson.tolProjection;
-                for(set<int>::iterator patchIndex = patchToProcessPerNode[i].begin();patchIndex != patchToProcessPerNode[i].end(); patchIndex++) {
-                    computeInitialGuessForProjection(*patchIndex, meshFENodeToElementTable[i][0], i, initialU, initialV);
-                    bool flagProjected = projectPointOnPatch(*patchIndex, i, initialU, initialV, minProjectionDistance[i], minProjectionPoint[i]);
-                    isProjected[i] = isProjected[i] || flagProjected;
-                }
-                if(!isProjected[i]) {
-                    for(set<int>::iterator patchIndex = patchToProcessPerNode[i].begin(); patchIndex != patchToProcessPerNode[i].end(); patchIndex++) {
-                        bool flagProjected = forceProjectPointOnPatch(*patchIndex, i, minProjectionDistance[i], minProjectionPoint[i]);
-                        isProjected[i] = isProjected[i] || flagProjected;
-                    }
+        for(set<int>::iterator iNode = notProjectedNodeIndices.begin(); iNode != notProjectedNodeIndices.end(); iNode++) {
+            propNewtonRaphson.tolProjection = 10*propNewtonRaphson.tolProjection;
+            for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin();iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
+                computeInitialGuessForProjection(*iPatch, meshFENodeToElementTable[*iNode][0], *iNode, initialU, initialV);
+                bool flagProjected = projectPointOnPatch(*iPatch, *iNode, initialU, initialV, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+                isProjected[*iNode] = isProjected[*iNode] || flagProjected;
+            }
+            if(!isProjected[*iNode]) {
+                for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin(); iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
+                    bool flagProjected = forceProjectPointOnPatch(*iPatch, *iNode, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+                    isProjected[*iNode] = isProjected[*iNode] || flagProjected;
                 }
             }
-            if(!isProjected[i]) {
-                ERROR_OUT()<<"Node not projected at second pass ["<<i<<"] of coordinates "<<meshFE->nodes[3*i]<<","<<meshFE->nodes[3*i+1]<<","<<meshFE->nodes[3*i+2]<<endl;
+            if(!isProjected[*iNode]) {
+                ERROR_OUT()<<"Node not projected at second pass ["<<*iNode<<"] of coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
                 missing++;
             }
             propNewtonRaphson.tolProjection = initialTolerance;
         }
         propNewtonRaphson.tolProjection = initialTolerance;
-        time(&timeEnd);
-        INFO_OUT()<<"Second pass projection done! It took "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
         if(missing) {
             stringstream msg;
             msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass!" << endl;
@@ -933,10 +1003,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
     /// List of integrated element
     set<int> elementIntegrated;
 
-    /// The vertices of the canonical polygons
-    double parentTriangle[6] = { 0, 0, 1, 0, 0, 1 };
-    double parentQuadriliteral[8] = { -1, -1, 1, -1, 1, 1, -1, 1 };
-
     int elementStringLength;
     {
         stringstream ss;
@@ -968,7 +1034,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
             int patchIndex=*it;
             /// Get the projected coordinates for the current element
             Polygon2D polygonUV;
-            bool isProjectedOnPatchBoundary = true;
             /// 1.1 Get initial polygon from projection
             // For every point of polygon
             buildFullParametricElement(elemIndex, numNodesElementFE, patchIndex, polygonUV);
@@ -983,8 +1048,6 @@ void IGAMortarMapper::computeCouplingMatrices() {
         // Loop over all the patches in the IGA Mesh having a part of the FE element projected inside
         for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
             int patchIndex = *it;
-
-            IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
 
             // Stores points of the polygon clipped by the nurbs patch
             Polygon2D polygonUV;

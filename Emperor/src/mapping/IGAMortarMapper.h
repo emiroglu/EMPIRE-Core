@@ -36,6 +36,12 @@
 #include "AbstractMapper.h"
 #include "IGAMortarCouplingMatrices.h"
 
+namespace flann {
+template<typename Distance> class Index;
+template<class T> struct L2;
+template<typename T> class Matrix;
+}
+
 namespace EMPIRE {
 
 namespace MathLibrary {

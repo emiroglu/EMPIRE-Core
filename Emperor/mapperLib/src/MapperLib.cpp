@@ -565,40 +565,30 @@ void initFEMBarycentricInterpolationMapper(char* mapperName, char* AmeshName, ch
     }
 }
 
-void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName){
+void initIGAMortarMapper(char* _mapperName, char* _meshNameA, char* _meshNameB){
 
-    std::string mapperNameToMap = std::string(mapperName);
-    std::string IGAMeshNameInMap = std::string(IGAMeshName);
-    std::string FEMeshNameInMap = std::string(FEMeshName);
+    std::string mapperNameToMap = std::string(_mapperName);
+    std::string meshNameAInMap = std::string(_meshNameA);
+    std::string meshNameBInMap = std::string(_meshNameB);
 
-    IGAMesh *tmpIGAMesh;
-    FEMesh *tmpFEMesh;
-
-    // check if the mesh with the given name is generated and is of correct type
-    if (!meshList.count( IGAMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + IGAMeshNameInMap + " does not exist!");
-        ERROR_OUT("Mapper not generated!");
-        return;
-    } else if (meshList[IGAMeshNameInMap]->type != EMPIRE_Mesh_IGAMesh){
-        ERROR_OUT(IGAMeshNameInMap + " is not a type of IGAMesh");
-        ERROR_OUT("Mapper not generated!");
-        return;
-    } else {
-        tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[IGAMeshNameInMap]);
-    }
+    AbstractMesh *meshA;
+    AbstractMesh *meshB;
 
     // check if the mesh with the given name is generated and is of correct type
-    if (!meshList.count( FEMeshNameInMap )){
-        ERROR_OUT("A mesh with name : " + FEMeshNameInMap + " does not exist!");
+    if (!meshList.count( meshNameAInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameAInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
-    } else if (meshList[FEMeshNameInMap]->type != EMPIRE_Mesh_FEMesh){
-        ERROR_OUT(FEMeshNameInMap + " is not a type of FEMesh");
+    } else
+        meshA = meshList[meshNameAInMap];
+
+    // check if the mesh with the given name is generated and is of correct type
+    if (!meshList.count( meshNameBInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameBInMap + " does not exist!");
         ERROR_OUT("Mapper not generated!");
         return;
-    } else {
-        tmpFEMesh = dynamic_cast<FEMesh *>(meshList[FEMeshNameInMap]);
-    }
+    } else
+        meshB = meshList[meshNameBInMap];
 
     if (mapperList.count( mapperNameToMap )){
         ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
@@ -606,10 +596,10 @@ void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName){
         return;
     } else {
 
-        if (!tmpIGAMesh->boundingBox.isComputed()) tmpIGAMesh->computeBoundingBox();
-        if (!tmpFEMesh->boundingBox.isComputed()) tmpFEMesh->computeBoundingBox();
+        if (!meshA->boundingBox.isComputed()) meshA->computeBoundingBox();
+        if (!meshB->boundingBox.isComputed()) meshB->computeBoundingBox();
 
-        mapperList[mapperNameToMap] = new IGAMortarMapper(mapperNameToMap, tmpIGAMesh, tmpFEMesh);
+        mapperList[mapperNameToMap] = new IGAMortarMapper(mapperNameToMap, meshA, meshB);
         INFO_OUT("Generated \"" +  mapperNameToMap + "\"");
     }
 }
@@ -838,6 +828,24 @@ void setParametersErrorComputation(char* mapperName,
         tmpIGAMortarMapper->setParametersErrorComputation(_isErrorComputation, _isDomainError, _isInterfaceError, _isCurveError);
         INFO_OUT("Error computation parameters are set for \"" +  mapperNameInMap + "\"");
     }
+}
+
+void initialize(char *mapperName) {
+    std::string mapperNameInMap = std::string(mapperName);
+    // check if the mapper with the given name is generated
+    if (!mapperList.count( mapperNameInMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]) == NULL) {
+        ERROR_OUT(mapperNameInMap + " is not of type IGAMesh!");
+        ERROR_OUT("Did nothing!");
+        return;
+    } else{
+        dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap])->initialize();
+        INFO_OUT("Generated coupling matrices for \"" +  mapperNameInMap );
+    }
+
 }
 
 void buildCouplingMatrices(char *mapperName){

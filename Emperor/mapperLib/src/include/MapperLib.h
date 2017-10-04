@@ -312,11 +312,11 @@ void initFEMMortarMapper(char* mapperName,
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
  * \param[in] mapperName name of the mapper
- * \param[in] IGAMeshName a previously initialized IGAMeshName name
- * \param[in] FEMeshName a previously initialized FEMeshName name
+ * \param[in] meshNameA a previously initialized mesh name
+ * \param[in] meshNameB a previously initialized mesh name
  * \author Altug Emiroglu
  ***********/
-void initIGAMortarMapper(char* mapperName, char* IGAMeshName, char* FEMeshName);
+void initIGAMortarMapper(char* _mapperName, char* _meshNameA, char* _meshNameB);
 
 /***********************************************************************************************
  * \brief Set the flag for enforcing consistency
@@ -416,6 +416,8 @@ void setParametersWeakPatchContinuityConditions(char* mapperName, bool _isWeakPa
  ***********/
 void setParametersErrorComputation(char* mapperName,
                                    bool _isErrorComputation, bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
+
+void initialize(char *mapperName);
 
 /***********************************************************************************************
  * \brief Build Coupling Matrices
