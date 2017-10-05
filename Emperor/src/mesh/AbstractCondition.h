@@ -29,6 +29,7 @@
 namespace EMPIRE {
 
 class Message;
+class IGAPatchSurface;
 /********//**
  * \brief Class AbstractCondition is the superclass of all other conditions
  ***********/
@@ -56,13 +57,7 @@ public:
      * \brief Create GP Data
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    virtual void createGPData(){};
-
-    /***********************************************************************************************
-     * \brief Create GP Data
-     * \author Andreas Apostolatos, Altug Emiroglu
-     ***********/
-    virtual void getGPData(){};
+    virtual void createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches){};
 
     /// type of the condition
     EMPIRE_Condition_type type;

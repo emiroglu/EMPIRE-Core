@@ -287,7 +287,7 @@ void addDirichletCurveConditionToIGAMesh(char* meshName,
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, pDegree, uNoKnots, uKnotVector, uNoControlPoints, controlPointNet);
-        tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
+        tmpCond->createGPData(tmpIGAMesh->getSurfacePatches());
         INFO_OUT()<<"Added a Dirichlet curve condition to \"" << meshNameInMap << "\" patch index " << patchIndex <<  std::endl;
     }
 }
@@ -305,7 +305,7 @@ void addDirichletBoundaryConditionToIGAMesh(char* meshName,
     } else if (meshList[meshNameInMap]->type == EMPIRE_Mesh_IGAMesh){
         IGAMesh *tmpIGAMesh = dynamic_cast<IGAMesh *>(meshList[meshNameInMap]);
         WeakIGADirichletCurveCondition* tmpCond = tmpIGAMesh->addWeakDirichletCurveCondition(conditionID, patchIndex, patchBLIndex, patchBLTrCurveIndex);
-        tmpCond->createGPData(tmpIGAMesh->getSurfacePatch(patchIndex));
+        tmpCond->createGPData(tmpIGAMesh->getSurfacePatches());
         INFO_OUT()<<"Added a Dirichlet boundary condition to \"" << meshNameInMap << "\" patch index " << patchIndex <<  std::endl;
     }
 }
@@ -326,7 +326,7 @@ void addPatchContinuityConditionToIGAMesh(char* meshName,
         WeakIGAPatchContinuityCondition* tmpContCond = tmpIGAMesh->addWeakContinuityCondition(connectionID,
                                                                                               masterPatchIndex, masterPatchBLIndex, masterPatchBLTrCurveIndex,
                                                                                               slavePatchIndex, slavePatchBLIndex, slavePatchBLTrCurveIndex);
-        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatch(masterPatchIndex), tmpIGAMesh->getSurfacePatch(slavePatchIndex));
+        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatches());
         INFO_OUT()<<"Added a continuity condition to \"" << meshNameInMap << "\" between patch indices " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
     }
 }
@@ -347,7 +347,7 @@ void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
         WeakIGAPatchContinuityCondition* tmpContCond = tmpIGAMesh->addWeakContinuityCondition(connectionID,
                                                                                               masterPatchIndex, pMaster, uNoKnotsMaster, uKnotVectorMaster, uNoControlPointsMaster, controlPointNetMaster,
                                                                                               slavePatchIndex, pSlave, uNoKnotsSlave, uKnotVectorSlave, uNoControlPointsSlave, controlPointNetSlave);
-        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatch(masterPatchIndex), tmpIGAMesh->getSurfacePatch(slavePatchIndex));
+        tmpContCond->createGPData(tmpIGAMesh->getSurfacePatches());
         INFO_OUT()<<"Added a continuity condition to \"" << meshNameInMap << "\" between patch indices " << masterPatchIndex << " and " << slavePatchIndex << std::endl;
     }
 }

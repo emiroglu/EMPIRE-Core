@@ -164,7 +164,7 @@ public:
      * \param[in] _slavePatch The slave patch
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void createGPData(IGAPatchSurface* _masterPatch, IGAPatchSurface* _slavePatch);
+    void createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches);
 
     /***********************************************************************************************
      * \brief Destructor

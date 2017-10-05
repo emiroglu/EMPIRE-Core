@@ -681,7 +681,8 @@ void IGAMortarMapper::projectPointsToSurface() {
     vector<set<int> > patchIndicesToProcessPerNode(meshFE->numNodes);
     vector<set<int> > nodeIndicesToProcessPerPatch(numPatches);
     vector<vector< double > > nodeCoordsToProcessPerPatch(numPatches);
-    set<int> notProjectedNodeIndices;
+    set<int> notProjectedNodeIndicesFirstPass;
+    set<int> notProjectedNodeIndicesSecondPass;
 
     // Initial guess for projection onto the NURBS patch
     double initialU, initialV;
@@ -771,7 +772,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         #endif
 
         // Retrieve the initial guess coordinates from the patch parametric space(UV)
-        std::div_t dv{};
+        std::div_t dv;
         int patchNodeIndex = 0;
         // Loop over the nodes in the current patch bounding box
         for(set<int>::iterator iNode = nodeIndicesToProcessPerPatch[iPatch].begin(); iNode != nodeIndicesToProcessPerPatch[iPatch].end(); iNode++) {
@@ -802,49 +803,62 @@ void IGAMortarMapper::projectPointsToSurface() {
     for (int iNode = 0; iNode < meshFE->numNodes; iNode++) {
         if(!isProjected[iNode]) {
             missing++;
-            notProjectedNodeIndices.insert(iNode);
-            WARNING_OUT()<<"Node ["<<iNode<<"] not projected at first pass with coordinates "<<meshFE->nodes[numCoord*iNode]<<","<<meshFE->nodes[numCoord*iNode+1]<<","<<meshFE->nodes[numCoord*iNode+2]<<endl;
+            notProjectedNodeIndicesFirstPass.insert(iNode);
+            WARNING_OUT()<<"Node ["<<iNode<<"] not projected at first pass with coordinates "<<meshFE->nodes[iNode*numCoord]<<","<<meshFE->nodes[iNode*numCoord+1]<<","<<meshFE->nodes[iNode*numCoord+2]<<endl;
 
         }
     }
 
     // Second pass projection --> relax Newton-Rapshon tolerance and if still fails refine the sampling points for the Newton-Raphson initial guesses
     if(missing) {
-        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could not be projected during first pass" << endl;
+        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could NOT be projected during first pass" << endl;
         INFO_OUT()<<"Second pass projection started"<<endl;
-        double initialTolerance = propNewtonRaphson.tolProjection;
         time(&timeStart);
         missing = 0;
-        for(set<int>::iterator iNode = notProjectedNodeIndices.begin(); iNode != notProjectedNodeIndices.end(); iNode++) {
-            propNewtonRaphson.tolProjection = 10*propNewtonRaphson.tolProjection;
+        for(set<int>::iterator iNode = notProjectedNodeIndicesFirstPass.begin(); iNode != notProjectedNodeIndicesFirstPass.end(); iNode++) {
             for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin();iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
                 computeInitialGuessForProjection(*iPatch, meshFENodeToElementTable[*iNode][0], *iNode, initialU, initialV);
-                bool flagProjected = projectPointOnPatch(*iPatch, *iNode, initialU, initialV, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+                bool flagProjected = forceProjectPointOnPatchByRelaxation(*iPatch, *iNode, initialU, initialV, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
                 isProjected[*iNode] = isProjected[*iNode] || flagProjected;
             }
             if(!isProjected[*iNode]) {
-                for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin(); iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
-                    bool flagProjected = forceProjectPointOnPatch(*iPatch, *iNode, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
-                    isProjected[*iNode] = isProjected[*iNode] || flagProjected;
-                }
-            }
-            if(!isProjected[*iNode]) {
-                ERROR_OUT()<<"Node not projected at second pass ["<<*iNode<<"] of coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
+                notProjectedNodeIndicesSecondPass.insert(*iNode);
+                WARNING_OUT()<<"Node ["<<*iNode<<"] not projected at second pass with coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
                 missing++;
             }
-            propNewtonRaphson.tolProjection = initialTolerance;
         }
-        propNewtonRaphson.tolProjection = initialTolerance;
-        if(missing) {
-            stringstream msg;
-            msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected during second pass!" << endl;
-            msg << "Treatment possibility 1." << endl;
-            msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
-            msg << "Treatment possibility 2." << endl;
-            msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
-            ERROR_BLOCK_OUT("IGAMortarMapper", "ProjectPointsToSurface", msg.str());
-        }
+        notProjectedNodeIndicesFirstPass.clear();
     }
+
+    // Third pass projection --> Closest point projection based on brute sampling
+    if(missing) {
+        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could NOT be projected during second pass" << endl;
+        INFO_OUT()<<"Third pass projection started"<<endl;
+        time(&timeStart);
+        missing = 0;
+        for(set<int>::iterator iNode = notProjectedNodeIndicesSecondPass.begin(); iNode != notProjectedNodeIndicesSecondPass.end(); iNode++) {
+            for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin(); iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
+                bool flagProjected = forceProjectPointOnPatchBySampling(*iPatch, *iNode, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+                isProjected[*iNode] = isProjected[*iNode] || flagProjected;
+            }
+            if(!isProjected[*iNode]) {
+                WARNING_OUT()<<"Node ["<<*iNode<<"] not projected at third pass with coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
+                missing++;
+            }
+        }
+        notProjectedNodeIndicesSecondPass.clear();
+    }
+
+    if(missing) {
+        stringstream msg;
+        msg << missing << " nodes over " << meshFE->numNodes << " could NOT be projected!" << endl;
+        msg << "Treatment possibility 1." << endl;
+        msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
+        msg << "Treatment possibility 2." << endl;
+        msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
+        ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
+    }
+
 }
 
 void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, const int _elemIndex, const int _nodeIndex, double& _u, double& _v) {
@@ -915,7 +929,7 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIn
     /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
     bool hasResidualConverged;
     bool hasConverged = thePatch->computePointProjectionOnPatch(u, v, projectedP,
-                                                                hasResidualConverged, propNewtonRaphson.noIterations, propNewtonRaphson.tolProjection);
+                                                                hasResidualConverged, propNewtonRaphson.noIterations, propNewtonRaphson.tolProjection, propProjection.maxProjectionDistance);
     double distance = MathLibrary::computePointDistance(P, projectedP);
     if(hasConverged &&  distance < propProjection.maxProjectionDistance) {
         /// Perform some validity checks to validate the projected point
@@ -943,7 +957,47 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIn
     return false;
 }
 
-bool IGAMortarMapper::forceProjectPointOnPatch(const int patchIndex, const int nodeIndex, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+bool IGAMortarMapper::forceProjectPointOnPatchByRelaxation(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, vector<double>& minProjectionPoint) {
+
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
+    /// Get the Cartesian coordinates of the node in the FE side
+    double P[3], projectedP[3];
+    projectedP[0] = P[0] = meshFE->nodes[nodeIndex * 3 + 0];
+    projectedP[1] = P[1] = meshFE->nodes[nodeIndex * 3 + 1];
+    projectedP[2] = P[2] = meshFE->nodes[nodeIndex * 3 + 2];
+    /// Get an initial guess for the parametric location of the projected node of the FE side on the NURBS patch
+    double u = u0;
+    double v = v0;
+    /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
+    bool hasConverged = thePatch->computeForcedPointProjectionOnPatch(u, v, projectedP);
+    double distance = MathLibrary::computePointDistance(P, projectedP);
+    if(hasConverged &&  distance < propProjection.maxProjectionDistance) {
+        /// Perform some validity checks to validate the projected point
+        if(distance > minProjectionDistance + propProjection.maxProjectionDistanceOnDifferentPatches) {
+            return false;
+        }
+        if(!minProjectionPoint.empty() &&
+                MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > propProjection.maxProjectionDistanceOnDifferentPatches &&
+                distance > minProjectionDistance) {
+            return false;
+        }
+        if(distance < minProjectionDistance - propProjection.maxProjectionDistanceOnDifferentPatches
+                || MathLibrary::computePointDistance(projectedP, &minProjectionPoint[0]) > propProjection.maxProjectionDistanceOnDifferentPatches) {
+            projectedCoords[nodeIndex].clear();
+        }
+        /// Store result
+        vector<double> uv(2);
+        uv[0] = u;
+        uv[1] = v;
+        projectedCoords[nodeIndex].insert(make_pair(patchIndex, uv));
+        minProjectionDistance = distance;
+        minProjectionPoint = vector<double>(projectedP, projectedP + 3);
+        return true;
+    }
+    return false;
+}
+
+bool IGAMortarMapper::forceProjectPointOnPatchBySampling(const int patchIndex, const int nodeIndex, double& minProjectionDistance, vector<double>& minProjectionPoint) {
     IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
     /// Get the Cartesian coordinates of the node in the FE side
     double P[3], projectedP[3];

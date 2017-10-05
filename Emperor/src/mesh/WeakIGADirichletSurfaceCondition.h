@@ -100,7 +100,7 @@ public:
      * \param[in] _patch The patch on which the boundary loop exists
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void createGPData(IGAPatchSurface* _patch);
+    void createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches);
 
     /***********************************************************************************************
      * \brief Clip the input polygon by the trimming curves of the given patch

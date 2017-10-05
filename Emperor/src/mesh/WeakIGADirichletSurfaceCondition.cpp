@@ -68,17 +68,20 @@ WeakIGADirichletSurfaceCondition::WeakIGADirichletSurfaceCondition(int _ID,
 
 }
 
-void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
+void WeakIGADirichletSurfaceCondition::createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches) {
 
     if (isGPDataInitialized) assert(false);
+
+    // Get the pointer to the patch
+    IGAPatchSurface* thePatch = _surfacePatches.at(patchIndex);
 
     // Initialize coordinates
     int noCoordParam = 2;
 
     /// Create a quadrature rule for the integration triangles
     // Get the patch polynomial degrees
-    int p = _patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int q = _patch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+    int p = thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int q = thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
     int numGPonTria = p + q + 1;
 
     // Gauss quadrature for the triangles
@@ -87,12 +90,12 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
 
     /// Make polygons out of knot spans
     // Get the number of knots in each direction
-    int noUKnots = _patch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
-    int noVKnots = _patch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+    int noUKnots = thePatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+    int noVKnots = thePatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
 
     // Get the knot vectors
-    double* uKnotVector = _patch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
-    double* vKnotVector = _patch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
+    double* uKnotVector = thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
+    double* vKnotVector = thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
 
     // Count the number of knot spans
     int noUSpans = 1;
@@ -128,7 +131,7 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
     /// Create the GP data
     // In case the trimming loop is a boundary loop of a patch set the conditionBoundaryLoop object
     if (isBoundaryLoop)
-        conditionBoundaryLoop = &_patch->getTrimming().getLoop(patchBLIndex);
+        conditionBoundaryLoop = &thePatch->getTrimming().getLoop(patchBLIndex);
 
     // Initialize variables
     int derivDegree = 1;
@@ -145,7 +148,7 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
 
         // Clip the knot span windows with the boundary loops of the patch
         ListPolygon2D trimClippedPolygonList;
-        clipByTrimming(_patch, knotSpanPolygonList[iPolygon], trimClippedPolygonList);
+        clipByTrimming(thePatch, knotSpanPolygonList[iPolygon], trimClippedPolygonList);
 
         for (int iTCW = 0; iTCW < trimClippedPolygonList.size(); iTCW++) {
 
@@ -184,11 +187,11 @@ void WeakIGADirichletSurfaceCondition::createGPData(IGAPatchSurface* _patch) {
                         MathLibrary::computeLinearCombination(numNodes, 2, triaUV, shapeFuncs, uvGP);
 
                         // Compute base vectors on GP
-                        uKnotSpan = _patch->findSpanU(uvGP[0]);
-                        vKnotSpan = _patch->findSpanV(uvGP[1]);
-                        _patch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
+                        uKnotSpan = thePatch->findSpanU(uvGP[0]);
+                        vKnotSpan = thePatch->findSpanV(uvGP[1]);
+                        thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives(
                                     localBasisFunctionsAndDerivatives, derivDegree, uvGP[0], uKnotSpan, uvGP[1], vKnotSpan);
-                        _patch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
+                        thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
 
                         // Compute Jacobian on GP
                         double JacobianGP = MathLibrary::computeAreaTriangle(baseVectors[0], baseVectors[1], baseVectors[2],

@@ -128,14 +128,18 @@ void WeakIGAPatchContinuityCondition::addWeakContinuityConditionGPData(int _trCu
     isGPDataInitialized = true;
 }
 
-void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch, IGAPatchSurface* _slavePatch) {
+void WeakIGAPatchContinuityCondition::createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches) {
 
     if (isGPDataInitialized) assert(false);
 
+    // Get the pointers to the patches
+    IGAPatchSurface* masterPatch = _surfacePatches.at(masterPatchIndex);
+    IGAPatchSurface* slavePatch = _surfacePatches.at(slavePatchIndex);
+
     // Set the master and slave curves in case they are trimming curves of the given patches
     if (isTrimmingCurve) {
-        masterCurve = &_masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex);
-        slaveCurve = &_slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex);
+        masterCurve = &masterPatch->getTrimming().getLoop(masterPatchBLIndex).getIGACurve(masterPatchBLTrCurveIndex);
+        slaveCurve = &slavePatch->getTrimming().getLoop(slavePatchBLIndex).getIGACurve(slavePatchBLTrCurveIndex);
     }
 
     // Initialize the coordinates
@@ -158,20 +162,20 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
     double tmpXYZ[noCoord];
 
     // Compute the knot intersections of the master trimming curve
-    _masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes, masterCurve);
+    masterPatch->computeKnotIntersectionsWithTrimmingCurve(masterUTildes, masterCurve);
 
     // Compute the knot intersections of slave the trimming curve
-    _slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes, slaveCurve);
+    slavePatch->computeKnotIntersectionsWithTrimmingCurve(slaveUTildes, slaveCurve);
 
     // Project the knot intersections onto the master curve
     for (std::vector<double>::iterator iUTilde = slaveUTildes.begin(); iUTilde != slaveUTildes.end(); iUTilde++) {
 
         // Compute the physical coordinates of the knot intersection
-        _slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slaveCurve);
+        slavePatch->computeCartesianCoordinates(tmpXYZ, *iUTilde, slaveCurve);
 
         // Compute the point projection of the slave knot intersection on the master trimming curve
         isProjectedOnSlave = false;
-        isProjectedOnSlave = _masterPatch->computePointProjectionOnTrimmingCurve(tmpUTilde, tmpXYZ, masterCurve);
+        isProjectedOnSlave = masterPatch->computePointProjectionOnTrimmingCurve(tmpUTilde, tmpXYZ, masterCurve);
 
         // Consider the intersection only if the projection is successful
         if (isProjectedOnSlave)     masterUTildesFromSlave.push_back(tmpUTilde);
@@ -186,10 +190,10 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
 
     /// Create the Gauss points on the master and the slave sides
     // Getting the polynomial orders
-    int pMaster = _masterPatch->getIGABasis(0)->getPolynomialDegree();
-    int qMaster = _masterPatch->getIGABasis(1)->getPolynomialDegree();
-    int pSlave = _slavePatch->getIGABasis(0)->getPolynomialDegree();
-    int qSlave = _slavePatch->getIGABasis(1)->getPolynomialDegree();
+    int pMaster = masterPatch->getIGABasis(0)->getPolynomialDegree();
+    int qMaster = masterPatch->getIGABasis(1)->getPolynomialDegree();
+    int pSlave = slavePatch->getIGABasis(0)->getPolynomialDegree();
+    int qSlave = slavePatch->getIGABasis(1)->getPolynomialDegree();
     int p = std::max(std::max(pMaster,qMaster),std::max(pSlave,qSlave));
 
     // Get the number of Gauss points
@@ -231,11 +235,11 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
             masterGPUTilde = ((1.0 - GP)*masterUTildesMerged[iSection] + (1.0 + GP)*masterUTildesMerged[iSection + 1])/2.0;
 
             // Compute the physical coordinates of the GP
-            _masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterCurve);
+            masterPatch->computeCartesianCoordinates(tmpXYZ, masterGPUTilde, masterCurve);
 
             // Project the GP onto the slave side
             isProjectedOnSlave = false;
-            isProjectedOnSlave = _slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slaveCurve);
+            isProjectedOnSlave = slavePatch->computePointProjectionOnTrimmingCurve(slaveGPUTilde, tmpXYZ, slaveCurve);
 
             // If the GP is projected onto the slave side successfully then store the GP pair
             if (isProjectedOnSlave) {
@@ -332,8 +336,8 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
             slaveCurve->computeCartesianCoordinates
                     (tmpUVSlave, localBasisFunctionsAndDerivativesTrCurveSlave, knotSpanIndexTrCurveSlave);
             for (int iCoord = 0; iCoord < noCoordParam; iCoord++) {
-                _masterPatch->getIGABasis(iCoord)->clampKnot(tmpUVMaster[iCoord]);
-                _slavePatch->getIGABasis(iCoord)->clampKnot(tmpUVSlave[iCoord]);
+                masterPatch->getIGABasis(iCoord)->clampKnot(tmpUVMaster[iCoord]);
+                slavePatch->getIGABasis(iCoord)->clampKnot(tmpUVSlave[iCoord]);
                 trCurveMasterGPs[noCoordParam*counterGP + iCoord] = tmpUVMaster[iCoord];
                 trCurveSlaveGPs[noCoordParam*counterGP + iCoord] = tmpUVSlave[iCoord];
             }
@@ -345,20 +349,20 @@ void WeakIGAPatchContinuityCondition::createGPData(IGAPatchSurface* _masterPatch
                     (baseVectorTrCurveSlave, knotSpanIndexTrCurveSlave, localBasisFunctionsAndDerivativesTrCurveSlave, noDerivBaseVct);
 
             // Find the knot span indices on the patch
-            uKnotSpanMaster = _masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVMaster[0]);
-            vKnotSpanMaster = _masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVMaster[1]);
-            uKnotSpanSlave = _slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVSlave[0]);
-            vKnotSpanSlave = _slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVSlave[1]);
+            uKnotSpanMaster = masterPatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVMaster[0]);
+            vKnotSpanMaster = masterPatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVMaster[1]);
+            uKnotSpanSlave = slavePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(tmpUVSlave[0]);
+            vKnotSpanSlave = slavePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(tmpUVSlave[1]);
 
             // Compute the basis functions of the patches at the (u,v) parametric locations
-            _masterPatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+            masterPatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
                     (localBasisFunctionsAndDerivativesMaster, derivDegree, tmpUVMaster[0], uKnotSpanMaster, tmpUVMaster[1], vKnotSpanMaster);
-            _slavePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+            slavePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
                     (localBasisFunctionsAndDerivativesSlave, derivDegree, tmpUVSlave[0], uKnotSpanSlave, tmpUVSlave[1], vKnotSpanSlave);
 
             // Compute the base vectors on the patches in the physical space
-            _masterPatch->computeBaseVectors(baseVectorsMaster, localBasisFunctionsAndDerivativesMaster, uKnotSpanMaster, vKnotSpanMaster);
-            _slavePatch->computeBaseVectors(baseVectorsSlave, localBasisFunctionsAndDerivativesSlave, uKnotSpanSlave, vKnotSpanSlave);
+            masterPatch->computeBaseVectors(baseVectorsMaster, localBasisFunctionsAndDerivativesMaster, uKnotSpanMaster, vKnotSpanMaster);
+            slavePatch->computeBaseVectors(baseVectorsSlave, localBasisFunctionsAndDerivativesSlave, uKnotSpanSlave, vKnotSpanSlave);
             for(int iCoord = 0; iCoord < noCoord; iCoord++){
                 A1Master[iCoord] = baseVectorsMaster[iCoord];
                 A2Master[iCoord] = baseVectorsMaster[noCoord+iCoord];

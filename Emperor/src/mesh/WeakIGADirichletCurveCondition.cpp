@@ -115,9 +115,12 @@ void WeakIGADirichletCurveCondition::addWeakDirichletCurveConditionGPData(int _c
     isGPDataInitialized = true;
 }
 
-void WeakIGADirichletCurveCondition::createGPData(IGAPatchSurface* _patch) {
+void WeakIGADirichletCurveCondition::createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches) {
 
     if (isGPDataInitialized) assert(false);
+
+    // Get the pointer to the patch
+    IGAPatchSurface* thePatch = _surfacePatches.at(patchIndex);
 
     // Initialize the coordinates
     const int noCoordParam = 2;
@@ -128,18 +131,18 @@ void WeakIGADirichletCurveCondition::createGPData(IGAPatchSurface* _patch) {
 
     // Check to verify if the curve is a trimming curve and assign it to the member variable
     if (isTrimmingCurve)
-        dirichletCurve = &_patch->getTrimming().getLoop(patchBLIndex).getIGACurve(patchBLTrCurveIndex);
+        dirichletCurve = &thePatch->getTrimming().getLoop(patchBLIndex).getIGACurve(patchBLTrCurveIndex);
 
     // Compute the knot intersections of the trimming curve
-    _patch->computeKnotIntersectionsWithTrimmingCurve(UTildes, dirichletCurve);
+    thePatch->computeKnotIntersectionsWithTrimmingCurve(UTildes, dirichletCurve);
 
     // Sort and remove duplicates if they exist
     EMPIRE::MathLibrary::sortRemoveDuplicates(UTildes);
 
     /// Create the Gauss points on the master and the slave sides
     // Getting the polynomial orders
-    int p = _patch->getIGABasis(0)->getPolynomialDegree();
-    int q = _patch->getIGABasis(1)->getPolynomialDegree();
+    int p = thePatch->getIGABasis(0)->getPolynomialDegree();
+    int q = thePatch->getIGABasis(1)->getPolynomialDegree();
     int pMax = std::max(p, q);
 
     // Get the number of Gauss points
@@ -210,7 +213,7 @@ void WeakIGADirichletCurveCondition::createGPData(IGAPatchSurface* _patch) {
                 dirichletCurve->computeCartesianCoordinates
                         (uv, localBasisFunctionsAndDerivativesCurve, knotSpanIndexCurve);
                 for (int iCoord = 0; iCoord < noCoordParam; iCoord++) {
-                    _patch->getIGABasis(iCoord)->clampKnot(uv[iCoord]);
+                    thePatch->getIGABasis(iCoord)->clampKnot(uv[iCoord]);
                     curveGPs[noCoordParam*counterGP + iCoord] = uv[iCoord];
                 }
 
@@ -219,15 +222,15 @@ void WeakIGADirichletCurveCondition::createGPData(IGAPatchSurface* _patch) {
                         (baseVectorCurve, knotSpanIndexCurve, localBasisFunctionsAndDerivativesCurve, noDerivBaseVct);
 
                 // Find the knot span indices for on the patch
-                uKnotSpan = _patch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uv[0]);
-                vKnotSpan = _patch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(uv[1]);
+                uKnotSpan = thePatch->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(uv[0]);
+                vKnotSpan = thePatch->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(uv[1]);
 
                 // Compute the basis functions of the patch at the (u,v) parametric location
-                _patch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+                thePatch->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
                         (localBasisFunctionsAndDerivatives, derivDegree, uv[0], uKnotSpan, uv[1], vKnotSpan);
 
                 // Compute the base vectors on the patch in the physical space
-                _patch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
+                thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
                 for(int iCoord = 0; iCoord < noCoord; iCoord++){
                     A1[iCoord] = baseVectors[iCoord];
                     A2[iCoord] = baseVectors[noCoord+iCoord];

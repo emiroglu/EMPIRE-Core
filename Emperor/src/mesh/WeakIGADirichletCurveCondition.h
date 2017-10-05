@@ -128,7 +128,7 @@ public:
      * \param[in] _patch The patch on which the trimming curve exists
      * \author Andreas Apostolatos, Altug Emiroglu
      ***********/
-    void createGPData(IGAPatchSurface* _patch);
+    void createGPData(const std::vector<IGAPatchSurface*>& _surfacePatches);
 
     /***********************************************************************************************
      * \brief Destructor

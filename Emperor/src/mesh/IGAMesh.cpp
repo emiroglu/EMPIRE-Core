@@ -188,13 +188,8 @@ void IGAMesh::createWeakDirichletCurveConditionGPData(int _conditionIndex){
      * This function calls the corresponding function of the weak Dirichlet condition
      */
 
-    int patchIndex = weakIGADirichletCurveConditions[_conditionIndex]->getPatchIndex();
-
-    // Get the patch
-    IGAPatchSurface* thePatch = getSurfacePatch(patchIndex);
-
     // Create GP Data for the patch
-    weakIGADirichletCurveConditions[_conditionIndex]->createGPData(thePatch);
+    weakIGADirichletCurveConditions[_conditionIndex]->createGPData(surfacePatches);
 
 }
 
@@ -218,13 +213,8 @@ void IGAMesh::createWeakDirichletSurfaceConditionGPData(int _connectionIndex) {
      * This function calls the corresponding function of the weak Dirichlet condition
      */
 
-    int patchIndex = weakIGADirichletSurfaceConditions[_connectionIndex]->getPatchIndex();
-
-    // Get the patch
-    IGAPatchSurface* thePatch = getSurfacePatch(patchIndex);
-
     // Create GP Data for the patch
-    weakIGADirichletSurfaceConditions[_connectionIndex]->createGPData(thePatch);
+    weakIGADirichletSurfaceConditions[_connectionIndex]->createGPData(surfacePatches);
 }
 
 WeakIGAPatchContinuityCondition* IGAMesh::addWeakContinuityCondition(int _connectionID,
@@ -266,15 +256,8 @@ void IGAMesh::createWeakContinuityConditionGPData(int _connectionIndex){
      * This function calls the corresponding function of the weak continuity condition
      */
 
-    int masterPatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getMasterPatchIndex();
-    int slavePatchIndex = weakIGAPatchContinuityConditions[_connectionIndex]->getSlavePatchIndex();
-
-    // Get the master and slave patches
-    IGAPatchSurface* masterPatch = getSurfacePatch(masterPatchIndex);
-    IGAPatchSurface* slavePatch = getSurfacePatch(slavePatchIndex);
-
     // Create GP Data for the patch pair
-    weakIGAPatchContinuityConditions[_connectionIndex]->createGPData(masterPatch, slavePatch);
+    weakIGAPatchContinuityConditions[_connectionIndex]->createGPData(surfacePatches);
 
 }
 

@@ -474,8 +474,8 @@ private:
      * \param[out] _v The output guess in v direction
      * \author Fabien Pean
      ***********/
-
     void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
+
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using Newton-Raphson
      * \param[in] _patchIndex The index of the patch we are working on
@@ -486,8 +486,20 @@ private:
      * \param[out] _minProjectionPoint The previous point computed
      * \author Fabien Pean
      ***********/
-
     bool projectPointOnPatch(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+
+    /***********************************************************************************************
+     * \brief Compute the projection of a point on a patch using Newton-Raphson
+     * \param[in] _patchIndex The index of the patch we are working on
+     * \param[in] _nodeIndex The global index of the node in the element we are working with
+     * \param[in] _u The initial guess in u direction
+     * \param[in] _v The initial guess in v direction
+     * \param[out] _minProjectionDistance The previous distance computed
+     * \param[out] _minProjectionPoint The previous point computed
+     * \author Altug Emiroglu
+     ***********/
+    bool forceProjectPointOnPatchByRelaxation(const int patchIndex, const int nodeIndex, const double u0, const double v0, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using a brute force method
      * \param[in] _patchCount The index of the patch we are working on
@@ -496,7 +508,7 @@ private:
      * \param[in] _v The initial guess in v direction
      * \author Fabien Pean
      ***********/
-    bool forceProjectPointOnPatch(const int patchIndex, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
+    bool forceProjectPointOnPatchBySampling(const int patchIndex, const int nodeIndex, double& minProjectionDistance, std::vector<double>& minProjectionPoint);
 
     /***********************************************************************************************
      * \brief Compute matrices Cnn and Cnr by looping over the FE elements and processing them
