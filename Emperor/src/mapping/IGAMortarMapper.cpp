@@ -828,6 +828,8 @@ void IGAMortarMapper::projectPointsToSurface() {
             }
         }
         notProjectedNodeIndicesFirstPass.clear();
+        time(&timeEnd);
+        INFO_OUT()<<"Second pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
     }
 
     // Third pass projection --> Closest point projection based on brute sampling
@@ -847,6 +849,8 @@ void IGAMortarMapper::projectPointsToSurface() {
             }
         }
         notProjectedNodeIndicesSecondPass.clear();
+        time(&timeEnd);
+        INFO_OUT()<<"Third pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
     }
 
     if(missing) {
