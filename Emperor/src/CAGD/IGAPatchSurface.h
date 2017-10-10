@@ -356,7 +356,8 @@ public:
      ***********/
     bool solvePointProjectionOnPatchBoundaryBisection(double& _u,double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2,
-            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
+            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY,
+            const int _maxPointProjIt=MAX_NUM_ITERATIONS, const double _tolPointProjOrtho=TOL_ORTHOGONALITY, const double _tolPointProjDist=TOL_DISTANCE);
 
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
@@ -377,9 +378,9 @@ public:
 
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary using the bisection method
-     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
+     * \param[out] The flag on whether or not the Bisection iterations have converged for the defined set of parameters
+     * \param[in/out] _u Given is the initial guess for the Bisection iterations and returned value is the converged u-surface parameter
+     * \param[in/out] _v Given is the initial guess for the Bisection iterations and returned value is the converged v-surface parameter
      * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
      * \param[in] _P1 The first point of the line segment
@@ -391,7 +392,8 @@ public:
      ***********/
     char computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2,
-            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
+            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY,
+            const int _maxPointProjIt=MAX_NUM_ITERATIONS, const double _tolPointProjOrtho=TOL_ORTHOGONALITY, const double _tolPointProjDist=TOL_DISTANCE);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection

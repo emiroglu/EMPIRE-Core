@@ -20,8 +20,13 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
+#ifdef ANN
+#include "ANN/ANN.h"
+#endif
 
+#ifdef FLANN
 #include "flann/flann.hpp"
+#endif
 
 #include "IGAMortarMapper.h"
 #include "IGAPatchSurface.h"
@@ -299,7 +304,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
             INFO_OUT() << "The number of Control Points in the NURBS multipatch geometry is " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
             INFO_OUT() << "Isogeometric mortar-based mapping per each Cartesian component seperately" << endl;
         }
-        INFO_OUT() << "The size of matrices is " << "Cnn: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeN:sizeR) << " and "
+        INFO_OUT() << "The size of matrices is " << "Cnn: " << sizeN << " x " << sizeN << " and "
                    << "Cnr: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
     }
 
@@ -707,8 +712,8 @@ void IGAMortarMapper::projectPointsToSurface() {
             bool isInside = thePatch->getBoundingBox().isPointInside(P, propProjection.maxProjectionDistance);
             if(isInside) {
                 nodeIndicesToProcessPerPatch[iPatch].insert(iNode);
-                std::copy(P, P + numCoord, std::back_inserter(nodeCoordsToProcessPerPatch[iPatch]));
                 patchIndicesToProcessPerNode[iNode].insert(iPatch);
+                std::copy(P, P + numCoord, std::back_inserter(nodeCoordsToProcessPerPatch[iPatch]));
             }
         }
         if(nodeIndicesToProcessPerPatch[iPatch].empty()) {
@@ -750,14 +755,14 @@ void IGAMortarMapper::projectPointsToSurface() {
 
         #ifdef ANN
             double dummy;
-            int* patchCandidateIndices[nodeIndicesToProcessPerPatch[iPatch].size()];
+            int patchCandidateIndices[nodeIndicesToProcessPerPatch[iPatch].size()];
             ANNkd_tree ANNKdTree(candidatesXYZ, numUCP*numVCP, numCoord);
             ANNKdTree->annkSearch(&nodeCoordsToProcessPerPatch[iPatch][0], 1, patchCandidateIndices, &dummy);
         #endif
 
         #ifdef FLANN
             // Store the nodes inside the bounding box of the current patch and the initial guess candidates in FLANN types
-            flann::Matrix<double> FLANNpatchNodesXYZ(&nodeCoordsToProcessPerPatch[iPatch][0], nodeIndicesToProcessPerPatch[iPatch].size(), numCoord);
+            flann::Matrix<double> FLANNpatchNodesXYZ(const_cast<double*>(&nodeCoordsToProcessPerPatch[iPatch][0]), nodeIndicesToProcessPerPatch[iPatch].size(), numCoord);
             flann::Matrix<double> FLANNcandidatesXYZ(candidatesXYZ, numUCP*numVCP, numCoord);
 
             // Construct the FLANN KDTree search tree
@@ -768,7 +773,6 @@ void IGAMortarMapper::projectPointsToSurface() {
             vector<vector<int> > patchCandidateIndices;
             vector<vector<double> > dummyDistances;
             FLANNKdTree.knnSearch(FLANNpatchNodesXYZ, patchCandidateIndices, dummyDistances, 1, flann::SearchParams(1));
-            dummyDistances.clear();
         #endif
 
         // Retrieve the initial guess coordinates from the patch parametric space(UV)
@@ -1368,7 +1372,8 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
         u = uIn;
         v = vIn;
         isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, Pin, Pout,
-                                                                                              propBisection.noIterations, propBisection.tolProjection);
+                                                                                              propBisection.noIterations, propBisection.tolProjection,
+                                                                                              propNewtonRaphson.noIterations, propNewtonRaphsonBoundary.tolProjection, propProjection.maxProjectionDistance);
     }
     // Perform some validity check
     if(!isProjectedOnPatchBoundary)

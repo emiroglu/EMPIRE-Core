@@ -1194,41 +1194,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             }
         }
 
-//        if (fabs(dR[0]) < epsJ || fixU) {
-//            std::cout << "fabs(dR[0]) < epsJ || fixU dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
-//            R[0] = 0.0;
-//            R[1] = R[1] / dR[3];
-//            fixU = false;
-//            fixV = true;
-//        } else if (fabs(dR[3]) < epsJ || fixV) {
-//            std::cout << "fabs(dR[3]) < epsJ || fixV dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
-//            // According to Fabien that must be R[0] / dR[0];
-//            // R[0] = R[0] / dR[1];  // According to Chenshen
-//            R[0] = R[0] / dR[0]; // According to Fabien
-//            R[1] = 0.0;
-//            fixU = true;
-//            fixV = false;
-//        } else {
-//            std::cout << "Solving the linear system !"<<std::endl;
-//            // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
-
-//            // Solve the equation system
-//            flagLinearSystem = EMPIRE::MathLibrary::solve2x2LinearSystem(dR, R, EMPIRE::MathLibrary::EPS );
-
-//            // Check if the equation system has been successfully solved
-//            if (!flagLinearSystem) {
-//                ERROR_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
-//                ERROR_OUT()
-//                        << "The 2x2 equation system to find the updates of the surface parameters"
-//                        << endl;
-//                ERROR_OUT()
-//                        << "for the orthogonal projection of a point on the NURBS patch has been"
-//                        << endl;
-//                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
-//                exit(-1);
-//            }
-//        }
-
         // 2xv. Update the surface parameters u += du and v += dv
         _u += R[0];
         _v += R[1];
@@ -1389,7 +1354,8 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUT
 
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 		double& _u, double& _v, double& _ratio, double& _distance, double* _P1,
-		double* _P2, int _maxIt, double _tol) {
+        double* _P2, int _maxIt, double _tol,
+        int _maxPointProjIt, double _tolPointProjOrtho, double _tolPointProjDist) {
 	/// 1. Read input and initialize the data
 	// Read input
 	assert(_P1 != NULL);
@@ -1425,7 +1391,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 			P1P[i] = P[i] - P1[i];
 			Q[i] = P[i];
 		}
-		isIn = computePointProjectionOnPatch(UV[0], UV[1], Q);
+        isIn = computePointProjectionOnPatch(UV[0], UV[1], Q, _maxPointProjIt, _tolPointProjOrtho, _tolPointProjDist);
 		if (isIn) {
 			for (int i = 0; i < noSpatialDimensions; i++) {
 				P1[i] = P[i];
@@ -1444,7 +1410,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 	/// 3. Postprocessing
 	//Reached maximum of iteration = algorithm not converged
 	if (iteration > _maxIt)
-		return false;
+        return false;
 	//Else compute output data
 	double P1P2[noSpatialDimensions],QP[3];
 	for (int i = 0; i < noSpatialDimensions; i++) {
@@ -1456,12 +1422,13 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
 	_v = UV1[1];
 	_distance = MathLibrary::vector2norm(QP,noSpatialDimensions);
 	_ratio =  MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P)
-			/ MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P2);
+            / MathLibrary::computeDenseDotProduct(noSpatialDimensions, P1P2, P1P2);
 	return true;
 
 }
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
-        double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
+        double& _distance, double* _P1, double* _P2, int _maxIt, double _tol,
+        int _maxPointProjIt, double _tolPointProjOrtho, double _tolPointProjDist){
 	DEBUG_OUT()<<"\t======================================================"<<endl;
 	DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection"<<endl;
 	DEBUG_OUT()<<"\tPROJECT line on boundary using Bisection for line"<<endl
@@ -1475,7 +1442,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryBisection(double& _u,
     double u=_u;
 	double v=_v;
 	// Compute point projection from the line to the NURBS patch boundary
-    isConverged = solvePointProjectionOnPatchBoundaryBisection(u,v, div,distance, _P1, _P2, _maxIt, _tol);
+    isConverged = solvePointProjectionOnPatchBoundaryBisection(u,v, div,distance, _P1, _P2, _maxIt, _tol, _maxPointProjIt, _tolPointProjOrtho, _tolPointProjDist);
 	if(isConverged){
 		char edge = getEdge(u, v);
 		DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
