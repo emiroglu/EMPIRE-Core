@@ -662,6 +662,7 @@ void IGAMortarMapper::initialize() {
 
 void IGAMortarMapper::projectPointsToSurface() {
 
+    // Number of spatial coordinates
     int numCoord = 3;
 
     // Time stamps
@@ -694,8 +695,12 @@ void IGAMortarMapper::projectPointsToSurface() {
 
     // Variables for generating initial guesses both in the patch parametric spaces and in the physical space
     int numUCP, numVCP;
-    double* candidatesU;
-    double* candidatesV;
+    int pDegree, qDegree;
+    double dSectionCandidate;
+    vector<double> grevilleAbscissaeU;
+    vector<double> grevilleAbscissaeV;
+    vector<double> candidatesU;
+    vector<double> candidatesV;
     double* candidatesXYZ;
     double tmpUV[2];
     double* P;
@@ -706,9 +711,17 @@ void IGAMortarMapper::projectPointsToSurface() {
     INFO_OUT() << "Bounding box preprocessing started" << endl;
     time(&timeStart);
     for (int iPatch = 0; iPatch < numPatches; iPatch++) {
+
+        // Get the patch to process
         thePatch = meshIGA->getSurfacePatch(iPatch);
+
+        // Loop over the FE-Nodes
         for (int iNode = 0; iNode < meshFE->numNodes; iNode++) {
+
+            // Get the point to process
             P = &meshFE->nodes[numCoord * iNode];
+
+            // Check if the point is inside the bounding box and fill in the vectors with corresponding indices
             bool isInside = thePatch->getBoundingBox().isPointInside(P, propProjection.maxProjectionDistance);
             if(isInside) {
                 nodeIndicesToProcessPerPatch[iPatch].insert(iNode);
@@ -731,39 +744,78 @@ void IGAMortarMapper::projectPointsToSurface() {
         // Get the patch to project points onto
         thePatch = meshIGA->getSurfacePatch(iPatch);
 
-        // Generate candidate points for initial guesses in the patch parameter space using the Greville abcissae
+        // Generate candidate points for initial guesses in the patch parameter space using the Greville abscissae
+        // and p number of divisions between each Greville abscissae
+        // x---*---*---x---*---*---x
         numUCP = thePatch->getUNoControlPoints();
         numVCP = thePatch->getVNoControlPoints();
+        pDegree = thePatch->getIGABasis(0)->getPolynomialDegree();
+        qDegree = thePatch->getIGABasis(1)->getPolynomialDegree();
 
-        candidatesU = new double[numUCP];
+        // Compute Grevillie Abscissae in U direction
         for (int iUCP = 0; iUCP < numUCP; iUCP++)
-            candidatesU[iUCP] = thePatch->getIGABasis(0)->computeGrevilleAbscissae(iUCP);
+            grevilleAbscissaeU.push_back(thePatch->getIGABasis(0)->computeGrevilleAbscissae(iUCP));
 
-        candidatesV = new double[numVCP];
+        // Compute subdivisions between Grevillie Abscissae in U direction
+        for (int iUCP = 0; iUCP < numUCP-1; iUCP++){
+
+            // Add the first abscissa
+            candidatesU.push_back(grevilleAbscissaeU[iUCP]);
+
+            // Distance between the subdivisions
+            dSectionCandidate = (grevilleAbscissaeU[iUCP+1] - grevilleAbscissaeU[iUCP]) / ((double) pDegree);
+
+            //Compute and add the subdivisions
+            for (int iSection = 1; iSection < pDegree; iSection++)
+                candidatesU.push_back(grevilleAbscissaeU[iUCP] + iSection * dSectionCandidate);
+        }
+        // Add the last abscissa
+        candidatesU.push_back(grevilleAbscissaeU.back());
+        EMPIRE::MathLibrary::sortRemoveDuplicates(candidatesU);
+
+        // Compute Grevillie Abscissae in V direction
         for (int iVCP = 0; iVCP < numVCP; iVCP++)
-            candidatesV[iVCP] = thePatch->getIGABasis(1)->computeGrevilleAbscissae(iVCP);
+            grevilleAbscissaeV.push_back(thePatch->getIGABasis(1)->computeGrevilleAbscissae(iVCP));
+
+        // Compute subdivisions between Grevillie Abscissae in V direction
+        for (int iVCP = 0; iVCP < numVCP-1; iVCP++){
+
+            // Add the first abscissa
+            candidatesV.push_back(grevilleAbscissaeV[iVCP]);
+
+            // Distance between the subdivisions
+            dSectionCandidate = (grevilleAbscissaeV[iVCP+1] - grevilleAbscissaeV[iVCP]) / ((double) qDegree);
+
+            //Compute and add the subdivisions
+            for (int iSection = 1; iSection < qDegree; iSection++)
+                candidatesV.push_back(grevilleAbscissaeV[iVCP] + iSection * dSectionCandidate);
+        }
+        // Add the last abscissa
+        candidatesV.push_back(grevilleAbscissaeV.back());
+        EMPIRE::MathLibrary::sortRemoveDuplicates(candidatesV);
 
         // Compute the physical coordinates of the initial guess points
-        candidatesXYZ = new double[numUCP*numVCP*numCoord];
-        for (int iVCP = 0; iVCP < numVCP; iVCP++) {
-            tmpUV[1] = candidatesV[iVCP];
-            for (int iUCP = 0; iUCP < numUCP; iUCP++) {
-                tmpUV[0] = candidatesU[iUCP];
-                thePatch->computeCartesianCoordinates(&candidatesXYZ[(iVCP*numUCP+iUCP)*numCoord],tmpUV);
+        candidatesXYZ = new double[candidatesU.size()*candidatesV.size()*numCoord];
+        for (int iCandidateV = 0; iCandidateV < candidatesV.size(); iCandidateV++) {
+            tmpUV[1] = candidatesV[iCandidateV];
+            for (int iCandidateU = 0; iCandidateU < candidatesU.size(); iCandidateU++) {
+                tmpUV[0] = candidatesU[iCandidateU];
+                thePatch->computeCartesianCoordinates(&candidatesXYZ[(iCandidateV*candidatesU.size()+iCandidateU)*numCoord],tmpUV);
             }
         }
 
+        // Construct the search tree of initial guess points to find out the initial guess for the points to project
         #ifdef ANN
             double dummy;
             int patchCandidateIndices[nodeIndicesToProcessPerPatch[iPatch].size()];
-            ANNkd_tree ANNKdTree(candidatesXYZ, numUCP*numVCP, numCoord);
+            ANNkd_tree ANNKdTree(candidatesXYZ, candidatesU.size()*candidatesV.size(), numCoord);
             ANNKdTree->annkSearch(&nodeCoordsToProcessPerPatch[iPatch][0], 1, patchCandidateIndices, &dummy);
         #endif
 
         #ifdef FLANN
             // Store the nodes inside the bounding box of the current patch and the initial guess candidates in FLANN types
             flann::Matrix<double> FLANNpatchNodesXYZ(const_cast<double*>(&nodeCoordsToProcessPerPatch[iPatch][0]), nodeIndicesToProcessPerPatch[iPatch].size(), numCoord);
-            flann::Matrix<double> FLANNcandidatesXYZ(candidatesXYZ, numUCP*numVCP, numCoord);
+            flann::Matrix<double> FLANNcandidatesXYZ(candidatesXYZ, candidatesU.size()*candidatesV.size(), numCoord);
 
             // Construct the FLANN KDTree search tree
             flann::Index<flann::L2<double> > FLANNKdTree(FLANNcandidatesXYZ, flann::KDTreeSingleIndexParams(1));
@@ -782,10 +834,10 @@ void IGAMortarMapper::projectPointsToSurface() {
         for(set<int>::iterator iNode = nodeIndicesToProcessPerPatch[iPatch].begin(); iNode != nodeIndicesToProcessPerPatch[iPatch].end(); iNode++) {
             // The quotient = iVCP, remainder = iUCP, since the ordering of the initial guesses were done in such order. See the ordering of "candidatesXYZ" above.
             #ifdef ANN
-                dv = std::div(patchCandidateIndices[patchNodeIndex], numUCP);
+                dv = std::div(patchCandidateIndices[patchNodeIndex], candidatesU.size());
             #endif
             #ifdef FLANN
-                dv = std::div(patchCandidateIndices[patchNodeIndex][0], numUCP);
+                dv = std::div(patchCandidateIndices[patchNodeIndex][0], candidatesU.size());
             #endif
 
             initialU = candidatesU[dv.rem];
@@ -796,8 +848,11 @@ void IGAMortarMapper::projectPointsToSurface() {
             patchNodeIndex++;
         }
 
-        delete[] candidatesU;
-        delete[] candidatesV;
+        // Clear patch related variables
+        grevilleAbscissaeU.clear();
+        grevilleAbscissaeV.clear();
+        candidatesU.clear();
+        candidatesV.clear();
         delete[] candidatesXYZ;
     }
     time(&timeEnd);
@@ -866,7 +921,6 @@ void IGAMortarMapper::projectPointsToSurface() {
         msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
         ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
     }
-
 }
 
 void IGAMortarMapper::computeInitialGuessForProjection(const int _patchIndex, const int _elemIndex, const int _nodeIndex, double& _u, double& _v) {
