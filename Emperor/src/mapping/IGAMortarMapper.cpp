@@ -761,7 +761,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         // Compute subdivisions between Grevillie Abscissae in U direction
         for (int iUCP = 0; iUCP < numUCP-1; iUCP++){
 
-            // Add the first abscissa
+            // Add the abscissa
             candidatesU.push_back(grevilleAbscissaeU[iUCP]);
 
             // Distance between the subdivisions
@@ -782,7 +782,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         // Compute subdivisions between Grevillie Abscissae in V direction
         for (int iVCP = 0; iVCP < numVCP-1; iVCP++){
 
-            // Add the first abscissa
+            // Add the abscissa
             candidatesV.push_back(grevilleAbscissaeV[iVCP]);
 
             // Distance between the subdivisions
@@ -827,6 +827,7 @@ void IGAMortarMapper::projectPointsToSurface() {
             vector<vector<int> > patchCandidateIndices;
             vector<vector<double> > dummyDistances;
             FLANNKdTree.knnSearch(FLANNpatchNodesXYZ, patchCandidateIndices, dummyDistances, 1, flann::SearchParams(1));
+            dummyDistances.clear();
         #endif
 
         // Retrieve the initial guess coordinates from the patch parametric space(UV)

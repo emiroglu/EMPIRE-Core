@@ -1736,13 +1736,16 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
     // This check is performed here since the point P is reconstructed and not returned to the upper level
     isConverged = isConverged && (1 - collinearity <= _tol );
 
-    // Compute output parameters _lambda and _distance
-    _lambda = normP1P / normP1P2;
-    double QP[3];
-    for (int i = 0; i < noCoord; i++) {
-        QP[i] = _P1[i] + _lambda * (_P2[i] - _P1[i]) - Q[i];
+    // Compute the output variables if the algorithm validly converged
+    if (isConverged) {
+        // Compute output parameters _lambda and _distance
+        _lambda = normP1P / normP1P2;
+        double QP[3];
+        for (int i = 0; i < noCoord; i++) {
+            QP[i] = _P1[i] + _lambda * (_P2[i] - _P1[i]) - Q[i];
+        }
+        _distance = MathLibrary::vector2norm(QP,noCoord);
     }
-    _distance = MathLibrary::vector2norm(QP,noCoord);
 
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
