@@ -107,12 +107,12 @@ double BSplineBasis1D::computeGrevilleAbscissae(const int _controlPointIndex) co
 	return GrevilleAbscissae;
 }
 
-bool BSplineBasis1D::clampKnot(double& _uPrm) const {
+bool BSplineBasis1D::clampKnot(double& _uPrm, double _tol) const {
 	bool isInside=true;
 
 	// Clamp to lower boundary according to tolerance
 	double firstKnot=getFirstKnot();
-    if (_uPrm < firstKnot && firstKnot - _uPrm < EPS_ACCPETEDINTOKNOTSPAN) {
+    if (_uPrm < firstKnot && firstKnot - _uPrm < _tol) {
     	_uPrm = firstKnot;
     //In case knot is fully outside, clamp it anyway but set up output flag to false
     } else if(_uPrm < firstKnot){
@@ -121,7 +121,7 @@ bool BSplineBasis1D::clampKnot(double& _uPrm) const {
     }
 	// Clamp to upper boundary according to tolerance
 	double lastKnot=getLastKnot();
-    if (_uPrm > lastKnot && _uPrm - lastKnot < EPS_ACCPETEDINTOKNOTSPAN) {
+    if (_uPrm > lastKnot && _uPrm - lastKnot < _tol) {
         _uPrm = lastKnot;
     } else if(_uPrm > lastKnot){
     	isInside=false;

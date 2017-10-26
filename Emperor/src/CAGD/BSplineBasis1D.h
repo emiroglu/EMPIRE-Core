@@ -105,7 +105,7 @@ public:
      * \return bool Gives 1 if the input knot was inside the Knot vector or close enough, 0 if outside
      * \author Fabien Pean
      ***********/
-    bool clampKnot(double&) const;
+    bool clampKnot(double&, double _tol = EPS_ACCPETEDINTOKNOTSPAN) const;
 
     /***********************************************************************************************
      * \brief Returns the polynomial degree of the B-Spline 1D basis

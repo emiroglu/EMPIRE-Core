@@ -1672,60 +1672,26 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
     double lambda = _lambda;
     double distance =_distance;
     bool isProjectedOnPatchBoundary = false;
+    double tolLambda = 1e-6;
 
     // Use the Newton-Raphson algorithm to find the intersection
-    cout << "Trying Newton-Rapshon" << endl;
     isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, lambda, distance, Pin, Pout,
                                                                                               propNewtonRaphsonBoundary.noIterations, propNewtonRaphsonBoundary.tolProjection);
-    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && (distance <= propProjection.maxProjectionDistance);
-//    if (isProjectedOnPatchBoundary){
-//        cout << endl;
-//        cout << "------------------------"<< endl;
-//        cout << "Newton-Rapshon converged" << endl;
-//        cout << "Converged lambda : " << lambda << endl;
-//        cout << "------------------------"<< endl;
-//        cout << endl;
-//    }
-    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && lambda >= 1e-6;
-//    if (isProjectedOnPatchBoundary) {
-//        cout << endl;
-//        cout << "-----------------------------------"<< endl;
-//        cout << "Newton-Rapshon wirklich CONVERGIERT" << endl;
-//        cout << "-----------------------------------"<< endl;
-//        cout << endl;
-//    } else
-//        cout << "Newton-Rapshon did not converge" << endl;
+
+    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && distance <= _distance && lambda >= tolLambda;
 
     // Use the bisection algorithm to find the intersection
     if (!isProjectedOnPatchBoundary) {
         DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm." << endl;
-        cout << "\t Trying bisection" << endl;
         u = uIn;
         v = vIn;
         lambda = _lambda;
         distance = _distance;
         isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, lambda, distance, Pin, Pout,
                                                                                               propBisection.noIterations, propBisection.tolProjection);
-        isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && (distance <= propProjection.maxProjectionDistance);
-        if (isProjectedOnPatchBoundary)
-            cout << "\t Bisection converged" << endl;
-        else
-            cout << "\t Bisection did not converge" << endl;
+        isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && distance <= _distance && lambda >= tolLambda;
     }
 
-
-
-//    }
-
-
-
-    // Perform some validity check
-//    if(!isProjectedOnPatchBoundary)
-//        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
-//    if(isProjectedOnPatchBoundary && dis > propProjection.maxProjectionDistance) {
-//        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<< dis << " for prescribed max of " <<
-//                       propProjection.maxProjectionDistance << ". Relax maxProjectionDistance in XML input!" << endl;
-//    }
 
     if (isProjectedOnPatchBoundary) {
         _lambda = lambda;
