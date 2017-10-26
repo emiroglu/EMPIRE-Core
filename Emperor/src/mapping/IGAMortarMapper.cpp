@@ -20,6 +20,7 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 
+
 #ifdef ANN
 #include "ANN/ANN.h"
 #endif
@@ -27,6 +28,7 @@
 #ifdef FLANN
 #include "flann/flann.hpp"
 #endif
+
 
 #include "IGAMortarMapper.h"
 #include "IGAPatchSurface.h"
@@ -304,7 +306,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
             INFO_OUT() << "The number of Control Points in the NURBS multipatch geometry is " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
             INFO_OUT() << "Isogeometric mortar-based mapping per each Cartesian component seperately" << endl;
         }
-        INFO_OUT() << "The size of matrices is " << "Cnn: " << sizeN << " x " << sizeN << " and "
+        INFO_OUT() << "The size of matrices is " << "Cnn: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeN:sizeR) << " and "
                    << "Cnr: " << (isMappingIGA2FEM?sizeN:sizeR) << " x " << (isMappingIGA2FEM?sizeR:sizeN) << endl;
     }
 
@@ -991,7 +993,7 @@ bool IGAMortarMapper::projectPointOnPatch(const int patchIndex, const int nodeIn
     /// Compute point projection on the NURBS patch using the Newton-Rapshon iteration method
     bool hasResidualConverged;
     bool hasConverged = thePatch->computePointProjectionOnPatch(u, v, projectedP,
-                                                                hasResidualConverged, propNewtonRaphson.noIterations, propNewtonRaphson.tolProjection, propProjection.maxProjectionDistance);
+                                                                hasResidualConverged, propNewtonRaphson.noIterations, propNewtonRaphson.tolProjection);
     double distance = MathLibrary::computePointDistance(P, projectedP);
     if(hasConverged &&  distance < propProjection.maxProjectionDistance) {
         /// Perform some validity checks to validate the projected point
@@ -1141,9 +1143,11 @@ void IGAMortarMapper::computeCouplingMatrices() {
         getPatchesIndexElementIsOn(elemIndex, patchWithFullElt, patchWithSplitElt);
         DEBUG_OUT()<<"Element FULLY projected on \t" << patchWithFullElt.size() << " patch" << endl;
         DEBUG_OUT()<<"Element PARTLY projected on \t" << patchWithSplitElt.size() << " patch" << endl;
+
         /////////////////////////////////////
         /// Compute the coupling matrices ///
         /////////////////////////////////////
+
         /// 1. If the current element can be projected on one patch
         for (set<int>::iterator it = patchWithFullElt.begin();
              it != patchWithFullElt.end(); ++it) {
@@ -1160,6 +1164,7 @@ void IGAMortarMapper::computeCouplingMatrices() {
                 projectedPolygons[elemIndex][patchIndex]=polygonUV;
             }
         }
+
         /// 2. If the current element is split in more than one patches
         // Loop over all the patches in the IGA Mesh having a part of the FE element projected inside
         for (set<int>::iterator it = patchWithSplitElt.begin(); it != patchWithSplitElt.end(); it++) {
@@ -1180,10 +1185,11 @@ void IGAMortarMapper::computeCouplingMatrices() {
             }
         } // end of loop over set of split patch
     } // end of loop over all the element
+
     time(&timeEnd);
     INFO_OUT() << "Computing coupling matrices done! It took " << difftime(timeEnd, timeStart) << " seconds" << endl;
     if(elementIntegrated.size() != meshFE->numElems) {
-        WARNING_OUT()<<"Number of FE mesh integrated is "<<elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
+        WARNING_OUT()<<"Number of FE mesh not integrated is "<<meshFE->numElems - elementIntegrated.size()<<" over "<<meshFE->numElems<<endl;
         for(int i = 0; i < meshFE->numElems; i++) {
             if(!elementIntegrated.count(i))
                 WARNING_OUT()<<"Missing element number "<< i <<endl;
@@ -1246,148 +1252,393 @@ void IGAMortarMapper::buildFullParametricElement(int elemCount, int numNodesElem
     }
 }
 
+//void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV) {
+//    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
+//    /// Split nodes from element into 2 subsets, node projected inside the NURBS patch, and node projected outside
+//    vector<int> insideNode, outsideNode;
+//    for(int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
+//        int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
+//        /// Flag on whether the node is inside the current NURBS patch
+//        bool isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex)
+//                != projectedCoords[nodeIndex].end();
+//        if(isNodeInsidePatch)
+//            insideNode.push_back(nodeIndex);
+//        else
+//            outsideNode.push_back(nodeIndex);
+//    }
+//    /// Tolerance validity projected point
+//    /// WARNING hard coded tolerance for valid
+//    double toleranceRatio = 1e-6;
+//    /// Process every node of the element
+//    for(int i = 0; i < numNodesElementFE; i++) {
+//        bool isProjectedOnPatchBoundary = true;
+//        double uIn, vIn;
+//        double u, v;
+//        double div = 0, dis = propProjection.maxProjectionDistance;
+
+//        /// Get the node indexes
+//        int nodeCount = (i + 0) % numNodesElementFE;
+//        int nodeCountPrev = (i + numNodesElementFE - 1) % numNodesElementFE;
+//        int nodeCountNext = (i + 1) % numNodesElementFE;
+//        int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
+//        int nodeIndexPrev = meshFEDirectElemTable[elemIndex][nodeCountPrev];
+//        int nodeIndexNext = meshFEDirectElemTable[elemIndex][nodeCountNext];
+
+//        /// Flag on whether the node and its neighbour is inside the current NURBS patch
+//        bool isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex)
+//                != projectedCoords[nodeIndex].end();
+//        bool isPrevNodeInsidePatch = projectedCoords[nodeIndexPrev].find(patchIndex)
+//                != projectedCoords[nodeIndexPrev].end();
+//        bool isNextNodeInsidePatch = projectedCoords[nodeIndexNext].find(patchIndex)
+//                != projectedCoords[nodeIndexNext].end();
+
+//        /// Get the location of the node and its neighbour
+//        double* P0 = &(meshFE->nodes[nodeIndexPrev * 3]);
+//        double* P1 = &(meshFE->nodes[nodeIndex * 3]);
+//        double* P2 = &(meshFE->nodes[nodeIndexNext * 3]);
+
+//        /// Case selection
+//        /// Node inside
+//        if(isNodeInsidePatch) {
+//            u = projectedCoords[nodeIndex][patchIndex][0];
+//            v = projectedCoords[nodeIndex][patchIndex][1];
+//            polygonUV.push_back(make_pair(u,v));
+//            continue;
+//        }
+//        /// Node outside and both neighbors inside
+//        if(!isNodeInsidePatch && isPrevNodeInsidePatch && isNextNodeInsidePatch) {
+//            double u0In = projectedCoords[nodeIndexPrev][patchIndex][0];
+//            double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
+//            u = u0In;
+//            v = v0In;
+//            dis = propProjection.maxProjectionDistance;
+//            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
+//            double u0=u,v0=v,div0=div;
+//            double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
+//            double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
+//            u = u2In;
+//            v = v2In;
+//            dis = propProjection.maxProjectionDistance;
+//            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
+//            double u2 = u, v2 = v, div2 = div;
+//            double denominator = (u0In - u0)*(v2In - v2) - (v0In - v0)*(u2In - u2);
+//            /// If two valid line parameter found and the denominator is valid
+//            if(div0 >= toleranceRatio && div2 >= toleranceRatio && fabs(denominator) > toleranceRatio) {
+//                // Compute intersection of the two lines
+//                // See http://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+//                u = ((u0In*v0 - v0In*u0)*(u2In - u2) - (u0In - u0)*(u2In*v2 - v2In*u2))/denominator;
+//                v = ((u0In*v0 - v0In*u0)*(v2In - v2) - (v0In - v0)*(u2In*v2 - v2In*u2))/denominator;
+//                // Store the point
+//                polygonUV.push_back(make_pair(u,v));
+//                continue;
+//                // If only first line parameter valid
+//            } else if(div0 >= toleranceRatio) {
+//                /// Save data from first projection
+//                u = u0;
+//                v = v0;
+//                uIn = u0In;
+//                vIn = v0In;
+//                div = div0;
+//                // If only second line parameter valid
+//            } else if(div2 >= toleranceRatio) {
+//                // Save data from second projection
+//                u = u2;
+//                v = v2;
+//                uIn = u2In;
+//                vIn = v2In;
+//                div = div2;
+//            }
+//            /// Else no valid point found
+//        }
+//        /// Node outside and previous neighbor outside and next neighbor inside
+//        if(!isNodeInsidePatch && !isPrevNodeInsidePatch && isNextNodeInsidePatch) {
+//            // Set up initial guess from next node
+//            uIn = projectedCoords[nodeIndexNext][patchIndex][0];
+//            vIn = projectedCoords[nodeIndexNext][patchIndex][1];
+//            u = uIn;
+//            v = vIn;
+//            dis = propProjection.maxProjectionDistance;
+//            // Project on boundary
+//            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
+//        }
+//        /// Node outside and previous neighbor outside and next neighbor inside
+//        if(!isNodeInsidePatch && isPrevNodeInsidePatch && !isNextNodeInsidePatch) {
+//            // Set up initial guess from previous node
+//            uIn = projectedCoords[nodeIndexPrev][patchIndex][0];
+//            vIn = projectedCoords[nodeIndexPrev][patchIndex][1];
+//            u = uIn;
+//            v = vIn;
+//            dis = propProjection.maxProjectionDistance;
+//            // Project on boundary
+//            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
+//        }
+//        /// Node outside and both neighbor outside  or no valid line parameter div computed before
+//        if(div < toleranceRatio) {
+//            // Project on boundary with all possible inside node until line parameter is valid
+//            for(vector<int>::iterator it = insideNode.begin(); it != insideNode.end() && div < toleranceRatio; it++) {
+//                if(*it == nodeIndexPrev || *it == nodeIndexNext)
+//                    continue;
+//                double* P0 = &(meshFE->nodes[*it * 3]);
+//                uIn = projectedCoords[*it][patchIndex][0];
+//                vIn = projectedCoords[*it][patchIndex][1];
+//                u = uIn;
+//                v = vIn;
+//                dis = propProjection.maxProjectionDistance;
+//                isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
+//            }
+//        }
+//        /// Add point in polygon if line parameter is valid
+//        if(div >= toleranceRatio) {
+//            u = uIn + (u - uIn)/div;
+//            v = vIn + (v - vIn)/div;
+//            polygonUV.push_back(make_pair(u,v));
+//        }
+//        /// Warning/Error output
+//        if(!isProjectedOnPatchBoundary) {
+//            if(thePatch->isTrimmed()) {
+//                DEBUG_OUT() << "Warning in IGAMortarMapper::buildBoundaryParametricElement"
+//                              << endl;
+//                DEBUG_OUT() << "Cannot find point projection on patch boundary. "
+//                              << "Element "<< elemIndex <<" on Patch "<< patchIndex <<" not integrated and skipped !" << endl;
+//                break;//break loop over node
+//            } else {
+//                ERROR_OUT() << "Error in IGAMortarMapper::computeCouplingMatrices"
+//                            << endl;
+//                ERROR_OUT() << "Cannot find point projection on patch boundary" << endl;
+//                ERROR_OUT()
+//                        << "Cannot find point projection on patch boundary between node ["
+//                        << nodeIndex << "]:(" << meshFE->nodes[nodeIndex * 3] << ","
+//                        << meshFE->nodes[nodeIndex * 3 + 1] << ","
+//                        << meshFE->nodes[nodeIndex * 3 + 2] << ") and node ["
+//                        << nodeIndexNext << "]:(" << meshFE->nodes[nodeIndexNext * 3]
+//                        << "," << meshFE->nodes[nodeIndexNext * 3 + 1] << ","
+//                        << meshFE->nodes[nodeIndexNext * 3 + 2] << ") on patch ["
+//                        << patchIndex << "] boundary" << endl;
+//                ERROR_OUT() << "Projection failed in IGA mapper " << name << endl;
+//                exit(EXIT_FAILURE);
+//            }
+//        }
+//    }
+//}
+
 void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodesElementFE, int patchIndex, Polygon2D& polygonUV) {
-    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
-    /// Split nodes from element into 2 subsets, node projected inside the NURBS patch, and node projected outside
-    vector<int> insideNode, outsideNode;
-    for(int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
-        int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
-        /// Flag on whether the node is inside the current NURBS patch
-        bool isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex)
-                != projectedCoords[nodeIndex].end();
-        if(isNodeInsidePatch)
-            insideNode.push_back(nodeIndex);
-        else
-            outsideNode.push_back(nodeIndex);
-    }
-    /// Tolerance validity projected point
-    /// WARNING hard coded tolerance for valid
+
+    // Initialize auxiliary variables
+    vector<int> nodesInside;
+    bool isProjectedOnPatchBoundary, isProjectedOnPatchBoundary0, isProjectedOnPatchBoundary2;
+    bool isNodeInsidePatch, isNode0InsidePatch, isNode2InsidePatch;
+    bool isUInside, isVInside, isValid;
+    double* P0;
+    double* P1;
+    double* P2;
+    double* PIn;
+    int nodeIndex, nodeIndex0, nodeIndex2;
+    int nodeCount, nodeCount0, nodeCount2;
     double toleranceRatio = 1e-6;
-    /// Process every node of the element
+    double uIn, vIn, u0In, v0In, u2In, v2In;
+    double uTmp, vTmp;
+    double u, v;
+    double lambda;
+    double distance, distance0, distance2;
+    double u0, v0, lambda0;
+    double u2, v2, lambda2;
+    double denominator;
+
+    // Get the patch
+    IGAPatchSurface* thePatch = meshIGA->getSurfacePatch(patchIndex);
+
+    // Loop over all the nodes of the Finite Element
+    for(int nodeCount = 0; nodeCount < numNodesElementFE; nodeCount++) {
+        // Get the node index in the node array
+        nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
+
+        // Get the flag whether the node has been projected inside the patch
+        isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex) != projectedCoords[nodeIndex].end();
+
+        // If the node has been projected inside the patch add it to the array of the projected onto the patch node
+        if(isNodeInsidePatch)
+            nodesInside.push_back(nodeIndex);
+    }
+
+    // Loop over all nodes of the Finite Element
     for(int i = 0; i < numNodesElementFE; i++) {
-        bool isProjectedOnPatchBoundary = true;
-        double uIn, vIn;
-        double u, v;
-        double div = 0, dis = propProjection.maxProjectionDistance;
+        // Get node indices
+        nodeCount = (i + 0) % numNodesElementFE;
+        nodeCount0 = (i + numNodesElementFE - 1) % numNodesElementFE;
+        nodeCount2 = (i + 1) % numNodesElementFE;
+        nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
+        nodeIndex0 = meshFEDirectElemTable[elemIndex][nodeCount0];
+        nodeIndex2 = meshFEDirectElemTable[elemIndex][nodeCount2];
 
-        /// Get the node indexes
-        int nodeCount = (i + 0) % numNodesElementFE;
-        int nodeCountPrev = (i + numNodesElementFE - 1) % numNodesElementFE;
-        int nodeCountNext = (i + 1) % numNodesElementFE;
-        int nodeIndex = meshFEDirectElemTable[elemIndex][nodeCount];
-        int nodeIndexPrev = meshFEDirectElemTable[elemIndex][nodeCountPrev];
-        int nodeIndexNext = meshFEDirectElemTable[elemIndex][nodeCountNext];
+        // Get the corresponding flags on whether the nodes are projected inside the patch
+        isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex) != projectedCoords[nodeIndex].end();
+        isNode0InsidePatch = projectedCoords[nodeIndex0].find(patchIndex) != projectedCoords[nodeIndex0].end();
+        isNode2InsidePatch = projectedCoords[nodeIndex2].find(patchIndex) != projectedCoords[nodeIndex2].end();
 
-        /// Flag on whether the node and its neighbour is inside the current NURBS patch
-        bool isNodeInsidePatch = projectedCoords[nodeIndex].find(patchIndex)
-                != projectedCoords[nodeIndex].end();
-        bool isPrevNodeInsidePatch = projectedCoords[nodeIndexPrev].find(patchIndex)
-                != projectedCoords[nodeIndexPrev].end();
-        bool isNextNodeInsidePatch = projectedCoords[nodeIndexNext].find(patchIndex)
-                != projectedCoords[nodeIndexNext].end();
+        // Get the Cartesian coordinates of the node and its neighbours
+        P0 = &(meshFE->nodes[nodeIndex0 * 3]);
+        P1 = &(meshFE->nodes[nodeIndex * 3]);
+        P2 = &(meshFE->nodes[nodeIndex2 * 3]);
 
-        /// Get the location of the node and its neighbour
-        double* P0 = &(meshFE->nodes[nodeIndexPrev * 3]);
-        double* P1 = &(meshFE->nodes[nodeIndex * 3]);
-        double* P2 = &(meshFE->nodes[nodeIndexNext * 3]);
-
-        /// Case selection
-        /// Node inside
+        // If the node is projected inside the patch add its parametric coordinates into the polygonUV container
         if(isNodeInsidePatch) {
             u = projectedCoords[nodeIndex][patchIndex][0];
             v = projectedCoords[nodeIndex][patchIndex][1];
             polygonUV.push_back(make_pair(u,v));
             continue;
         }
-        /// Node outside and both neighbors inside
-        if(!isNodeInsidePatch && isPrevNodeInsidePatch && isNextNodeInsidePatch) {
-            double u0In = projectedCoords[nodeIndexPrev][patchIndex][0];
-            double v0In = projectedCoords[nodeIndexPrev][patchIndex][1];
-            u = u0In;
-            v = v0In;
-            dis = propProjection.maxProjectionDistance;
-            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
-            double u0=u,v0=v,div0=div;
-            double u2In = projectedCoords[nodeIndexNext][patchIndex][0];
-            double v2In = projectedCoords[nodeIndexNext][patchIndex][1];
-            u = u2In;
-            v = v2In;
-            dis = propProjection.maxProjectionDistance;
-            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
-            double u2 = u, v2 = v, div2 = div;
-            double denominator = (u0In - u0)*(v2In - v2) - (v0In - v0)*(u2In - u2);
-            /// If two valid line parameter found and the denominator is valid
-            if(div0 >= toleranceRatio && div2 >= toleranceRatio && fabs(denominator) > toleranceRatio) {
+
+        // If the node does not have a projection in the patch but both of its neighbours do, try to reconstruct its ficticious parametric coordinates using both neighbours
+        if(!isNodeInsidePatch && isNode0InsidePatch && isNode2InsidePatch) {
+            // Get the parametric coordinates of the previous neighbouring node
+            u0In = projectedCoords[nodeIndex0][patchIndex][0];
+            v0In = projectedCoords[nodeIndex0][patchIndex][1];
+
+            // Project the line P0-P1 at the patch boundary
+            u0 = u0In;
+            v0 = v0In;
+            lambda0 = 0.0;
+            distance0 = propProjection.maxProjectionDistance;
+            isProjectedOnPatchBoundary0 = projectLineOnPatchBoundary(thePatch, u0, v0, lambda0, distance0, P0, P1);
+
+            // Get the parametric coordinates of the next neighbouring node
+            u2In = projectedCoords[nodeIndex2][patchIndex][0];
+            v2In = projectedCoords[nodeIndex2][patchIndex][1];
+
+            // Project the line P2-P1 at the patch boundary
+            u2 = u2In;
+            v2 = v2In;
+            lambda2 = 0.0;
+            distance2 = propProjection.maxProjectionDistance;
+            isProjectedOnPatchBoundary2 = projectLineOnPatchBoundary(thePatch, u2, v2, lambda2, distance2, P2, P1);
+
+            // Initialize flag
+            isValid = false;
+
+            // If P0-P1 and P2-P1 have both valid projections on the patch boundary and the lines are not parallel (up to tolerance)
+            if(isProjectedOnPatchBoundary0 && isProjectedOnPatchBoundary2) {
+                // Compute denominator
+                denominator = (u0In - u0)*(v2In - v2) - (v0In - v0)*(u2In - u2);
+
                 // Compute intersection of the two lines
-                // See http://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
-                u = ((u0In*v0 - v0In*u0)*(u2In - u2) - (u0In - u0)*(u2In*v2 - v2In*u2))/denominator;
-                v = ((u0In*v0 - v0In*u0)*(v2In - v2) - (v0In - v0)*(u2In*v2 - v2In*u2))/denominator;
-                // Store the point
-                polygonUV.push_back(make_pair(u,v));
-                continue;
-                // If only first line parameter valid
-            } else if(div0 >= toleranceRatio) {
-                /// Save data from first projection
+                if (fabs(denominator) > toleranceRatio) {
+                    u = ((u0In*v0 - v0In*u0)*(u2In - u2) - (u0In - u0)*(u2In*v2 - v2In*u2))/denominator;
+                    v = ((u0In*v0 - v0In*u0)*(v2In - v2) - (v0In - v0)*(u2In*v2 - v2In*u2))/denominator;
+                    uTmp = u;
+                    vTmp = v;
+                    isValid = true;
+                }
+
+                // Check if the parametric coordinates are found inside the patch (not expected)
+                if (isValid) {
+                    // Get the flags whether the parametric coordinates are inside the patch
+                    isUInside = thePatch->getIGABasis()->getUBSplineBasis1D()->clampKnot(uTmp);
+                    isVInside = thePatch->getIGABasis()->getVBSplineBasis1D()->clampKnot(vTmp);
+
+                    // Modify the validity flag
+                    isValid = isValid && (!isUInside && !isVInside);
+
+                    // Add the (u,v) pair if all requirements are met
+                    if (isValid) {
+                        polygonUV.push_back(make_pair(u,v));
+                        continue;
+                    }
+                }
+            }
+
+            // If P0-P1 and P2-P1 have both valid projections but are either parallel or their intersection is found inside the patch
+            if (isProjectedOnPatchBoundary0 && isProjectedOnPatchBoundary2) {
+                if (distance0 <= distance2) {
+                    u = u0;
+                    v = v0;
+                    uIn = u0In;
+                    vIn = v0In;
+                    lambda = lambda0;
+                    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary0;
+                } else {
+                    u = u2;
+                    v = v2;
+                    uIn = u2In;
+                    vIn = v2In;
+                    lambda = lambda2;
+                    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary2;
+                }
+            } else if (isProjectedOnPatchBoundary0 && !isProjectedOnPatchBoundary2) { // If only P0-P1 has a projection on the patch boundary
                 u = u0;
                 v = v0;
                 uIn = u0In;
                 vIn = v0In;
-                div = div0;
-                // If only second line parameter valid
-            } else if(div2 >= toleranceRatio) {
-                // Save data from second projection
+                lambda = lambda0;
+                isProjectedOnPatchBoundary = isProjectedOnPatchBoundary0;
+            } else if (!isProjectedOnPatchBoundary0 && isProjectedOnPatchBoundary2) { // If only P2-P1 has a projection on the patch boundary
                 u = u2;
                 v = v2;
                 uIn = u2In;
                 vIn = v2In;
-                div = div2;
+                lambda = lambda2;
+                isProjectedOnPatchBoundary = isProjectedOnPatchBoundary2;
+            } else { // If none of them has a projection on the patch boundary
+                isProjectedOnPatchBoundary = isProjectedOnPatchBoundary0 && isProjectedOnPatchBoundary2;
             }
-            /// Else no valid point found
         }
-        /// Node outside and previous neighbor outside and next neighbor inside
-        if(!isNodeInsidePatch && !isPrevNodeInsidePatch && isNextNodeInsidePatch) {
-            // Set up initial guess from next node
-            uIn = projectedCoords[nodeIndexNext][patchIndex][0];
-            vIn = projectedCoords[nodeIndexNext][patchIndex][1];
+
+        // If the node has a projection outside the patch, the previous neighboring node has a projection outside and next neighboring node has a projection inside
+        if(!isNodeInsidePatch && !isNode0InsidePatch && isNode2InsidePatch) {
+            // Set up initial guess using the parametric coordinates of the projected node
+            uIn = projectedCoords[nodeIndex2][patchIndex][0];
+            vIn = projectedCoords[nodeIndex2][patchIndex][1];
+
+            // Project P2-P1 on the patch boundary
             u = uIn;
             v = vIn;
-            dis = propProjection.maxProjectionDistance;
-            // Project on boundary
-            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P2, P1);
+            lambda = 0.0;
+            distance = propProjection.maxProjectionDistance;
+            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, lambda, distance, P2, P1);
         }
-        /// Node outside and previous neighbor outside and next neighbor inside
-        if(!isNodeInsidePatch && isPrevNodeInsidePatch && !isNextNodeInsidePatch) {
-            // Set up initial guess from previous node
-            uIn = projectedCoords[nodeIndexPrev][patchIndex][0];
-            vIn = projectedCoords[nodeIndexPrev][patchIndex][1];
+
+        // If the node has a projection outside the patch, the previous neighbouring node has a projection outside and next neighbouring node has a projection inside
+        if(!isNodeInsidePatch && isNode0InsidePatch && !isNode2InsidePatch) {
+            // Set up initial guess using the parametric coordinates of the projected node
+            uIn = projectedCoords[nodeIndex0][patchIndex][0];
+            vIn = projectedCoords[nodeIndex0][patchIndex][1];
+
+            // Project P0-P1 on the patch boundary
             u = uIn;
             v = vIn;
-            dis = propProjection.maxProjectionDistance;
-            // Project on boundary
-            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
+            lambda = 0.0;
+            distance = propProjection.maxProjectionDistance;
+            isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, lambda, distance, P0, P1);
         }
-        /// Node outside and both neighbor outside  or no valid line parameter div computed before
-        if(div < toleranceRatio) {
-            // Project on boundary with all possible inside node until line parameter is valid
-            for(vector<int>::iterator it = insideNode.begin(); it != insideNode.end() && div < toleranceRatio; it++) {
-                if(*it == nodeIndexPrev || *it == nodeIndexNext)
+
+        // If no edge is projected on the patch boundary
+        if(lambda < toleranceRatio) {
+            // Loop over all the nodes which have a projection inside the patch
+            for(vector<int>::iterator it = nodesInside.begin(); it != nodesInside.end() && lambda < toleranceRatio; it++) {
+                if(*it == nodeIndex0 || *it == nodeIndex2)
                     continue;
-                double* P0 = &(meshFE->nodes[*it * 3]);
+
+                // Set up initial guess using the parametric coordinates of the projected node
+                PIn = &(meshFE->nodes[*it * 3]);
                 uIn = projectedCoords[*it][patchIndex][0];
                 vIn = projectedCoords[*it][patchIndex][1];
+
+                // Project PIn-P1 on the patch boundary
                 u = uIn;
                 v = vIn;
-                dis = propProjection.maxProjectionDistance;
-                isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, div, dis, P0, P1);
+                lambda = 0.0;
+                distance = propProjection.maxProjectionDistance;
+                isProjectedOnPatchBoundary = projectLineOnPatchBoundary(thePatch, u, v, lambda, distance, PIn, P1);
             }
         }
-        /// Add point in polygon if line parameter is valid
-        if(div >= toleranceRatio) {
-            u = uIn + (u - uIn)/div;
-            v = vIn + (v - vIn)/div;
+
+        // Add the found parametric location into the container polygonUV if a valid projection is found
+        if(isProjectedOnPatchBoundary && lambda >= toleranceRatio) {
+            u = uIn + (u - uIn)/lambda;
+            v = vIn + (v - vIn)/lambda;
             polygonUV.push_back(make_pair(u,v));
         }
-        /// Warning/Error output
+
+        // Assert a warning/error message
         if(!isProjectedOnPatchBoundary) {
             if(thePatch->isTrimmed()) {
                 DEBUG_OUT() << "Warning in IGAMortarMapper::buildBoundaryParametricElement"
@@ -1404,9 +1655,9 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
                         << nodeIndex << "]:(" << meshFE->nodes[nodeIndex * 3] << ","
                         << meshFE->nodes[nodeIndex * 3 + 1] << ","
                         << meshFE->nodes[nodeIndex * 3 + 2] << ") and node ["
-                        << nodeIndexNext << "]:(" << meshFE->nodes[nodeIndexNext * 3]
-                        << "," << meshFE->nodes[nodeIndexNext * 3 + 1] << ","
-                        << meshFE->nodes[nodeIndexNext * 3 + 2] << ") on patch ["
+                        << nodeIndex2 << "]:(" << meshFE->nodes[nodeIndex2 * 3]
+                        << "," << meshFE->nodes[nodeIndex2 * 3 + 1] << ","
+                        << meshFE->nodes[nodeIndex2 * 3 + 2] << ") on patch ["
                         << patchIndex << "] boundary" << endl;
                 ERROR_OUT() << "Projection failed in IGA mapper " << name << endl;
                 exit(EXIT_FAILURE);
@@ -1415,27 +1666,72 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
     }
 }
 
-bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, double& u, double& v, double& div, double& dis, double* Pin, double* Pout) {
+bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, double& u, double& v, double& _lambda, double& _distance, double* Pin, double* Pout) {
     double uIn = u;
     double vIn = v;
-    bool isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, div, dis, Pin, Pout,
-                                                                                                   propNewtonRaphsonBoundary.noIterations, propNewtonRaphsonBoundary.tolProjection);
-    if(!isProjectedOnPatchBoundary || dis > propProjection.maxProjectionDistance) {
+    double lambda = _lambda;
+    double distance =_distance;
+    bool isProjectedOnPatchBoundary = false;
+
+    // Use the Newton-Raphson algorithm to find the intersection
+    cout << "Trying Newton-Rapshon" << endl;
+    isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryNewtonRhapson(u, v, lambda, distance, Pin, Pout,
+                                                                                              propNewtonRaphsonBoundary.noIterations, propNewtonRaphsonBoundary.tolProjection);
+    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && (distance <= propProjection.maxProjectionDistance);
+//    if (isProjectedOnPatchBoundary){
+//        cout << endl;
+//        cout << "------------------------"<< endl;
+//        cout << "Newton-Rapshon converged" << endl;
+//        cout << "Converged lambda : " << lambda << endl;
+//        cout << "------------------------"<< endl;
+//        cout << endl;
+//    }
+    isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && lambda >= 1e-6;
+//    if (isProjectedOnPatchBoundary) {
+//        cout << endl;
+//        cout << "-----------------------------------"<< endl;
+//        cout << "Newton-Rapshon wirklich CONVERGIERT" << endl;
+//        cout << "-----------------------------------"<< endl;
+//        cout << endl;
+//    } else
+//        cout << "Newton-Rapshon did not converge" << endl;
+
+    // Use the bisection algorithm to find the intersection
+    if (!isProjectedOnPatchBoundary) {
         DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary using Newton-Rhapson did not converge. Trying bisection algorithm." << endl;
-        // Reset initial guess
+        cout << "\t Trying bisection" << endl;
         u = uIn;
         v = vIn;
-        isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, div, dis, Pin, Pout,
-                                                                                              propBisection.noIterations, propBisection.tolProjection,
-                                                                                              propNewtonRaphson.noIterations, propNewtonRaphsonBoundary.tolProjection, propProjection.maxProjectionDistance);
+        lambda = _lambda;
+        distance = _distance;
+        isProjectedOnPatchBoundary = thePatch->computePointProjectionOnPatchBoundaryBisection(u, v, lambda, distance, Pin, Pout,
+                                                                                              propBisection.noIterations, propBisection.tolProjection);
+        isProjectedOnPatchBoundary = isProjectedOnPatchBoundary && (distance <= propProjection.maxProjectionDistance);
+        if (isProjectedOnPatchBoundary)
+            cout << "\t Bisection converged" << endl;
+        else
+            cout << "\t Bisection did not converge" << endl;
     }
+
+
+
+//    }
+
+
+
     // Perform some validity check
-    if(!isProjectedOnPatchBoundary)
-        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
-    if(isProjectedOnPatchBoundary && dis > propProjection.maxProjectionDistance) {
-        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<< dis << " for prescribed max of " <<
-                       propProjection.maxProjectionDistance << ". Relax maxProjectionDistance in XML input!" << endl;
+//    if(!isProjectedOnPatchBoundary)
+//        DEBUG_OUT() << "In IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary did not converge. Relax newtonRaphsonBoundary and/or bisection parameters in XML input!"<<endl;
+//    if(isProjectedOnPatchBoundary && dis > propProjection.maxProjectionDistance) {
+//        DEBUG_OUT() << "IGAMortarMapper::projectLineOnPatchBoundary. Point projection on boundary found too far. Distance to edge is "<< dis << " for prescribed max of " <<
+//                       propProjection.maxProjectionDistance << ". Relax maxProjectionDistance in XML input!" << endl;
+//    }
+
+    if (isProjectedOnPatchBoundary) {
+        _lambda = lambda;
+        _distance = distance;
     }
+
     return isProjectedOnPatchBoundary;
 }
 

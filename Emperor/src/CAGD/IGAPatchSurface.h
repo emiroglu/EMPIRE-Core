@@ -311,8 +311,7 @@ public:
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
-    bool computePointProjectionOnTrimmingCurve(double& _projectedUTilde,
-                                               double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
+    bool computePointProjectionOnTrimmingCurve(double& _projectedUTilde, double* _P, int _patchBLIndex, int _patchBLTrCurveIndex);
 
     /***********************************************************************************************
      * \brief Computes the orthogonal projection of point of the 3D Euclidean space onto the trimming curve
@@ -322,14 +321,14 @@ public:
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Altug Emiroglu, Andreas Apostolatos
      ***********/
-    bool computePointProjectionOnTrimmingCurve(double& _projectedUTilde,
-                                                                double* _P, IGAPatchCurve* _curve);
+    bool computePointProjectionOnTrimmingCurve(double& _projectedUTilde, double* _P, IGAPatchCurve* _curve);
 
     /***********************************************************************************************
-     * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary
+     * \brief Solves the Newton-Raphson problem for projecting a line segment on a patch boundary by finding the location where P1Q vector lies in the plane (P1P2 - n)
      * \param[in/out] _t The running parameter on the given NURBS patch boundary
-     * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _lambda The ratio between the line segment that is projected on the NURBS patch to the complete line segment
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in/out] _distanceActual The actual ortogonal distance (only used for validity checks)
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
      * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
@@ -338,33 +337,52 @@ public:
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Fabien Pean
      ***********/
-    bool solvePointProjectionOnPatchBoundaryNewtonRaphson(double& _t, double& _ratio,
+    bool solvePointProjectionOnPatchBoundaryNewtonRaphson(double& _t, double& _lambda,
             double& _distance, double* _P1, double* _P2, int _edge,
             const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
 
     /***********************************************************************************************
-     * \brief Solves the bisection problem for computing the closest point projection of a straight line over a patch boundary
+     * \brief Solves the Newton-Raphson problem for computing the closest point projection of a straight line over a patch boundary by orthogonality
      * \param[in/out] _t The running parameter on the given NURBS patch boundary
-     * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _lambda The ratio between the line segment that is projected on the NURBS patch to the complete line segment
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in/out] _distanceActual The actual ortogonal distance (only used for validity checks)
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
-     * \param[in]	  _maxIt The number of iteration to do in the scheme
-     * \param[in]	  _tol The tolerance for which the scheme stops
+     * \param[in] _edge (0,1,2,3) --> (uRunsvStart,uRunsvEnd,uStartvRuns,uEndvRuns)
+     * \param[in] _maxIt The number of iteration to do in the scheme
+     * \param[in] _tol The tolerance for which the scheme stops
+     * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \author Altug Emiroglu, Andreas Apostolatos
+     ***********/
+    bool solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDistance(double& _t, double& _lambda,
+            double & _distance, double* _P1, double* _P2, int _indexEdge,
+            const int _maxIt=MAX_NUM_ITERATIONS, double _tol=TOL_ORTHOGONALITY);
+
+    /***********************************************************************************************
+     * \brief Solves the bisection problem for computing the closest point projection of a straight line over a patch boundary
+     * \param[in/out] _t The running parameter on the given NURBS patch boundary
+     * \param[in/out] _lambda The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in/out] _distanceActual The actual distance of the point found on the patch and the finite element edge
+     * \param[in] _P1 The first point of the line segment
+     * \param[in] _P2 The second point of the line segment
+     * \param[in] _maxIt The number of iteration to do in the scheme
+     * \param[in] _tol The tolerance for which the scheme stops
      * \return The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
      * \author Fabien Pean
      ***********/
-    bool solvePointProjectionOnPatchBoundaryBisection(double& _u,double& _v, double& _ratio,
+    bool solvePointProjectionOnPatchBoundaryBisection(double& _u,double& _v, double& _lambda,
             double& _distance, double* _P1, double* _P2,
-            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY,
-            const int _maxPointProjIt=MAX_NUM_ITERATIONS, const double _tolPointProjOrtho=TOL_ORTHOGONALITY, const double _tolPointProjDist=TOL_DISTANCE);
+            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
 
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary
      * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
      * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
-     * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
+     * \param[in/out] _lambda The ratio between the line segment that is projected on the NURBS patch to the complete line segment
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in/out] _distActual The actual orthogonal distance
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
      * \param[in] _maxIt The number of iteration to do in the scheme
@@ -372,17 +390,18 @@ public:
      * \return The id of the edge it is crossing, indicating also if scheme has converged (no edge = no convergence)
      * \author Fabien Pean
      ***********/
-    char computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _ratio,
+    char computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _lambda,
             double& _distance, double* _P1, double* _P2,
             const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
 
     /***********************************************************************************************
      * \brief Returns the point on the given NURBS patch boundary which defines an orthogonal projection from the given line to the NURBS boundary using the bisection method
-     * \param[out] The flag on whether or not the Bisection iterations have converged for the defined set of parameters
-     * \param[in/out] _u Given is the initial guess for the Bisection iterations and returned value is the converged u-surface parameter
-     * \param[in/out] _v Given is the initial guess for the Bisection iterations and returned value is the converged v-surface parameter
+     * \param[out] The flag on whether or not the Newton-Raphson iterations have converged for the defined set of parameters
+     * \param[in/out] _u Given is the initial guess for the Newton-Raphson iterations and returned value is the converged u-surface parameter
+     * \param[in/out] _v Given is the initial guess for the Newton-Raphson iterations and returned value is the converged v-surface parameter
      * \param[in/out] _ratio The ratio between the line segment that is projected on the NURBS patch to the complete line segment
      * \param[in/out] _distance The orthogonal distance from the NURBS surface to the line segment
+     * \param[in/out] _distanceActual The actual distance of the found point on the patch and the finite element edge
      * \param[in] _P1 The first point of the line segment
      * \param[in] _P2 The second point of the line segment
      * \param[in] _maxIt The number of iteration to do in the scheme
@@ -392,8 +411,7 @@ public:
      ***********/
     char computePointProjectionOnPatchBoundaryBisection(double& _u, double& _v, double& _ratio,
             double& _distance, double* _P1, double* _P2,
-            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY,
-            const int _maxPointProjIt=MAX_NUM_ITERATIONS, const double _tolPointProjOrtho=TOL_ORTHOGONALITY, const double _tolPointProjDist=TOL_DISTANCE);
+            const int _maxIt=MAX_NUM_ITERATIONS, const double _tol=TOL_ORTHOGONALITY);
 
     /***********************************************************************************************
      * \brief Find the nearest knot intersection on the patch as an initial guess for the projection
@@ -597,6 +615,10 @@ public:
     static double TOL_DISTANCE;
     /// The maximum relaxed distance tolerance for the Newton-Raphson iterations for the computation of the forced orthogonal projection of point on the NURBS patch
     static double REL_TOL_DISTANCE;
+    /// The tolerance for the ratio parameter in line projection on boundary
+    static double TOL_PARAMETER_ON_STRAIGHT_EDGE;
+    /// The tolerance for the parameter in the patch parameter space
+    static double TOL_PARAMETER_ON_PATCH_PARAMETER_SPACE;
 
     static const char EDGE_U0;
     static const char EDGE_UN;

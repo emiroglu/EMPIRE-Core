@@ -474,8 +474,8 @@ private:
      * \param[out] _v The output guess in v direction
      * \author Fabien Pean
      ***********/
-    void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
 
+    void computeInitialGuessForProjection(const int _patchCount, const int _elem, const int _localNode, double& _u, double& _v);
     /***********************************************************************************************
      * \brief Compute the projection of a point on a patch using Newton-Raphson
      * \param[in] _patchIndex The index of the patch we are working on
@@ -617,14 +617,14 @@ private:
      * \param[in] _thePatch The patch to compute the coupling matrices for
      * \param[in/out] _u The parameter value of the inside patch node
      * \param[in/out] _v The parameter value of the inside patch node
-     * \param[in/out] _div The ratio on the line
-     * \param[in/out] _dis The distance of the line to the patch
+     * \param[in/out] _lambda The ratio on the line
+     * \param[in/out] _distance The distance of the line to the patch
      * \param[in] _Pin The point of the line that could have been projected in the patch
      * ]param[in] _Pout The point of the line that could not have been projected in the patch
      * \return Flag if it has converged
      * \author Fabien Pean
      ***********/
-    bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _div, double& _dis, double* _Pin, double* _Pout);
+    bool projectLineOnPatchBoundary(IGAPatchSurface* _thePatch, double& _u, double& _v, double& _lambda, double& _distance, double* _Pin, double* _Pout);
 
     /***********************************************************************************************
      * \brief Compute local matrices Cnn and Cnr for element _elemIndex  on patch _patchIndex
