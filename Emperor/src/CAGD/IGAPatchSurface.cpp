@@ -1391,7 +1391,7 @@ bool IGAPatchSurface::computePointProjectionOnTrimmingCurve(double& _projectedUT
 }
 
 bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
-        double& _u, double& _v, double& _ratio, double& _distance, double* _P1,
+        double& _u, double& _v, double& _lambda, double& _distance, double* _P1,
         double* _P2, int _maxIt, double _tol) {
     // Check input
        assert(_P1 != NULL);
@@ -1466,7 +1466,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryBisection(
            _u = UV1[0];
            _v = UV1[1];
            _distance = MathLibrary::vector2norm(QP,numCoord);
-           _ratio =  MathLibrary::computeDenseDotProduct(numCoord, P1P2, P1P)
+           _lambda =  MathLibrary::computeDenseDotProduct(numCoord, P1P2, P1P)
                    / MathLibrary::computeDenseDotProduct(numCoord, P1P2, P1P2);
        }
 
@@ -1534,6 +1534,8 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
     assert(_P1 != NULL);
     assert(_P2 != NULL);
 
+    // Initialize the convergence flag to false.
+    // The flag is not updated if the convergence was not met
     bool isConverged = false;
 
     // Initialize number of spatial dimensions
@@ -1661,8 +1663,7 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
         R_previous1 = R;
         R = MathLibrary::computeDenseDotProduct(noCoord, P1Q, n);
         // 2vii. Compute the stopping criteria
-        // If not converging quick enough
-//        if(fabs(fabs(R) - fabs(R_previous1)) < _tol) {
+        // If the residual is low enough stop and set the flag
         if(fabs(R) < _tol) {
             isConverged = true;
             break;
@@ -1732,16 +1733,19 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphson(
     double collinearity = fabs(EMPIRE::MathLibrary::computeDenseDotProduct(noCoord, unitP1P, unitP1P2));
 
     // Update the flag depending on the collinearity.
-    // This check is performed here since the point P is reconstructed from the found Q instead of being solved for
+    // This check is performed here since the point P is reconstructed and not returned to the upper level
     isConverged = isConverged && (1 - collinearity <= _tol );
 
-    // Compute output parameters _lambda and _distance
-    _lambda = normP1P / normP1P2;
-    double QP[3];
-    for (int i = 0; i < noCoord; i++) {
-        QP[i] = _P1[i] + _lambda * (_P2[i] - _P1[i]) - Q[i];
+    // Compute the output variables if the algorithm validly converged
+    if (isConverged) {
+        // Compute output parameters _lambda and _distance
+        _lambda = normP1P / normP1P2;
+        double QP[3];
+        for (int i = 0; i < noCoord; i++) {
+            QP[i] = _P1[i] + _lambda * (_P2[i] - _P1[i]) - Q[i];
+        }
+        _distance = MathLibrary::vector2norm(QP,noCoord);
     }
-    _distance = MathLibrary::vector2norm(QP,noCoord);
 
     // 4. Function appendix (Clear the memory from the dynamically allocated variables and return the flag on convergence)
     // Clear the memory on the heap
@@ -1856,9 +1860,6 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDis
     J[3] = EMPIRE::MathLibrary::computeDenseDotProduct(dim, P1P2, P1P2);
     bool isLinearEquationSolved = false;
 
-//    cout << "Looping over the Newton-Raphson iterations" << endl;
-//    cout << endl;
-
     // 2. Loop over the Newton-Raphson iterations
     while (counter < _maxIt) {
         // 2i. Update the iteration counter
@@ -1919,7 +1920,6 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDis
         distance = EMPIRE::MathLibrary::vector2norm(PQ, dim);
 
         // Check convergence
-//        cout << "||R|| : " << EMPIRE::MathLibrary::vector2norm(R, 2) << "\t ||PQ|| : " << distance << endl;
         if ((distance <=  _tol || EMPIRE::MathLibrary::vector2norm(R, 2) <=  _tol) && counter > 1){
             isNRConverged = true;
             break;
@@ -1971,128 +1971,6 @@ bool IGAPatchSurface::solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDis
     return isNRConverged;
 }
 
-//char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _lambda,
-//        double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
-//    DEBUG_OUT()<<"\t======================================================"<<endl;
-//    DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
-//    DEBUG_OUT()<<"\tPROJECT line on boundary using Newton-Rhapson for line"<<endl
-//            <<"\t\t(("<<_P1[0]<<" , "<<_P1[1]<<" , "<<_P1[2]<<");"
-//            <<"("<<_P2[0]<<" , "<<_P2[1]<<" , "<<_P2[2]<<")) "<<endl
-//            <<"\t\twith initial guess is projection of P1 : (u,v)=("<<_u<<" , "<<_v<<")"<<endl;
-//    double u1 = _u;
-//    double v1 = _v;
-//    double t;
-//    double maxDistance = _distance;
-//    double distance = numeric_limits<double>::max();
-//    _distance = numeric_limits<double>::max();
-//    double lambda = numeric_limits<double>::max();
-//    bool isConverged = false;
-//    char _edge=0;
-//    // Loop over all the edges of the NURBS patch (for tensor product surfaces there are 4 edges)
-//    for (int iEdge = 0; iEdge < 4; iEdge++) {
-
-//        // Do the test for every edge for each extremity of the boundary patch
-//        for(int iGuess = 0; iGuess < 3; iGuess++) {
-
-//            // Find the fixed and the running parameter on the patch boundary
-//            if (iEdge == 0 || iEdge == 1) {
-//                if (iGuess == 0)    // First guess with the input parameter
-//                    t = u1;
-//                else if (iGuess == 1)   // Second guess is the first knot of the edge
-//                    t=IGABasis->getUBSplineBasis1D()->getFirstKnot();
-//                else if (iGuess == 2)   // Third guess is the last knot of the edge
-//                    t=IGABasis->getUBSplineBasis1D()->getLastKnot();
-//            } else {
-//                if (iGuess == 0)
-//                    t = v1;
-//                else if(iGuess == 1)
-//                    t=IGABasis->getVBSplineBasis1D()->getFirstKnot();
-//                else if(iGuess == 2)
-//                    t=IGABasis->getVBSplineBasis1D()->getLastKnot();
-//            }
-
-//            // Compute point projection from the line to the NURBS patch boundary
-//            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, lambda, distance, _P1, _P2, iEdge, _maxIt, _tol);
-////            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDistance(t, lambda, distance, _P1, _P2, edge, _maxIt, _tol);
-
-//            // Fix possible numerical error
-//            if(lambda > 1.0 && lambda-1.0 <= 1e-3) {
-//                lambda = 1.0;
-//                DEBUG_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 1 !");
-//            }
-//            if(lambda < 0 && lambda >= -1e-3) {
-//                lambda = 0.0;
-//                DEBUG_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 0 !");
-//            }
-
-//            isConverged = isConverged && distance <= _distance && distance <= maxDistance && lambda >= 0.0 && lambda <= 1.0;
-
-//            if (isConverged) {
-//                switch (iEdge) {
-//                case 0:
-//                    _edge=EDGE_V0;
-//                    IGABasis->getUBSplineBasis1D()->clampKnot(t);
-//                    _u = t;
-//                    _v = IGABasis->getVBSplineBasis1D()->getFirstKnot();
-//                    break;
-//                case 1:
-//                    _edge=EDGE_VN;
-//                    IGABasis->getUBSplineBasis1D()->clampKnot(t);
-//                    _u = t;
-//                    _v = IGABasis->getVBSplineBasis1D()->getLastKnot();
-//                    break;
-//                case 2:
-//                    _edge=EDGE_U0;
-//                    IGABasis->getVBSplineBasis1D()->clampKnot(t);
-//                    _u = IGABasis->getUBSplineBasis1D()->getFirstKnot();
-//                    _v = t;
-//                    break;
-//                case 3:
-//                    _edge=EDGE_UN;
-//                    IGABasis->getVBSplineBasis1D()->clampKnot(t);
-//                    _u = IGABasis->getUBSplineBasis1D()->getLastKnot();
-//                    _v = t;
-//                    break;
-//                }
-
-//                _lambda = lambda;
-//                _distance = distance;
-
-//                DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
-//                DEBUG_OUT()<<"\tAlgorithm has CONVERGED for initial guess point "<<iGuess<<" on edge "<<int(_edge)<<endl
-//                        <<"\t\t and new distance found to patch is "<<_distance<<endl
-//                        <<"\t\t and ratio P1P/P1P2 is "<<_lambda<<endl
-//                        <<"\t\t and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
-
-////                // If the point is the same as the initial guess from input function
-////                bool validPoint1=(u[point]!=u1 || v[point]!=v1); //Different from entry point then true else false
-////                bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false; //Both are the same then true else false
-////                // If it is not a point to take into account, continue
-////                if(!(validPoint1 || validPoint2) && point<2) continue;
-//                // Otherwise store it under following conditions
-////                if (distance <= _distance && distance <=maxDistance && lambda>=0 && lambda <=1) {
-////                    _u = u[point];
-////                    _v = v[point];
-////                    _distance = distance;
-////                    _lambda = lambda;
-////                    _edge = _edge | edgeOut;
-////                }
-//            }
-//        }
-//    }
-//    if(!_edge) {
-////        _u = u1;
-////        _v = v1;
-//        DEBUG_OUT() << "in IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson"<<endl;
-//        DEBUG_OUT()<<"\tAlgorithm has NOT CONVERGED. Relax newtonRaphsonBoundary parameters in XML input file!"<<endl;
-//    }
-//    DEBUG_OUT()<<"\t======================================================"<<endl;
-////    cout << endl;
-////    cout << "_edge : "<< bool(_edge) << endl;
-////    cout << endl;
-//    return _edge;
-//}
-
 char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double& _u, double& _v, double& _lambda,
         double& _distance, double* _P1, double* _P2, int _maxIt, double _tol) {
     DEBUG_OUT()<<"\t======================================================"<<endl;
@@ -2141,6 +2019,7 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
             }
             // Compute point projection from the line to the NURBS patch boundary
             isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphson(t, lambda, distance, _P1, _P2, edge, _maxIt, _tol);
+//            isConverged = solvePointProjectionOnPatchBoundaryNewtonRaphsonClosestDistance(t, lambda, distance, _P1, _P2, edge, _maxIt, _tol);
 
             // Fix possible numerical error
             if(lambda > 1.0 && lambda-1.0 <= 1e-3) {
@@ -2152,7 +2031,8 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
                 DEBUG_OUT("In IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson, line parameter clamped to 0 !");
             }
 
-            isConverged = isConverged && distance <= _distance && distance <= maxDistance && lambda >= 0.0 && lambda <= 1.0;
+            // Update the flag depending on the validity and quality of the projection compared to the previous found results
+            isConverged = isConverged && lambda >= 0.0 && lambda <= 1.0 && distance <= _distance && distance <= maxDistance;
 
             if (isConverged) {
                 switch (edge) {
@@ -2186,20 +2066,17 @@ char IGAPatchSurface::computePointProjectionOnPatchBoundaryNewtonRhapson(double&
                 bool validPoint2=(point==1)?(u[0]==u1 && v[0]==v1 && u[1]==u1 && v[1]==v1):false; //Both are the same then true else false
                 // If it is not a point to take into account, continue
                 if(!(validPoint1 || validPoint2) && point<2) continue;
-                // Otherwise store it under following conditions
-//                if (distance <= _distance && distance <=maxDistance && lambda>=0 && lambda <=1) {
-                    hasConverged = false;
-                    _u = u[point];
-                    _v = v[point];
-                    _distance = distance;
-                    _lambda = lambda;
-                    _edge = _edge | edgeOut;
-                    DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
-                    DEBUG_OUT()<<"\tAlgorithm has CONVERGED for initial guess point "<<point<<" on edge "<<int(edgeOut)<<endl
-                            <<"\t\t and new distance found to patch is "<<_distance<<endl
-                            <<"\t\t and ratio P1P/P1P2 is "<<_lambda<<endl
-                            <<"\t\t and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
-//                }
+
+                _u = u[point];
+                _v = v[point];
+                _distance = distance;
+                _lambda = lambda;
+                _edge = _edge | edgeOut;
+                DEBUG_OUT()<<"\t-------------------------------------------------------"<<endl;
+                DEBUG_OUT()<<"\tAlgorithm has CONVERGED for initial guess point "<<point<<" on edge "<<int(edgeOut)<<endl
+                          <<"\t\t and new distance found to patch is "<<_distance<<endl
+                         <<"\t\t and ratio P1P/P1P2 is "<<_lambda<<endl
+                        <<"\t\t and parametric value are (u,v)("<<_u<<" , "<<_v<<")"<<endl;
             }
         }
     }
