@@ -1310,7 +1310,7 @@ bool IGAPatchSurface::computeForcedPointProjectionOnPatch(double& _u, double& _v
 
         // If maximum relaxed tolerance is reached then raise error
         if (TOL_ORTHOGONALITY*pow(10.0,tryCtr*2) > _relOrthoTol || TOL_DISTANCE*pow(10.0,tryCtr) > _relDistTol)
-            ERROR_BLOCK_OUT("IGAPatchSurface","computeForcedPointProjectionOnPatch","Relaxed tolerance exceeded! Point not projected!");
+            ERROR_OUT("IGAPatchSurface::computeForcedPointProjectionOnPatch: Relaxed tolerance exceeded! Point not projected!");
     }
 
     return isProjected;

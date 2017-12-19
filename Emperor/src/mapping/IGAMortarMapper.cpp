@@ -747,7 +747,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         thePatch = meshIGA->getSurfacePatch(iPatch);
 
         // Generate candidate points for initial guesses in the patch parameter space using the Greville abscissae
-        // and p number of divisions between each Greville abscissae
+        // and p number of divisions between each Greville Abscissae
         // x---*---*---x---*---*---x
         numUCP = thePatch->getUNoControlPoints();
         numVCP = thePatch->getVNoControlPoints();
@@ -771,7 +771,7 @@ void IGAMortarMapper::projectPointsToSurface() {
             for (int iSection = 1; iSection < pDegree; iSection++)
                 candidatesU.push_back(grevilleAbscissaeU[iUCP] + iSection * dSectionCandidate);
         }
-        // Add the last abscissa
+        // Add the last Abscissae
         candidatesU.push_back(grevilleAbscissaeU.back());
         EMPIRE::MathLibrary::sortRemoveDuplicates(candidatesU);
 
@@ -792,7 +792,7 @@ void IGAMortarMapper::projectPointsToSurface() {
             for (int iSection = 1; iSection < qDegree; iSection++)
                 candidatesV.push_back(grevilleAbscissaeV[iVCP] + iSection * dSectionCandidate);
         }
-        // Add the last abscissa
+        // Add the last Abscissae
         candidatesV.push_back(grevilleAbscissaeV.back());
         EMPIRE::MathLibrary::sortRemoveDuplicates(candidatesV);
 
@@ -1082,7 +1082,7 @@ bool IGAMortarMapper::forceProjectPointOnPatchBySampling(const int patchIndex, c
         }
     }
     /// Compute approximate of parametric position based on brute sampling
-    thePatch->findInitialGuess4PointProjection(u, v, P, 200, 200);
+    thePatch->findInitialGuess4PointProjection(u, v, P, 1000, 1000);
     double uv[2] = {u, v};
     thePatch->computeCartesianCoordinates(projectedP, uv);
     double distance = MathLibrary::computePointDistance(P, projectedP);
