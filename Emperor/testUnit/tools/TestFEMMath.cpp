@@ -35,22 +35,22 @@ using namespace MathLibrary;
 class TestFEMMath: public CppUnit::TestFixture {
 private:
     // Number of Gauss points for the integration in the bi-unit interval
-    int noGPsBiunitInterval = 50;
-
-    // Number of Gauss points for the integration in the bi-unit quadrilateral
-    int noGPsBiunitQuadrilateral[10] = {1, 4, 9, 16, 25, 49, 64, 81, 100};
+    int noGPsBiunitInterval;
 
     // Basic tolerance
-    double tolBasic = 1e-1;
+    double tolBasic;
 
     // Absolute tolerance
-    double tolAbs = 1e-15;
+    double tolAbs;
 public:
     /***********************************************************************************************
      * \brief Set up the Gauss quadrature
      * \author Andreas Apostolatos
      ***********/
     void setUp() {
+        noGPsBiunitInterval = 50;
+        tolBasic = 1e-1;
+        tolAbs = 1e-15;
     }
 
     /***********************************************************************************************
