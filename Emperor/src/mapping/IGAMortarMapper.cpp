@@ -1492,7 +1492,7 @@ void IGAMortarMapper::buildBoundaryParametricElement(int elemIndex, int numNodes
                         << meshFE->nodes[nodeIndex2 * 3 + 2] << ") on patch ["
                         << patchIndex << "] boundary" << endl;
                 ERROR_OUT() << "Projection failed in IGA mapper " << name << endl;
-                exit(EXIT_FAILURE);
+               // exit(EXIT_FAILURE);
             }
         }
     }
