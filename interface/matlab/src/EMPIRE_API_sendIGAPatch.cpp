@@ -73,6 +73,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     assert(mxGetNumberOfElements(NODE_NET_IN) == uNumControlPoints * vNumControlPoints);
     int *nodeNet = doubleArrayToIntArray(mxGetPr(NODE_NET_IN), uNumControlPoints * vNumControlPoints);
 
+	// Send the patch through API to Empire
     EMPIRE_API_sendIGAPatch(pDegree,  uNumKnots, uKnotVector, qDegree, vNumKnots,
             vKnotVector, uNumControlPoints, vNumControlPoints, cpNet, nodeNet);
 

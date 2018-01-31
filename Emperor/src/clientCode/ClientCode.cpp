@@ -264,7 +264,7 @@ void ClientCode::recvIGAMesh(std::string meshName) {
                     
                     double* uKnotVector = new double[uNoKnots];
                     double controlPointNet[uNoControlPoints * 4];
-                    
+
                     serverComm->receiveFromClientBlocking<double>(name, uNoKnots, uKnotVector);
                     serverComm->receiveFromClientBlocking<double>(name, uNoControlPoints * 4, controlPointNet);
 
