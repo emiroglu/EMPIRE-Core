@@ -18,7 +18,10 @@ LIBS     += -Wl,-whole-archive GiDFileIO/GiDFileIO.a -Wl,-no-whole-archive
 
 # LINK MATLIB INTERFACE LIBRARIES
 #@echo "Set MATLIB_HOME in the include file to your MATLAB installation"
-MATLIB_HOME = $(HOME)/software/matlab
+# Compilation on the cluster
+MATLIB_HOME = $(HOME)/software/matlab/R2017b/
+# Compilation on my machine
+# MATLIB_HOME = $(HOME)/software/matlab
 MATLIB_ARC = glnxa64
 INCLUDES += -I$(MATLIB_HOME)/extern/include
 #RPATH = -Wl,-rpath,$(MATLIB_HOME)/bin/glnxa64
