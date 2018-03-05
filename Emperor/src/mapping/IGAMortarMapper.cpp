@@ -163,8 +163,6 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, AbstractMesh *_meshA, Abstra
 void IGAMortarMapper::setParametersConsistency(bool _enforceConsistency, double _tolConsistency) {
     propConsistency.enforceConsistency = _enforceConsistency;
     propConsistency.tolConsistency = _tolConsistency;
-    INFO_OUT() << "EenforceConsistency : " << propConsistency.enforceConsistency << endl;
-    INFO_OUT() << "tolConsistency : " << propConsistency.tolConsistency << endl;
 }
 
 void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int _noInitialGuess,
@@ -172,30 +170,21 @@ void IGAMortarMapper::setParametersProjection(double _maxProjectionDistance, int
     propProjection.maxProjectionDistance = _maxProjectionDistance;
     propProjection.noInitialGuess = _noInitialGuess;
     propProjection.maxProjectionDistanceOnDifferentPatches = _maxProjectionDistanceOnDifferentPatches;
-    INFO_OUT() << "maxProjectionDistance : " << propProjection.maxProjectionDistance << endl;
-    INFO_OUT() << "noInitialGuess : " << propProjection.noInitialGuess << endl;
-    INFO_OUT() << "maxProjectionDistanceOnDifferentPatches : " << propProjection.maxProjectionDistanceOnDifferentPatches << endl;
 }
 
 void IGAMortarMapper::setParametersNewtonRaphson(int _noIterations, double _tolProjection) {
     propNewtonRaphson.noIterations = _noIterations;
     propNewtonRaphson.tolProjection = _tolProjection;
-    INFO_OUT() << "propNewtonRaphson.noIterations : " << propNewtonRaphson.noIterations << endl;
-    INFO_OUT() << "propNewtonRaphson.tolProjection : " << propNewtonRaphson.tolProjection << endl;
 }
 
 void IGAMortarMapper::setParametersNewtonRaphsonBoundary(int _noIterations, double _tolProjection) {
     propNewtonRaphsonBoundary.noIterations = _noIterations;
     propNewtonRaphsonBoundary.tolProjection = _tolProjection;
-    INFO_OUT() << "propNewtonRaphsonBoundary.noIterations : " << propNewtonRaphsonBoundary.noIterations << endl;
-    INFO_OUT() << "propNewtonRaphsonBoundary.tolProjection : " << propNewtonRaphsonBoundary.tolProjection << endl;
 }
 
 void IGAMortarMapper::setParametersBisection(int _noIterations, double _tolProjection) {
     propBisection.noIterations = _noIterations;
     propBisection.tolProjection = _tolProjection;
-    INFO_OUT() << "propBisection.noIterations : " << propBisection.noIterations << endl;
-    INFO_OUT() << "propBisection.tolProjection : " << propBisection.tolProjection << endl;
 }
 
 void IGAMortarMapper::setParametersIntegration(bool _isAutomaticNoGPTriangle, int _noGPTriangle, bool _isAutomaticNoGPQuadrilateral, int _noGPQuadrilateral) {
