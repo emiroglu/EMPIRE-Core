@@ -3910,7 +3910,7 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
         // 4xviii. Write the Penalty parameters into a file
         if (!_filename.empty()) {
             ofs << "Coupling between patch[" << indexMaster << "] and patch[" << indexSlave << "]:" << std::endl;
-            ofs << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << alphaBar << std::endl;
+            ofs << "weakPatchContinuityAlphaPrimaryIJ[" << iWCC << "] = " << scientific << setprecision(15)  << alphaBar << std::endl;
             ofs << std::endl;
         }
     } // End of weak continuity condition loop
