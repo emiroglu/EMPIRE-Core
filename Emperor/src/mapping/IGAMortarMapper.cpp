@@ -123,6 +123,9 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, AbstractMesh *_meshA, Abstra
     gaussRuleOnQuadrilateral = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
     isGaussQuadature = false;
 
+    // Initialize the integration area
+    areaIntegration = 0.0;
+
     // Get the number of weak Dirichlet curve conditions
     noWeakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions().size();
 
@@ -269,27 +272,29 @@ void IGAMortarMapper::buildCouplingMatrices() {
      *
      * 11. Compute mortar coupling matrices
      *
-     * 12. Write the gauss point and the coupling matrices data in files
+     * 12.Print the integration area
      *
-     * 13. Write polygon net of projected elements to a vtk file
+     * 13. Write the gauss point and the coupling matrices data in files
      *
-     * 14. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+     * 14. Write polygon net of projected elements to a vtk file
      *
-     * 15. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+     * 15. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
      *
-     * 16. Compute the Penalty parameters for the application of weak patch continuity conditions
+     * 16. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
      *
-     * 17. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+     * 17. Compute the Penalty parameters for the application of weak patch continuity conditions
      *
-     * 18. Remove empty rows and columns from system (flying nodes)
+     * 18. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
      *
-     * 19. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
+     * 19. Remove empty rows and columns from system (flying nodes)
      *
-     * 20. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+     * 20. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
      *
-     * 21. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+     * 21. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
      *
-     * 22. Factorize Cnn matrix
+     * 22. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+     *
+     * 23. Factorize Cnn matrix
      */
 
     // 0. Print message
@@ -386,35 +391,38 @@ void IGAMortarMapper::buildCouplingMatrices() {
     // 11. Compute mortar coupling matrices
     computeCouplingMatrices();
 
-    // 12. Write the gauss point and the coupling matrices data in files
+    // 12.Print the integration area
+    INFO_OUT() << "The integration area in the data integration filter is equal to: " << areaIntegration << std::endl;
+
+    // 13. Write the gauss point and the coupling matrices data in files
     if(Message::isDebugMode()) {
         writeGaussPointData();
         writeCouplingMatricesToFile();
     }
 
-    // 13. Write polygon net of projected elements to a vtk file
+    // 14. Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
 
-    // 14. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+    // 15. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
     if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakDirichletConditions.txt";
         computePenaltyParametersForWeakDirichletCurveConditions(filename);
     }
 
-    // 15. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+    // 16. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
     if(propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions && !isMappingIGA2FEM)
         computePenaltyParametersForWeakDirichletSurfaceConditions();
 
-    // 16. Compute the Penalty parameters for the application of weak patch continuity conditions
+    // 17. Compute the Penalty parameters for the application of weak patch continuity conditions
     if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakContinuityConditions.txt";
         computePenaltyParametersForPatchContinuityConditions(filename);
     }
 
-    // 17. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+    // 18. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
     if (propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
         if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters) {
@@ -429,17 +437,17 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak patch continuity conditions is assumed" << std::endl;
 
-    // 18. Remove empty rows and columns from system (flying nodes)
+    // 19. Remove empty rows and columns from system (flying nodes)
     if(!isMappingIGA2FEM){
         INFO_OUT() << "Enforcing flying nodes in Cnn" << std::endl;
         couplingMatrices->enforceCnn();
     }
 
-    // 19. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
+    // 20. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
     if (propConsistency.enforceConsistency)
         enforceConsistency();
 
-    // 20. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+    // 21. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
     if (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet curve conditions started" << endl;
         if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters) {
@@ -452,7 +460,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet curve conditions are assumed" << std::endl;
 
-    // 21. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+    // 22. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
     if (propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
         if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
@@ -465,7 +473,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet surface conditions are assumed" << std::endl;
 
-    // 22. Factorize Cnn matrix
+    // 23. Factorize Cnn matrix
     couplingMatrices->factorizeCnn();
     INFO_OUT() << "Factorize was successful" << std::endl;
 }
@@ -1887,25 +1895,26 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
      *    6x. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
      *   6xi. Compute the determinant of the Jacobian of the transformation from the NURBS parameter space to the canonical space
      *  6xii. Compute the product of the determinants of the Jacobian matrices
-     * 6xiii. Loop over all local basis functions in the master side
+     * 6xiii. Update the integration area at the Gauss point
+     *   6xiv. Loop over all local basis functions in the master side
      * ->
-     *        6xiii.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
+     *        6xiv.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
      *        ->
-     *                 6xiii.1i. Compute the product of the basis functions
-     *                6xiii.1ii. Compute the integrand on the Gauss point times the Gauss weight
-     *               6xiii.1iii. Find the DOF numbering of the dual basis functions product
-     *                6xiii.1iv. Assemble the element contributions to the global Cnn matrix
+     *                 6xiv.1i. Compute the product of the basis functions
+     *                6xiv.1ii. Compute the integrand on the Gauss point times the Gauss weight
+     *               6xiv.1iii. Find the DOF numbering of the dual basis functions product
+     *                6xiv.1iv. Assemble the element contributions to the global Cnn matrix
      *        <-
      *
-     *        6xiii.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
+     *        6xiv.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
      *        ->
-     *                 6xiii.2i. Compute the integrand on the Gauss point times the Gauss weight
-     *                6xiii.2ii. Find the DOF numbering of the dual basis functions product
-     *               6xiii.2iii. Assemble the element contributions to the global Cnr matrix
+     *                 6xiv.2i. Compute the integrand on the Gauss point times the Gauss weight
+     *                6xiv.2ii. Find the DOF numbering of the dual basis functions product
+     *               6xiv.2iii. Assemble the element contributions to the global Cnr matrix
      *        <-
      * <-
      *
-     *  6xiv. Save the gauss point data for the computation of the L2 norm of the error
+     *  6xv. Save the gauss point data for the computation of the L2 norm of the error
      * <-
      */
 
@@ -1932,8 +1941,11 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
     }
 
     // 2. Initialize auxiliary variables
+    int indexBaseVctU, indexBaseVctV;
     int noCoord = 3;
     int derivDegree = 1;
+    int derivDegreeBaseVec = 0;
+    int noBaseVec = 2;
     int numNodesElementFE = meshFE->numNodesPerElem[_elementIndex];
     int numNodesElMaster = 0;
     int numNodesElSlave = 0;
@@ -1946,7 +1958,6 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
     double basisFunctionsFE[numNodesElementFE];
     double uv[2];
     double wz[2];
-    double baseVectors[6];
     double baseVectorU[3];
     double baseVectorV[3];
     double surfaceNormalTilde[3];
@@ -1965,6 +1976,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
     double basisFunctionsProduct;
     double integrand;
     double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2) * numBasisFunctionsIGA / 2];
+    double baseVctsAndDerivs[(derivDegreeBaseVec + 1) * (derivDegreeBaseVec + 2) * noCoord * noBaseVec / 2];
 
     // 3. Find the number of the master and the slave DOFs
     if (isMappingIGA2FEM) {
@@ -2016,10 +2028,12 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                                                                            derivDegree, uv[0], _spanU, uv[1], _spanV);
 
         // 6viii. Compute the base vectors and their first derivatives
-        _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU, _spanV);
+        _thePatch->computeBaseVectorsAndDerivatives(baseVctsAndDerivs, localBasisFunctionsAndDerivatives, derivDegreeBaseVec,_spanU, _spanV);
         for (int iCoord = 0; iCoord < noCoord; iCoord++) {
-            baseVectorU[iCoord] = baseVectors[iCoord];
-            baseVectorV[iCoord] = baseVectors[noCoord + 1 + iCoord];
+            indexBaseVctU = _thePatch->indexDerivativeBaseVector(0 , 0, 0, iCoord, 0);
+            baseVectorU[iCoord] = baseVctsAndDerivs[indexBaseVctU];
+            indexBaseVctV = _thePatch->indexDerivativeBaseVector(0 , 0, 0, iCoord, 1);
+            baseVectorV[iCoord] = baseVctsAndDerivs[indexBaseVctV];
         }
 
         // 6ix. Compute the surface normal vector at the Gauss point
@@ -2045,13 +2059,16 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
         }
 
         // 6xii. Compute the product of the determinants of the Jacobian matrices
-        JacobianProduct = JacobianUVToPhysical * JacobianCanonicalToUV;
+        JacobianProduct = JacobianUVToPhysical*JacobianCanonicalToUV;
 
-        // 6xiii. Loop over all local basis functions in the master side
+        // 6xiii. Update the integration area at the Gauss point
+        areaIntegration += JacobianProduct*theGaussQuadrature->getGaussWeight(iGP);
+
+        // 6xiv. Loop over all local basis functions in the master side
         for (int i = 0; i < numNodesElMaster; i++) {
-            // 6xiii.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
+            // 6xiv.1. Loop over all local basis functions in the master side to compute and assemble the local Cnn matrix to the global one
             for (int j = i; j < numNodesElMaster; j++) { // Starts from i because of computing only the upper triangular entries of the matrix
-                // 6xiii.1i. Compute the product of the basis functions
+                // 6xiv.1i. Compute the product of the basis functions
                 if (isMappingIGA2FEM)
                     basisFunctionsProduct = basisFunctionsFE[i] * basisFunctionsFE[j];
                 else {
@@ -2060,10 +2077,10 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                     basisFunctionsProduct = IGABasisFctsI*IGABasisFctsJ;
                 }
 
-                // 6xiii.1ii. Compute the integrand on the Gauss point times the Gauss weight
+                // 6xiv.1ii. Compute the integrand on the Gauss point times the Gauss weight
                 integrand = basisFunctionsProduct*JacobianProduct*theGaussQuadrature->getGaussWeight(iGP);
 
-                // 6xiii.1iii. Find the DOF numbering of the dual basis functions product
+                // 6xiv.1iii. Find the DOF numbering of the dual basis functions product
                 if (isMappingIGA2FEM) {
                     dof1 = meshFEDirectElemTable[_elementIndex][i];
                     dof2 = meshFEDirectElemTable[_elementIndex][j];
@@ -2072,7 +2089,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                     dof2 = dofIGA[j];
                 }
 
-                // 6xiii.1iv. Assemble the element contributions to the global Cnn matrix
+                // 6xiv.1iv. Assemble the element contributions to the global Cnn matrix
                 if (!isExpanded){
                     couplingMatrices->addCNNValue(dof1, dof2, integrand);
                     if (dof1 != dof2)
@@ -2086,9 +2103,9 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                 }
             }
 
-            // 6xiii.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
+            // 6xiv.2. Loop over all local basis functions in the slave side to compute and assemble the local Cnr matrix to the global one
             for (int j = 0; j < numNodesElSlave; j++) {
-                // 6xiii.2i. Compute the integrand on the Gauss point times the Gauss weight
+                // 6xiv.2i. Compute the integrand on the Gauss point times the Gauss weight
                 if (isMappingIGA2FEM) {
                     basisFctsMaster = basisFunctionsFE[i];
                     basisFctsSlave = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, j)];
@@ -2098,7 +2115,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                 }
                 integrand = basisFctsMaster*basisFctsSlave*JacobianProduct*theGaussQuadrature->getGaussWeight(iGP);
 
-                // 6xiii.2ii. Find the DOF numbering of the dual basis functions product
+                // 6xiv.2ii. Find the DOF numbering of the dual basis functions product
                 if (isMappingIGA2FEM) {
                     dof1 = meshFEDirectElemTable[_elementIndex][i];
                     dof2 = dofIGA[j];
@@ -2107,7 +2124,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                     dof2 = meshFEDirectElemTable[_elementIndex][j];
                 }
 
-                // 6xiii.2iii. Assemble the element contributions to the global Cnr matrix
+                // 6xiv.2iii. Assemble the element contributions to the global Cnr matrix
                 if (!isExpanded){
                     couplingMatrices->addCNRValue(dof1, dof2, integrand);
                 } else {
@@ -2117,7 +2134,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
             }
         }
 
-        // 6xiv. Save the gauss point data for the computation of the L2 norm of the error
+        // 6xv. Save the gauss point data for the computation of the L2 norm of the error
         if(propErrorComputation.isDomainError){
             std::vector<double> streamGP;
             // weight + JacobianProduct + numBasisFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)

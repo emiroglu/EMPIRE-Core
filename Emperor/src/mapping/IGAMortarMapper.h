@@ -136,6 +136,9 @@ private:
     /// Penalty factors for the twisting secondary field to the application of weak patch continuity conditions
     double* weakPatchContinuityAlphaSecondaryTwistingIJ;
 
+    /// Integration area
+    double areaIntegration;
+
     /// Flag on whether the expanded version of the coupling matrices is computed
     bool isExpanded;
 

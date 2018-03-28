@@ -56,6 +56,9 @@ private:
     /// Quadrature rule over the non-triangulated subdomains
     EMPIRE::MathLibrary::IGAGaussQuadrature **gaussRuleOnQuadrilateral;
 
+    /// Integration area
+    double areaIntegration;
+
 public:
     /***********************************************************************************************
      * \brief Constructor

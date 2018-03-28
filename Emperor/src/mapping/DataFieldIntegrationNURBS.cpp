@@ -49,11 +49,17 @@ DataFieldIntegrationNURBS::DataFieldIntegrationNURBS(IGAMesh* _mesh): meshIGA(_m
     gaussRuleOnTriangle = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
     gaussRuleOnQuadrilateral = new EMPIRE::MathLibrary::IGAGaussQuadrature*[numPatches];
 
+    // Initialize the integration area
+    areaIntegration = 0.0;
+
     // Create the Gauss quadrature rules for all patches
     createGaussQuadratureRules();
 
     // Compute the mass matrix
     computeMassMatrix();
+
+    // Print the integration area
+    INFO_OUT() << "The integration area in the data integration filter is equal to: " << areaIntegration << std::endl;
 
     // Enforce flying nodes in Cnn
     enforceCnn();
@@ -475,10 +481,11 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _index
      * 6viii. Compute the determinant of the Jacobian of the transformation from the physical space to the NURBS parameter space
      *   6ix. Compute the Jacobian of the transformation from the NURBS parameter space to the integration space
      *    6x. Compute the Jacobian products
-     *   6xi. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
+     *   6xi. Update the integration area at the Gauss point
+     *  6xii. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
      *   ->
-     *        6xi.1. Compute the local basis functions of the dual product RI*RJ
-     *        6xi.2. Compute and add the local mass matrix contributions
+     *        6xii.1. Compute the local basis functions of the dual product RI*RJ
+     *        6xii.2. Compute and add the local mass matrix contributions
      *   <-
      * <-
      */
@@ -502,9 +509,16 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _index
     }
 
     // 3. Initialize auxiliary variables
+    int indexBaseVctU, indexBaseVctV;
+    int derivDegree = 1;
+    int derivDegreeBaseVec = 0;
+    int noBaseVec = 2;
+    int noCoord = 3;
+    int pDegree = _thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+    int qDegree = _thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+    int numBasisFunctions = (pDegree + 1) * (qDegree + 1);
     double shapeFuncs[numNodesQuadrature];
     double uv[2];
-    double baseVectors[6];
     double baseVectorU[3];
     double baseVectorV[3];
     double surfaceNormalTilde[3];
@@ -518,12 +532,8 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _index
     double dudy;
     double dvdx;
     double dvdy;
-    int derivDegree = 1;
-    int noCoord = 3;
-    int pDegree = _thePatch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
-    int qDegree = _thePatch->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
-    int numBasisFunctions = (pDegree + 1) * (qDegree + 1);
     double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2) * numBasisFunctions / 2];
+    double baseVctsAndDerivs[(derivDegreeBaseVec + 1) * (derivDegreeBaseVec + 2) * noCoord * noBaseVec / 2];
 
     // 4. Create an element freedom table
     int dofIGA[numBasisFunctions];
@@ -557,10 +567,12 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _index
                 (localBasisFunctionsAndDerivatives, derivDegree, uv[0], _spanU, uv[1], _spanV);
 
         // 6vi. Compute the base vectors at the Gauss point
-        _thePatch->computeBaseVectors(baseVectors, localBasisFunctionsAndDerivatives, _spanU, _spanV);
+        _thePatch->computeBaseVectorsAndDerivatives(baseVctsAndDerivs, localBasisFunctionsAndDerivatives, derivDegreeBaseVec,_spanU, _spanV);
         for (int iCoord = 0; iCoord < noCoord; iCoord++) {
-            baseVectorU[iCoord] = baseVectors[iCoord];
-            baseVectorV[iCoord] = baseVectors[noCoord + 1 + iCoord];
+            indexBaseVctU = _thePatch->indexDerivativeBaseVector(0 , 0, 0, iCoord, 0);
+            baseVectorU[iCoord] = baseVctsAndDerivs[indexBaseVctU];
+            indexBaseVctV = _thePatch->indexDerivativeBaseVector(0 , 0, 0, iCoord, 1);
+            baseVectorV[iCoord] = baseVctsAndDerivs[indexBaseVctV];
         }
 
         // 6vii. Compute the surface normal vector at the Gauss point
@@ -582,26 +594,29 @@ void DataFieldIntegrationNURBS::integrate(IGAPatchSurface* _thePatch, int _index
                        + (1 + gaussPoint[2]) * nodesUV[5] - (1 + gaussPoint[2]) * nodesUV[7]);
             dvdy = .25 * (-(1 - gaussPoint[1]) * nodesUV[1] - (1 + gaussPoint[1]) * nodesUV[3]
                        + (1 + gaussPoint[1]) * nodesUV[5] + (1 - gaussPoint[1]) * nodesUV[7]);
-			JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
+            JacobianCanonicalToUV = fabs(dudx * dvdy - dudy * dvdx);
 		}
 
         // 6x. Compute the Jacobian products
         Jacobian = JacobianUVToPhysical * JacobianCanonicalToUV;
 
-        // 6xi. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
+        // 6xi. Update the integration area at the Gauss point
+        areaIntegration += Jacobian * gaussWeight;
+
+        // 6xii. Loop over all local basis functions in a nested loop to compute and assemble the local mass matrix
         for (int i = 0; i < numBasisFunctions; i++) {
             for (int j = i; j < numBasisFunctions; j++) { // Starts from i because of computing only the upper triangular entries of the matrix
-                    // 6xi.1. Compute the local basis functions of the dual product RI*RJ
+                    // 6xii.1. Compute the local basis functions of the dual product RI*RJ
                     IGABasisFctsI = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, i)];
                     IGABasisFctsJ = localBasisFunctionsAndDerivatives[_thePatch->getIGABasis()->indexDerivativeBasisFunction(1, 0, 0, j)];
 
-                    // 6xi.2. Compute and add the local mass matrix contributions
+                    // 6xii.2. Compute and add the local mass matrix contributions
                     (*massMatrix)(dofIGA[i], dofIGA[j]) += IGABasisFctsI * IGABasisFctsJ * Jacobian * gaussWeight;
                     if(dofIGA[i] != dofIGA[j]) // Because matrix not instantiated as symmetric
                         (*massMatrix)(dofIGA[j], dofIGA[i]) += IGABasisFctsI * IGABasisFctsJ * Jacobian * gaussWeight;
 			}
 		}
-	}
+    }
 }
 
 void DataFieldIntegrationNURBS::enforceCnn() {
