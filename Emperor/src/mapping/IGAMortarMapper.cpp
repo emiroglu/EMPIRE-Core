@@ -392,7 +392,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     computeCouplingMatrices();
 
     // 12.Print the integration area
-    INFO_OUT() << "The integration area in the data integration filter is equal to: " << areaIntegration << std::endl;
+    INFO_OUT() << "The integration area in the IGA mortar mapper is equal to: " << areaIntegration << std::endl;
 
     // 13. Write the gauss point and the coupling matrices data in files
     if(Message::isDebugMode()) {
