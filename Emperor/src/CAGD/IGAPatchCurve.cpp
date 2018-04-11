@@ -46,12 +46,12 @@ IGAPatchCurve::IGAPatchCurve(int _IDBasis, int _pDegree, int _uNoKnots, double* 
 	}
 	// On the Control Point net
 	assert(_controlPointNet!=NULL);
-	ControlPointNet.reserve(uNoControlPoints);
+    ControlPointNet.reserve(uNoControlPoints);
     for (int i = 0; i < uNoControlPoints; i++) {
             ControlPointNet.push_back(IGAControlPoint(i, &_controlPointNet[i * 4]));
     }
 	// Figure out whether the patch has a B-Spline or a NURBS underlying basis
-	int isNurbs = 0;
+    int isNurbs = 0;
 	for (int i = 0; i < uNoControlPoints; i++) {
 		if (ControlPointNet[i].getW() != 1.0) {
 			isNurbs = 1;
@@ -59,14 +59,14 @@ IGAPatchCurve::IGAPatchCurve(int _IDBasis, int _pDegree, int _uNoKnots, double* 
 		}
 	}
 	// Create the NURBS or the B-Spline underlying basis
-	if (!isNurbs) {
+    if (!isNurbs) {
 		IGABasis = new BSplineBasis1D(_IDBasis, _pDegree, _uNoKnots, _uKnotVector);
 	} else {
 		double* controlPointWeights = new double[uNoControlPoints];
 		for (int i = 0; i < uNoControlPoints; i++)
-			controlPointWeights[i] = ControlPointNet[i].getW();
+            controlPointWeights[i] = ControlPointNet[i].getW();
 		IGABasis = new NurbsBasis1D(_IDBasis, _pDegree, _uNoKnots, _uKnotVector, _uNoControlPoints, controlPointWeights);
-	}
+    }
 }
 
 IGAPatchCurve::~IGAPatchCurve() {

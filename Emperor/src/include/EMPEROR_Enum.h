@@ -80,6 +80,7 @@ enum EMPIRE_Mesh_type {
     EMPIRE_Mesh_FEMesh,
     EMPIRE_Mesh_IGAMesh,
     EMPIRE_Mesh_copyFEMesh,
+    EMPIRE_Mesh_copyIGAMesh,
     EMPIRE_Mesh_SectionMesh
 };
 

@@ -33,6 +33,7 @@
 #include "Signal.h"
 #include "Message.h"
 #include <stdlib.h>
+#include <algorithm>
 
 namespace EMPIRE {
 
@@ -172,6 +173,101 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
         copyMesh->numNodesPerElem = femesh->numNodesPerElem;
         copyMesh->initElems();
         copyMesh->elems = femesh->elems;
+        nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
+        { // output to shell
+            DEBUG_OUT() << (*copyMesh) << endl;
+            copyMesh->computeBoundingBox();
+            INFO_OUT() << copyMesh->boundingBox << endl;
+        }
+    } else if (meshToCopyFrom->type == EMPIRE_Mesh_IGAMesh) {
+        { // output to shell
+            HEADING_OUT(3, "ClientCode", "copying mesh (" + meshToCopyFrom->name + ") to (" + meshName + ") of ["+name+"]...",
+                    infoOut);
+        }
+        IGAMesh* igaMesh = dynamic_cast<IGAMesh*>( meshToCopyFrom );
+        int numPatches = igaMesh->getNumPatches();
+        int numNodes = igaMesh->getNumNodes();
+        IGAMesh* copyMesh = new IGAMesh(meshName, numNodes);
+
+        for (int patchCount = 0; patchCount < numPatches; patchCount++) {
+            int pDegree = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+            int uNoKnots = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+            int qDegree = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+            int vNoKnots = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+            int uNoControlPoints = igaMesh->getSurfacePatch(patchCount)->getUNoControlPoints();
+            int vNoControlPoints = igaMesh->getSurfacePatch(patchCount)->getVNoControlPoints();
+
+            double* uKnotVector = new double[uNoKnots];
+            double* vKnotVector = new double[vNoKnots];
+
+            for (int iUNoKnots = 0;  iUNoKnots < uNoKnots; iUNoKnots++)
+                uKnotVector[iUNoKnots] = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getUBSplineBasis1D()->getKnotVector()[iUNoKnots];
+            for (int iVNoKnots = 0;  iVNoKnots < vNoKnots; iVNoKnots++)
+                vKnotVector[iVNoKnots] = igaMesh->getSurfacePatch(patchCount)->getIGABasis()->getVBSplineBasis1D()->getKnotVector()[iVNoKnots];
+
+            double* controlPointNet = new double[uNoControlPoints * vNoControlPoints * 4];
+            int* dofIndexNet = new int[uNoControlPoints * vNoControlPoints];
+
+            IGAControlPoint** IGAcontrolPointNet = igaMesh->getSurfacePatch(patchCount)->getControlPointNet();
+            for (int iCP = 0; iCP < uNoControlPoints * vNoControlPoints; iCP++) {
+                dofIndexNet[iCP] = IGAcontrolPointNet[iCP]->getDofIndex();
+                controlPointNet[iCP*4] = IGAcontrolPointNet[iCP]->getX();
+                controlPointNet[iCP*4+1] = IGAcontrolPointNet[iCP]->getY();
+                controlPointNet[iCP*4+2] = IGAcontrolPointNet[iCP]->getZ();
+                controlPointNet[iCP*4+3] = IGAcontrolPointNet[iCP]->getW();
+            }
+            IGAPatchSurface* thePatch = copyMesh->addPatch(pDegree, uNoKnots, uKnotVector, qDegree, vNoKnots, vKnotVector,
+                    uNoControlPoints, vNoControlPoints, controlPointNet, dofIndexNet);
+
+            // deleting the pointers after object creation
+            delete uKnotVector;
+            delete vKnotVector;
+            delete controlPointNet;
+            delete dofIndexNet;
+
+            // Add and linearize the trimming curves
+            int isTrimmed = igaMesh->getSurfacePatch(patchCount)->getTrimming().isTrimmed();
+            int numLoops = igaMesh->getSurfacePatch(patchCount)->getTrimming().getNumOfLoops();
+            if(isTrimmed) {
+                assert(numLoops>0);
+                //Get every loop
+                const std::vector<int> outerLoopIndices = igaMesh->getSurfacePatch(patchCount)->getTrimming().getOutterLoopIndex();
+                for(int loopCount = 0; loopCount < numLoops; loopCount++) {
+
+                    int inner = 1;
+                    if ( std::find(outerLoopIndices.begin(), outerLoopIndices.end(), loopCount) != outerLoopIndices.end() )
+                        inner = 0;
+                    int numCurves = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getNoCurves();
+
+                    thePatch->addTrimLoop(inner, numCurves);
+
+                    //Get every curve
+                    for(int curveCount = 0; curveCount < numCurves; curveCount++) {
+
+                        int direction = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getDirection(curveCount);
+                        int pDegree = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getIGABasis()->getPolynomialDegree();
+                        int uNoKnots = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getIGABasis()->getNoKnots();
+                        int uNoControlPoints = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getNoControlPoints();
+
+                        double uKnotVector[uNoKnots];
+                        for (int iKnot = 0; iKnot < uNoKnots; iKnot++){
+                            uKnotVector[iKnot] = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getIGABasis()->getKnotVector()[iKnot];
+                        }
+                        double controlPointNet[uNoControlPoints*4];
+                        for (int iCP = 0; iCP < uNoControlPoints; iCP++){
+                            controlPointNet[iCP*4] = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getControlPointNet()[iCP].getX();
+                            controlPointNet[iCP*4+1] = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getControlPointNet()[iCP].getY();
+                            controlPointNet[iCP*4+2] = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getControlPointNet()[iCP].getZ();
+                            controlPointNet[iCP*4+3] = igaMesh->getSurfacePatch(patchCount)->getTrimming().getLoop(loopCount).getIGACurve(curveCount).getControlPointNet()[iCP].getW();
+                        }
+                        thePatch->addTrimCurve(direction, pDegree, uNoKnots, uKnotVector,
+                                uNoControlPoints, controlPointNet);
+
+                    } // end curve
+                } // end trimming loops
+                thePatch->linearizeTrimming();
+            } // end isTrimmed
+        } // end patch
         nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
         { // output to shell
             DEBUG_OUT() << (*copyMesh) << endl;

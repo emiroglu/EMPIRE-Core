@@ -158,6 +158,30 @@ void MetaDatabase::fillSettingClientCodesVec() {
                     } else {
                         assert(false);
                     }
+                } else if (meshType == "copyIGAMesh") {
+                    mesh.type = EMPIRE_Mesh_copyIGAMesh;
+                    if (xmlMesh->HasAttribute("fromClient") && xmlMesh->HasAttribute("fromMesh")) {
+                        mesh.clientNameToCopyFrom = xmlMesh->GetAttribute<string>("fromClient");
+                        mesh.meshNameToCopyFrom = xmlMesh->GetAttribute<string>("fromMesh");
+                    } else {
+                        assert(false);
+                    }
+                    if (xmlMesh->HasAttribute("sendMeshToClient")) {
+                        bool sendMeshToClient;
+                        string tmp = xmlMesh->GetAttribute<string>("sendMeshToClient");
+                        if (tmp == "true") {
+                            sendMeshToClient = true;
+                            ERROR_OUT("sendMeshToClient feature is not implemented for copyIGAMesh yet!");
+                            assert(false);
+                        } else if (tmp == "false") {
+                            sendMeshToClient = false;
+                        } else {
+                            assert(false);
+                        }
+                        mesh.sendMeshToClient = sendMeshToClient;
+                    } else {
+                        assert(false);
+                    }
                 } else {
                     assert(false);
                 }
