@@ -168,11 +168,19 @@ void ClientCode::copyMesh(std::string meshName, AbstractMesh *meshToCopyFrom) {
         int numNodes = femesh->numNodes;
         int numElems = femesh->numElems;
         FEMesh *copyMesh = new FEMesh(meshName, numNodes, numElems, false); //triangulateAll=false
-        copyMesh->nodes = femesh->nodes;
-        copyMesh->nodeIDs = femesh->nodeIDs;
-        copyMesh->numNodesPerElem = femesh->numNodesPerElem;
+        for (int iNode = 0; iNode < copyMesh->numNodes; iNode++){
+            copyMesh->nodeIDs[iNode] = femesh->nodeIDs[iNode];
+            copyMesh->nodes[iNode*3] = femesh->nodes[iNode*3];
+            copyMesh->nodes[iNode*3+1] = femesh->nodes[iNode*3+1];
+            copyMesh->nodes[iNode*3+2] = femesh->nodes[iNode*3+2];
+        }
+        for (int iElem = 0; iElem < copyMesh->numElems; iElem++){
+            copyMesh->numNodesPerElem[iElem] = femesh->numNodesPerElem[iElem];
+        }
         copyMesh->initElems();
-        copyMesh->elems = femesh->elems;
+        for (int i = 0; i < copyMesh->elemsArraySize; i++){
+            copyMesh->elems[i] = femesh->elems[i];
+        }
         nameToMeshMap.insert(pair<string, AbstractMesh*>(meshName, copyMesh));
         { // output to shell
             DEBUG_OUT() << (*copyMesh) << endl;

@@ -183,7 +183,6 @@ public:
 
             MapperAdapter *mapper = new MapperAdapter("testMortar", meshA, meshB);
             mapper->initMortarMapper(oppositeSurfaceNormal, dual, enforceConsistency);
-
             {
                 AbstractFilter *filterConsistant = new MappingFilter(mapper);
                 ConnectionIOSetup::setupIOForFilter(filterConsistant, meshA, a1, meshB, b1);

@@ -235,6 +235,7 @@ void Emperor::initClientCodes() {
         const vector<std::string> &initialDataFields = settingClientCode.initialDataFields;
 
         ClientCode *clientCode = new ClientCode(name);
+        nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
         clientCode->setServerCommunication(ServerCommunication::getSingleton());
         for (int j = 0; j < settingMeshes.size(); j++) {
             const structClientCode::structMesh &settingMesh = settingMeshes[j];
@@ -290,7 +291,7 @@ void Emperor::initClientCodes() {
             clientCode->addSignal(settingSignal.name, settingSignal.size3D[0],
                     settingSignal.size3D[1], settingSignal.size3D[2]);
         }
-        nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
+//        nameToClientCodeMap.insert(pair<string, ClientCode*>(name, clientCode));
 
     }
 }
@@ -323,6 +324,7 @@ void Emperor::initMappers() {
                 meshRefB.meshName);
 
         MapperAdapter *mapper = new MapperAdapter(name, meshA, meshB);
+        mapper->setWriteMode(settingMapper.writeMode);
         if (settingMapper.type == EMPIRE_MortarMapper) {
             mapper->initMortarMapper(settingMapper.mortarMapper.oppositeSurfaceNormal,
                     settingMapper.mortarMapper.dual, settingMapper.mortarMapper.enforceConsistency);

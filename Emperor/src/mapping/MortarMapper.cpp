@@ -127,6 +127,12 @@ void MortarMapper::buildCouplingMatrices(){
 //        C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
 //     }
 
+    if ((Message::isDebugMode() || writeMode > 0) && !dual){
+        C_BB->printCSRToFile("C_BB.dat",1);
+    }
+    if ((Message::isDebugMode() || writeMode > 0) && !dual)
+        C_BA->printCSRToFile("C_BA.dat",1);
+
     deleteANNTree();
     deleteTables();
 
