@@ -311,6 +311,7 @@ void MetaDatabase::fillSettingMapperVec() {
     for (xmlMapper = xmlMapper.begin(xmlEMPEROR); xmlMapper != xmlMapper.end(); xmlMapper++) {
         structMapper mapper;
         mapper.name = xmlMapper->GetAttribute<string>("name");
+        xmlMapper->GetAttributeOrDefault<int,int>("writeMode", &mapper.writeMode, 0);
         ticpp::Element *xmlMeshRefA = xmlMapper->FirstChildElement("meshA")->FirstChildElement(
                 "meshRef");
         mapper.meshRefA.clientCodeName = xmlMeshRefA->GetAttribute<string>("clientCodeName");

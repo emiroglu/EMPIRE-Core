@@ -183,6 +183,15 @@ public:
     bool isMeshB(AbstractMesh *mesh) {
         return meshB == mesh;
     }
+
+    /***********************************************************************************************
+     * \brief sets write mode for the underlying mapper implementation
+     * \author Altug Emiroglu
+     ************/
+    void setWriteMode(int _writeMode = 0){
+        writeMode = _writeMode;
+    }
+
 private:
     /// the adapted mapper
     AbstractMapper *mapperImpl;
@@ -192,6 +201,8 @@ private:
     AbstractMesh *meshA;
     /// mesh B
     AbstractMesh *meshB;
+    /// write mode for the mapper
+    int writeMode = 0;
 };
 
 } /* namespace EMPIRE */

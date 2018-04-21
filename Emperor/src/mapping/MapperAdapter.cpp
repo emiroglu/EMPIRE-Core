@@ -84,6 +84,7 @@ void MapperAdapter::initMortarMapper(bool oppositeSurfaceNormal, bool dual,
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems, oppositeSurfaceNormal, dual, enforceConsistency);
     MortarMapper* mapper = dynamic_cast<MortarMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->buildCouplingMatrices();
 }
 
@@ -104,6 +105,7 @@ void MapperAdapter::initIGAMortarMapper(bool _enforceConsistency, double _tolCon
 
     mapperImpl = new IGAMortarMapper(name, meshA, meshB);
     IGAMortarMapper* mapper = dynamic_cast<IGAMortarMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->setParametersConsistency(_enforceConsistency, _tolConsistency);
     mapper->setParametersProjection(_maxProjectionDistance, _noInitialGuess, _maxProjectionDistanceOnDifferentPatches);
     mapper->setParametersNewtonRaphson(_noIterationsNewton, _tolProjectionNewtonRaphson);
@@ -144,6 +146,7 @@ void MapperAdapter::initIGABarycentricMapper(double _maxProjectionDistance, int 
         exit(-1);
     }
     IGABarycentricMapper* mapper = dynamic_cast<IGABarycentricMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->setParametersProjection(_maxProjectionDistance, _numRefinementForIntialGuess,
             _maxDistanceForProjectedPointsOnDifferentPatches);
     mapper->setParametersNewtonRaphson(_newtonRaphsonMaxIt, _newtonRaphsonTol);
@@ -160,6 +163,7 @@ void MapperAdapter::initNearestNeighborMapper() {
 
     mapperImpl = new NearestNeighborMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
     NearestNeighborMapper* mapper = dynamic_cast<NearestNeighborMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->buildCouplingMatrices();
 }
 
@@ -173,6 +177,7 @@ void MapperAdapter::initBarycentricInterpolationMapper() {
 
     mapperImpl = new BarycentricInterpolationMapper(a->numNodes, a->nodes, b->numNodes, b->nodes);
     BarycentricInterpolationMapper* mapper = dynamic_cast<BarycentricInterpolationMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->buildCouplingMatrices();
 }
 
@@ -189,6 +194,7 @@ void MapperAdapter::initNearestElementMapper() {
             a->nodeIDs, a->elems, b->numNodes, b->numElems, b->numNodesPerElem, b->nodes,
             b->nodeIDs, b->elems);
     NearestElementMapper* mapper = dynamic_cast<NearestElementMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
     mapper->buildCouplingMatrices();
 }
 
