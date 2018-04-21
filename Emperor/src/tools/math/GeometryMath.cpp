@@ -700,15 +700,23 @@ void cleanPolygon(std::vector<pair<double,double> >& polygon,std::vector<pair<do
 	}
 }
 
+bool findIfPointIsInside2DPolygon(int _numVertices, std::vector<double> _polygon, double* _point) {
+    /*
+     * Returns a flag on whether the given point lies inside the given polygon in 2D.
+     *
+     *    Input :
+     *   _point : double vector with 2 elements
+     * _polygon : standard vector of doubles containing the x and y components of each point comprising the polygon sequentially. The points must be ordered coherently.
+     */
 
-
-
-
-
-
-
-
-
+    int i, j, c = 0;
+    for (i = 0, j = _numVertices-1; i < _numVertices; j = i++) {
+        if ( ((_polygon[2*i + 1]>_point[1]) != (_polygon[2*j + 1]>_point[1])) &&
+            (_point[0] < (_polygon[2*j]-_polygon[2*i]) * (_point[1]-_polygon[2*i + 1]) / (_polygon[2*j + 1]-_polygon[2*i + 1]) + _polygon[2*i]) )
+            c = !c;
+    }
+    return c;
+}
 
 // Class Methods
 // %%%%%%%%%%%%%%%%%%%%%%
@@ -726,7 +734,7 @@ PolygonClipper::PolygonClipper(const double *_polygonWindow, int _sizePolygonWin
         planeToProject(_planeToProject) {
     assert(_sizePolygonWindow>2);
     // Michael Andre begin: correcting collapsed nodes so clipping algorithm works properly
-    const double eps = 1e-10;
+    const double eps = 1e-15;
     double lastNoSkip[3];
     int iLastNoSkip;
     bool *skip = new bool[_sizePolygonWindow];

@@ -139,6 +139,9 @@ private:
     /// Integration area
     double areaIntegration;
 
+    /// Minimum element area in the multipatch geometry
+    double minElArea;
+
     /// Flag on whether the expanded version of the coupling matrices is computed
     bool isExpanded;
 
@@ -693,6 +696,12 @@ private:
     Polygon2D computeCanonicalElement(const int _elementIndex, const Polygon2D& _theElement, const Polygon2D& _polygonUV);
 
     /***********************************************************************************************
+     * \brief Computes the minimum element area size in the multipatch geometry neglecting trimmed elements
+     * \author Andreas Apostolatos
+     ***********/
+    void computeMinimumElementAreaSize();
+
+    /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
      * \param[in] _thePatch The patch to compute the coupling matrices for
      * \param[in] _patchIndex The index of the patch as stored in IGAMesh
@@ -861,6 +870,15 @@ public:
      ***********/
     bool getIsErrorComputation() {
         return propErrorComputation.isErrorComputation;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the minimum element area of the multipatch geometry
+     * \return The minimum element area in the multipatch geometry
+     * \author Andreas Apostolatos
+     ***********/
+    double getMinElArea() {
+        return minElArea;
     }
 
     /***********************************************************************************************

@@ -41,6 +41,7 @@
 #include "ClipperAdapter.h"
 #include "TriangulatorAdaptor.h"
 #include "MathLibrary.h"
+#include "GeometryMath.h"
 #include "DataField.h"
 #include <iostream>
 #include <iomanip>
@@ -50,6 +51,7 @@
 #include <set>
 #include <algorithm>
 #include <iomanip>
+#include <limits.h>
 
 using namespace std;
 
@@ -125,6 +127,9 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, AbstractMesh *_meshA, Abstra
 
     // Initialize the integration area
     areaIntegration = 0.0;
+
+    // Initialize the minimum element area in the multipatch geometry
+    minElArea = std::numeric_limits<double>::max();
 
     // Get the number of weak Dirichlet curve conditions
     noWeakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions().size();
@@ -333,6 +338,11 @@ void IGAMortarMapper::buildCouplingMatrices() {
     if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         assert(isExpanded);
     }
+
+    // Compute the minimum element area size in the multipatch geometry
+    if (propErrorComputation.isErrorComputation)
+        if (propErrorComputation.isDomainError)
+            computeMinimumElementAreaSize();
 
     // 2. Initialize coupling matrices
     initialize();
@@ -667,6 +677,189 @@ void IGAMortarMapper::initialize() {
 
     // 3. Initialize coupling matrices
     initCouplingMatrices();
+}
+
+void IGAMortarMapper::computeMinimumElementAreaSize() {
+    /*
+     * Computes the minimum element area size in the multipatch geometry neglecting the trimmed elements.
+     *
+     * Function layout :
+     *
+     * 0. Initialize auxiliary arrays
+     *
+     * 1. Loop over all patches in the multipatch geometry
+     * ->
+     *    1i. Get the polynomial order of the patch
+     *   1ii. Get the knot vectors of the patch
+     *  1iii. Get the number of knots in both parametric directions of the patch
+     *   1iv. Get the trimming information
+     *    1v. Loop over all the trimming loops
+     *    ->
+     *        1v.1. Get the polylines which comprise each trimming loop
+     *        1v.2. Add the first point also at the end of the line
+     *    <-
+     *   1vi. Initialize the basis functions and base vectors arrays
+     *  1vii. Get the Gauss point quadrature for a quadrilateral
+     * 1viii. Instantiate the corresponding Gauss quadrature on quadrilateral
+     *   1ix. Loop over all the nonzero elements of the patch
+     *   ->
+     *        1ix.1. Initialize trimming flag
+     *        1ix.2. Compute the Jacobian determinant corresponding to the transformation from the parent to parameter space
+     *        1ix.3. Loop over all Gauss points
+     *        ->
+     *               1ix.3i. Compute the image of the Gauss points in the NURBS parameter space
+     *              1ix.3ii. Check if the Gauss point was found outside a trimming curve
+     *             1ix.3iii. Find the knot span indices
+     *              1ix.3iv. Compute the basis functions
+     *               1ix.3v. Compute the base vectors
+     *              1ix.3vi. Compute the Jacobian of the transformation from the physical to the parameter space
+     *             1ix.3vii. Updated the element size from the Gauss point contribution
+     *        <-
+     *   <-
+     *    1x. Erase pointers
+     * <-
+     */
+
+    // 0. Initialize auxiliary arrays
+    bool isElementTrimmed = false;
+    bool isInside;
+    int derivDegree = 1;
+    int derivDegreeBaseVec = 0;
+    int noBaseVec = 2;
+    int pDegree, qDegree, numUGPs, numVGPs, noUKnots, noVKnots, uKnotSpan, vKnotSpan, indexBaseVctU, indexBaseVctV, numBasisFunctions, numLoops, size;
+    int noCoord = 3;
+    int numPatches = getIGAMesh()->getNumPatches();
+    const double *knotVectorU, *knotVectorV;
+    double JacobianCanonicalToUV, JacobianUVToPhysical, u, v;
+    double elementArea = 0.0;
+    double baseVectorU[3];
+    double baseVectorV[3];
+    double uv[2];
+    double surfaceNormalTilde[3];
+    const double* polyline;
+    vector<vector<double> > polygonTrimming;
+
+    // 1. Loop over all patches in the multipatch geometry
+    for (int iPatches = 0; iPatches < numPatches; iPatches++) {
+        // 1i. Get the polynomial order of the patch
+        pDegree = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree();
+        qDegree = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getPolynomialDegree();
+
+        // 1ii. Get the knot vectors of the patch
+        knotVectorU = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->getKnotVector();
+        knotVectorV = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getKnotVector();
+
+        // 1iii. Get the number of knots in both parametric directions of the patch
+        noUKnots = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+        noVKnots = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+
+        // 1iv. Get the trimming information
+        numLoops = getIGAMesh()->getSurfacePatch(iPatches)->getTrimming().getNumOfLoops();
+        INFO_OUT() << endl << "numLoops = " << numLoops << endl;
+        INFO_OUT() << endl;
+
+        // 1v. Loop over all the trimming loops
+        for (int iLoops = 0; iLoops < numLoops; iLoops++){
+            // 1v.1. Get the polylines which comprise each trimming loop
+            vector<double> polygonTrimmingLoop;
+            polyline = getIGAMesh()->getSurfacePatch(iPatches)->getTrimming().getLoop(iLoops).getPolylines(&size);
+            for (int iPoint = 0; iPoint < size; iPoint++)
+                polygonTrimmingLoop.push_back(polyline[iPoint]);
+
+            // 1v.2. Add the first point also at the end of the line
+            polygonTrimmingLoop.push_back(polyline[0]);
+            polygonTrimmingLoop.push_back(polyline[1]);
+            polygonTrimming.push_back(polygonTrimmingLoop);
+        }
+
+        // 1vi. Initialize the basis functions and base vectors arrays
+        numBasisFunctions = (pDegree + 1) * (qDegree + 1);
+        double localBasisFunctionsAndDerivatives[(derivDegree + 1) * (derivDegree + 2) * numBasisFunctions / 2];
+        double baseVctsAndDerivs[(derivDegreeBaseVec + 1) * (derivDegreeBaseVec + 2) * noCoord * noBaseVec / 2];
+
+        // 1vii. Get the Gauss point quadrature for a quadrilateral
+        if (propIntegration.isAutomaticNoGPQuadrilateral) {
+            numUGPs = std::ceil((pDegree + 1)/2.0);
+            numVGPs = std::ceil((qDegree + 1)/2.0);
+        } else if (!propIntegration.isAutomaticNoGPQuadrilateral) {
+                numUGPs = propIntegration.noGPQuadrilateral;
+                numVGPs = propIntegration.noGPQuadrilateral;
+        } else
+            ERROR_BLOCK_OUT("createGaussQuadratureRules","IGAMortarMapper","Found corner case not encountered before related to the integration over a quadrilateral!");
+
+        // 1viii. Instantiate the corresponding Gauss quadrature on quadrilateral
+        EMPIRE::MathLibrary::IGAGaussQuadrature* gaussURule = new MathLibrary::IGAGaussQuadratureOnBiunitInterval(numUGPs);
+        EMPIRE::MathLibrary::IGAGaussQuadrature* gaussVRule = new MathLibrary::IGAGaussQuadratureOnBiunitInterval(numVGPs);
+
+        // 1ix. Loop over all the nonzero elements of the patch
+        for (int iVSpan = qDegree; iVSpan <= noVKnots - qDegree - 2; iVSpan++) {
+            for (int iUSpan = pDegree; iUSpan <= noUKnots - pDegree - 2; iUSpan++) {
+                if ((knotVectorU[iUSpan + 1] != knotVectorU[iUSpan]) && (knotVectorV[iVSpan + 1] != knotVectorV[iVSpan])) {
+                    // 1ix.1. Initialize trimming flag
+                    isElementTrimmed = false;
+
+                    // 1ix.2. Compute the Jacobian determinant corresponding to the transformation from the parent to parameter space
+                    JacobianCanonicalToUV = (knotVectorU[iUSpan + 1] - knotVectorU[iUSpan])*(knotVectorV[iVSpan + 1] - knotVectorV[iVSpan])/4;
+
+                    // 1ix.3. Loop over all Gauss points
+                    for (int iVGP = 0; iVGP < numVGPs; iVGP++){
+                        for (int iUGP = 0; iUGP < numUGPs; iUGP++) {
+                            // 1ix.3i. Compute the image of the Gauss points in the NURBS parameter space
+                            const double *uGaussPoint = gaussURule->getGaussPoint(iUGP);
+                            const double *vGaussPoint = gaussVRule->getGaussPoint(iVGP);
+                            u = (knotVectorU[iUSpan + 1] + knotVectorU[iUSpan] + uGaussPoint[0]*(knotVectorU[iUSpan + 1] - knotVectorU[iUSpan]) )/2;
+                            v = (knotVectorV[iVSpan + 1] + knotVectorV[iVSpan] + vGaussPoint[0]*(knotVectorV[iVSpan + 1] - knotVectorV[iVSpan]) )/2;
+
+                            // 1ix.3ii. Check if the Gauss point was found outside a trimming curve
+                            uv[0] = u;
+                            uv[1] = v;
+                            for (int iLoops = 0; iLoops < numLoops; iLoops++){
+                                polyline = getIGAMesh()->getSurfacePatch(iPatches)->getTrimming().getLoop(iLoops).getPolylines(&size);
+                                isInside = MathLibrary::findIfPointIsInside2DPolygon(size + 2, polygonTrimming[iLoops], uv);
+                                isElementTrimmed = !isInside;
+                            }
+                            if (isElementTrimmed)
+                                    break;
+
+                            // 1ix.3iii. Find the knot span indices
+                            uKnotSpan = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getUBSplineBasis1D()->findKnotSpan(u);
+                            vKnotSpan = getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->getVBSplineBasis1D()->findKnotSpan(v);
+
+                            // 1ix.3iv. Compute the basis functions
+                            getIGAMesh()->getSurfacePatch(iPatches)->getIGABasis()->computeLocalBasisFunctionsAndDerivatives
+                                    (localBasisFunctionsAndDerivatives, derivDegree, u, uKnotSpan, v, vKnotSpan);
+
+                            // 1ix.3v. Compute the base vectors
+                            getIGAMesh()->getSurfacePatch(iPatches)->computeBaseVectorsAndDerivatives
+                                    (baseVctsAndDerivs, localBasisFunctionsAndDerivatives, derivDegreeBaseVec, uKnotSpan, vKnotSpan);
+                            for (int iCoord = 0; iCoord < noCoord; iCoord++) {
+                                indexBaseVctU = getIGAMesh()->getSurfacePatch(iPatches)->indexDerivativeBaseVector(0 , 0, 0, iCoord, 0);
+                                baseVectorU[iCoord] = baseVctsAndDerivs[indexBaseVctU];
+                                indexBaseVctV = getIGAMesh()->getSurfacePatch(iPatches)->indexDerivativeBaseVector(0 , 0, 0, iCoord, 1);
+                                baseVectorV[iCoord] = baseVctsAndDerivs[indexBaseVctV];
+                            }
+
+                            // 1ix.3vi. Compute the Jacobian of the transformation from the physical to the parameter space
+                            MathLibrary::computeVectorCrossProduct(baseVectorU, baseVectorV, surfaceNormalTilde);
+                            JacobianUVToPhysical = MathLibrary::vector2norm(surfaceNormalTilde, noCoord);
+
+                            // 1ix.3vii. Updated the element size from the Gauss point contribution
+                            elementArea += JacobianCanonicalToUV*JacobianUVToPhysical*gaussVRule->getGaussWeight(iUGP)*gaussURule->getGaussWeight(iVGP);
+                        }
+                        if (isElementTrimmed)
+                            break;
+                    }
+                }
+                if ((elementArea < minElArea) && (!isElementTrimmed))
+                    minElArea = elementArea;
+                elementArea = 0.0;
+            }
+        }
+
+        // 1x. Erase pointers
+        delete gaussURule;
+        delete gaussVRule;
+    }
 }
 
 
@@ -4880,7 +5073,7 @@ void IGAMortarMapper::printErrorMessage(Message &message, double _errorL2Domain,
     message << std::endl;
     message() << "\t+" << "Mapping error: " << std::endl;
     if(propErrorComputation.isDomainError)
-        message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << std::endl;
+        message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << " with minElArea: " << getMinElArea() << std::endl;
     if(propErrorComputation.isCurveError){
         message << "\t\t+" << '\t' << "L2 norm of the field along the Dirichlet boundary: " << _errorL2Curve[0] << std::endl;
         message << "\t\t+" << '\t' << "L2 norm of the field rotation along the Dirichlet boundary: " << _errorL2Curve[1] << std::endl;

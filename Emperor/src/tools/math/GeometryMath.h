@@ -226,7 +226,6 @@ double computeAreaTriangle(double x1, double y1, double z1, double x2, double y2
  ***********/
 double computePointDistance(double* _x1, double* _x2);
 
-
 /***********************************************************************************************
  * \brief Clean the input polygon, remove colinear or identical point
  * \param[in/out] _polygon, vector of points coordinates
@@ -236,7 +235,15 @@ void cleanPolygon(std::vector<double>& _polygon);
 void cleanPolygon(std::vector<std::pair<double,double> >& polygon);
 void cleanPolygon(std::vector<std::pair<double,double> >& polygon,std::vector<std::pair<double,double> >& polygonSlave);
 
-
+/***********************************************************************************************
+ * \brief Find whether a point lies inside a polygon or not
+ * \param[in] numVertices
+ * \param[in] _polygon 2D polygon
+ * \param[in] _point 2D point
+ * \return Flag whether the point is inside the given polygon or not
+ * \author Andreas Apostolatos
+ ***********/
+bool findIfPointIsInside2DPolygon(int _numVertices, std::vector<double> _polygon, double* _point);
 
 // Classes
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
