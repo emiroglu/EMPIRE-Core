@@ -131,6 +131,15 @@ IGAMortarMapper::IGAMortarMapper(std::string _name, AbstractMesh *_meshA, Abstra
     // Initialize the minimum element area in the multipatch geometry
     minElArea = std::numeric_limits<double>::max();
 
+    // Initialize the minimum edge size of the Finite Element mesh
+    minEdgeSize = std::numeric_limits<double>::max();
+
+    // Initialize the minimum edge size at the Dirichlet boundary
+    minElEdgeSizeDirichlet = std::numeric_limits<double>::max();
+
+    // Initialize the minimum edge size at the interface between the patches in the multipatch geometry
+    minElEdgeSizeInterface = std::numeric_limits<double>::max();
+
     // Get the number of weak Dirichlet curve conditions
     noWeakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions().size();
 
@@ -257,49 +266,51 @@ void IGAMortarMapper::buildCouplingMatrices() {
      *
      * 1. Check input
      *
-     * 2. Initialize coupling matrices
+     * 2. Compute the minimum element area size in the multipatch geometry and the minimum edge size in the Finite Element mesh
      *
-     * 3. Initialize auxiliary variables
+     * 3. Initialize coupling matrices
      *
-     * 4. Create the Gauss quadrature rules for each patch
+     * 4. Initialize auxiliary variables
      *
-     * 5. Find the maximum number of Gauss points within an element
+     * 5. Create the Gauss quadrature rules for each patch
      *
-     * 6. Project the FE nodes onto the multipatch trimmed geometry
+     * 6. Find the maximum number of Gauss points within an element
      *
-     * 7. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
+     * 7. Project the FE nodes onto the multipatch trimmed geometry
      *
-     * 8. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
+     * 8. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
      *
-     * 9. Reserve space for the gauss point values along each trimming curve where conditions are applied
+     * 9. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
      *
-     * 10. Reserve space for the interface gauss point values
+     * 10. Reserve space for the gauss point values along each trimming curve where conditions are applied
      *
-     * 11. Compute mortar coupling matrices
+     * 11. Reserve space for the interface gauss point values
      *
-     * 12.Print the integration area
+     * 12. Compute mortar coupling matrices
      *
-     * 13. Write the gauss point and the coupling matrices data in files
+     * 13.Print the integration area
      *
-     * 14. Write polygon net of projected elements to a vtk file
+     * 14. Write the gauss point and the coupling matrices data in files
      *
-     * 15. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+     * 15. Write polygon net of projected elements to a vtk file
      *
-     * 16. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+     * 16. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
      *
-     * 17. Compute the Penalty parameters for the application of weak patch continuity conditions
+     * 17. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
      *
-     * 18. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+     * 18. Compute the Penalty parameters for the application of weak patch continuity conditions
      *
-     * 19. Remove empty rows and columns from system (flying nodes)
+     * 19. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
      *
-     * 20. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
+     * 20. Remove empty rows and columns from system (flying nodes)
      *
-     * 21. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+     * 21. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
      *
-     * 22. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+     * 22. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
      *
-     * 23. Factorize Cnn matrix
+     * 23. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+     *
+     * 24. Factorize Cnn matrix
      */
 
     // 0. Print message
@@ -339,24 +350,26 @@ void IGAMortarMapper::buildCouplingMatrices() {
         assert(isExpanded);
     }
 
-    // Compute the minimum element area size in the multipatch geometry
+    // 2. Compute the minimum element area size in the multipatch geometry and the minimum edge size in the Finite Element mesh
     if (propErrorComputation.isErrorComputation)
-        if (propErrorComputation.isDomainError)
+        if (propErrorComputation.isDomainError) {
             computeMinimumElementAreaSize();
+            computeMinimumEdgeSize();
+        }
 
-    // 2. Initialize coupling matrices
+    // 3. Initialize coupling matrices
     initialize();
 
-    // 3. Initialize auxiliary variables
+    // 4. Initialize auxiliary variables
     int numPatches = getIGAMesh()->getNumPatches();
     string filename; // String holding the mapper names
     IGAPatchSurface::MAX_NUM_ITERATIONS = propNewtonRaphson.noIterations; // Set default scheme values
     IGAPatchSurface::TOL_ORTHOGONALITY = propNewtonRaphson.tolProjection; // Set default scheme values
 
-    // 4. Create the Gauss quadrature rules for each patch
+    // 5. Create the Gauss quadrature rules for each patch
     createGaussQuadratureRules();
 
-    // 5. Find the maximum number of Gauss points within an element
+    // 6. Find the maximum number of Gauss points within an element
     int maxNumGP = 0;
     int numGP;
     for (int iPatches = 0; iPatches < numPatches; iPatches++) {
@@ -368,18 +381,18 @@ void IGAMortarMapper::buildCouplingMatrices() {
             maxNumGP = numGP;
     }
 
-    // 6. Project the FE nodes onto the multipatch trimmed geometry
+    // 7. Project the FE nodes onto the multipatch trimmed geometry
     projectPointsToSurface();
 
-    // 7. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
+    // 8. Write the projected points on to a file only in DEBUG mode to be used in MATLAB
     if (Message::isDebugMode())
         writeProjectedNodesOntoIGAMesh();
 
-    // 8. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
+    // 9. Reserve some space for gauss point values in the domain (the size is not known exactly in advance)
     if (propErrorComputation.isDomainError)
         streamGPs.reserve(8*meshFE->numElems*maxNumGP);
 
-    // 9. Reserve space for the gauss point values along each trimming curve where conditions are applied
+    // 10. Reserve space for the gauss point values along each trimming curve where conditions are applied
     if(propErrorComputation.isCurveError){
         int noCurveGPs = 0;
         std::vector<WeakIGADirichletCurveCondition*> weakIGADirichletCurveConditions = meshIGA->getWeakIGADirichletCurveConditions();
@@ -388,7 +401,8 @@ void IGAMortarMapper::buildCouplingMatrices() {
         }
         streamInterfaceGPs.reserve(noCurveGPs);
     }
-    // 10. Reserve space for the interface gauss point values
+
+    // 11. Reserve space for the interface gauss point values
     if(propErrorComputation.isInterfaceError){
         int noInterfaceGPs = 0;
         std::vector<WeakIGAPatchContinuityCondition*> weakIGAPatchContinuityConditions = meshIGA->getWeakIGAPatchContinuityConditions();
@@ -398,41 +412,41 @@ void IGAMortarMapper::buildCouplingMatrices() {
         streamInterfaceGPs.reserve(noInterfaceGPs);
     }
 
-    // 11. Compute mortar coupling matrices
+    // 12. Compute mortar coupling matrices
     computeCouplingMatrices();
 
-    // 12.Print the integration area
+    // 13.Print the integration area
     INFO_OUT() << "The integration area in the IGA mortar mapper is equal to: " << areaIntegration << std::endl;
 
-    // 13. Write the gauss point and the coupling matrices data in files
+    // 14. Write the gauss point and the coupling matrices data in files
     if(Message::isDebugMode()) {
         writeGaussPointData();
         writeCouplingMatricesToFile();
     }
 
-    // 14. Write polygon net of projected elements to a vtk file
+    // 15. Write polygon net of projected elements to a vtk file
     writeCartesianProjectedPolygon("trimmedPolygonsOntoNURBSSurface", trimmedProjectedPolygons);
     writeCartesianProjectedPolygon("integratedPolygonsOntoNURBSSurface", triangulatedProjectedPolygons2);
     trimmedProjectedPolygons.clear();
     triangulatedProjectedPolygons2.clear();
 
-    // 15. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
+    // 16. Compute the Penalty parameters for the application of weak Dirichlet curve conditions
     if(propWeakCurveDirichletConditions.isWeakCurveDirichletConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakDirichletConditions.txt";
         computePenaltyParametersForWeakDirichletCurveConditions(filename);
     }
 
-    // 16. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
+    // 17. Compute the Penalty parameters for the application of weak Dirichlet surface conditions
     if(propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions && !isMappingIGA2FEM)
         computePenaltyParametersForWeakDirichletSurfaceConditions();
 
-    // 17. Compute the Penalty parameters for the application of weak patch continuity conditions
+    // 18. Compute the Penalty parameters for the application of weak patch continuity conditions
     if(propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         filename = name + "_penaltyParametersWeakContinuityConditions.txt";
         computePenaltyParametersForPatchContinuityConditions(filename);
     }
 
-    // 18. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
+    // 19. Compute the Penalty matrices for the application of weak continuity conditions between the multipatches
     if (propWeakPatchContinuityConditions.isWeakPatchContinuityConditions && !isMappingIGA2FEM) {
         INFO_OUT() << "Application of weak patch continuity conditions started" << endl;
         if(!propWeakPatchContinuityConditions.isAutomaticPenaltyParameters) {
@@ -447,17 +461,17 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak patch continuity conditions is assumed" << std::endl;
 
-    // 19. Remove empty rows and columns from system (flying nodes)
+    // 20. Remove empty rows and columns from system (flying nodes)
     if(!isMappingIGA2FEM){
         INFO_OUT() << "Enforcing flying nodes in Cnn" << std::endl;
         couplingMatrices->enforceCnn();
     }
 
-    // 20. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
+    // 21. Check and enforce consistency in Cnn. This has to be done before the weak application of the Dirichlet conditions.
     if (propConsistency.enforceConsistency)
         enforceConsistency();
 
-    // 21. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
+    // 22. Compute the Penalty matrices for the application of weak Dirichlet conditions along trimming curves
     if (propWeakCurveDirichletConditions.isWeakCurveDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet curve conditions started" << endl;
         if(!propWeakCurveDirichletConditions.isAutomaticPenaltyParameters) {
@@ -470,7 +484,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet curve conditions are assumed" << std::endl;
 
-    // 22. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
+    // 23. Compute the Penalty matrices for the application of weak Dirichlet conditions across surfaces
     if (propWeakSurfaceDirichletConditions.isWeakSurfaceDirichletConditions) {
         INFO_OUT() << "Application of weak Dirichlet surface conditions started" << endl;
         if(!propWeakSurfaceDirichletConditions.isAutomaticPenaltyParameters) {
@@ -483,7 +497,7 @@ void IGAMortarMapper::buildCouplingMatrices() {
     } else
         INFO_OUT() << "No application of weak Dirichlet surface conditions are assumed" << std::endl;
 
-    // 23. Factorize Cnn matrix
+    // 24. Factorize Cnn matrix
     couplingMatrices->factorizeCnn();
     INFO_OUT() << "Factorize was successful" << std::endl;
 }
@@ -726,7 +740,7 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
     int derivDegree = 1;
     int derivDegreeBaseVec = 0;
     int noBaseVec = 2;
-    int pDegree, qDegree, numUGPs, numVGPs, noUKnots, noVKnots, uKnotSpan, vKnotSpan, indexBaseVctU, indexBaseVctV, numBasisFunctions, numLoops, size;
+    int pDegree, qDegree, numUGPs, numVGPs, noUKnots, noVKnots, uKnotSpan, vKnotSpan, indexBaseVctU, indexBaseVctV, numBasisFunctions, numLoops, size, numVertices, remainder, division;
     int noCoord = 3;
     int numPatches = getIGAMesh()->getNumPatches();
     const double *knotVectorU, *knotVectorV;
@@ -755,8 +769,6 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
 
         // 1iv. Get the trimming information
         numLoops = getIGAMesh()->getSurfacePatch(iPatches)->getTrimming().getNumOfLoops();
-        INFO_OUT() << endl << "numLoops = " << numLoops << endl;
-        INFO_OUT() << endl;
 
         // 1v. Loop over all the trimming loops
         for (int iLoops = 0; iLoops < numLoops; iLoops++){
@@ -767,8 +779,6 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
                 polygonTrimmingLoop.push_back(polyline[iPoint]);
 
             // 1v.2. Add the first point also at the end of the line
-            polygonTrimmingLoop.push_back(polyline[0]);
-            polygonTrimmingLoop.push_back(polyline[1]);
             polygonTrimming.push_back(polygonTrimmingLoop);
         }
 
@@ -815,8 +825,12 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
                             uv[1] = v;
                             for (int iLoops = 0; iLoops < numLoops; iLoops++){
                                 polyline = getIGAMesh()->getSurfacePatch(iPatches)->getTrimming().getLoop(iLoops).getPolylines(&size);
-                                isInside = MathLibrary::findIfPointIsInside2DPolygon(size + 2, polygonTrimming[iLoops], uv);
-                                isElementTrimmed = !isInside;
+                                if (size % 2 != 0) {
+                                    ERROR_OUT() << "Number of coordinates for the polygon vertices is not even";
+                                    exit(-1);
+                                }
+                                numVertices = size / 2;
+                                isInside = MathLibrary::findIfPointIsInside2DPolygon(numVertices, polygonTrimming[iLoops], uv);
                             }
                             if (isElementTrimmed)
                                     break;
@@ -862,6 +876,72 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
     }
 }
 
+void IGAMortarMapper::computeMinimumEdgeSize() {
+    /*
+     * Computes the minimum edge size in the Finite Element mesh.
+     *
+     * Function layout :
+     *
+     * 0. Initialize auxiliary variables
+     *
+     * 1. Loop over all the elements in the FE side
+     * ->
+     *    1i. Get the number of nodes of the Finite Element
+     *
+     *   1ii. Loop over all the nodes of the Finite Element
+     *   ->
+     *        1ii.1. Get the node ids of the edge
+     *
+     *        1ii.2. Find the indices of the nodes in the FE mesh
+     *
+     *        1ii.3. Get first node of the edge
+     *
+     *        1ii.4. Compute the edge length
+     *
+     *        1ii.5. Check if the current edge size is smaller than the smallest found
+     *   <-
+     * <-
+     */
+
+    // 0. Initialize auxiliary variables
+    const int noCoord = 3;
+    int locIdNode1, locIdNode2, indexNode1, indexNode2;
+    double edgeFE[3];
+    double edgeLength;
+
+    // 1. Loop over all the elements in the FE side
+    for (int iElmnt = 0; iElmnt < meshFE->numElems; iElmnt++) {
+        // 1i. Get the number of nodes of the Finite Element
+        int numNodesElementFE = meshFE->numNodesPerElem[iElmnt];
+
+        // 1ii. Loop over all the nodes of the Finite Element
+        for (int iEdge = 0; iEdge < numNodesElementFE; iEdge++) {
+            // 1ii.1. Get the node ids of the edge
+            if (iEdge != numNodesElementFE - 1) {
+                locIdNode1 = iEdge;
+                locIdNode2 = iEdge + 1;
+            } else {
+                locIdNode1 = numNodesElementFE - 1;
+                locIdNode2 = 0;
+            }
+
+            // 1ii.2. Find the indices of the nodes in the FE mesh
+            indexNode1 = meshFEDirectElemTable[iElmnt][locIdNode1];
+            indexNode2 = meshFEDirectElemTable[iElmnt][locIdNode2];
+
+            // 1ii.3. Get first node of the edge
+            for (int iCoord = 0; iCoord < noCoord; iCoord++)
+                edgeFE[iCoord] = meshFE->nodes[3*indexNode2 + iCoord] - meshFE->nodes[3*indexNode1 + iCoord];
+
+            // 1ii.4. Compute the edge length
+            edgeLength = EMPIRE::MathLibrary::vector2norm(edgeFE, noCoord);
+
+            // 1ii.5. Check if the current edge size is smaller than the smallest found
+            if (edgeLength < minEdgeSize)
+                minEdgeSize = edgeLength;
+        }
+    }
+}
 
 void IGAMortarMapper::projectPointsToSurface() {
 
@@ -1278,8 +1358,8 @@ bool IGAMortarMapper::forceProjectPointOnPatchBySampling(const int patchIndex, c
         const int numNodesPerElem = meshFE->numNodesPerElem[*it];
         for(int i = 0; i< numNodesPerElem; i++) {
             if(projectedCoords[meshFEDirectElemTable[*it][i]].find(patchIndex) != projectedCoords[meshFEDirectElemTable[*it][i]].end()) {
-                u=projectedCoords[meshFEDirectElemTable[*it][i]][patchIndex][0];
-                v=projectedCoords[meshFEDirectElemTable[*it][i]][patchIndex][1];
+                u = projectedCoords[meshFEDirectElemTable[*it][i]][patchIndex][0];
+                v = projectedCoords[meshFEDirectElemTable[*it][i]][patchIndex][1];
             }
         }
     }
@@ -3834,6 +3914,8 @@ void IGAMortarMapper::computePenaltyParametersForWeakDirichletCurveConditions(st
         // 4xv. Check the element sizes for the last elements
         if(elEdgeSize < minElEdgeSize)
             minElEdgeSize = elEdgeSize;
+        if (minElEdgeSize < minElEdgeSizeDirichlet)
+            minElEdgeSizeDirichlet = minElEdgeSize;
 
         // 4xvi. Compute correspondingly the penalty factors
         alphaPrim = pMax/minElEdgeSize;
@@ -4110,6 +4192,8 @@ void IGAMortarMapper::computePenaltyParametersForPatchContinuityConditions(std::
         if(minElEdgeSizeSlave < minElEdgeSize){
             minElEdgeSize = minElEdgeSizeSlave;
         }
+        if (minElEdgeSize < minElEdgeSizeInterface)
+            minElEdgeSizeInterface = minElEdgeSize;
 
         // 4xvii. Compute correspondingly the penalty factors
         alphaBar = pMax/minElEdgeSize;
@@ -5072,15 +5156,23 @@ void IGAMortarMapper::printErrorMessage(Message &message, double _errorL2Domain,
      */
     message << std::endl;
     message() << "\t+" << "Mapping error: " << std::endl;
-    if(propErrorComputation.isDomainError)
-        message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << " with minElArea: " << getMinElArea() << std::endl;
+    if(propErrorComputation.isDomainError) {
+        message << "\t\t+" << '\t' << "L2 norm of the error in the domain: " << _errorL2Domain << std::endl;
+        message << "\t\t+" << '\t' << "(minElArea: " << getMinElArea() << ")" << std::endl;
+        message << "\t\t+" << '\t' << "(minEdgeSize: " << getMinEdgeSize() << ")" << std::endl;
+        message << std::endl;
+    }
     if(propErrorComputation.isCurveError){
         message << "\t\t+" << '\t' << "L2 norm of the field along the Dirichlet boundary: " << _errorL2Curve[0] << std::endl;
         message << "\t\t+" << '\t' << "L2 norm of the field rotation along the Dirichlet boundary: " << _errorL2Curve[1] << std::endl;
+        message << "\t\t+" << '\t' << "(minElEdgeSizeDirichlet: " << getMinElEdgeSizeDirichlet() << ")" << std::endl;
+        message << std::endl;
     }
     if(propErrorComputation.isInterfaceError){
         message << "\t\t+" << '\t' << "L2 norm of the field interface jump: " << _errorL2Interface[0] << std::endl;
         message << "\t\t+" << '\t' << "L2 norm of the field rotation interface jump: " << _errorL2Interface[1] << std::endl;
+        message << "\t\t+" << '\t' << "(minElEdgeSizeInterface: " << getMinElEdgeSizeInterface() << ")" << std::endl;
+        message << std::endl;
     }
     message() << "\t+" << "---------------------------------" << endl;
     message << std::endl;

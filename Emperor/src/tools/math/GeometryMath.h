@@ -245,6 +245,15 @@ void cleanPolygon(std::vector<std::pair<double,double> >& polygon,std::vector<st
  ***********/
 bool findIfPointIsInside2DPolygon(int _numVertices, std::vector<double> _polygon, double* _point);
 
+/***********************************************************************************************
+ * \brief Compute the angle between two vectors in 2D
+ * \param[in] _x1,_y1 First vector
+ * \param[in] _x2,_y2 Second vector
+ * \return The angle between the two given vectors in 2D
+ * \author Andreas Apostolatos
+ ***********/
+double computeAngle2D(double _x1, double _y1, double _x2, double _y2);
+
 // Classes
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -370,7 +379,6 @@ public:
     friend class TestIGAMortarMath;
 
 };
-
 
 }
 }

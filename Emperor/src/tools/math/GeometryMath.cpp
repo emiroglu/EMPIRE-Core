@@ -709,6 +709,8 @@ bool findIfPointIsInside2DPolygon(int _numVertices, std::vector<double> _polygon
      * _polygon : standard vector of doubles containing the x and y components of each point comprising the polygon sequentially. The points must be ordered coherently.
      */
 
+
+    // Algorithm 1
     int i, j, c = 0;
     for (i = 0, j = _numVertices-1; i < _numVertices; j = i++) {
         if ( ((_polygon[2*i + 1]>_point[1]) != (_polygon[2*j + 1]>_point[1])) &&
@@ -716,6 +718,56 @@ bool findIfPointIsInside2DPolygon(int _numVertices, std::vector<double> _polygon
             c = !c;
     }
     return c;
+
+    // Algorithm 2
+    /*double angle=0;
+    double x1,y1,x2,y2;
+    for (int i = 0; i < _numVertices; i++) {
+        if (i < _numVertices - 1) {
+            x1 = _polygon[2*i] - _point[0];
+            y1 = _polygon[2*i + 1] - _point[1];
+            x2 = _polygon[2*(i + 1)] - _point[0];
+            y2 = _polygon[2*(i + 1) + 1] - _point[1];
+        } else {
+            x1 = _polygon[2*(_numVertices - 1)] - _point[0];
+            y1 = _polygon[2*(_numVertices - 1) + 1] - _point[1];
+            x2 = _polygon[0] - _point[0];
+            y2 = _polygon[1] - _point[1];
+        }
+
+      angle += computeAngle2D(x1,y1,x2,y2);
+    }
+
+    cout << std::endl;
+    cout << "angle : " << angle << std::endl;
+    cout << std::endl;
+
+    if (fabs(angle) < M_PI)
+      return(false);
+    else
+      return(true);*/
+}
+
+double computeAngle2D(double _x1, double _y1, double _x2, double _y2) {
+    /*
+     * Returns the angle of two vectors in 2D
+     */
+
+    double dtheta,theta1,theta2;
+
+    theta1 = atan2(_y1,_x1);
+    theta2 = atan2(_y2,_x2);
+    dtheta = theta2 - theta1;
+    while (dtheta > M_PI)
+      dtheta -= 2*M_PI;
+    while (dtheta < -M_PI)
+      dtheta += 2*M_PI;
+
+    std::cout << std::endl;
+    std::cout << "dtheta : " << dtheta << std::endl;
+    std::cout << std::endl;
+
+    return(dtheta);
 }
 
 // Class Methods

@@ -142,6 +142,15 @@ private:
     /// Minimum element area in the multipatch geometry
     double minElArea;
 
+    /// Minimum edge size of the Finite Element mesh
+    double minEdgeSize;
+
+    /// Minimum edge size at the Dirichlet boundary
+    double minElEdgeSizeDirichlet;
+
+    /// Minimum edge size at the interface between the patches in the multipatch geometry
+    double minElEdgeSizeInterface;
+
     /// Flag on whether the expanded version of the coupling matrices is computed
     bool isExpanded;
 
@@ -702,6 +711,12 @@ private:
     void computeMinimumElementAreaSize();
 
     /***********************************************************************************************
+     * \brief Computes the minimum edge size in the Finite Element mesh
+     * \author Andreas Apostolatos
+     ***********/
+    void computeMinimumEdgeSize();
+
+    /***********************************************************************************************
      * \brief Integrate the element coupling matrices and assemble them to the global one
      * \param[in] _thePatch The patch to compute the coupling matrices for
      * \param[in] _patchIndex The index of the patch as stored in IGAMesh
@@ -879,6 +894,33 @@ public:
      ***********/
     double getMinElArea() {
         return minElArea;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the minimum edge size of the Finite Element mesh
+     * \return The minimum edge size of the Finite Element mesh
+     * \author Andreas Apostolatos
+     ***********/
+    double getMinEdgeSize() {
+        return minEdgeSize;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the minimum edge size at the Dirichlet boundary
+     * \return The minimum edge size at the Dirichlet boundary
+     * \author Andreas Apostolatos
+     ***********/
+    double getMinElEdgeSizeDirichlet() {
+        return minElEdgeSizeDirichlet;
+    }
+
+    /***********************************************************************************************
+     * \brief Get the minimum edge size at the interface between the patches in the multipatch geometry
+     * \return The minimum edge size between the patch interfaces in the multipatch geometry
+     * \author Andreas Apostolatos
+     ***********/
+    double getMinElEdgeSizeInterface() {
+        return minElEdgeSizeInterface;
     }
 
     /***********************************************************************************************
