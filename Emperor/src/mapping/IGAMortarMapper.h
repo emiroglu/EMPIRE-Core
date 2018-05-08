@@ -481,6 +481,12 @@ private:
     void projectPointsToSurface();
 
     /***********************************************************************************************
+     * \brief Cleans up the projected patches with respect to orthogonality criteria
+     * \author Altug Emiroglu
+     ***********/
+    void cleanPointsProjectedPatches(int _nodeIndex, double *_nodalNormal);
+
+    /***********************************************************************************************
      * \brief Compute the initial guess for a node of an element
      * \param[in] _patchCount The index of the patch we are working on
      * \param[in] _elem The index of the element we are working with

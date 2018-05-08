@@ -1204,7 +1204,7 @@ void IGAMortarMapper::projectPointsToSurface() {
         msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
         msg << "Treatment possibility 2." << endl;
         msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
-        ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
+        WARNING_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
     }
 }
 
