@@ -88,7 +88,7 @@ public:
     EMPIRE_Mapper_type mapperType;
 
     /// write mode for mapping matrices
-    int writeMode = 0;
+    int writeMode;
 };
 
 } /* namespace EMPIRE */
