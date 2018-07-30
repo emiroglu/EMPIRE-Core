@@ -185,7 +185,7 @@ struct structMapper {
         EMPIRE_CurveSurfaceMapper_type type;
     };
     std::string name;
-    int writeMode = 0;
+    int writeMode;
     structMeshRef meshRefA;
     structMeshRef meshRefB;
     EMPIRE_Mapper_type type;

@@ -1127,8 +1127,19 @@ void IGAMortarMapper::projectPointsToSurface() {
 
             initialU = candidatesU[dv.rem];
             initialV = candidatesV[dv.quot];
+
             bool flagProjected = projectPointOnPatch(iPatch, *iNode, initialU, initialV, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
             isProjected[*iNode] = isProjected[*iNode] || flagProjected;
+
+            /*if (isProjected[*iNode]) {
+                double P[3], projectedP[3],u,v;
+                projectedP[0] = P[0] = meshFE->nodes[*iNode * 3 + 0];
+                projectedP[1] = P[1] = meshFE->nodes[*iNode * 3 + 1];
+                projectedP[2] = P[2] = meshFE->nodes[*iNode * 3 + 2];
+                u = projectedCoords[*iNode][iPatch][0];
+                v = projectedCoords[*iNode][iPatch][1];
+                std::cout << "Projected node with coordinates ( " << projectedP[0] << " , " << projectedP[1]  << " , "  << projectedP[2] << " ) onto ( " << u << " , " << v << ")" << std::endl;
+            }*/
 
             patchNodeIndex++;
         }
@@ -1176,26 +1187,26 @@ void IGAMortarMapper::projectPointsToSurface() {
         INFO_OUT()<<"Second pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
     }
 
-    // Third pass projection --> Closest point projection based on brute sampling
-    if(missing) {
-        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could NOT be projected during second pass" << endl;
-        INFO_OUT()<<"Third pass projection started"<<endl;
-        time(&timeStart);
-        missing = 0;
-        for(set<int>::iterator iNode = notProjectedNodeIndicesSecondPass.begin(); iNode != notProjectedNodeIndicesSecondPass.end(); iNode++) {
-            for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin(); iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
-                bool flagProjected = forceProjectPointOnPatchBySampling(*iPatch, *iNode, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
-                isProjected[*iNode] = isProjected[*iNode] || flagProjected;
-            }
-            if(!isProjected[*iNode]) {
-                WARNING_OUT()<<"Node ["<<*iNode<<"] not projected at third pass with coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
-                missing++;
-            }
-        }
-        notProjectedNodeIndicesSecondPass.clear();
-        time(&timeEnd);
-        INFO_OUT()<<"Third pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
-    }
+//    // Third pass projection --> Closest point projection based on brute sampling
+//    if(missing) {
+//        INFO_OUT()<< missing << " out of " << meshFE->numNodes <<" nodes could NOT be projected during second pass" << endl;
+//        INFO_OUT()<<"Third pass projection started"<<endl;
+//        time(&timeStart);
+//        missing = 0;
+//        for(set<int>::iterator iNode = notProjectedNodeIndicesSecondPass.begin(); iNode != notProjectedNodeIndicesSecondPass.end(); iNode++) {
+//            for(set<int>::iterator iPatch = patchIndicesToProcessPerNode[*iNode].begin(); iPatch != patchIndicesToProcessPerNode[*iNode].end(); iPatch++) {
+//                bool flagProjected = forceProjectPointOnPatchBySampling(*iPatch, *iNode, minProjectionDistance[*iNode], minProjectionPoint[*iNode]);
+//                isProjected[*iNode] = isProjected[*iNode] || flagProjected;
+//            }
+//            if(!isProjected[*iNode]) {
+//                WARNING_OUT()<<"Node ["<<*iNode<<"] not projected at third pass with coordinates "<<meshFE->nodes[(*iNode)*numCoord]<<","<<meshFE->nodes[(*iNode)*numCoord+1]<<","<<meshFE->nodes[(*iNode)*numCoord+2]<<endl;
+//                missing++;
+//            }
+//        }
+//        notProjectedNodeIndicesSecondPass.clear();
+//        time(&timeEnd);
+//        INFO_OUT()<<"Third pass projection done in "<< difftime(timeEnd, timeStart) << " seconds"<<endl;
+//    }
 
     if(missing) {
         stringstream msg;
@@ -1204,7 +1215,8 @@ void IGAMortarMapper::projectPointsToSurface() {
         msg << "Possibly relax parameters in projectionProperties or newtonRaphson" << endl;
         msg << "Treatment possibility 2." << endl;
         msg << "Remesh with higher accuracy on coordinates of the FE nodes, i.e. more digits" << endl;
-        ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
+//        ERROR_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
+        WARNING_BLOCK_OUT("IGAMortarMapper", "projectPointsToSurface", msg.str());
     }
 }
 
@@ -1823,7 +1835,7 @@ bool IGAMortarMapper::projectLineOnPatchBoundary(IGAPatchSurface* thePatch, doub
 }
 
 bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int _patchIndex, Polygon2D& _projectedElement) {
-    bool isIntegrated=false;
+    bool isIntegrated = false;
     // Proceed further if the polygon is valid, i.e. at least a triangle
     if (_projectedElement.size() < 3)
         return isIntegrated;
@@ -1837,9 +1849,58 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
         return isIntegrated;
     /// 1.1 Init list of trimmed polyggons in case patch is not trimmed
     ListPolygon2D listTrimmedPolygonUV(1, projectedElementOnPatch);
+
+    /// Print on the terminal the Cartesian representation of the polygon in the NURBS parameter space
+    /*double noXiKnots = thePatch->getIGABasis()->getUBSplineBasis1D()->getNoKnots();
+    std::cout << std::endl;
+    std::cout << "Xi = [";
+    for (int iKnots = 0; iKnots < noXiKnots; iKnots++)
+        std::cout << thePatch->getIGABasis()->getUBSplineBasis1D()->getKnotVector()[iKnots] << " ";
+    std::cout << "];" << std::endl;
+    double noEtaKnots = thePatch->getIGABasis()->getVBSplineBasis1D()->getNoKnots();
+    std::cout << "Eta = [";
+    for (int iKnots = 0; iKnots < noEtaKnots; iKnots++)
+        std::cout << thePatch->getIGABasis()->getVBSplineBasis1D()->getKnotVector()[iKnots] << " ";
+    std::cout << "];" << std::endl;
+    std::cout << std::endl;
+    for(int trimmedPolygonIndex=0;trimmedPolygonIndex<listTrimmedPolygonUV.size();trimmedPolygonIndex++) {
+        double localFirst[2], localSecond[2], uv[2], global[3];
+        double lambda;
+        int numPoints = 2;
+        double dLambda = 1.0/(double)(numPoints - 1);
+        Polygon2D::const_iterator it_next;
+        std::cout << "mtx = [";
+        for(Polygon2D::const_iterator it = listTrimmedPolygonUV[trimmedPolygonIndex].begin(); it!=listTrimmedPolygonUV[trimmedPolygonIndex].end(); it++){
+            if (it<listTrimmedPolygonUV[trimmedPolygonIndex].end() - 1) {
+                it_next = it + 1;
+
+            } else {
+                it_next = listTrimmedPolygonUV[trimmedPolygonIndex].begin();
+            }
+            localFirst[0] = it->first;
+            localFirst[1] = it->second;
+            localSecond[0] = it_next->first;
+            localSecond[1] = it_next->second;
+            lambda = 0.0;
+            for (int iPoints = 0; iPoints < numPoints; iPoints++) {
+                for (int iCoord = 0; iCoord < 2; iCoord++)
+                    uv[iCoord] = (1 - lambda)*localFirst[iCoord] + lambda*localSecond[iCoord];
+                thePatch->computeCartesianCoordinates(global,uv);
+                //std::cout << " "<< global[0] << "," << global[1] << "," << global[2] << std::endl;
+                std::cout << " "<< uv[0] << "," << uv[1] << "," << 0.0 << std::endl;
+                lambda += dLambda;
+            }
+        }
+        std::cout << "];" << std::endl;
+        std::cout <<  "plot3(mtx(:,1),mtx(:,2),mtx(:,3),'-black');" << std::endl;
+        std::cout << "hold on;" << std::endl;
+        std::cout << "axis equal;" << std::endl;
+    }*/
+
     /// 1.2 Apply trimming
     if(thePatch->isTrimmed())
         clipByTrimming(thePatch,projectedElementOnPatch,listTrimmedPolygonUV);
+
     /// Debug data
     trimmedProjectedPolygons[_patchIndex].insert(trimmedProjectedPolygons[_patchIndex].end(),listTrimmedPolygonUV.begin(), listTrimmedPolygonUV.end());
     /// 1.3 For each subelement output of the trimmed polygon, clip by knot span
@@ -1848,13 +1909,50 @@ bool IGAMortarMapper::computeLocalCouplingMatrix(const int _elemIndex, const int
         ListPolygon2D listPolygonUV;
         /// 1.3.1 Clip by knot span
         clipByKnotSpan(thePatch,listTrimmedPolygonUV[trimmedPolygonIndex],listPolygonUV,listSpan);
+
         /// 1.3.2 For each subelement clipped by knot span, compute canonical element and integrate
         for(int index=0;index<listSpan.size();index++) {
             // ClipperAdapter::cleanPolygon(listPolygonUV[index],1e-9);
             if(listPolygonUV[index].size() < 3)
                 continue;
+
+            /// Print on the terminal the Cartesian representation of the polygon
+            /*std::cout << std::endl;
+            double localFirst[2], localSecond[2], uv[2], global[3];
+            double lambda;
+            int numPoints = 30;
+            double dLambda = 1.0/(double)(numPoints - 1);
+            Polygon2D::const_iterator it_next;
+            std::cout << "mtx = [";
+            for(Polygon2D::const_iterator it = listPolygonUV[index].begin(); it!=listPolygonUV[index].end(); it++){
+                if (it<listPolygonUV[index].end() - 1) {
+                    it_next = it + 1;
+
+                } else {
+                    it_next = listPolygonUV[index].begin();
+                }
+                localFirst[0] = it->first;
+                localFirst[1] = it->second;
+                localSecond[0] = it_next->first;
+                localSecond[1] = it_next->second;
+                lambda = 0.0;
+                for (int iPoints = 0; iPoints < numPoints; iPoints++) {
+                    for (int iCoord = 0; iCoord < 2; iCoord++)
+                        uv[iCoord] = (1 - lambda)*localFirst[iCoord] + lambda*localSecond[iCoord];
+                    thePatch->computeCartesianCoordinates(global,uv);
+                    std::cout << " "<< global[0] << "," << global[1] << "," << global[2] << std::endl;
+                    //std::cout << " "<< uv[0] << "," << uv[1] << "," << 0.0 << std::endl;
+                    lambda += dLambda;
+                }
+            }
+            std::cout << "];" << std::endl;
+            std::cout <<  "plot3(mtx(:,1),mtx(:,2),mtx(:,3),'-black');" << std::endl;
+            std::cout << "hold on;" << std::endl;
+            std::cout << "axis equal;" << std::endl;*/
+
             isIntegrated = true;
             ListPolygon2D triangulatedPolygons = triangulatePolygon(listPolygonUV[index]);
+
             /// 1.3.3 For each triangle, compute canonical element and integrate
             for(ListPolygon2D::iterator triangulatedPolygon = triangulatedPolygons.begin(); triangulatedPolygon != triangulatedPolygons.end(); triangulatedPolygon++) {
                 /// WARNING hard coded tolerance. Cleaning of triangle. Avoid heavily distorted triangle to go further.
@@ -2229,6 +2327,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
     int numBasisFunctionsIGA = (pDegree + 1) * (qDegree + 1);
     double basisFunctions[nNodesQuadrature];
     double basisFunctionsFE[numNodesElementFE];
+    double cartesianCoordGP[noCoord];
     double uv[2];
     double wz[2];
     double baseVectorU[3];
@@ -2410,7 +2509,7 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
         // 6xv. Save the gauss point data for the computation of the L2 norm of the error
         if(propErrorComputation.isDomainError){
             std::vector<double> streamGP;
-            // weight + JacobianProduct + numBasisFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...)
+            // weight + JacobianProduct + numBasisFuncsFE + (#dof, shapefuncvalue,...) + nShapeFuncsIGA + (#dof, shapefuncvalue,...) + cartesianCoordinatesGP
             streamGP.reserve(1 + 1 + 1 + 2*numNodesElementFE + 1 + 2*numBasisFunctionsIGA);
             streamGP.push_back(theGaussQuadrature->getGaussWeight(iGP));
             streamGP.push_back(JacobianProduct);
@@ -2425,6 +2524,9 @@ void IGAMortarMapper::integrate(IGAPatchSurface* _thePatch, int _patchIndex, Pol
                 streamGP.push_back(dofIGA[i]);
                 streamGP.push_back(IGABasisFctsI);
             }
+            _thePatch->computeCartesianCoordinates(cartesianCoordGP,localBasisFunctionsAndDerivatives,derivDegree,_spanU,_spanV);
+            for (int iCoord = 0; iCoord < noCoord; iCoord++)
+                streamGP.push_back(cartesianCoordGP[iCoord]);
             streamGPs.push_back(streamGP);
         }
     }
@@ -4359,11 +4461,14 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
      *    2x. Compute the norm of the difference of the fields at the Gauss Point
      *   2xi. Compute the norm of the reference field at the Gauss Point
      *  2xii. Add the contributions from the Gauss Point
+     * 2xiii. Write the Cartesian coordinates anf the value of the error at the Gauss point
      * <-
      *
      * 3. Compute the relative L2 norm of the mapping error
      *
-     * 4. Return the relative L2 norm of the mapping error
+     * 4. Close file for writting the relative domain error in the L2-norm
+     *
+     * 5. Return the relative L2 norm of the mapping error
      */
 
     // 1. Initialize auxiliary arrays
@@ -4384,6 +4489,13 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     int indexCP;
     int noCoord = 3;
     double tolNormSlaveField = 1e-6;
+
+    // Open file for writing the error at each Gauss point
+    string filename = name + "_relativeErrorL2Domain.csv";
+    ofstream filestream;
+    filestream.open(filename.c_str());
+    filestream.precision(12);
+    filestream << std::dec;
 
     // 2. Loop over all the Gauss Points
     for(int iGP = 0; iGP < streamGPs.size(); iGP++){
@@ -4451,6 +4563,11 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
         // 2xii. Add the contributions from the Gauss Point
         errorL2Domain += errorGPSquare*JacobianProducts*GW;
         slaveFieldL2Domain += slaveFieldNorm*JacobianProducts*GW;
+
+        // 2xiii. Write the Cartesian coordinates anf the value of the error at the Gauss point
+        for (int iCoord = 0; iCoord < noCoord; iCoord++)
+            filestream << streamGPs[iGP][3 + 2*noNodesFE + 2*noCPsIGA + 1 + iCoord] << ",";
+        filestream << sqrt(errorGPSquare) << endl;
     }
 
     // 3. Compute the relative L2 norm of the mapping error
@@ -4461,7 +4578,10 @@ double IGAMortarMapper::computeDomainErrorInL2Norm4ConsistentMapping(const doubl
     else
         WARNING_OUT() << "The norm of the slave field is smaller than the tolerance, no division of the mapping error is made" << std::endl;
 
-    // 4. Return the relative L2 norm of the mapping error
+    // 4. Close file for writting the relative domain error in the L2-norm
+    filestream.close();
+
+    // 5. Return the relative L2 norm of the mapping error
     return errorL2Domain;
 }
 

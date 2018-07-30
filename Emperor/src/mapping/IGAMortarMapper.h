@@ -180,7 +180,7 @@ private:
     std::vector<std::map<int,ListPolygon2D> > triangulatedProjectedPolygons;
 
     /// Stream of gauss points stored in line with format
-    /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ...
+    /// Weight / Jacobian / NumOfFENode / Node1 / ShapeValue1 / Node2 / ShapeValue2 ... NumOfIGANode / Node1 / ShapeValue1/ ... cartesianCoordinatesGP
     std::vector<std::vector<double> > streamGPs;
 
     /// Stream of interface gauss points stored in line with format
