@@ -864,7 +864,7 @@ void IGAMortarMapper::computeMinimumElementAreaSize() {
                             break;
                     }
                 }
-                if ((elementArea < minElArea) && (!isElementTrimmed))
+                if ((elementArea < minElArea) && (elementArea != 0) && (!isElementTrimmed))
                     minElArea = elementArea;
                 elementArea = 0.0;
             }
