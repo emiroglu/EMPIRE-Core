@@ -202,7 +202,7 @@ private:
     /// mesh B
     AbstractMesh *meshB;
     /// write mode for the mapper
-    int writeMode = 0;
+    int writeMode;
 };
 
 } /* namespace EMPIRE */
