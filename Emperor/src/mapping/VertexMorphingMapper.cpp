@@ -55,10 +55,8 @@ int VertexMorphingMapper::mklSetNumThreads = 1;
 // set default value for mapper threads
 int VertexMorphingMapper::mapperSetNumThreads = 1;
 
-const int VertexMorphingMapper::numGPsMassMatrixTri = 6;
-const int VertexMorphingMapper::numGPsMassMatrixQuad = 4;
-const int VertexMorphingMapper::numGPsOnClipTri = 6;
-const int VertexMorphingMapper::numGPsOnClipQuad = 12;
+const int VertexMorphingMapper::numGPsOnTri = 12;
+const int VertexMorphingMapper::numGPsMassMatrixTri = 12;
 
 VertexMorphingMapper::VertexMorphingMapper(std::string _name, FEMesh *_mesh, EMPIRE_VMM_FilterType _filterType, double _filterRadius):
     name(_name), filterType(_filterType), filterRadius(_filterRadius) {
@@ -192,9 +190,12 @@ void VertexMorphingMapper::findCandidates(double* controlNode, std::set<int> *in
         infNodeIdxs->insert(infNodeIndices[i]);
         vector<int> * vecInfElemIndices = nodeToElemTable[infNodeIndices[i]];
 
-        // Influenced elements
-        for (vector<int>::iterator it = vecInfElemIndices->begin(); it < vecInfElemIndices->end(); it++)
-            infElemIdxs->insert(*it);
+        // Fill up unique influenced elements
+        for (vector<int>::iterator it = vecInfElemIndices->begin(); it < vecInfElemIndices->end(); it++){
+
+            if (std::find(vecInfElemIndices->begin(), vecInfElemIndices->end(), *it) == vecInfElemIndices->end())
+                infElemIdxs->insert(*it);
+        }
 
     }
     delete[] infNodeIndices;
@@ -213,21 +214,44 @@ void VertexMorphingMapper::buildCouplingMatrices(){
         std::set<int> tmp_infElems;
         findCandidates(controlNodePtr, &tmp_infNodes, &tmp_infElems);
 
-        // Loop over the influenced nodes
-        for (std::set<int>::iterator itNode = tmp_infNodes.begin(); itNode != tmp_infNodes.end(); itNode++){
+        // Loop over the influenced elements
+        for (std::set<int>::iterator itElem = tmp_infElems.begin(); itElem != tmp_infElems.end(); itElem++){
 
-            // Loop over the elements that contain the influenced node
-            for (std::set<int>::iterator itElem = tmp_infElems.begin(); itElem != tmp_infElems.end(); itElem++){
+            // Loop over the element's nodes and check if they are all inside the filter radius by checking against the influenced nodes
+            std::set<bool> elemNodeInside;
+            for (std::vector<int>::iterator itElemNode = directElemTable[*itElem]->begin(); itElemNode != directElemTable[*itElem]->end(); itElemNode++)
+                elemNodeInside.insert(tmp_infNodes.find(*itElemNode) != tmp_infNodes.end());
 
-                // Loop over the element's nodes and check if they are all inside the filter radius
-                for (std::vector<int>::iterator itElemNode = directElemTable[*itElem]->begin(); itElemNode != directElemTable[*itElem]->end(); itElemNode++){
+            // if all the nodes are inside do full integration
+            if (elemNodeInside.find(false) != elemNodeInside.end())
+                doFullIntegration(controlNodePtr, *itElem);
+            else // If some nodes are outside do partial integration
+                doPartialIntegration(controlNodePtr, *itElem, &elemNodeInside);
 
-                    bool allInfluenced = tmp_infNodes.find(*itElemNode) != tmp_infNodes.end();
-
-                }
-            }
         }
     }
+}
+
+void VertexMorphingMapper::doFullIntegration(double* controlNode, int elemIdx){
+
+    int dim = 3;
+
+    // Get the triangle
+    double triangle[9];
+    int nodeIdx = -1;
+    for (int iNode = 0; iNode<3; iNode++){
+        nodeIdx = directElemTable[elemIdx]->at(iNode);
+        for (iXYZ = 0; iXYZ<dim; iXYZ++)
+            triangle[iNode*dim+iXYZ] = mesh->nodes[nodeIdx*3+iXYZ];
+    }
+
+    EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
+            new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(triangle, numGPsOnTri);
+
+}
+
+void VertexMorphingMapper::doPartialIntegration(double* controlNode, int elemIdx, std::set<bool>* elemNodeInside){
+
 }
 
 }

@@ -88,15 +88,6 @@ private:
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BA;
 
-    /// number of Gauss points used for computing triangle element mass matrix
-    static const int numGPsMassMatrixTri;
-    /// number of Gauss points used for computing quad element mass matrix
-    static const int numGPsMassMatrixQuad;
-    /// number of Gauss points used for computing shape function (tri) products on a clip
-    static const int numGPsOnClipTri;
-    /// number of Gauss points used for computing shape function (quad) products on a clip
-    static const int numGPsOnClipQuad;
-
     /// pardiso variable
     void *pt[64]; // this is related to internal memory management, see PARDISO manual
     /// pardiso variable
@@ -113,6 +104,11 @@ private:
     int neq;
     /// pardiso variable
     int nrhs;
+
+    /// number of Gauss points used for computing shape function (tri) products on a clip
+    static const int numGPsOnTri;
+/// number of Gauss points used for computing triangle element mass matrix
+    static const int numGPsMassMatrixTri;
 
 public:
 
@@ -182,6 +178,8 @@ private:
      ***********/
     void findCandidates(double* controlNode, std::set<int> *infNodeIdxs, std::set<int> *infElemIdxs);
 
+    void doFullIntegration(double* controlNode, int elemIdx);
+    void doPartialIntegration(double* controlNode, int elemIdx, std::set<bool>* elemNodeInside);
 
 
 };
