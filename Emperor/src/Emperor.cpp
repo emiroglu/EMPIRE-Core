@@ -42,6 +42,7 @@
 #include "MapperAdapter.h"
 #include "NearestNeighborMapper.h"
 #include "BarycentricInterpolationMapper.h"
+#include "VertexMorphingMapper.h"
 #include "FEMesh.h"
 #include "AbstractMesh.h"
 #include "Message.h"
