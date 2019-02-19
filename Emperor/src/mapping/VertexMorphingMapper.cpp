@@ -58,8 +58,8 @@ int VertexMorphingMapper::mapperSetNumThreads = 1;
 const int VertexMorphingMapper::numGPsOnTri = 12;
 const int VertexMorphingMapper::numGPsMassMatrixTri = 12;
 
-VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, int _filterFunctionType, double _filterRadius, bool _consistent):
-    name(_name), filterFunctionType(_filterFunctionType), filterRadius(_filterRadius), consistent(_consistent){
+VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent):
+    name(_name), filterRadius(_filterRadius), consistent(_consistent){
 
     // Check input
     assert(_meshA != NULL);
@@ -94,9 +94,17 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     /// masterNumNodes X slaveNumNodes
     C_BA = new MathLibrary::SparseMatrix<double>((size_t)(meshB->numNodes),(size_t)(meshA->numNodes));
 
-    // 1. initialize data that could be used later
+    // Initialize data that could be used later
     initTables();
     initANNTree();
+
+    // Set the filter function pointer
+    if (_filterType == EMPIRE_VMM_HatFilter)
+        filterFunction = new HatFilterFunction(filterRadius);
+    else if (_filterType == EMPIRE_VMM_GaussianFilter)
+        filterFunction = new GaussianFilterFunction(filterRadius);
+    else
+        assert(false); // shouldnt come here
 
 }
 
@@ -104,6 +112,7 @@ VertexMorphingMapper::~VertexMorphingMapper(){
 
     delete C_BB;
     delete C_BA;
+    delete filterFunction;
 
 #ifdef ANN
     for (int i = 0; i < slaveNumNodes; i++) {
@@ -236,7 +245,7 @@ void VertexMorphingMapper::initANNTree() {
 #endif
 }
 
-void VertexMorphingMapper::findCandidates(double* controlNode, std::set<int>* infNodeIdxs, std::set<int>* infElemIdxs)
+void VertexMorphingMapper::findCandidates(double* _controlNode, std::set<int>* _infNodeIdxs, std::set<int>* _infElemIdxs)
 {
     // Use fixed radius search on end points of the element,
     // all elements containing these points are the overlapped candidates
@@ -249,15 +258,15 @@ void VertexMorphingMapper::findCandidates(double* controlNode, std::set<int>* in
     int numInfNodes = 0;
     int *infNodeIndices;
 #ifdef ANN
-    numInfNodes = slaveNodesTree->annkFRSearch(controlNode, filterRadius, 0); // get the number of neighbors in a radius
+    numInfNodes = slaveNodesTree->annkFRSearch(_controlNode, filterRadius, 0); // get the number of neighbors in a radius
     infNodeIndices = new int[numInfNodes];
     double *dummy = new double[numInfNodes];
-    slaveNodesTree->annkFRSearch(&controlNode, filterRadius*filterRadius, numInfNodes, infNodeIndices, dummy);// get the real neighbors (ANN uses the square of the radius)
+    slaveNodesTree->annkFRSearch(&_controlNode, filterRadius*filterRadius, numInfNodes, infNodeIndices, dummy);// get the real neighbors (ANN uses the square of the radius)
     delete dummy;
 #endif
 
 #ifdef FLANN
-    flann::Matrix<double> controlNodeCopyFlann(controlNode, 1, 3);
+    flann::Matrix<double> controlNodeCopyFlann(_controlNode, 1, 3);
     vector<vector<int> > indices_tmp;
     vector<vector<double> > dists_tmp;
     FLANNkd_tree->radiusSearch(controlNodeCopyFlann, indices_tmp, dists_tmp, filterRadius*filterRadius, flann::SearchParams(1));
@@ -270,13 +279,13 @@ void VertexMorphingMapper::findCandidates(double* controlNode, std::set<int>* in
     // 1.2 Fill up the influenced nodes and the influenced elements sets
     for (int i = 0; i < numInfNodes; i++) {
         // Influenced nodes
-        infNodeIdxs->insert(infNodeIndices[i]);
+        _infNodeIdxs->insert(infNodeIndices[i]);
         vector<int> * vecInfElemIndices = slaveNodeToElemTable[infNodeIndices[i]];
 
         // Fill up unique influenced elements
         for (vector<int>::iterator it = vecInfElemIndices->begin(); it != vecInfElemIndices->end(); it++){
-            if (infElemIdxs->find(*it) == infElemIdxs->end())
-                infElemIdxs->insert(*it);
+            if (_infElemIdxs->find(*it) == _infElemIdxs->end())
+                _infElemIdxs->insert(*it);
         }
     }
     delete[] infNodeIndices;
@@ -284,21 +293,20 @@ void VertexMorphingMapper::findCandidates(double* controlNode, std::set<int>* in
 
 void VertexMorphingMapper::buildCouplingMatrices(){
 
-    const int masterNumNodes = meshB->numNodes;
-
     // Loop over nodes to find influenced nodes and elements
+    const int masterNumNodes = meshB->numNodes;
     for (int iNode = 0; iNode < masterNumNodes; iNode++) {
 
         // Find candidates
-        double* controlNodePtr = &meshB->nodes[iNode*3];
+        double* controlNode = &meshB->nodes[iNode*3];
         std::set<int> tmp_infNodes;
         std::set<int> tmp_infElems;
-        findCandidates(controlNodePtr, &tmp_infNodes, &tmp_infElems);
+        findCandidates(controlNode, &tmp_infNodes, &tmp_infElems);
 
         // Loop over the influenced elements
         for (std::set<int>::iterator itElem = tmp_infElems.begin(); itElem != tmp_infElems.end(); itElem++){
 
-            // Loop over the element's nodes and check if they are all inside the filter radius by checking against the influenced nodes
+            // Loop over the element's nodes and check if they are all inside the filter radius by checking against the influenced nodes list
             std::vector<bool> elemNodeInside;
             for (std::vector<int>::iterator itElemNode = slaveDirectElemTable[*itElem]->begin(); itElemNode != slaveDirectElemTable[*itElem]->end(); itElemNode++)
                 elemNodeInside.push_back(tmp_infNodes.find(*itElemNode) != tmp_infNodes.end());
@@ -306,9 +314,9 @@ void VertexMorphingMapper::buildCouplingMatrices(){
             double contributions[3] = {0.0};
             // if all the nodes are inside do full integration
             if (find(elemNodeInside.begin(), elemNodeInside.end(), false) == elemNodeInside.end()){
-                doFullIntegration(controlNodePtr, *itElem, contributions);
+                doFullIntegration(controlNode, *itElem, contributions);
             } else { // If some nodes are outside do partial integration
-                doPartialIntegration(controlNodePtr, *itElem, &elemNodeInside, contributions);
+                doPartialIntegration(controlNode, *itElem, &elemNodeInside, contributions);
             }
 
             assemble_C_BA(iNode, *itElem, contributions);
@@ -332,16 +340,14 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
             triangle[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
     }
 
-    // Create Gauss rule on triangle
+    // Create Gauss rule on the triangle
     EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
             new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(triangle, numGPsOnTri);
-
-    // Here the filter function should be selective
-    FilterFunction* filterFunction = new HatFilterFunction(filterRadius);
-    FilterFunctionProduct* integrand = new FilterFunctionProduct(filterFunction, triangle, _controlNode);
+    // Create the integrand on the triangle
+    FilterFunctionProduct* integrand = new FilterFunctionProduct(triangle, _controlNode);
 
     integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal, gaussQuadratureOnTriangle->numGaussPoints);
-    integrand->computeFunctionProducts();
+    integrand->computeFunctionProducts(filterFunction);
 
     for (int iNode = 0; iNode < 3; iNode++) {
         gaussQuadratureOnTriangle->setIntegrandFunc(integrand);
@@ -351,7 +357,6 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
 
     delete gaussQuadratureOnTriangle;
     delete integrand;
-    delete filterFunction;
 
 }
 
@@ -484,14 +489,11 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
                 new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itSubtriangle, numGPsOnTri);
 
-        // Here the filter function should be selective
-        FilterFunction* filterFunction = new HatFilterFunction(filterRadius);
-
         // Create the integrand on the unclipped triangle
-        FilterFunctionProduct* integrand = new FilterFunctionProduct(filterFunction, triangle, _controlNode);
+        FilterFunctionProduct* integrand = new FilterFunctionProduct(triangle, _controlNode);
 
         integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal, gaussQuadratureOnTriangle->numGaussPoints);
-        integrand->computeFunctionProducts();
+        integrand->computeFunctionProducts(filterFunction);
 
         for (int iNode = 0; iNode < 3; iNode++) {
             gaussQuadratureOnTriangle->setIntegrandFunc(integrand);
@@ -501,15 +503,17 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
 
         delete gaussQuadratureOnTriangle;
         delete integrand;
-        delete filterFunction;
     }
+
+    subtriangles.clear();
+
 }
 
-void VertexMorphingMapper::assemble_C_BA(int _nodeIdx, int _elemIdx, double* _contributions){
+void VertexMorphingMapper::assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions){
 
     int ctr = 0;
     for (std::vector<int>::iterator itElemNode = slaveDirectElemTable[_elemIdx]->begin(); itElemNode != slaveDirectElemTable[_elemIdx]->end(); itElemNode++){
-        (*C_BA)(_nodeIdx, *itElemNode) += _contributions[ctr];
+        (*C_BA)(_controlNodeIdx, *itElemNode) += _contributions[ctr];
         ctr += 1;
     }
 }
@@ -523,7 +527,7 @@ void VertexMorphingMapper::consistentMapping(const double *slaveField, double *m
     for (int i = 0; i < meshA->numNodes; i++)
         slaveFieldCopy[i] = slaveField[i];
 
-    // 1. matrix vector product (W_tmp = C_BA * W_A)
+    // matrix vector product (W_tmp = C_BA * W_A)
     (*C_BA).mulitplyVec(false,slaveFieldCopy,masterField,meshB->numNodes);
 
     delete[] slaveFieldCopy;
@@ -533,24 +537,42 @@ void VertexMorphingMapper::consistentMapping(const double *slaveField, double *m
 // FilterFunction classes
 double VertexMorphingMapper::HatFilterFunction::computeFunction(double* _supportCenter, double* _globalCoor){
 
+    // compute distance to the support center
     double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, _supportCenter, _globalCoor);
 
+    // return function value
     return dist/filterRadius;
 
 }
 
+double VertexMorphingMapper::GaussianFilterFunction::computeFunction(double* _supportCenter, double* _globalCoor){
+
+    // compute distance to the support center
+    double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, _supportCenter, _globalCoor);
+
+    // return function value
+    return exp(-pow(dist,2) / (2 * pow(filterRadius,2) / 9.0));
+
+}
+
 // Integrand classes
-VertexMorphingMapper::FilterFunctionProduct::FilterFunctionProduct(FilterFunction* _filterFunction, double* _elem, double* _controlNode)
+VertexMorphingMapper::FilterFunctionProduct::FilterFunctionProduct(double* _elem, double* _controlNode)
 {
+
+    int dim = 3;
+    int numNodes = 3;
 
     gaussPoints = NULL;
     functionProducts = NULL;
 
-    integrandFilterFunction = _filterFunction;
-    elem = _elem;
+    elem = new double[9];
+    for (int iNode = 0; iNode < numNodes; iNode++){
+        for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+           elem[iNode*dim + iXYZ] = _elem[iNode*dim + iXYZ];
+    }
 
     controlNode = new double[3];
-    for (int iXYZ = 0; iXYZ<3; iXYZ++)
+    for (int iXYZ = 0; iXYZ < 3; iXYZ++)
         controlNode[iXYZ] = _controlNode[iXYZ];
 
 }
@@ -559,6 +581,7 @@ VertexMorphingMapper::FilterFunctionProduct::~FilterFunctionProduct(){
 
     delete controlNode;
     delete gaussPoints;
+    delete elem;
 
     for (int i=0; i < 3; i++)
         delete functionProducts[i];
@@ -574,17 +597,19 @@ void VertexMorphingMapper::FilterFunctionProduct::setGaussPoints(const double *_
         gaussPoints[i] = _gaussPoints[i];
 }
 
-void VertexMorphingMapper::FilterFunctionProduct::computeFunctionProducts(){
+void VertexMorphingMapper::FilterFunctionProduct::computeFunctionProducts(AbstractFilterFunction *_filterFunction){
     assert(functionProducts == NULL);
     assert(gaussPoints != NULL);
 
     int dim = 3;
     int numNodes = 3;
 
+    // initiate function products container
     functionProducts = new double*[numNodes];
     for (int i = 0; i < numNodes; i++)
         functionProducts[i] = new double[numGaussPoints];
 
+    // loop over gauss points
     for (int iGP = 0; iGP < numGaussPoints; iGP++) {
         double *gaussPoint = &gaussPoints[iGP * dim];
 
@@ -610,7 +635,7 @@ void VertexMorphingMapper::FilterFunctionProduct::computeFunctionProducts(){
 
         // *. compute shape function products (on the Gauss point)
         for (int iNode = 0; iNode < numNodes; iNode++)
-            functionProducts[iNode][iGP] = shapeFuncValues[iNode] * integrandFilterFunction->computeFunction(controlNode, gaussPoint);
+            functionProducts[iNode][iGP] = shapeFuncValues[iNode] * _filterFunction->computeFunction(controlNode, gaussPoint);
     }
 }
 

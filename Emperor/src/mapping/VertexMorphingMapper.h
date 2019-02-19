@@ -43,16 +43,171 @@ template<typename T> class Matrix;
 
 namespace EMPIRE {
 
-enum EMPIRE_VMM_FilterType {
-    EMPIRE_VMM_HatFilter,
-    EMPIRE_VMM_GaussianFilter
-};
-
 class FEMesh;
 /***********************************************************************************************
  * \brief This class performs mortar mapping
  * ***********/
 class VertexMorphingMapper : public AbstractMapper {
+private:
+
+    /**
+     * \brief Class AbstractFilterFunction for the derived filter functions.
+     *        The important is the overloading of FilterFunction::computeFunction in the derived classes
+     **/
+    class AbstractFilterFunction {
+    public:
+
+        double filterRadius;
+
+    public:
+
+        /***********************************************************************************************
+         * \brief Constructor
+         * \param[in] _filterRadius The filter radius
+         * \author Altug Emiroglu
+         ***********/
+        AbstractFilterFunction(double _filterRadius): filterRadius(_filterRadius) {}
+        /***********************************************************************************************
+         * \brief Destructor
+         * \author Altug Emiroglu
+         ***********/
+        virtual ~AbstractFilterFunction() {}
+        /***********************************************************************************************
+         * \brief Computes the function value given the support center and the global cartesian coordinates
+         *        Only this function is overloaded in the derived classes
+         * \param[in] _supportCenter the support center of the filter function
+         * \param[in] _globalCoor the global coordinates to compute the filter function value
+         * \return the function value
+         * \author Altug Emiroglu
+         ***********/
+        virtual double computeFunction(double* _supportCenter, double* _globalCoor) = 0;
+
+    };
+
+    /**
+     * \brief Class HatFilterFunction
+     *        Computes the filter function value using a hat filter function
+     **/
+    class HatFilterFunction: public AbstractFilterFunction {
+
+    public:
+
+        /***********************************************************************************************
+         * \brief Constructor
+         * \param[in] _filterRadius The filter radius
+         * \author Altug Emiroglu
+         ***********/
+        HatFilterFunction(double _filterRadius): AbstractFilterFunction(_filterRadius) {}
+        /***********************************************************************************************
+         * \brief Destructor
+         * \author Altug Emiroglu
+         ***********/
+        virtual ~HatFilterFunction() {}
+        /***********************************************************************************************
+         * \brief Computes the function value given the support center and the global cartesian coordinates
+         * \param[in] _supportCenter the support center of the filter function
+         * \param[in] _globalCoor the global coordinates to compute the filter function value
+         * \return the function value
+         * \author Altug Emiroglu
+         ***********/
+        double computeFunction(double* _supportCenter, double* _globalCoor);
+
+    };
+
+    /**
+     * \brief Class GaussianFilterFunction
+     *        Computes the filter function value using a Gaussian filter function
+     **/
+    class GaussianFilterFunction: public AbstractFilterFunction {
+
+    public:
+
+        /***********************************************************************************************
+         * \brief Constructor
+         * \param[in] _filterRadius The filter radius
+         * \author Altug Emiroglu
+         ***********/
+        GaussianFilterFunction(double _filterRadius): AbstractFilterFunction(_filterRadius) {}
+        /***********************************************************************************************
+         * \brief Destructor
+         * \author Altug Emiroglu
+         ***********/
+        virtual ~GaussianFilterFunction(){}
+        /***********************************************************************************************
+         * \brief Computes the function value given the support center and the global cartesian coordinates
+         * \param[in] _supportCenter the support center of the filter function
+         * \param[in] _globalCoor the global coordinates to compute the filter function value
+         * \return the function value
+         * \author Altug Emiroglu
+         ***********/
+        double computeFunction(double* _supportCenter, double* _globalCoor);
+
+    };
+
+    /**
+     * \brief Class FilterFunctionProduct computes the filter and shape function products on an element
+     *        This class is mainly a modification of class MortarMapper::ShapeFunctionProduct
+     **/
+    // Integrand for the computation of the matrices
+    class FilterFunctionProduct: public EMPIRE::MathLibrary::IntegrandFunction {
+    private:
+
+        /// control node global coordinates
+        double* controlNode;
+        /// element nodes
+        double* elem;
+        /// number of Gauss points
+        int numGaussPoints;
+        /// coordinates of all gauss points
+        double * gaussPoints;
+        /// shape function ID of the slave element
+        int funcID;
+        /// different shape function products on all Gauss points
+        double **functionProducts;
+
+    public:
+
+        /***********************************************************************************************
+         * \brief Constructor This class is derived from
+         * \param[in] _elem Triangular element to perform integration
+         * \param[in] _controlNode The control node global cartesian coordinates
+         * \author Altug Emiroglu
+         ***********/
+        FilterFunctionProduct(double* _elem, double* _controlNode);
+        /***********************************************************************************************
+         * \brief Destructor
+         * \author Altug Emiroglu
+         ***********/
+        virtual ~FilterFunctionProduct();
+        /***********************************************************************************************
+         * \brief Computes the product of the filter function and the shape functions and stores them in functionProducts
+         * \param[in] _filterFunction The filter function object to compute the products with
+         * \author Altug Emiroglu
+         ***********/
+        void computeFunctionProducts(AbstractFilterFunction* _filterFunction);
+        /***********************************************************************************************
+         * \brief set all Gauss points
+         * \param[in] _gaussPoints x,y,z coordinates of all Gauss points
+         * \param[in] _numGaussPoints x,y,z coordinates of all Gauss points
+         * \author Altug Emiroglu
+         ***********/
+        void setGaussPoints(const double* _gaussPoints, int _numGaussPoints);
+        /***********************************************************************************************
+         * \brief Set the function ID
+         * \param[in] _funcID function ID related to the respective node of the element
+         * \author Altug Emiroglu
+         ***********/
+        void setFunctionID(int _funcID);
+        /***********************************************************************************************
+         * \brief Retrieve the filter and shape function product on the Gauss point. In fact, the shape function
+         *        products have been computed by computeFunctionProducts().
+         * \param[in] gaussPoint x,y,z coordinates of the Gauss point
+         * \return the product value
+         * \author Altug Emiroglu
+         ***********/
+        double operator()(double* gaussPoint);
+
+    };
 
 private:
     /// Name of the mapper
@@ -62,8 +217,8 @@ private:
     FEMesh *meshA;
     FEMesh *meshB;
 
-    /// Filter function type
-    int filterFunctionType;
+    /// Filter function pointer
+    AbstractFilterFunction* filterFunction;
 
     /// Search radius;
     double filterRadius;
@@ -116,7 +271,7 @@ private:
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
 
-//    friend class TestVertexMorphingMapper;
+    friend class TestVertexMorphingMapper;
 
 public:
 
@@ -126,7 +281,7 @@ public:
      * \param[in] _mesh Mesh (only FEM mesh for now)
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, int _filterFunctionType, double _filterRadius, bool _consistent);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
@@ -178,83 +333,38 @@ private:
     void deleteANNTree();
     /***********************************************************************************************
      * \brief Find the overlapping candidates of the master element with the searching radius.
-     * \param[in] controlNode the master node
-     * \param[out] infNodeIdxs the influenced node indices
-     * \param[out] infElemIdxs the influenced element indices
+     * \param[in] _controlNode the control field node
+     * \param[out] _infNodeIdxs the influenced node indices
+     * \param[out] _infElemIdxs the influenced element indices
      * \author Altug Emiroglu
      ***********/
-    void findCandidates(double* controlNode, std::set<int> *infNodeIdxs, std::set<int> *infElemIdxs);
+    void findCandidates(double* _controlNode, std::set<int>* _infNodeIdxs, std::set<int>* _infElemIdxs);
 
+    /***********************************************************************************************
+     * \brief Performs integration of the filter and the shape function product on a full element
+     * \param[in] _controlNode the control field node
+     * \param[in] _elemIdx the influenced element index
+     * \param[out] _contributions the result of the integration
+     * \author Altug Emiroglu
+     ***********/
     void doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions);
+    /***********************************************************************************************
+     * \brief Performs integration of the filter and the shape function product on a clipped element
+     * \param[in] _controlNode the control field node
+     * \param[in] _elemIdx the influenced element index
+     * \param[in] _elemNodeInside the list of if the nodes are inside the filter radius
+     * \param[out] _contributions the result of the integration
+     * \author Altug Emiroglu
+     ***********/
     void doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions);
-    void assemble_C_BA(int _nodeIdx, int _elemIdx, double* _contributions);
-
-private:
-
-    // FilterFunction base class
-    class FilterFunction {
-    public:
-
-        double filterRadius;
-
-    public:
-
-        FilterFunction(double _filterRadius): filterRadius(_filterRadius) {}
-        virtual ~FilterFunction() {}
-        virtual double computeFunction(double* _supportCenter, double* _globalCoor) = 0;
-
-    };
-
-    // HatFilterFunction
-    class HatFilterFunction: public FilterFunction {
-
-    public:
-
-        HatFilterFunction(double _filterRadius): FilterFunction(_filterRadius) {}
-        virtual ~HatFilterFunction(){}
-        double computeFunction(double* _supportCenter, double* _globalCoor);
-
-    };
-
-    // GaussianFilterFunction
-    class GaussianFilterFunction: public FilterFunction {
-
-    public:
-
-        GaussianFilterFunction(double _filterRadius): FilterFunction(_filterRadius) {}
-        virtual ~GaussianFilterFunction(){}
-        double computeFunction(double* _supportCenter, double* _globalCoor) {}
-
-    };
-
-    // Integrand for the computation of the matrices
-    class FilterFunctionProduct: public EMPIRE::MathLibrary::IntegrandFunction {
-    public:
-
-        FilterFunctionProduct(FilterFunction* _filterFunction, double* _elem, double* _controlNode);
-        virtual ~FilterFunctionProduct();
-        void computeFunctionProducts();
-        void setGaussPoints(const double* _gaussPoints, int _numGaussPoints);
-        void setFunctionID(int _funcID);
-        double operator()(double* gaussPoint);
-
-    private:
-
-        /// filter function pointer
-        FilterFunction* integrandFilterFunction;
-        /// control node global coordinates
-        double* controlNode;
-        /// element nodes
-        double* elem;
-        /// number of Gauss points
-        int numGaussPoints;
-        /// coordinates of all gauss points
-        double * gaussPoints;
-        /// shape function ID of the slave element
-        int funcID;
-        /// different shape function products on all Gauss points
-        double **functionProducts;
-    };
+    /***********************************************************************************************
+     * \brief Assembles the contributions to C_BA
+     * \param[in] _controlNodeIdx the control field node index
+     * \param[in] _elemIdx the influenced element index
+     * \param[in] _contributions the result of the integration
+     * \author Altug Emiroglu
+     ***********/
+    void assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions);
 
 };
 

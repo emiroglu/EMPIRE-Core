@@ -47,7 +47,6 @@
 #include "AbstractMesh.h"
 #include "Message.h"
 #include "DataField.h"
-//#include "MapperAdapter.h"
 #include "Aitken.h"
 #include "ConstantRelaxation.h"
 #include "IJCSA.h"
@@ -387,7 +386,7 @@ void Emperor::initMappers() {
         } else if (settingMapper.type == EMPIRE_CurveSurfaceMapper) {
             mapper->initCurveSurfaceMapper(settingMapper.curveSurfaceMapper.type);
         } else if (settingMapper.type == EMPIRE_VertexMorphingMapper) {
-            mapper->initVertexMorphingMapper(settingMapper.vertexMorphingMapper.filterFunctionType,
+            mapper->initVertexMorphingMapper(settingMapper.vertexMorphingMapper.filterType,
                                              settingMapper.vertexMorphingMapper.filterRadius,
                                              settingMapper.vertexMorphingMapper.consistent);
         } else {

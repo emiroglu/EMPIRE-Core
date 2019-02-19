@@ -32,11 +32,9 @@
 
 namespace EMPIRE {
 
-class MortarMapper;
 class AbstractMesh;
 class DataField;
 class AbstractMapper;
-class VertexMorphingMapper;
 
 /********//**
  * \brief Class MapperAdapter is the adaptor of the mapper.
@@ -154,7 +152,7 @@ public:
      * \param[in] _consistent consistency: if C_BB has to be computed
      * \author Altug Emiroglu
      ***********/
-    void initVertexMorphingMapper(int _filterFunctionType, double _filterRadius, bool _consistent);
+    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang

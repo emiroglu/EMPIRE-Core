@@ -76,6 +76,10 @@ enum EMPIRE_CurveSurfaceMapper_type {
     EMPIRE_CurveSurfaceMapper_corotate3D
 };
 
+enum EMPIRE_VMM_FilterType {
+    EMPIRE_VMM_HatFilter,
+    EMPIRE_VMM_GaussianFilter
+};
 
 enum EMPIRE_Mesh_type {
     EMPIRE_Mesh_FEMesh,

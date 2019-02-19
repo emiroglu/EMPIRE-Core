@@ -636,9 +636,9 @@ void MetaDatabase::fillSettingMapperVec() {
 
             if (xmlVertexMorphingMapper->HasAttribute("filterFunction")) {
                 if (xmlVertexMorphingMapper->GetAttribute<string>("filterFunction") == "hat")
-                    mapper.vertexMorphingMapper.filterFunctionType  = 1;
+                    mapper.vertexMorphingMapper.filterType  = EMPIRE_VMM_HatFilter;
                 else if (xmlVertexMorphingMapper->GetAttribute<string>("filterFunction") == "gaussian")
-                    mapper.vertexMorphingMapper.filterFunctionType = 2;
+                    mapper.vertexMorphingMapper.filterType = EMPIRE_VMM_GaussianFilter;
                 else
                     assert(false);
             } else

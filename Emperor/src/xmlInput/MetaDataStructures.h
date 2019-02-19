@@ -185,7 +185,7 @@ struct structMapper {
         EMPIRE_CurveSurfaceMapper_type type;
     };
     struct structVertexMorphingMapper {
-        int filterFunctionType;
+        EMPIRE_VMM_FilterType filterType;
         double filterRadius;
         bool consistent;
     };
