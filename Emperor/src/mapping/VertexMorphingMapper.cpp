@@ -421,10 +421,10 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         double a_xsi1 = n0n0 - 2.0*n0n1 + n1n1;
         double b_xsi1 = 2.0*(-n0n0 + n0n1 + ncn0 - ncn1);
         double c_xsi1 = n0n0 - 2.0*ncn0 + ncnc - filterRadius*filterRadius;
-        double discriminator = pow(b_xsi1,2)-4.0*a_xsi1*c_xsi1;
-        assert (discriminator >= 0); // it cannot be negative
-        xsi1 = (-b_xsi1 + sqrt(discriminator)) / (2.0*a_xsi1);
-        xsi1 = (xsi1 >= 0.0 && xsi1 <= 1.0) ? xsi1 : (-b_xsi1 - sqrt(discriminator)) / (2.0*a_xsi1);
+        double discriminant = pow(b_xsi1,2)-4.0*a_xsi1*c_xsi1;
+        assert (discriminant >= 0); // it cannot be negative
+        xsi1 = (-b_xsi1 + sqrt(discriminant)) / (2.0*a_xsi1);
+        xsi1 = (xsi1 >= 0.0 && xsi1 <= 1.0) ? xsi1 : (-b_xsi1 - sqrt(discriminant)) / (2.0*a_xsi1);
         assert(xsi1 >= 0.0 && xsi1 <= 1.0); // 0 <= xsi1 <= 1
     }
     // global coordinates
@@ -439,10 +439,10 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         double b_xsi2 = 2.0*(-n0n0 + n0n2 + ncn0 - ncn2);
         double c_xsi2 = n0n0 - 2.0*ncn0 + ncnc - filterRadius*filterRadius;
 
-        double discriminator = pow(b_xsi2,2)-4.0*a_xsi2*c_xsi2;
-        assert (discriminator >= 0); // it cannot be negative
-        xsi2 = (-b_xsi2 + sqrt(discriminator)) / (2.0*a_xsi2);
-        xsi2 = (xsi2 >= 0.0 && xsi2 <= 1.0) ? xsi2 : (-b_xsi2 - sqrt(discriminator)) / (2.0*a_xsi2);
+        double discriminant = pow(b_xsi2,2)-4.0*a_xsi2*c_xsi2;
+        assert (discriminant >= 0); // it cannot be negative
+        xsi2 = (-b_xsi2 + sqrt(discriminant)) / (2.0*a_xsi2);
+        xsi2 = (xsi2 >= 0.0 && xsi2 <= 1.0) ? xsi2 : (-b_xsi2 - sqrt(discriminant)) / (2.0*a_xsi2);
         assert(xsi2 >= 0.0 && xsi2 <= 1.0); // 0 <= xsi2 <= 1
     }
     // global coordinates
