@@ -251,9 +251,9 @@ public:
 	a1->data[3]=1.0;
 
 	
-	AbstractFilter *filterConsistant = new MappingFilter(mapper);
-        ConnectionIOSetup::setupIOForFilter(filterConsistant, meshA, a1, meshB, b1);
-        filterConsistant->filtering();	
+	AbstractFilter *filterConsistent = new MappingFilter(mapper);
+        ConnectionIOSetup::setupIOForFilter(filterConsistent, meshA, a1, meshB, b1);
+        filterConsistent->filtering();	
 	
 // 	for (int i = 0; i < meshB->numNodes; i++)
 // 	  cout << b1->data[i] << endl;
@@ -261,6 +261,9 @@ public:
         delete mapper;
         delete meshA;
         delete meshB;
+	delete a1;
+	delete b1;
+	delete filterConsistent;
       
     }
     
