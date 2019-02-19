@@ -255,8 +255,8 @@ public:
         ConnectionIOSetup::setupIOForFilter(filterConsistent, meshA, a1, meshB, b1);
         filterConsistent->filtering();	
 	
-	for (int i = 0; i < meshB->numNodes; i++)
-	  cout << b1->data[i] << endl;
+// 	for (int i = 0; i < meshB->numNodes; i++)
+// 	  cout << b1->data[i] << endl;
 	
         delete mapper;
         delete meshA;
