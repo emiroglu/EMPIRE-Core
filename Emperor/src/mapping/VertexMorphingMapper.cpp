@@ -58,8 +58,8 @@ int VertexMorphingMapper::mapperSetNumThreads = 1;
 const int VertexMorphingMapper::numGPsOnTri = 12;
 const int VertexMorphingMapper::numGPsMassMatrixTri = 12;
 
-VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent):
-    name(_name), filterRadius(_filterRadius), consistent(_consistent){
+VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency):
+    name(_name), filterRadius(_filterRadius), consistent(_consistent), toEnforceConsistency(_enforceConsistency){
 
     // Check input
     assert(_meshA != NULL);
@@ -323,8 +323,8 @@ void VertexMorphingMapper::buildCouplingMatrices(){
         }
     }
 
-    enforceConsistency_C_BA();
-
+    if (toEnforceConsistency)
+        enforceConsistency_C_BA();
     deleteANNTree();
     deleteTables();
 }
@@ -563,8 +563,7 @@ double VertexMorphingMapper::HatFilterFunction::computeFunction(double* _support
     double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, _supportCenter, _globalCoor);
 
     // return function value
-    return dist/filterRadius;
-
+    return 1.0 - dist/filterRadius;
 }
 
 double VertexMorphingMapper::GaussianFilterFunction::computeFunction(double* _supportCenter, double* _globalCoor){
@@ -574,7 +573,6 @@ double VertexMorphingMapper::GaussianFilterFunction::computeFunction(double* _su
 
     // return function value
     return exp(-pow(dist,2) / (2 * pow(filterRadius,2) / 9.0));
-
 }
 
 // Integrand classes

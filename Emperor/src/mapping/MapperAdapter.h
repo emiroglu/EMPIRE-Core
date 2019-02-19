@@ -149,10 +149,11 @@ public:
      * \brief Initialize VertexMorphingMapper
      * \param[in] _filterFunctionType 1 Hat, 2 Gauss
      * \param[in] _filterRadius effective filter radius
-     * \param[in] _consistent consistency: if C_BB has to be computed
+     * \param[in] _consistent: through C_BB computation
+     * \param[in] _enforceConsistency: through C_BA manipulation
      * \author Altug Emiroglu
      ***********/
-    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent);
+    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang

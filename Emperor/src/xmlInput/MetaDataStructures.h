@@ -188,6 +188,7 @@ struct structMapper {
         EMPIRE_VMM_FilterType filterType;
         double filterRadius;
         bool consistent;
+        bool enforceConsistency;
     };
     std::string name;
     int writeMode;

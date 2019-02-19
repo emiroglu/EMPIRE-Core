@@ -226,6 +226,9 @@ private:
     /// Consistency enforcement through C_BB calculation
     bool consistent;
 
+    /// Consistency enforcement through C_BA manipulation
+    bool toEnforceConsistency;
+
     /// nearest neighbors searching tree of FLAN libraray
     flann::Index<flann::L2<double> > *FLANNkd_tree;
     /// nodes constructing the searching tree
@@ -278,22 +281,25 @@ public:
     /***********************************************************************************************
      * \brief Constructor
      * \param[in] _name The name of the mapper
-     * \param[in] _mesh Mesh (only FEM mesh for now)
+     * \param[in] _meshA Mesh (only FEM mesh for now)
+     * \param[in] _meshB Mesh (only FEM mesh for now)
+     * \param[in] _filterType choose from one of the EMPIRE_VMM_FilterType types
+     * \param[in] _filterRadius effective radius of the filter function
+     * \param[in] _consistent through C_BB computation
+     * \param[in] _consistent through C_BA manipulation
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
      ***********/
     virtual ~VertexMorphingMapper();
-
     /***********************************************************************************************
      * \brief Build Coupling Matrices
      * \author Altug Emiroglu
      ***********/
     void buildCouplingMatrices();
-
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions) --- C_BB * masterField = C_BA * slaveField
      * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)

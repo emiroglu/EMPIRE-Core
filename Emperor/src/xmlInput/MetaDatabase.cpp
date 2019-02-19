@@ -659,6 +659,16 @@ void MetaDatabase::fillSettingMapperVec() {
             } else
                 mapper.vertexMorphingMapper.consistent = false;
 
+            if (xmlVertexMorphingMapper->HasAttribute("enforceConsistency")) {
+                if (xmlVertexMorphingMapper->GetAttribute<string>("enforceConsistency") == "true")
+                    mapper.vertexMorphingMapper.enforceConsistency = true;
+                else if (xmlVertexMorphingMapper->GetAttribute<string>("enforceConsistency") == "false")
+                    mapper.vertexMorphingMapper.enforceConsistency = false;
+                else
+                    assert(false);
+            } else
+                mapper.vertexMorphingMapper.enforceConsistency = false;
+
         } else {
             assert(false);
         }
