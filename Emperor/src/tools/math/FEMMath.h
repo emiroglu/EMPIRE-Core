@@ -212,12 +212,14 @@ public:
 
     const int numGaussPoints;
     double *gaussPointsGlobal;
+    double area;
+
 private:
     const double *triangle;
     const double *gaussPointsLocal;
     const double *weights;
     IntegrandFunction *integrandFunc;
-    double area;
+//    double area;
 };
 
 /********//**

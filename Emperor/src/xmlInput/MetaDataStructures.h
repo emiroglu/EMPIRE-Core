@@ -184,6 +184,11 @@ struct structMapper {
     struct structCurveSurfaceMapper {
         EMPIRE_CurveSurfaceMapper_type type;
     };
+    struct structVertexMorphingMapper {
+        int filterFunctionType;
+        double filterRadius;
+        bool consistent;
+    };
     std::string name;
     int writeMode;
     structMeshRef meshRefA;
@@ -193,6 +198,7 @@ struct structMapper {
     structIGAMortarMapper IGAMortarMapper;
     structIGABarycentricMapper IGABarycentricMapper;
     structCurveSurfaceMapper curveSurfaceMapper;
+    structVertexMorphingMapper vertexMorphingMapper;
 };
 
 struct structCouplingAlgorithm {

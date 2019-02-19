@@ -36,6 +36,7 @@ class MortarMapper;
 class AbstractMesh;
 class DataField;
 class AbstractMapper;
+class VertexMorphingMapper;
 
 /********//**
  * \brief Class MapperAdapter is the adaptor of the mapper.
@@ -146,6 +147,14 @@ public:
      * \author Tianyang Wang
      ***********/
     void initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type);
+    /***********************************************************************************************
+     * \brief Initialize VertexMorphingMapper
+     * \param[in] _filterFunctionType 1 Hat, 2 Gauss
+     * \param[in] _filterRadius effective filter radius
+     * \param[in] _consistent consistency: if C_BB has to be computed
+     * \author Altug Emiroglu
+     ***********/
+    void initVertexMorphingMapper(int _filterFunctionType, double _filterRadius, bool _consistent);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang

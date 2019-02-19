@@ -26,6 +26,7 @@
 #include "BarycentricInterpolationMapper.h"
 #include "NearestElementMapper.h"
 #include "CurveSurfaceMapper.h"
+#include "VertexMorphingMapper.h"
 #include "AbstractMesh.h"
 #include "FEMesh.h"
 #include "IGAMesh.h"
@@ -209,6 +210,18 @@ void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) 
             a->elems, b->numNodes, b->nodes, b->getNumSections(), b->getNumRootSectionNodes(),
             b->getNumNormalSectionNodes(), b->getNumTipSectionNodes(), b->getRotationGlobal2Root(),
             b->getTranslationGlobal2Root());
+}
+
+void MapperAdapter::initVertexMorphingMapper(int _filterFunctionType, double _filterRadius, bool _consistent) {
+    assert(meshA->type == EMPIRE_Mesh_FEMesh);
+    assert(meshB->type == EMPIRE_Mesh_FEMesh);
+
+    mapperImpl = new VertexMorphingMapper(name, meshA, meshB,
+                                          _filterFunctionType, _filterRadius, _consistent);
+
+    VertexMorphingMapper* mapper = dynamic_cast<VertexMorphingMapper*>(mapperImpl);
+    mapper->writeMode = this->writeMode;
+    mapper->buildCouplingMatrices();
 }
 
 void MapperAdapter::consistentMapping(const DataField *fieldA, DataField *fieldB) {

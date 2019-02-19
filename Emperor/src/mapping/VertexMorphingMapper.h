@@ -41,15 +41,14 @@ template<class T> struct L2;
 template<typename T> class Matrix;
 }
 
+namespace EMPIRE {
+
 enum EMPIRE_VMM_FilterType {
     EMPIRE_VMM_HatFilter,
     EMPIRE_VMM_GaussianFilter
 };
 
-namespace EMPIRE {
-
 class FEMesh;
-
 /***********************************************************************************************
  * \brief This class performs mortar mapping
  * ***********/
@@ -60,28 +59,35 @@ private:
     std::string name;
 
     /// Mesh
-    FEMesh *mesh;
+    FEMesh *meshA;
+    FEMesh *meshB;
 
-    /// Filter function name
-    EMPIRE_VMM_FilterType filterType;
+    /// Filter function type
+    int filterFunctionType;
 
     /// Search radius;
     double filterRadius;
 
+    /// Consistency enforcement through C_BB calculation
+    bool consistent;
+
     /// nearest neighbors searching tree of FLAN libraray
     flann::Index<flann::L2<double> > *FLANNkd_tree;
     /// nodes constructing the searching tree
-    flann::Matrix<double> *FLANNNodes;
+    flann::Matrix<double> *FLANNSlaveNodes;
 
     /// nearest neighbors searching tree of ANN libraray
-    ANNkd_tree *nodesTree;
+    ANNkd_tree *slaveNodesTree;
     /// nodes constructing the searching tree
     double **ANNNodes;
 
     /// directElemTable means the entries is not the node number, but the position in nodeCoors
-    std::vector<int> **directElemTable;
+    std::vector<int> **masterDirectElemTable;
+    std::vector<int> **slaveDirectElemTable;
+
     /// given a node, all the elements containing it are got
-    std::vector<int> **nodeToElemTable;
+    std::vector<int> **masterNodeToElemTable;
+    std::vector<int> **slaveNodeToElemTable;
 
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BB;
@@ -107,8 +113,10 @@ private:
 
     /// number of Gauss points used for computing shape function (tri) products on a clip
     static const int numGPsOnTri;
-/// number of Gauss points used for computing triangle element mass matrix
+    /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
+
+//    friend class TestVertexMorphingMapper;
 
 public:
 
@@ -118,7 +126,7 @@ public:
      * \param[in] _mesh Mesh (only FEM mesh for now)
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, EMPIRE::FEMesh *_mesh, EMPIRE_VMM_FilterType _filterType, double _filterRadius);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, int _filterFunctionType, double _filterRadius, bool _consistent);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
@@ -137,7 +145,7 @@ public:
      * \param[out] masterField the field of the master side (e.g. x-displacements on all fluid nodes)
      * \author Altug Emiroglu
      ***********/
-    void consistentMapping(const double *slaveField, double *masterField) {}
+    void consistentMapping(const double *slaveField, double *masterField);
     void conservativeMapping(const double *slaveField, double *masterField) {}
     void computeErrorsConsistentMapping(const double *slaveField, const double *masterField) {}
 
@@ -168,7 +176,6 @@ private:
      * \author Altug Emiroglu
      ***********/
     void deleteANNTree();
-
     /***********************************************************************************************
      * \brief Find the overlapping candidates of the master element with the searching radius.
      * \param[in] controlNode the master node
@@ -178,11 +185,80 @@ private:
      ***********/
     void findCandidates(double* controlNode, std::set<int> *infNodeIdxs, std::set<int> *infElemIdxs);
 
-    void doFullIntegration(double* controlNode, int elemIdx);
-    void doPartialIntegration(double* controlNode, int elemIdx, std::set<bool>* elemNodeInside);
+    void doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions);
+    void doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions);
+    void assemble_C_BA(int _nodeIdx, int _elemIdx, double* _contributions);
 
+private:
+
+    // FilterFunction base class
+    class FilterFunction {
+    public:
+
+        double filterRadius;
+
+    public:
+
+        FilterFunction(double _filterRadius): filterRadius(_filterRadius) {}
+        virtual ~FilterFunction() {}
+        virtual double computeFunction(double* _supportCenter, double* _globalCoor) = 0;
+
+    };
+
+    // HatFilterFunction
+    class HatFilterFunction: public FilterFunction {
+
+    public:
+
+        HatFilterFunction(double _filterRadius): FilterFunction(_filterRadius) {}
+        virtual ~HatFilterFunction(){}
+        double computeFunction(double* _supportCenter, double* _globalCoor);
+
+    };
+
+    // GaussianFilterFunction
+    class GaussianFilterFunction: public FilterFunction {
+
+    public:
+
+        GaussianFilterFunction(double _filterRadius): FilterFunction(_filterRadius) {}
+        virtual ~GaussianFilterFunction(){}
+        double computeFunction(double* _supportCenter, double* _globalCoor) {}
+
+    };
+
+    // Integrand for the computation of the matrices
+    class FilterFunctionProduct: public EMPIRE::MathLibrary::IntegrandFunction {
+    public:
+
+        FilterFunctionProduct(FilterFunction* _filterFunction, double* _elem, double* _controlNode);
+        virtual ~FilterFunctionProduct();
+        void computeFunctionProducts();
+        void setGaussPoints(const double* _gaussPoints, int _numGaussPoints);
+        void setFunctionID(int _funcID);
+        double operator()(double* gaussPoint);
+
+    private:
+
+        /// filter function pointer
+        FilterFunction* integrandFilterFunction;
+        /// control node global coordinates
+        double* controlNode;
+        /// element nodes
+        double* elem;
+        /// number of Gauss points
+        int numGaussPoints;
+        /// coordinates of all gauss points
+        double * gaussPoints;
+        /// shape function ID of the slave element
+        int funcID;
+        /// different shape function products on all Gauss points
+        double **functionProducts;
+    };
 
 };
 
+
+
 } /* namespace EMPIRE */
-#endif /* MORTARMAPPER_H_ */
+#endif /* VERTEXMORPHINGMAPPER_H_ */

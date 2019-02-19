@@ -630,6 +630,35 @@ void MetaDatabase::fillSettingMapperVec() {
                 mapper.curveSurfaceMapper.type = EMPIRE_CurveSurfaceMapper_corotate3D;
             else
                 assert(false);
+        } else if (xmlMapper->GetAttribute<string>("type") == "vertexMorphingMapper") {
+            mapper.type = EMPIRE_VertexMorphingMapper;
+            ticpp::Element *xmlVertexMorphingMapper = xmlMapper->FirstChildElement("vertexMorphingMapper");
+
+            if (xmlVertexMorphingMapper->HasAttribute("filterFunction")) {
+                if (xmlVertexMorphingMapper->GetAttribute<string>("filterFunction") == "hat")
+                    mapper.vertexMorphingMapper.filterFunctionType  = 1;
+                else if (xmlVertexMorphingMapper->GetAttribute<string>("filterFunction") == "gaussian")
+                    mapper.vertexMorphingMapper.filterFunctionType = 2;
+                else
+                    assert(false);
+            } else
+                assert(false);
+
+            if (xmlVertexMorphingMapper->HasAttribute("filterRadius")) {
+                mapper.vertexMorphingMapper.filterRadius = xmlVertexMorphingMapper->GetAttribute<double>("filterRadius");
+            } else
+                assert(false);
+
+            if (xmlVertexMorphingMapper->HasAttribute("consistent")) {
+                if (xmlVertexMorphingMapper->GetAttribute<string>("consistent") == "true")
+                    mapper.vertexMorphingMapper.consistent = true;
+                else if (xmlVertexMorphingMapper->GetAttribute<string>("consistent") == "false")
+                    mapper.vertexMorphingMapper.consistent = false;
+                else
+                    assert(false);
+            } else
+                mapper.vertexMorphingMapper.consistent = false;
+
         } else {
             assert(false);
         }

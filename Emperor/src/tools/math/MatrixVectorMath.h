@@ -85,7 +85,7 @@ void computeDenseVectorAddition(double *vec1, const double *vec2 ,const double a
 void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const int elements);
 
 /***********************************************************************************************
- * \brief Compute the square of the Euclidean distance of two points in n-D space.
+ * \brief Compute the the Euclidean distance of two points in n-D space.
  * \param[out] The square of the Euclidean distance between two points in the n-D space
  * \param[in] _length The length of the n-dimensional space
  * \param[in] _Pi The first point

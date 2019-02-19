@@ -676,4 +676,4 @@ CPPUNIT_TEST_SUITE( TestMappingMultiplePartitions );
 
 } /* namespace EMPIRE */
 
-CPPUNIT_TEST_SUITE_REGISTRATION( EMPIRE::TestMappingMultiplePartitions);
+// CPPUNIT_TEST_SUITE_REGISTRATION( EMPIRE::TestMappingMultiplePartitions);

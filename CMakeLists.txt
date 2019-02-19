@@ -164,7 +164,7 @@ IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQ
 ENDIF()
 
 # HACK for mapperlib
-SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -ldl")
+SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 ######################################################################################
 #4. Configure

@@ -153,6 +153,7 @@ public:
         delete meshB;
         delete a1;
         delete b1;
+
     }
     /***********************************************************************************************
      * \brief Test the memory leak of the constructor by calling it 1,000,000 times
