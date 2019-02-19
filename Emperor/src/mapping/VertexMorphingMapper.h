@@ -365,7 +365,10 @@ private:
      * \author Altug Emiroglu
      ***********/
     void assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions);
-
+    /***********************************************************************************************
+     * \brief Enforces consistency in C_BA -> constant field to constant field
+     * \author Altug Emiroglu
+     ***********/
     void enforceConsistency_C_BA();
 
 };

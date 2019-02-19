@@ -524,12 +524,16 @@ void VertexMorphingMapper::enforceConsistency_C_BA(){
 
     int ctr = 0;
     double fac = 0.0;
+    // Loop over the rows
     for (int iRow = 0; iRow < C_BA->getNumberOfRows(); iRow++){
+        // Count the nonzero columns
         ctr = 0;
         for (int iColumn = 0; iColumn < C_BA->getNumberOfColumns(); iColumn++){
             if ((*C_BA)(iRow,iColumn) != 0.0);
                 ctr++;
         }
+
+        // Compute the factor for making the C_BA consistent and multiply the row
         fac = static_cast<double>(ctr)/(C_BA->getRowSum(iRow)*C_BA->getNumberOfColumns());
         C_BA->multiplyRowWith(iRow, fac);
     }
