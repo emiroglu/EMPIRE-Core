@@ -401,19 +401,23 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
     double prevNode[3] = {triangle[((nodePos+2)*dim)%9],triangle[((nodePos+2)*dim+1)%9], triangle[((nodePos+2)*dim+2)%9]};
 
     // Some precomputations
-    double n0n0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,thisNode, thisNode);
-    double n1n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,nextNode, nextNode);
-    double n2n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,prevNode, prevNode);
-    double ncnc = EMPIRE::MathLibrary::computeDenseDotProduct(dim,_controlNode, _controlNode);
-    double n0n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,thisNode, nextNode);
-    double n0n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,thisNode, prevNode);
-    double ncn0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,_controlNode, thisNode);
-    double ncn1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,_controlNode, nextNode);
-    double ncn2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim,_controlNode, prevNode);
+    double n0n0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, thisNode);
+    double n1n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, nextNode, nextNode);
+    double n2n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, prevNode, prevNode);
+    double ncnc = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, _controlNode);
+    double n0n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, nextNode);
+    double n0n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, prevNode);
+    double n1n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, nextNode, prevNode);
+    double ncn0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, thisNode);
+    double ncn1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, nextNode);
+    double ncn2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, prevNode);
 
     /// find clippings
     double xsi1 = 0.0;
     double xsi2 = 0.0;
+    // these are initiated as -1 so that they can be distinguished later on
+    double xsi31 = -1.0;
+    double xsi32 = -1.0;
 
     /// find clipping between this and next
     // local coordinate
@@ -450,6 +454,45 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
     for (int iDim = 0; iDim < dim; iDim++)
         point02[iDim] = (1.0-xsi2) * thisNode[iDim] + xsi2*prevNode[iDim];
 
+    /// try to find clipping between next and prev
+    // local coordinate
+    double point12_1[3];
+    double point12_2[3];
+    if (numInfNodesInElem == 1) {
+
+        double a_xsi3 = n1n1 - 2.0*n1n2 + n2n2;
+        double b_xsi3 = 2.0*(-n1n1 + n1n2 + ncn1 - ncn2);
+        double c_xsi3 = n1n1 - 2.0*ncn1 + ncnc - filterRadius*filterRadius;
+        double discriminant = pow(b_xsi3,2)-4.0*a_xsi3*c_xsi3;
+
+        // if there are multiple roots
+        if (discriminant > 0) {
+
+            double xsi31_pre = (-b_xsi3 + sqrt(discriminant)) / (2.0*a_xsi3);
+            double xsi32_pre = (-b_xsi3 - sqrt(discriminant)) / (2.0*a_xsi3);
+
+            // if both of them are inside set both
+            if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && (xsi32_pre >= 0.0 && xsi32_pre<= 1.0)){
+                xsi31 = xsi31_pre;
+                xsi32 = xsi32_pre;
+                for (int iDim = 0; iDim < dim; iDim++)
+                    point12_2[iDim] = (1.0-xsi32) * nextNode[iDim] + xsi32*prevNode[iDim];
+
+            } // if one of them is outside the limits set only the inside one
+            else if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && !(xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
+                xsi31 = xsi31_pre;
+            } else if (!(xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && (xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
+                xsi31 = xsi32_pre;
+            }
+
+        } // if there is single root
+        else if (discriminant == 0) {
+            xsi31 = -b_xsi3 / (2.0*a_xsi3);
+        }
+        for (int iDim = 0; iDim < dim; iDim++)
+            point12_1[iDim] = (1.0-xsi31) * nextNode[iDim] + xsi31*prevNode[iDim];
+    }
+
     // make subtriangles
     std::vector<double*> subtriangles;
     if (numInfNodesInElem == 1){
@@ -461,8 +504,33 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
             subtriangle[dim+iDim] = point01[iDim];
             subtriangle[2*dim+iDim] = point02[iDim];
         }
-
         subtriangles.push_back(subtriangle);
+
+        // if the edge across the node has two intersections
+        if (xsi31 != -1.0 && xsi32 != -1.0){
+            double subtriangle1[9];
+            double subtriangle2[9];
+            for (int iDim = 0; iDim<dim; iDim++) {
+                subtriangle1[iDim] = point01[iDim];
+                subtriangle1[dim+iDim] = point12_1[iDim];
+                subtriangle1[2*dim+iDim] = point02[iDim];
+
+                subtriangle2[iDim] = point12_1[iDim];
+                subtriangle2[dim+iDim] = point12_2[iDim];
+                subtriangle2[2*dim+iDim] = point02[iDim];
+            }
+            subtriangles.push_back(subtriangle1);
+            subtriangles.push_back(subtriangle2);
+        } // if there is only one valid intersection
+        else if (xsi31 != -1.0 && xsi32 == -1.0) {
+            double subtriangle1[9];
+            for (int iDim = 0; iDim<dim; iDim++) {
+                subtriangle1[iDim] = point01[iDim];
+                subtriangle1[dim+iDim] = point12_1[iDim];
+                subtriangle1[2*dim+iDim] = point02[iDim];
+            }
+            subtriangles.push_back(subtriangle1);
+        }
 
     } else {
 
