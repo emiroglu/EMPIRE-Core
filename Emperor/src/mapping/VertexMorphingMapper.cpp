@@ -323,6 +323,8 @@ void VertexMorphingMapper::buildCouplingMatrices(){
         }
     }
 
+    enforceConsistency_C_BA();
+
     deleteANNTree();
     deleteTables();
 }
@@ -516,6 +518,22 @@ void VertexMorphingMapper::assemble_C_BA(int _controlNodeIdx, int _elemIdx, doub
         (*C_BA)(_controlNodeIdx, *itElemNode) += _contributions[ctr];
         ctr += 1;
     }
+}
+
+void VertexMorphingMapper::enforceConsistency_C_BA(){
+
+    int ctr = 0;
+    double fac = 0.0;
+    for (int iRow = 0; iRow < C_BA->getNumberOfRows(); iRow++){
+        ctr = 0;
+        for (int iColumn = 0; iColumn < C_BA->getNumberOfColumns(); iColumn++){
+            if ((*C_BA)(iRow,iColumn) != 0.0);
+                ctr++;
+        }
+        fac = static_cast<double>(ctr)/(C_BA->getRowSum(iRow)*C_BA->getNumberOfColumns());
+        C_BA->multiplyRowWith(iRow, fac);
+    }
+
 }
 
 void VertexMorphingMapper::consistentMapping(const double *slaveField, double *masterField) {

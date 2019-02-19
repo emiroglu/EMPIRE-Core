@@ -366,6 +366,8 @@ private:
      ***********/
     void assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions);
 
+    void enforceConsistency_C_BA();
+
 };
 
 
