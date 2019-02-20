@@ -235,8 +235,7 @@ public:
 	
 	EMPIRE_VMM_FilterType filterType = EMPIRE_VMM_GaussianFilter;
 	double filterRadius = 0.51;
-	bool consistent = false;
-	bool mortar = true;
+	bool mortar = false;
 	
 	MapperAdapter *mapper = new MapperAdapter("testVM", meshA, meshB);
         mapper->initVertexMorphingMapper(filterType, filterRadius, mortar);
