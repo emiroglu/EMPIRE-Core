@@ -333,31 +333,32 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
 
     int dim = 3;
     int numNodes = 3;
+
     // Get the triangle
-    double triangle[9];
+    double tria[9];
     int nodeIdx = -1;
     for (int iNode = 0; iNode<numNodes; iNode++){
         nodeIdx = slaveDirectElemTable[_elemIdx]->at(iNode);
         for (int iXYZ = 0; iXYZ<dim; iXYZ++)
-            triangle[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
+            tria[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
     }
 
     // Create Gauss rule on the triangle
-    EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-            new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(triangle, numGPsOnTri);
+    EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
+            new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(tria, numGPsOnTri);
     // Create the integrand on the triangle
-    FilterFunctionProduct* integrand = new FilterFunctionProduct(triangle, _controlNode);
+    FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
 
-    integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal, gaussQuadratureOnTriangle->numGaussPoints);
+    integrand->setGaussPoints(gaussQuadratureOnTria->gaussPointsGlobal, gaussQuadratureOnTria->numGaussPoints);
     integrand->computeFunctionProducts(filterFunction);
 
     for (int iNode = 0; iNode < 3; iNode++) {
-        gaussQuadratureOnTriangle->setIntegrandFunc(integrand);
+        gaussQuadratureOnTria->setIntegrandFunc(integrand);
         integrand->setFunctionID(iNode);
-        _contributions[iNode] += gaussQuadratureOnTriangle->computeIntegral();
+        _contributions[iNode] += gaussQuadratureOnTria->computeIntegral();
     }
 
-    delete gaussQuadratureOnTriangle;
+    delete gaussQuadratureOnTria;
     delete integrand;
 
 }
@@ -369,12 +370,12 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
     int numNodes = 3;
 
     // Get the triangle
-    double triangle[9];
+    double tria[9];
     int nodeIdx = -1;
     for (int iNode = 0; iNode<numNodes; iNode++){
         nodeIdx = slaveDirectElemTable[_elemIdx]->at(iNode);
         for (int iXYZ = 0; iXYZ<dim; iXYZ++)
-            triangle[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
+            tria[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
     }
 
     // Count the influenced nodes in this element
@@ -396,21 +397,21 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
     }
 
     // assign this node and other nodes coordinates
-    double thisNode[3] = {triangle[nodePos*dim],triangle[nodePos*dim+1], triangle[nodePos*dim+2]};
-    double nextNode[3] = {triangle[((nodePos+1)*dim)%9],triangle[((nodePos+1)*dim+1)%9], triangle[((nodePos+1)*dim+2)%9]};
-    double prevNode[3] = {triangle[((nodePos+2)*dim)%9],triangle[((nodePos+2)*dim+1)%9], triangle[((nodePos+2)*dim+2)%9]};
+    double p0[3] = {tria[nodePos*dim],tria[nodePos*dim+1], tria[nodePos*dim+2]};
+    double p1[3] = {tria[((nodePos+1)*dim)%9],tria[((nodePos+1)*dim+1)%9], tria[((nodePos+1)*dim+2)%9]};
+    double p2[3] = {tria[((nodePos+2)*dim)%9],tria[((nodePos+2)*dim+1)%9], tria[((nodePos+2)*dim+2)%9]};
 
     // Some precomputations
-    double n0n0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, thisNode);
-    double n1n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, nextNode, nextNode);
-    double n2n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, prevNode, prevNode);
+    double n0n0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p0, p0);
+    double n1n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p1, p1);
+    double n2n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p2, p2);
     double ncnc = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, _controlNode);
-    double n0n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, nextNode);
-    double n0n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, thisNode, prevNode);
-    double n1n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, nextNode, prevNode);
-    double ncn0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, thisNode);
-    double ncn1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, nextNode);
-    double ncn2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, prevNode);
+    double n0n1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p0, p1);
+    double n0n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p0, p2);
+    double n1n2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, p1, p2);
+    double ncn0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, p0);
+    double ncn1 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, p1);
+    double ncn2 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _controlNode, p2);
 
     /// find clippings
     double xsi1 = 0.0;
@@ -432,9 +433,9 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         assert(xsi1 >= 0.0 && xsi1 <= 1.0); // 0 <= xsi1 <= 1
     }
     // global coordinates
-    double point01[3];
+    double p01[3];
     for (int iDim = 0; iDim < dim; iDim++)
-        point01[iDim] = (1.0-xsi1) * thisNode[iDim] + xsi1*nextNode[iDim];
+        p01[iDim] = (1.0-xsi1) * p0[iDim] + xsi1*p1[iDim];
 
     /// find clipping between this and prev
     // local coordinate
@@ -450,14 +451,14 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         assert(xsi2 >= 0.0 && xsi2 <= 1.0); // 0 <= xsi2 <= 1
     }
     // global coordinates
-    double point02[3];
+    double p02[3];
     for (int iDim = 0; iDim < dim; iDim++)
-        point02[iDim] = (1.0-xsi2) * thisNode[iDim] + xsi2*prevNode[iDim];
+        p02[iDim] = (1.0-xsi2) * p0[iDim] + xsi2*p2[iDim];
 
     /// try to find clipping between next and prev
     // local coordinate
-    double point12_1[3];
-    double point12_2[3];
+    double p12_1[3];
+    double p12_2[3];
     if (numInfNodesInElem == 1) {
 
         double a_xsi3 = n1n1 - 2.0*n1n2 + n2n2;
@@ -476,7 +477,7 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
                 xsi31 = xsi31_pre;
                 xsi32 = xsi32_pre;
                 for (int iDim = 0; iDim < dim; iDim++)
-                    point12_2[iDim] = (1.0-xsi32) * nextNode[iDim] + xsi32*prevNode[iDim];
+                    p12_2[iDim] = (1.0-xsi32) * p1[iDim] + xsi32*p2[iDim];
 
             } // if one of them is outside the limits set only the inside one
             else if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && !(xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
@@ -490,92 +491,92 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
             xsi31 = -b_xsi3 / (2.0*a_xsi3);
         }
         for (int iDim = 0; iDim < dim; iDim++)
-            point12_1[iDim] = (1.0-xsi31) * nextNode[iDim] + xsi31*prevNode[iDim];
+            p12_1[iDim] = (1.0-xsi31) * p1[iDim] + xsi31*p2[iDim];
     }
 
     // make subtriangles
-    std::vector<double*> subtriangles;
+    std::vector<double*> subtrias;
     if (numInfNodesInElem == 1){
 
-        double subtriangle[9];
+        double subtria[9];
 
         for (int iDim = 0; iDim<dim; iDim++) {
-            subtriangle[iDim] = thisNode[iDim];
-            subtriangle[dim+iDim] = point01[iDim];
-            subtriangle[2*dim+iDim] = point02[iDim];
+            subtria[iDim] = p0[iDim];
+            subtria[dim+iDim] = p01[iDim];
+            subtria[2*dim+iDim] = p02[iDim];
         }
-        subtriangles.push_back(subtriangle);
+        subtrias.push_back(subtria);
 
         // if the edge across the node has two intersections
         if (xsi31 != -1.0 && xsi32 != -1.0){
-            double subtriangle1[9];
-            double subtriangle2[9];
+            double subtria1[9];
+            double subtria2[9];
             for (int iDim = 0; iDim<dim; iDim++) {
-                subtriangle1[iDim] = point01[iDim];
-                subtriangle1[dim+iDim] = point12_1[iDim];
-                subtriangle1[2*dim+iDim] = point02[iDim];
+                subtria1[iDim] = p01[iDim];
+                subtria1[dim+iDim] = p12_1[iDim];
+                subtria1[2*dim+iDim] = p02[iDim];
 
-                subtriangle2[iDim] = point12_1[iDim];
-                subtriangle2[dim+iDim] = point12_2[iDim];
-                subtriangle2[2*dim+iDim] = point02[iDim];
+                subtria2[iDim] = p12_1[iDim];
+                subtria2[dim+iDim] = p12_2[iDim];
+                subtria2[2*dim+iDim] = p02[iDim];
             }
-            subtriangles.push_back(subtriangle1);
-            subtriangles.push_back(subtriangle2);
+            subtrias.push_back(subtria1);
+            subtrias.push_back(subtria2);
         } // if there is only one valid intersection
         else if (xsi31 != -1.0 && xsi32 == -1.0) {
-            double subtriangle1[9];
+            double subtria1[9];
             for (int iDim = 0; iDim<dim; iDim++) {
-                subtriangle1[iDim] = point01[iDim];
-                subtriangle1[dim+iDim] = point12_1[iDim];
-                subtriangle1[2*dim+iDim] = point02[iDim];
+                subtria1[iDim] = p01[iDim];
+                subtria1[dim+iDim] = p12_1[iDim];
+                subtria1[2*dim+iDim] = p02[iDim];
             }
-            subtriangles.push_back(subtriangle1);
+            subtrias.push_back(subtria1);
         }
 
     } else {
 
-        double subtriangle1[9];
-        double subtriangle2[9];
+        double subtria1[9];
+        double subtria2[9];
 
         for (int iDim = 0; iDim<dim; iDim++) {
-            subtriangle1[iDim] = point01[iDim];
-            subtriangle1[dim+iDim] = nextNode[iDim];
-            subtriangle1[2*dim+iDim] = point02[iDim];
+            subtria1[iDim] = p01[iDim];
+            subtria1[dim+iDim] = p1[iDim];
+            subtria1[2*dim+iDim] = p02[iDim];
 
-            subtriangle2[iDim] = nextNode[iDim];
-            subtriangle2[dim+iDim] = point02[iDim];
-            subtriangle2[2*dim+iDim] = prevNode[iDim];
+            subtria2[iDim] = p1[iDim];
+            subtria2[dim+iDim] = p02[iDim];
+            subtria2[2*dim+iDim] = p2[iDim];
         }
 
-        subtriangles.push_back(subtriangle1);
-        subtriangles.push_back(subtriangle2);
+        subtrias.push_back(subtria1);
+        subtrias.push_back(subtria2);
 
     }
 
     // Loop over the subtriangles and integrate
-    for (std::vector<double*>::iterator itSubtriangle = subtriangles.begin(); itSubtriangle != subtriangles.end(); itSubtriangle++){
+    for (std::vector<double*>::iterator itSubtria = subtrias.begin(); itSubtria != subtrias.end(); itSubtria++){
 
         // Create Gauss rule on subtriangle
-        EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-                new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itSubtriangle, numGPsOnTri);
+        EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
+                new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itSubtria, numGPsOnTri);
 
         // Create the integrand on the unclipped triangle
-        FilterFunctionProduct* integrand = new FilterFunctionProduct(triangle, _controlNode);
+        FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
 
-        integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal, gaussQuadratureOnTriangle->numGaussPoints);
+        integrand->setGaussPoints(gaussQuadratureOnTria->gaussPointsGlobal, gaussQuadratureOnTria->numGaussPoints);
         integrand->computeFunctionProducts(filterFunction);
 
         for (int iNode = 0; iNode < 3; iNode++) {
-            gaussQuadratureOnTriangle->setIntegrandFunc(integrand);
+            gaussQuadratureOnTria->setIntegrandFunc(integrand);
             integrand->setFunctionID(iNode);
-            _contributions[iNode] += gaussQuadratureOnTriangle->computeIntegral();
+            _contributions[iNode] += gaussQuadratureOnTria->computeIntegral();
         }
 
-        delete gaussQuadratureOnTriangle;
+        delete gaussQuadratureOnTria;
         delete integrand;
     }
 
-    subtriangles.clear();
+    subtrias.clear();
 
 }
 
