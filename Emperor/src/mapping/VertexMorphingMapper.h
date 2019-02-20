@@ -282,11 +282,10 @@ public:
      * \param[in] _meshB Mesh (only FEM mesh for now)
      * \param[in] _filterType choose from one of the EMPIRE_VMM_FilterType types
      * \param[in] _filterRadius effective radius of the filter function
-     * \param[in] _consistent through C_BB computation
-     * \param[in] _consistent through C_BA manipulation
+     * \param[in] _mortar through C_BB computation
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar=false);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu

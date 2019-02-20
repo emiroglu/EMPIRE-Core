@@ -90,7 +90,8 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     /// Initializing the sparse matrices
     /// This is symmetric square matrix of size "masterNumNodes". For first attempt
     /// we store it as full matrix
-    C_BB = new MathLibrary::SparseMatrix<double>(meshB->numNodes, false);
+    if (mortar)
+        C_BB = new MathLibrary::SparseMatrix<double>(meshB->numNodes, false);
 
     /// This is a rectangular matrix of size
     /// masterNumNodes X slaveNumNodes
@@ -112,7 +113,8 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
 
 VertexMorphingMapper::~VertexMorphingMapper(){
 
-    delete C_BB;
+    if (mortar)
+        delete C_BB;
     delete C_BA;
     delete filterFunction;
 
