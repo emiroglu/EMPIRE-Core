@@ -212,12 +212,12 @@ void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) 
             b->getTranslationGlobal2Root());
 }
 
-void MapperAdapter::initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency) {
+void MapperAdapter::initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar) {
     assert(meshA->type == EMPIRE_Mesh_FEMesh);
     assert(meshB->type == EMPIRE_Mesh_FEMesh);
 
     mapperImpl = new VertexMorphingMapper(name, meshA, meshB,
-                                          _filterType, _filterRadius, _consistent, _enforceConsistency);
+                                          _filterType, _filterRadius, _mortar);
 
     VertexMorphingMapper* mapper = dynamic_cast<VertexMorphingMapper*>(mapperImpl);
     mapper->writeMode = this->writeMode;

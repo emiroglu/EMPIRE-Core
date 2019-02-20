@@ -223,11 +223,8 @@ private:
     /// Search radius;
     double filterRadius;
 
-    /// Consistency enforcement through C_BB calculation
-    bool consistent;
-
-    /// Consistency enforcement through C_BA manipulation
-    bool toEnforceConsistency;
+    /// mortar type of computation through C_BB calculation
+    bool mortar;
 
     /// nearest neighbors searching tree of FLAN libraray
     flann::Index<flann::L2<double> > *FLANNkd_tree;
@@ -289,7 +286,7 @@ public:
      * \param[in] _consistent through C_BA manipulation
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
@@ -372,10 +369,12 @@ private:
      ***********/
     void assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions);
     /***********************************************************************************************
-     * \brief Enforces consistency in C_BA -> constant field to constant field
+     * \brief The integration of the filter function in its effective radius must be 1.
+     *        This function ensures it by adjusting the corresponding contributions in C_BA
      * \author Altug Emiroglu
      ***********/
-    void enforceConsistency_C_BA();
+    void adjustFilter();
+
 
 };
 

@@ -58,8 +58,8 @@ int VertexMorphingMapper::mapperSetNumThreads = 1;
 const int VertexMorphingMapper::numGPsOnTri = 12;
 const int VertexMorphingMapper::numGPsMassMatrixTri = 12;
 
-VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _consistent, bool _enforceConsistency):
-    name(_name), filterRadius(_filterRadius), consistent(_consistent), toEnforceConsistency(_enforceConsistency){
+VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar):
+    name(_name), filterRadius(_filterRadius), mortar(_mortar){
 
     // Check input
     assert(_meshA != NULL);
@@ -70,13 +70,15 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     bool isMeshBFEM = (_meshB->type == EMPIRE_Mesh_FEMesh || _meshB->type == EMPIRE_Mesh_copyFEMesh);
 
     if (isMeshAFEM && isMeshBFEM){
-        if (dynamic_cast<FEMesh *>(_meshA)->triangulate() == NULL)
-            meshA = dynamic_cast<FEMesh *>(_meshA);
+        if (dynamic_cast<FEMesh *>(_meshA)->triangulate() == NULL){
+            ERROR_BLOCK_OUT("VertexMorphingMapper","VertexMorphingMapper","Mesh A has to be triangulated!");
+        }
         else
             meshA = dynamic_cast<FEMesh *>(_meshA)->triangulate();
 
-        if (dynamic_cast<FEMesh *>(_meshB)->triangulate() == NULL)
-            meshB = dynamic_cast<FEMesh *>(_meshB);
+        if (dynamic_cast<FEMesh *>(_meshB)->triangulate() == NULL){
+            ERROR_BLOCK_OUT("VertexMorphingMapper","VertexMorphingMapper","Mesh B has to be triangulated!");
+        }
         else
             meshB = dynamic_cast<FEMesh *>(_meshB)->triangulate();
     } else
@@ -319,12 +321,15 @@ void VertexMorphingMapper::buildCouplingMatrices(){
                 doPartialIntegration(controlNode, *itElem, &elemNodeInside, contributions);
             }
 
+            // Assemble the contributions from this element (index j) to the control node (index i)
             assemble_C_BA(iNode, *itElem, contributions);
         }
     }
 
-    if (toEnforceConsistency)
-        enforceConsistency_C_BA();
+    // Make sure that the integration of the filter function in its effective radius is 1 by C_BA manipulation
+    adjustFilter();
+
+    // Delete unnecessary variables
     deleteANNTree();
     deleteTables();
 }
@@ -346,6 +351,14 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
     // Create Gauss rule on the triangle
     EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
             new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(tria, numGPsOnTri);
+
+//    // Compute the integration of the filter function
+//    This is taken care by C_BA manipulation now (see adjustFilter())
+//    for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
+//        _intFilter += gaussQuadratureOnTria->getWeight(iGP)
+//                * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
+//                * gaussQuadratureOnTria->area;
+
     // Create the integrand on the triangle
     FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
 
@@ -479,7 +492,7 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
                 for (int iDim = 0; iDim < dim; iDim++)
                     p12_2[iDim] = (1.0-xsi32) * p1[iDim] + xsi32*p2[iDim];
 
-            } // if one of them is outside the limits set only the inside one
+            } // if one of them is outside the limits set only the inside one to xsi31
             else if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && !(xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
                 xsi31 = xsi31_pre;
             } else if (!(xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && (xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
@@ -499,7 +512,6 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
     if (numInfNodesInElem == 1){
 
         double subtria[9];
-
         for (int iDim = 0; iDim<dim; iDim++) {
             subtria[iDim] = p0[iDim];
             subtria[dim+iDim] = p01[iDim];
@@ -559,6 +571,12 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         // Create Gauss rule on subtriangle
         EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
                 new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itSubtria, numGPsOnTri);
+//        // Compute the integration of the filter function
+//        This is taken care by C_BA manipulation now (see adjustFilter())
+//        for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
+//            _intFilter += gaussQuadratureOnTria->getWeight(iGP)
+//                    * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
+//                    * gaussQuadratureOnTria->area;
 
         // Create the integrand on the unclipped triangle
         FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
@@ -589,7 +607,7 @@ void VertexMorphingMapper::assemble_C_BA(int _controlNodeIdx, int _elemIdx, doub
     }
 }
 
-void VertexMorphingMapper::enforceConsistency_C_BA(){
+void VertexMorphingMapper::adjustFilter(){
 
     int ctr = 0;
     double fac = 0.0;

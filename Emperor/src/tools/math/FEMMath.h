@@ -210,6 +210,12 @@ public:
      ***********/
     double computeIntegral();
 
+    /***********************************************************************************************
+     * \brief Get the weight of a GP with index iGP
+     * \author Altug Emiroglu
+     ***********/
+    double getWeight(int _iGP) {return weights[_iGP];}
+
     const int numGaussPoints;
     double *gaussPointsGlobal;
     double area;
@@ -254,6 +260,12 @@ public:
      * \author Tianyang Wang
      ***********/
     double computeIntegral();
+
+    /***********************************************************************************************
+     * \brief Get the weight of a GP with index iGP
+     * \author Altug Emiroglu
+     ***********/
+    double getWeight(int _iGP) {return weights[_iGP];}
 
     const int numGaussPoints;
     double *gaussPointsGlobal;

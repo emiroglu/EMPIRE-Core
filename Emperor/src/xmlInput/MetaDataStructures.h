@@ -187,8 +187,7 @@ struct structMapper {
     struct structVertexMorphingMapper {
         EMPIRE_VMM_FilterType filterType;
         double filterRadius;
-        bool consistent;
-        bool enforceConsistency;
+        bool mortar;
     };
     std::string name;
     int writeMode;

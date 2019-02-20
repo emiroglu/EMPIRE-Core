@@ -388,8 +388,7 @@ void Emperor::initMappers() {
         } else if (settingMapper.type == EMPIRE_VertexMorphingMapper) {
             mapper->initVertexMorphingMapper(settingMapper.vertexMorphingMapper.filterType,
                                              settingMapper.vertexMorphingMapper.filterRadius,
-                                             settingMapper.vertexMorphingMapper.consistent,
-                                             settingMapper.vertexMorphingMapper.enforceConsistency);
+                                             settingMapper.vertexMorphingMapper.mortar);
         } else {
             assert(false);
         }

@@ -92,6 +92,8 @@ void FEMesh::addDataField(string dataFieldName, EMPIRE_DataField_location locati
 }
 
 FEMesh *FEMesh::triangulate() {
+    if (!tobeTriangulated && triangulatedMesh != NULL)
+        return triangulatedMesh;
     if (!tobeTriangulated)
         return NULL;
     if (triangulatedMesh != NULL)
@@ -104,10 +106,12 @@ FEMesh *FEMesh::triangulate() {
     vector<int> *elemsTri = new vector<int>;
     vector<int> *numNodesPerElemTri = new vector<int>;
     int count = 0;
-	bool isCompletelyTriangulated;
+    bool isCompletelyTriangulated = false;
+
     for (int i = 0; i < numElems; i++) {
         int numNodesThisElem = numNodesPerElem[i];
         if (numNodesThisElem == 3) { // put triangles in the new mesh
+            isCompletelyTriangulated = true;
             numNodesPerElemTri->push_back(numNodesThisElem);
             for (int j = 0; j < numNodesThisElem; j++)
                 elemsTri->push_back(elems[count + j]);
@@ -140,7 +144,7 @@ FEMesh *FEMesh::triangulate() {
         }
         count += numNodesThisElem;
     }
-	assert(isCompletelyTriangulated==true);
+    assert(isCompletelyTriangulated==true);
     delete nodeIDToNodePosMap;
     assert(count == elemsArraySize);
 
