@@ -341,7 +341,6 @@ private:
      * \author Altug Emiroglu
      ***********/
     void findCandidates(double* _controlNode, std::set<int>* _infNodeIdxs, std::set<int>* _infElemIdxs);
-
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a full element
      * \param[in] _controlNode the control field node
@@ -349,7 +348,7 @@ private:
      * \param[out] _contributions the result of the integration
      * \author Altug Emiroglu
      ***********/
-    void doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions);
+    void doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions, double& _intFilter);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a clipped element
      * \param[in] _controlNode the control field node
@@ -358,7 +357,7 @@ private:
      * \param[out] _contributions the result of the integration
      * \author Altug Emiroglu
      ***********/
-    void doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions);
+    void doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions, double& _intFilter);
     /***********************************************************************************************
      * \brief Assembles the contributions to C_BA
      * \param[in] _controlNodeIdx the control field node index
@@ -366,14 +365,19 @@ private:
      * \param[in] _contributions the result of the integration
      * \author Altug Emiroglu
      ***********/
-    void assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions);
+    void assemble_C_BA(int _controlNodeIdx, double* _contributions, double intFilter);
     /***********************************************************************************************
-     * \brief The integration of the filter function in its effective radius must be 1.
-     *        This function ensures it by adjusting the corresponding contributions in C_BA
+     * \brief Clamps line parameter xsi to the limits 0 <= xsi <= 1
+     * \param[in/out] _xsi line parameter
      * \author Altug Emiroglu
      ***********/
-    void adjustFilter();
+    void clampXsi(double &_xsi);
 
+
+private:
+
+    /// Tolerance for cleaning a triangle before integrating
+    static double EPS_XSI;
 
 };
 

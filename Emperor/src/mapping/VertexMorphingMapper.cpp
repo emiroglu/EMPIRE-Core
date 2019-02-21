@@ -58,6 +58,8 @@ int VertexMorphingMapper::mapperSetNumThreads = 1;
 const int VertexMorphingMapper::numGPsOnTri = 12;
 const int VertexMorphingMapper::numGPsMassMatrixTri = 12;
 
+double VertexMorphingMapper::EPS_XSI= 1e-3;
+
 VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar):
     name(_name), filterRadius(_filterRadius), mortar(_mortar){
 
@@ -299,6 +301,8 @@ void VertexMorphingMapper::buildCouplingMatrices(){
 
     // Loop over nodes to find influenced nodes and elements
     const int masterNumNodes = meshB->numNodes;
+    const int slaveNumNodes = meshA->numNodes;
+    double* contributions = new double[slaveNumNodes];
     for (int iNode = 0; iNode < masterNumNodes; iNode++) {
 
         // Find candidates
@@ -306,8 +310,12 @@ void VertexMorphingMapper::buildCouplingMatrices(){
         std::set<int> tmp_infNodes;
         std::set<int> tmp_infElems;
         findCandidates(controlNode, &tmp_infNodes, &tmp_infElems);
+        double intFilter = 0.0;
 
         // Loop over the influenced elements
+        // initiate contributions
+        for (int i=0; i < slaveNumNodes; i++)
+            contributions[i] = 0.0;
         for (std::set<int>::iterator itElem = tmp_infElems.begin(); itElem != tmp_infElems.end(); itElem++){
 
             // Loop over the element's nodes and check if they are all inside the filter radius by checking against the influenced nodes list
@@ -315,28 +323,29 @@ void VertexMorphingMapper::buildCouplingMatrices(){
             for (std::vector<int>::iterator itElemNode = slaveDirectElemTable[*itElem]->begin(); itElemNode != slaveDirectElemTable[*itElem]->end(); itElemNode++)
                 elemNodeInside.push_back(tmp_infNodes.find(*itElemNode) != tmp_infNodes.end());
 
-            double contributions[3] = {0.0};
+
             // if all the nodes are inside do full integration
             if (find(elemNodeInside.begin(), elemNodeInside.end(), false) == elemNodeInside.end()){
-                doFullIntegration(controlNode, *itElem, contributions);
+                doFullIntegration(controlNode, *itElem, contributions, intFilter);
             } else { // If some nodes are outside do partial integration
-                doPartialIntegration(controlNode, *itElem, &elemNodeInside, contributions);
+                doPartialIntegration(controlNode, *itElem, &elemNodeInside, contributions, intFilter);
             }
 
-            // Assemble the contributions from this element (index j) to the control node (index i)
-            assemble_C_BA(iNode, *itElem, contributions);
         }
+
+        // Assemble the contributions to the C_BA matrix
+        assemble_C_BA(iNode, contributions, intFilter);
+
     }
 
-    // Make sure that the integration of the filter function in its effective radius is 1 by C_BA manipulation
-    adjustFilter();
+    delete contributions;
 
     // Delete unnecessary variables
     deleteANNTree();
     deleteTables();
 }
 
-void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions){
+void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions, double &_intFilter){
 
     int dim = 3;
     int numNodes = 3;
@@ -354,12 +363,12 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
     EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
             new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(tria, numGPsOnTri);
 
-//    // Compute the integration of the filter function
-//    This is taken care by C_BA manipulation now (see adjustFilter())
-//    for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
-//        _intFilter += gaussQuadratureOnTria->getWeight(iGP)
-//                * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
-//                * gaussQuadratureOnTria->area;
+    // Compute the integration of the filter function
+    // It is done this way instead of doing it on the matrix directly because it is a very expensive operation on the matrix
+    for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
+        _intFilter += gaussQuadratureOnTria->getWeight(iGP)
+                * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
+                * gaussQuadratureOnTria->area;
 
     // Create the integrand on the triangle
     FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
@@ -370,7 +379,7 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
     for (int iNode = 0; iNode < 3; iNode++) {
         gaussQuadratureOnTria->setIntegrandFunc(integrand);
         integrand->setFunctionID(iNode);
-        _contributions[iNode] += gaussQuadratureOnTria->computeIntegral();
+        _contributions[slaveDirectElemTable[_elemIdx]->at(iNode)] += gaussQuadratureOnTria->computeIntegral();
     }
 
     delete gaussQuadratureOnTria;
@@ -378,7 +387,7 @@ void VertexMorphingMapper::doFullIntegration(double* _controlNode, int _elemIdx,
 
 }
 
-void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions)
+void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions, double& _intFilter)
 {
 
     int dim = 3;
@@ -442,10 +451,11 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         double b_xsi1 = 2.0*(-n0n0 + n0n1 + ncn0 - ncn1);
         double c_xsi1 = n0n0 - 2.0*ncn0 + ncnc - filterRadius*filterRadius;
         double discriminant = pow(b_xsi1,2)-4.0*a_xsi1*c_xsi1;
-        assert (discriminant >= 0); // it cannot be negative
+        assert (discriminant >= 0.0); // it cannot be negative
         xsi1 = (-b_xsi1 + sqrt(discriminant)) / (2.0*a_xsi1);
-        xsi1 = (xsi1 >= 0.0 && xsi1 <= 1.0) ? xsi1 : (-b_xsi1 - sqrt(discriminant)) / (2.0*a_xsi1);
-        assert(xsi1 >= 0.0 && xsi1 <= 1.0); // 0 <= xsi1 <= 1
+        xsi1 = (xsi1 >= 0.0-EPS_XSI && xsi1 <= 1.0+EPS_XSI) ? xsi1 : (-b_xsi1 - sqrt(discriminant)) / (2.0*a_xsi1);
+        clampXsi(xsi1);
+        assert(xsi1 >= 0.0-EPS_XSI && xsi1 <= 1.0+EPS_XSI); // 0 <= xsi1 <= 1
     }
     // global coordinates
     double p01[3];
@@ -462,8 +472,9 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         double discriminant = pow(b_xsi2,2)-4.0*a_xsi2*c_xsi2;
         assert (discriminant >= 0); // it cannot be negative
         xsi2 = (-b_xsi2 + sqrt(discriminant)) / (2.0*a_xsi2);
-        xsi2 = (xsi2 >= 0.0 && xsi2 <= 1.0) ? xsi2 : (-b_xsi2 - sqrt(discriminant)) / (2.0*a_xsi2);
-        assert(xsi2 >= 0.0 && xsi2 <= 1.0); // 0 <= xsi2 <= 1
+        xsi2 = (xsi2 >= 0.0-EPS_XSI && xsi2 <= 1.0+EPS_XSI) ? xsi2 : (-b_xsi2 - sqrt(discriminant)) / (2.0*a_xsi2);
+        clampXsi(xsi2);
+        assert(xsi2 >= 0.0-EPS_XSI && xsi2 <= 1.0+EPS_XSI); // 0 <= xsi2 <= 1
     }
     // global coordinates
     double p02[3];
@@ -491,19 +502,25 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
             if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && (xsi32_pre >= 0.0 && xsi32_pre<= 1.0)){
                 xsi31 = xsi31_pre;
                 xsi32 = xsi32_pre;
+                clampXsi(xsi31);
+                clampXsi(xsi32);
                 for (int iDim = 0; iDim < dim; iDim++)
                     p12_2[iDim] = (1.0-xsi32) * p1[iDim] + xsi32*p2[iDim];
 
+
             } // if one of them is outside the limits set only the inside one to xsi31
-            else if ((xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && !(xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
+            else if ((xsi31_pre >= 0.0-EPS_XSI && xsi31_pre <= 1.0+EPS_XSI) && !(xsi32_pre >= 0.0-EPS_XSI && xsi32_pre<= 1.0+EPS_XSI)) {
                 xsi31 = xsi31_pre;
-            } else if (!(xsi31_pre >= 0.0 && xsi31_pre <= 1.0) && (xsi32_pre >= 0.0 && xsi32_pre<= 1.0)) {
+                clampXsi(xsi31);
+            } else if (!(xsi31_pre >= 0.0-EPS_XSI && xsi31_pre <= 1.0+EPS_XSI) && (xsi32_pre >= 0.0-EPS_XSI && xsi32_pre<= 1.0+EPS_XSI)) {
                 xsi31 = xsi32_pre;
+                clampXsi(xsi32);
             }
 
         } // if there is single root
         else if (discriminant == 0) {
             xsi31 = -b_xsi3 / (2.0*a_xsi3);
+            clampXsi(xsi31);
         }
         for (int iDim = 0; iDim < dim; iDim++)
             p12_1[iDim] = (1.0-xsi31) * p1[iDim] + xsi31*p2[iDim];
@@ -573,12 +590,12 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         // Create Gauss rule on subtriangle
         EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
                 new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itSubtria, numGPsOnTri);
-//        // Compute the integration of the filter function
-//        This is taken care by C_BA manipulation now (see adjustFilter())
-//        for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
-//            _intFilter += gaussQuadratureOnTria->getWeight(iGP)
-//                    * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
-//                    * gaussQuadratureOnTria->area;
+        // Compute the integration of the filter function
+        // It is done this way instead of doing it on the matrix directly because it is a very expensive operation on the matrix
+        for (int iGP = 0; iGP < gaussQuadratureOnTria->numGaussPoints; iGP++)
+            _intFilter += gaussQuadratureOnTria->getWeight(iGP)
+                    * filterFunction->computeFunction(_controlNode, &gaussQuadratureOnTria->gaussPointsGlobal[iGP*dim])
+                    * gaussQuadratureOnTria->area;
 
         // Create the integrand on the unclipped triangle
         FilterFunctionProduct* integrand = new FilterFunctionProduct(tria, _controlNode);
@@ -589,7 +606,7 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
         for (int iNode = 0; iNode < 3; iNode++) {
             gaussQuadratureOnTria->setIntegrandFunc(integrand);
             integrand->setFunctionID(iNode);
-            _contributions[iNode] += gaussQuadratureOnTria->computeIntegral();
+            _contributions[slaveDirectElemTable[_elemIdx]->at(iNode)] += gaussQuadratureOnTria->computeIntegral();
         }
 
         delete gaussQuadratureOnTria;
@@ -600,32 +617,22 @@ void VertexMorphingMapper::doPartialIntegration(double* _controlNode, int _elemI
 
 }
 
-void VertexMorphingMapper::assemble_C_BA(int _controlNodeIdx, int _elemIdx, double* _contributions){
+void VertexMorphingMapper::clampXsi(double& _xsi){
 
-    int ctr = 0;
-    for (std::vector<int>::iterator itElemNode = slaveDirectElemTable[_elemIdx]->begin(); itElemNode != slaveDirectElemTable[_elemIdx]->end(); itElemNode++){
-        (*C_BA)(_controlNodeIdx, *itElemNode) += _contributions[ctr];
-        ctr += 1;
-    }
+    // clamp the parameter to the span 0 <= xsi <= 1
+    if (_xsi > -EPS_XSI && _xsi < 0.0)
+        _xsi = 0.0;
+
+    if (_xsi > 1.0 && _xsi < 1.0 + EPS_XSI)
+        _xsi = 1.0;
+
 }
 
-void VertexMorphingMapper::adjustFilter(){
+void VertexMorphingMapper::assemble_C_BA(int _controlNodeIdx, double* _contributions, double _intFilter){
 
-    int ctr = 0;
-    double fac = 0.0;
-    // Loop over the rows
-    for (int iRow = 0; iRow < C_BA->getNumberOfRows(); iRow++){
-        // Count the nonzero columns
-        ctr = 0;
-        for (int iColumn = 0; iColumn < C_BA->getNumberOfColumns(); iColumn++){
-            if ((*C_BA)(iRow,iColumn) != 0.0);
-                ctr++;
-        }
-
-        // Compute the factor for making the C_BA consistent and multiply the row
-        fac = static_cast<double>(ctr)/(C_BA->getRowSum(iRow)*C_BA->getNumberOfColumns());
-        C_BA->multiplyRowWith(iRow, fac);
-    }
+    double fac = 1.0/_intFilter;
+    for (int iColumn = 0; iColumn < C_BA->getNumberOfColumns(); iColumn++)
+        (*C_BA)(_controlNodeIdx, iColumn) += fac*_contributions[iColumn];
 
 }
 
@@ -730,17 +737,17 @@ void VertexMorphingMapper::FilterFunctionProduct::computeFunctionProducts(Abstra
         bool inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(elem, planeToProject,
                                                                       gaussPoint, shapeFuncValues);
 
-        // debug
-        if (!inside){
-            cout<<"Error in computing local coordinates in tria master element"<<endl;
-            cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-            cout<<"Element nodes:"<<endl;
-            for(int ctr=0;ctr<numNodes;ctr++){
-                cout<<ctr+1<<": "<<elem[ctr*dim]<<"\t"<<elem[ctr*dim+1]<<"\t"<<elem[ctr*dim+2]<<endl;
-            }
-        }
-        // debug end
-        assert(inside);
+//        // debug
+//        if (!inside){
+//            cout<<"Error in computing local coordinates in tria master element"<<endl;
+//            cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+//            cout<<"Element nodes:"<<endl;
+//            for(int ctr=0;ctr<numNodes;ctr++){
+//                cout<<ctr+1<<": "<<elem[ctr*dim]<<"\t"<<elem[ctr*dim+1]<<"\t"<<elem[ctr*dim+2]<<endl;
+//            }
+//        }
+//        // debug end
+//        assert(inside);
 
         // *. compute shape function products (on the Gauss point)
         for (int iNode = 0; iNode < numNodes; iNode++)
