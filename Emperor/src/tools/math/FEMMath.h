@@ -177,11 +177,24 @@ public:
     virtual double operator()(double *gaussPoint) = 0;
 };
 
+// Base class
+class FEMGaussQuadrature {
+public:
+    FEMGaussQuadrature() {}
+    virtual ~FEMGaussQuadrature() {}
+    virtual void setIntegrandFunc(IntegrandFunction *_integrandFunc) = 0;
+    virtual double computeIntegral() = 0;
+    virtual double getWeight(int _iGP) = 0;
+    virtual double getDetJ(int _iGP) = 0;
+    virtual int getNumGaussPoints() = 0;
+    virtual double* getGaussPointsGlobal() = 0;
+};
+
 /********//**
  * \brief Class GaussQuadratureOnTriangle performs Gauss quadrature on triangle
  * \author Tianyang Wang
  ***********/
-class GaussQuadratureOnTriangle {
+class GaussQuadratureOnTriangle: public FEMGaussQuadrature {
 public:
     /***********************************************************************************************
      * \brief constructor of the class GaussQuadratureOnTriangle
@@ -215,24 +228,26 @@ public:
      * \author Altug Emiroglu
      ***********/
     double getWeight(int _iGP) {return weights[_iGP];}
+    double getDetJ(int _iGP) {return area;}
+    int getNumGaussPoints() {return numGaussPoints;}
+    double* getGaussPointsGlobal() {return gaussPointsGlobal;}
 
     const int numGaussPoints;
     double *gaussPointsGlobal;
-    double area;
 
 private:
     const double *triangle;
     const double *gaussPointsLocal;
     const double *weights;
     IntegrandFunction *integrandFunc;
-//    double area;
+    double area;
 };
 
 /********//**
  * \brief Class GaussQuadratureOnQuad performs Gauss quadrature on quad
  * \author Tianyang Wang
  ***********/
-class GaussQuadratureOnQuad {
+class GaussQuadratureOnQuad: public FEMGaussQuadrature {
 public:
     /***********************************************************************************************
      * \brief constructor of the class GaussQuadratureOnQuad
@@ -266,6 +281,9 @@ public:
      * \author Altug Emiroglu
      ***********/
     double getWeight(int _iGP) {return weights[_iGP];}
+    double getDetJ(int _iGP) {return detJ[_iGP];}
+    int getNumGaussPoints() {return numGaussPoints;}
+    double* getGaussPointsGlobal() {return gaussPointsGlobal;}
 
     const int numGaussPoints;
     double *gaussPointsGlobal;

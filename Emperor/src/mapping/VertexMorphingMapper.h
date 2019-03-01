@@ -49,6 +49,55 @@ class FEMesh;
  * ***********/
 class VertexMorphingMapper : public AbstractMapper {
 private:
+    
+    /**
+     * \brief Class Polygon 
+     *        given a set of counter clockwise ordered points of a polygon
+     * 	      make a triangulation always starting from the first point
+     **/
+    class Polygon {
+    private:
+	
+	/// Tolerance for adding new points to the polygon
+	static double EPS_PolygonPoint;
+	
+    public:
+      
+	/// Counter-clockwise ordered polygon points
+        std::vector<double*> points;
+	
+	/// Generated triangles from the given polygon
+        std::vector<double*> triangles;
+
+	/***********************************************************************************************
+         * \brief Constructor
+         * \author Altug Emiroglu
+         ***********/
+        Polygon(){}
+        /***********************************************************************************************
+         * \brief Destructor
+         * \author Altug Emiroglu
+         ***********/
+        virtual ~Polygon();
+	/***********************************************************************************************
+         * \brief addPoint Adds the given point by copy
+         * \param[in] _point The point to be added to the polygon
+         * \author Altug Emiroglu
+         ***********/
+        void addPoint(double* _point);
+	/***********************************************************************************************
+         * \brief triangulate Triangulates the formed polygon.
+	 *        Each triangle starts from the first point
+         * \author Altug Emiroglu
+         ***********/
+        void triangulate();
+	/***********************************************************************************************
+         * \brief printPolygon Prints the polygon on the terminal
+         * \author Altug Emiroglu
+         ***********/
+        void printPolygon();
+        
+    };
 
     /**
      * \brief Class AbstractFilterFunction for the derived filter functions.
@@ -154,6 +203,8 @@ private:
 
         /// control node global coordinates
         double* controlNode;
+        /// number of nodes
+        int numNodes;
         /// element nodes
         double* elem;
         /// number of Gauss points
@@ -173,7 +224,7 @@ private:
          * \param[in] _controlNode The control node global cartesian coordinates
          * \author Altug Emiroglu
          ***********/
-        FilterFunctionProduct(double* _elem, double* _controlNode);
+        FilterFunctionProduct(int _numNodes, double* _elem, double* _controlNode);
         /***********************************************************************************************
          * \brief Destructor
          * \author Altug Emiroglu
@@ -188,7 +239,7 @@ private:
         /***********************************************************************************************
          * \brief set all Gauss points
          * \param[in] _gaussPoints x,y,z coordinates of all Gauss points
-         * \param[in] _numGaussPoints x,y,z coordinates of all Gauss points
+         * \param[in] _numGaussPoints number of Gauss points
          * \author Altug Emiroglu
          ***********/
         void setGaussPoints(const double* _gaussPoints, int _numGaussPoints);
@@ -227,22 +278,49 @@ private:
     bool mortar;
 
     /// nearest neighbors searching tree of FLAN libraray
-    flann::Index<flann::L2<double> > *FLANNkd_tree;
+    flann::Index<flann::L2<double> > *FLANNkd_slaveTree;
+    flann::Index<flann::L2<double> > *FLANNkd_masterTree;
     /// nodes constructing the searching tree
     flann::Matrix<double> *FLANNSlaveNodes;
+    flann::Matrix<double> *FLANNMasterNodes;
 
     /// nearest neighbors searching tree of ANN libraray
     ANNkd_tree *slaveNodesTree;
+    ANNkd_tree *masterNodesTree;
     /// nodes constructing the searching tree
-    double **ANNNodes;
+    double **ANNSlaveNodes;
+    double **ANNMasterNodes;
 
     /// directElemTable means the entries is not the node number, but the position in nodeCoors
     std::vector<int> **masterDirectElemTable;
     std::vector<int> **slaveDirectElemTable;
 
-    /// given a node, all the elements containing it are got
+    /// given a node, all the elements containing it are listed
     std::vector<int> **masterNodeToElemTable;
     std::vector<int> **slaveNodeToElemTable;
+
+    // given a slave element, all the master nodes that effect this element are listed
+    // used for C_BA
+    std::vector<int>* slaveElemInfMasterNodeTable;
+    // given a slave element, all the master nodes that effect this element are listed 
+    // wrt their influence type (full/partial)
+    // used for C_BA
+    std::vector<bool>* slaveElemInfMasterNodeInsideTable;
+
+    // given a master element, all the master nodes that effect this element are listed
+    // used for C_BB
+    std::vector<int>* masterElemInfMasterNodeTable;
+    // given a master element, all the master nodes that effect this element are listed 
+    // wrt their influence type (full/partial)
+    // used for C_BB
+    std::vector<bool>* masterElemInfMasterNodeInsideTable;
+
+    // The value of the default integration of the filter function (used for adjusting the filter function)
+    double* masterFilterFunctionIntegrationOnSlave;
+
+    // Maps of integration polygons and integration triangles
+    std::map<int, std::vector<std::vector<double*> > > integrationPolygons;
+    std::map<int, std::vector<std::vector<double*> > > integrationTriangles;
 
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BB;
@@ -267,9 +345,13 @@ private:
     int nrhs;
 
     /// number of Gauss points used for computing shape function (tri) products on a clip
-    static const int numGPsOnTri;
+    int numGPsOnTri;
+    /// number of Gauss points used for computing shape function (quad) products
+    int numGPsOnQuad;
     /// number of Gauss points used for computing triangle element mass matrix
-    static const int numGPsMassMatrixTri;
+    int numGPsMassMatrixTri;
+    /// number of Gauss points used for computing quadrilateral element mass matrix
+    int numGPsMassMatrixQuad;
 
     friend class TestVertexMorphingMapper;
 
@@ -324,59 +406,77 @@ private:
      ***********/
     void deleteTables();
     /***********************************************************************************************
-     * \brief Initialize the ANN nearest neighbor searching tree
+     * \brief Initialize the ANN nearest neighbor searching trees
      * \author Altug Emiroglu
      ***********/
     void initANNTree();
     /***********************************************************************************************
-     * \brief Deallocate the memory of the searching tree
+     * \brief Deallocate the memory of the searching trees
      * \author Altug Emiroglu
      ***********/
     void deleteANNTree();
     /***********************************************************************************************
-     * \brief Find the overlapping candidates of the master element with the searching radius.
-     * \param[in] _controlNode the control field node
-     * \param[out] _infNodeIdxs the influenced node indices
-     * \param[out] _infElemIdxs the influenced element indices
+     * \brief Find the influenced slave elements by the master node (C_BA)
+     * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void findCandidates(double* _controlNode, std::set<int>* _infNodeIdxs, std::set<int>* _infElemIdxs);
+    void findSlaveElemInfluencingNodes(int _masterNodeIdx);
+    /***********************************************************************************************
+     * \brief Find the influenced master elements by the master node  (C_BB)
+     * \param[in] _masterNodeIdx the master node index
+     * \author Altug Emiroglu
+     ***********/
+    void findMasterElemInfluencingNodes(int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a full element
-     * \param[in] _controlNode the control field node
-     * \param[in] _elemIdx the influenced element index
-     * \param[out] _contributions the result of the integration
-     * \author Altug Emiroglu
-     ***********/
-    void doFullIntegration(double* _controlNode, int _elemIdx, double* _contributions, double& _intFilter);
-    /***********************************************************************************************
-     * \brief Performs integration of the filter and the shape function product on a clipped element
-     * \param[in] _controlNode the control field node
-     * \param[in] _elemIdx the influenced element index
-     * \param[in] _elemNodeInside the list of if the nodes are inside the filter radius
-     * \param[out] _contributions the result of the integration
-     * \author Altug Emiroglu
-     ***********/
-    void doPartialIntegration(double* _controlNode, int _elemIdx, std::vector<bool>* _elemNodeInside, double* _contributions, double& _intFilter);
-    /***********************************************************************************************
-     * \brief Assembles the contributions to C_BA
-     * \param[in] _controlNodeIdx the control field node index
-     * \param[in] _elemIdx the influenced element index
+     * \param[in] _masterNodeIdx the master node index
+     * \param[in] _slaveElemIdx the influenced slave element index
+     * \param[in] _slaveElem the global Cartesian coordinates of the slave element nodes
+     * \param[in] _gaussQuadrature The Gauss quadrature rule to use for the integration
      * \param[in] _contributions the result of the integration
      * \author Altug Emiroglu
      ***********/
-    void assemble_C_BA(int _controlNodeIdx, double* _contributions, double intFilter);
+    void doFullIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem, EMPIRE::MathLibrary::FEMGaussQuadrature* _gaussQuadrature);
+    /***********************************************************************************************
+     * \brief Performs integration of the filter and the shape function product on a clipped element
+     * \param[in] _masterNodeIdx 
+     * \param[in] _slaveElemIdx the influenced slave element index
+     * \param[in] _slaveElem the global Cartesian coordinates of the slave element nodes
+     * \author Altug Emiroglu
+     ***********/
+    void doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem);
+    /***********************************************************************************************
+     * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
+     * \author Altug Emiroglu
+     ***********/
+    void adjustFilterFunctions();
+    /***********************************************************************************************
+     * \brief Finds clipping between P0 and Pn
+     * \param[in] _masterNodeIdx the master node index
+     * \param[in] P0 global cartesian coordinates of the first point in line
+     * \param[in] Pn global cartesian coordinates of the second point in line
+     * \param[in/out] _xsi line parameter
+     * \return if the parameter is in acceptable range -EPS_XSI < xsi < 1+EPS_XSI
+     * \author Altug Emiroglu
+     ***********/
+    bool findClipping(int _masterNodeIdx, double* _P0, double* _Pn, std::vector<double>& _xsi);
     /***********************************************************************************************
      * \brief Clamps line parameter xsi to the limits 0 <= xsi <= 1
      * \param[in/out] _xsi line parameter
+     * \return if the parameter is in acceptable range -EPS_XSI < xsi < 1+EPS_XSI
      * \author Altug Emiroglu
      ***********/
-    void clampXsi(double &_xsi);
+    bool clampXsi(double &_xsi);
+    /***********************************************************************************************
+     * \brief Writes the polygons related to the master nodes
+     * \author Altug Emiroglu
+     ***********/
+    void writeCartesianPolygons(std::string _fileName, std::map<int, std::vector<std::vector<double*> > >& _polygons);
 
 
 private:
 
-    /// Tolerance for cleaning a triangle before integrating
+    /// Tolerance for clamping xsi to the bounds [0,1]
     static double EPS_XSI;
 
 };

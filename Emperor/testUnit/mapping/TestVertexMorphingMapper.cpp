@@ -79,7 +79,7 @@ public:
         int numNodesPerElem = 3;
         int numNodesA = 9;
         int numElemsA = 8;
-        meshA = new FEMesh("", numNodesA, numElemsA, true);
+        meshA = new FEMesh("", numNodesA, numElemsA, false);
         for (int i = 0; i < numElemsA; i++)
             meshA->numNodesPerElem[i] = numNodesPerElem;
         meshA->initElems();
@@ -157,7 +157,7 @@ public:
 	
         int numNodesB = 9;
         int numElemsB = 8;
-        meshB = new FEMesh("", numNodesB, numElemsB, true);
+        meshB = new FEMesh("", numNodesB, numElemsB, false);
         for (int i = 0; i < numElemsB; i++)
             meshB->numNodesPerElem[i] = numNodesPerElem;
         meshB->initElems();
@@ -234,7 +234,7 @@ public:
 	meshB->elems[23] = 3;
 	
 	EMPIRE_VMM_FilterType filterType = EMPIRE_VMM_GaussianFilter;
-	double filterRadius = 0.51;
+	double filterRadius = 0.5;
 	bool mortar = false;
 	
 	MapperAdapter *mapper = new MapperAdapter("testVM", meshA, meshB);
@@ -244,16 +244,17 @@ public:
                 EMPIRE_DataField_field);
         b1 = new DataField("b1", EMPIRE_DataField_atNode, meshB->numNodes, EMPIRE_DataField_scalar,
                 EMPIRE_DataField_field);
-//         for (int i = 0; i < meshA->numNodes; i++)
-//             a1->data[i] = 1.0;
+        for (int i = 0; i < meshA->numNodes; i++)
+            a1->data[i] = 1.0;
 	
-	a1->data[3]=1.0;
+// 	a1->data[3]=1.0;
 
 	
 	AbstractFilter *filterConsistent = new MappingFilter(mapper);
         ConnectionIOSetup::setupIOForFilter(filterConsistent, meshA, a1, meshB, b1);
         filterConsistent->filtering();	
 	
+// 	cout << "Results" << endl;
 // 	for (int i = 0; i < meshB->numNodes; i++)
 // 	  cout << b1->data[i] << endl;
 	
@@ -263,6 +264,9 @@ public:
 	delete a1;
 	delete b1;
 	delete filterConsistent;
+	
+// 	exit(0);
+
       
     }
     
@@ -290,7 +294,7 @@ public:
         int numNodesPerElem = 4;
         int numNodesA = 9;
         int numElemsA = 4;
-        meshA = new FEMesh("", numNodesA, numElemsA, true);
+        meshA = new FEMesh("", numNodesA, numElemsA, false);
         for (int i = 0; i < numElemsA; i++)
             meshA->numNodesPerElem[i] = numNodesPerElem;
         meshA->initElems();
@@ -356,7 +360,7 @@ public:
 	
         int numNodesB = 9;
         int numElemsB = 4;
-        meshB = new FEMesh("", numNodesB, numElemsB, true);
+        meshB = new FEMesh("", numNodesB, numElemsB, false);
         for (int i = 0; i < numElemsB; i++)
             meshB->numNodesPerElem[i] = numNodesPerElem;
         meshB->initElems();
@@ -420,7 +424,7 @@ public:
 	meshB->elems[14] = 9;
 	meshB->elems[15] = 8;
 	
-	EMPIRE_VMM_FilterType filterType = EMPIRE_VMM_GaussianFilter;
+	EMPIRE_VMM_FilterType filterType = EMPIRE_VMM_HatFilter;
 	double filterRadius = 0.51;
 	bool mortar = false;
 	
@@ -431,10 +435,10 @@ public:
                 EMPIRE_DataField_field);
         b1 = new DataField("b1", EMPIRE_DataField_atNode, meshB->numNodes, EMPIRE_DataField_scalar,
                 EMPIRE_DataField_field);
-// 	for (int i = 0; i < meshA->numNodes; i++)
-// 	  a1->data[i] = 1.0;
+	for (int i = 0; i < meshA->numNodes; i++)
+	  a1->data[i] = 1.0;
 	
-	a1->data[3]=1.0;
+// 	a1->data[3]=1.0;
 	
 	AbstractFilter *filterConsistent = new MappingFilter(mapper);
         ConnectionIOSetup::setupIOForFilter(filterConsistent, meshA, a1, meshB, b1);
@@ -442,6 +446,8 @@ public:
 	
 // 	for (int i = 0; i < meshB->numNodes; i++)
 // 	  cout << b1->data[i] << endl;
+	
+// 	exit(0);
 	
         delete mapper;
         delete meshA;
