@@ -243,7 +243,7 @@ void VertexMorphingMapper::initTables() {
     }
 
     { // 4. compute masterNodeToElemTable
-        masterNodeToElemTable = new vector<int>*[meshA->numNodes];
+        masterNodeToElemTable = new vector<int>*[meshB->numNodes];
         for (int i = 0; i < meshB->numNodes; i++)
             masterNodeToElemTable[i] = new vector<int>;
         for (int i = 0; i < meshB->numElems; i++) {
@@ -258,7 +258,7 @@ void VertexMorphingMapper::initTables() {
     slaveElemInfMasterNodeTable = new vector<int>[meshA->numElems];
     slaveElemInfMasterNodeInsideTable = new std::vector<bool>[meshA->numElems];
     for (int iNode = 0; iNode < meshA->numNodes; iNode++)
-        findSlaveElemInfluencingNodes(iNode);
+        findSlaveElemInfluencingMasterNodes(iNode);
     
     masterFilterFunctionIntegrationOnSlave = new double[meshB->numNodes];
     for (int iNode = 0; iNode < meshB->numNodes; iNode++)
@@ -301,7 +301,7 @@ void VertexMorphingMapper::initANNTree() {
 #endif
 }
 
-void VertexMorphingMapper::findSlaveElemInfluencingNodes(int _masterNodeIdx)
+void VertexMorphingMapper::findSlaveElemInfluencingMasterNodes(int _masterNodeIdx)
 {
     // Use fixed radius search on end points of the element,
     // all elements containing these points are the overlapped candidates

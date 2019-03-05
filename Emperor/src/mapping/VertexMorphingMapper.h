@@ -420,7 +420,7 @@ private:
      * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void findSlaveElemInfluencingNodes(int _masterNodeIdx);
+    void findSlaveElemInfluencingMasterNodes(int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Find the influenced master elements by the master node  (C_BB)
      * \param[in] _masterNodeIdx the master node index
