@@ -69,20 +69,20 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     bool isMeshAFEM = (_meshA->type == EMPIRE_Mesh_FEMesh || _meshA->type == EMPIRE_Mesh_copyFEMesh);
     bool isMeshBFEM = (_meshB->type == EMPIRE_Mesh_FEMesh || _meshB->type == EMPIRE_Mesh_copyFEMesh);
 
-   if (isMeshAFEM && isMeshBFEM){
-       if (dynamic_cast<FEMesh *>(_meshA)->triangulate() == NULL){
-           meshA = dynamic_cast<FEMesh *>(_meshA);
-       }
-       else
-           meshA = dynamic_cast<FEMesh *>(_meshA)->triangulate();
+    if (isMeshAFEM && isMeshBFEM){
+        if (dynamic_cast<FEMesh *>(_meshA)->triangulate() == NULL){
+            meshA = dynamic_cast<FEMesh *>(_meshA);
+        }
+        else
+            meshA = dynamic_cast<FEMesh *>(_meshA)->triangulate();
 
-       if (dynamic_cast<FEMesh *>(_meshB)->triangulate() == NULL){
-           meshB = dynamic_cast<FEMesh *>(_meshB);
-       }
-       else
-           meshB = dynamic_cast<FEMesh *>(_meshB)->triangulate();
-   } else
-       ERROR_BLOCK_OUT("VertexMorphingMapper","VertexMorphingMapper","Wrong type of mesh!");
+        if (dynamic_cast<FEMesh *>(_meshB)->triangulate() == NULL){
+            meshB = dynamic_cast<FEMesh *>(_meshB);
+        }
+        else
+            meshB = dynamic_cast<FEMesh *>(_meshB)->triangulate();
+    } else
+        ERROR_BLOCK_OUT("VertexMorphingMapper","VertexMorphingMapper","Wrong type of mesh!");
 
     // Assign the mapper type
     mapperType = EMPIRE_VertexMorphingMapper;
@@ -148,18 +148,18 @@ void VertexMorphingMapper::deleteTables() {
     delete[] masterNodeToElemTable;
     
     for (int i = 0; i < meshA->numElems; i++)
-      slaveElemInfMasterNodeTable[i].clear();
+        slaveElemInfMasterNodeTable[i].clear();
     delete[] slaveElemInfMasterNodeTable;
     
     for (int i = 0; i < meshA->numElems; i++)
-      slaveElemInfMasterNodeInsideTable[i].clear();
+        slaveElemInfMasterNodeInsideTable[i].clear();
     delete[] slaveElemInfMasterNodeInsideTable;
     
     delete[] masterFilterFunctionIntegrationOnSlave;
-    if (mortar) {    
-      for (int i = 0; i < meshB->numElems; i++)
-	masterElemInfMasterNodeTable[i].clear();
-      delete[] masterElemInfMasterNodeTable;
+    if (mortar) {
+        for (int i = 0; i < meshB->numElems; i++)
+            masterElemInfMasterNodeTable[i].clear();
+        delete[] masterElemInfMasterNodeTable;
     }
 
 }
@@ -199,7 +199,7 @@ void VertexMorphingMapper::initTables() {
             const int numNodesSlaveElem = meshA->numNodesPerElem[i];
             for (int j = 0; j < numNodesSlaveElem; j++) {
                 if(slaveNodesMap->find(meshA->elems[count + j])== slaveNodesMap->end()){
-                ERROR_OUT()<< "Slave Node Label " << meshA->elems[count + j] << " is not part of slaveNodesMap." << endl;
+                    ERROR_OUT()<< "Slave Node Label " << meshA->elems[count + j] << " is not part of slaveNodesMap." << endl;
                 }
                 slaveDirectElemTable[i]->push_back(slaveNodesMap->at(meshA->elems[count + j]));
             }
@@ -220,7 +220,7 @@ void VertexMorphingMapper::initTables() {
             const int numNodesMasterElem = meshB->numNodesPerElem[i];
             for (int j = 0; j < numNodesMasterElem; j++) {
                 if(masterNodesMap->find(meshB->elems[count + j])== masterNodesMap->end() ){
-                ERROR_OUT()<< "Master Node Label " << meshB->elems[count + j] << " is not part of masterNodesMap." << endl;
+                    ERROR_OUT()<< "Master Node Label " << meshB->elems[count + j] << " is not part of masterNodesMap." << endl;
                 }
                 masterDirectElemTable[i]->push_back(masterNodesMap->at(meshB->elems[count + j]));
             }
@@ -262,7 +262,7 @@ void VertexMorphingMapper::initTables() {
     
     masterFilterFunctionIntegrationOnSlave = new double[meshB->numNodes];
     for (int iNode = 0; iNode < meshB->numNodes; iNode++)
-	masterFilterFunctionIntegrationOnSlave[iNode] = 0.0;
+        masterFilterFunctionIntegrationOnSlave[iNode] = 0.0;
 
     if (mortar){
         masterElemInfMasterNodeTable = new vector<int>[meshB->numElems];
@@ -346,12 +346,12 @@ void VertexMorphingMapper::findSlaveElemInfluencingNodes(int _masterNodeIdx)
             // Add the control node to the influencing nodes of the slave element
             if (find(slaveElemInfMasterNodeTable[*itElem].begin(), slaveElemInfMasterNodeTable[*itElem].end(), _masterNodeIdx) ==  slaveElemInfMasterNodeTable[*itElem].end()) {
                 slaveElemInfMasterNodeTable[*itElem].push_back(_masterNodeIdx);
-		
+
                 // Loop over the influenced nodes to see if all of this elements' nodes are influenced
                 bool isInside = true;
                 for (vector<int>::iterator itElemNode = slaveDirectElemTable[*itElem]->begin(); itElemNode != slaveDirectElemTable[*itElem]->end(); itElemNode++)
                     isInside = (isInside && find(indices_tmp[0].begin(), indices_tmp[0].end(), *itElemNode) != indices_tmp[0].end());
-		    
+
                 // Add the inside/outside info
                 slaveElemInfMasterNodeInsideTable[*itElem].push_back(isInside);
             }
@@ -362,8 +362,8 @@ void VertexMorphingMapper::findSlaveElemInfluencingNodes(int _masterNodeIdx)
 
 void VertexMorphingMapper::findMasterElemInfluencingNodes(int _masterNodeIdx)
 {
-  cout << "This function needs to be fixed: findMasterElemInfluencingNodes" << endl;
-  exit(0);
+    cout << "This function needs to be fixed: findMasterElemInfluencingNodes" << endl;
+    exit(0);
     // Use fixed radius search on end points of the element,
     // all elements containing these points are the overlapped candidates
     // 1. find all the influenced elements
@@ -421,13 +421,7 @@ void VertexMorphingMapper::findMasterElemInfluencingNodes(int _masterNodeIdx)
 
 void VertexMorphingMapper::buildCouplingMatrices(){
 
-    // Loop over nodes to find influenced nodes and elements
-    const int masterNumNodes = meshB->numNodes;
-    const int slaveNumNodes = meshA->numNodes;
-
     int dim = 3;
-    int numNodesTria = 3;
-    int numNodesQuad = 4;
     
     // Build C_BA
     // Loop over the slave elements
@@ -440,42 +434,33 @@ void VertexMorphingMapper::buildCouplingMatrices(){
                 elem[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
         }
 
-        // Create a Gauss rule for the full elements
-        EMPIRE::MathLibrary::FEMGaussQuadrature* gaussQuadratureFull;
-        if (meshA->numNodesPerElem[iElem] == numNodesTria)
-            gaussQuadratureFull = new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(elem, numGPsOnTri);
-        else if (meshA->numNodesPerElem[iElem] == numNodesQuad)
-            gaussQuadratureFull = new EMPIRE::MathLibrary::GaussQuadratureOnQuad(elem, numGPsOnQuad);
-        else assert(false); // shouldnt come here
-
         // Loop over the influencing nodes of the slave element
         int numElemMasterNodes = slaveElemInfMasterNodeTable[iElem].size();
         assert(slaveElemInfMasterNodeTable[iElem].size() == slaveElemInfMasterNodeInsideTable[iElem].size());
         for (int iElemInfNode = 0; iElemInfNode < numElemMasterNodes; iElemInfNode++){
             int infNodeIdx = slaveElemInfMasterNodeTable[iElem].at(iElemInfNode);
             bool isInside = slaveElemInfMasterNodeInsideTable[iElem].at(iElemInfNode);
-	    
+
             if (isInside) {
                 // Integrate the full element for C_BA
-                doFullIntegration(infNodeIdx, iElem, elem, gaussQuadratureFull);
+                doFullIntegration(infNodeIdx, iElem);
             } else {
                 // Integrate by clipping the element for C_BA
-                doClippedIntegration(infNodeIdx, iElem, elem);
+                doClippedIntegration(infNodeIdx, iElem);
             }
         }
-        delete gaussQuadratureFull;
     }
     
     // Build C_BB if necessary
     if (mortar){
         ERROR_BLOCK_OUT("VertexMorphingMapper", "buildCouplingMatrices", "Integration of C_BB is not implemented yet!");
-	assert(false);
+        assert(false);
     }
     
     // Adjust the filter function values
     adjustFilterFunctions();
     
-//     writeCartesianPolygons("triaCase", integrationPolygons);
+    //     writeCartesianPolygons("triaCase", integrationPolygons);
 
     // Delete unnecessary variables
     deleteANNTree();
@@ -483,45 +468,67 @@ void VertexMorphingMapper::buildCouplingMatrices(){
     
 }
 
-void VertexMorphingMapper::doFullIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem, EMPIRE::MathLibrary::FEMGaussQuadrature* _gaussQuadrature){
+void VertexMorphingMapper::doFullIntegration(int _masterNodeIdx, int _slaveElemIdx){
 
     int dim = 3;
+    int numNodesTria = 3;
+    int numNodesQuad = 4;
 
-    if (meshA->numNodesPerElem[_slaveElemIdx] == 3)
-        _gaussQuadrature = dynamic_cast<EMPIRE::MathLibrary::GaussQuadratureOnTriangle*>(_gaussQuadrature);
-    else if (meshA->numNodesPerElem[_slaveElemIdx] == 4)
-        _gaussQuadrature = dynamic_cast<EMPIRE::MathLibrary::GaussQuadratureOnQuad*>(_gaussQuadrature);
-    else assert(false);
+    // Get the element to be integrated
+    double slaveElem[meshA->numNodesPerElem[_slaveElemIdx]*dim];
+    for (int iNode = 0; iNode<meshA->numNodesPerElem[_slaveElemIdx]; iNode++){
+        int nodeIdx = slaveDirectElemTable[_slaveElemIdx]->at(iNode);
+        for (int iXYZ = 0; iXYZ<dim; iXYZ++)
+            slaveElem[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
+    }
+
+    // Create a Gauss rule
+    EMPIRE::MathLibrary::FEMGaussQuadrature* gaussQuadrature;
+    if (meshA->numNodesPerElem[_slaveElemIdx] == numNodesTria)
+        gaussQuadrature = new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(slaveElem, numGPsOnTri);
+    else if (meshA->numNodesPerElem[_slaveElemIdx] == numNodesQuad)
+        gaussQuadrature = new EMPIRE::MathLibrary::GaussQuadratureOnQuad(slaveElem, numGPsOnQuad);
+    else assert(false); // shouldnt come here
+
 
     // Compute the integration of the filter function
     // It is done this way instead of doing it on the matrix directly because it is a very expensive operation on the matrix
-    for (int iGP = 0; iGP < _gaussQuadrature->getNumGaussPoints(); iGP++) {
-        masterFilterFunctionIntegrationOnSlave[_masterNodeIdx] += _gaussQuadrature->getWeight(iGP)
-                * filterFunction->computeFunction(&meshB->nodes[_masterNodeIdx*dim], &_gaussQuadrature->getGaussPointsGlobal()[iGP*dim])
-                * _gaussQuadrature->getDetJ(iGP);
+    for (int iGP = 0; iGP < gaussQuadrature->getNumGaussPoints(); iGP++) {
+        masterFilterFunctionIntegrationOnSlave[_masterNodeIdx] += gaussQuadrature->getWeight(iGP)
+                * filterFunction->computeFunction(&meshB->nodes[_masterNodeIdx*dim], &gaussQuadrature->getGaussPointsGlobal()[iGP*dim])
+                * gaussQuadrature->getDetJ(iGP);
     }
 
     // Create the integrand on the triangle
-    FilterFunctionProduct* integrand = new FilterFunctionProduct(meshA->numNodesPerElem[_slaveElemIdx], _slaveElem, &meshB->nodes[_masterNodeIdx*dim]);
+    FilterFunctionProduct* integrand = new FilterFunctionProduct(meshA->numNodesPerElem[_slaveElemIdx], slaveElem, &meshB->nodes[_masterNodeIdx*dim]);
 
-    integrand->setGaussPoints(_gaussQuadrature->getGaussPointsGlobal(), _gaussQuadrature->getNumGaussPoints());
+    integrand->setGaussPoints(gaussQuadrature->getGaussPointsGlobal(), gaussQuadrature->getNumGaussPoints());
     integrand->computeFunctionProducts(filterFunction);
 
     for (int iNode = 0; iNode < meshA->numNodesPerElem[_slaveElemIdx]; iNode++) {
-        _gaussQuadrature->setIntegrandFunc(integrand);
+        gaussQuadrature->setIntegrandFunc(integrand);
         integrand->setFunctionID(iNode);
-        (*C_BA)(_masterNodeIdx,slaveDirectElemTable[_slaveElemIdx]->at(iNode)) += _gaussQuadrature->computeIntegral();
+        (*C_BA)(_masterNodeIdx,slaveDirectElemTable[_slaveElemIdx]->at(iNode)) += gaussQuadrature->computeIntegral();
     }
 
     delete integrand;
+    delete gaussQuadrature;
 
 }
 
-void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem)
+void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx)
 {
 
     int dim = 3;
     int numNodes = meshA->numNodesPerElem[_slaveElemIdx];
+
+    // Get the element to be integrated
+    double slaveElem[meshA->numNodesPerElem[_slaveElemIdx]*dim];
+    for (int iNode = 0; iNode<meshA->numNodesPerElem[_slaveElemIdx]; iNode++){
+        int nodeIdx = slaveDirectElemTable[_slaveElemIdx]->at(iNode);
+        for (int iXYZ = 0; iXYZ<dim; iXYZ++)
+            slaveElem[iNode*dim+iXYZ] = meshA->nodes[nodeIdx*dim+iXYZ];
+    }
 
     // Count the influenced nodes by the master node
     std::vector<int> inNodes;
@@ -531,7 +538,7 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
 
     // Find the inside and outside nodes of this element
     for(std::vector<int>::iterator iNode = slaveDirectElemTable[_slaveElemIdx]->begin(); iNode != slaveDirectElemTable[_slaveElemIdx]->end(); iNode++) {
-	double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(dim, &meshB->nodes[_masterNodeIdx*dim], &meshA->nodes[(*iNode)*dim]);
+        double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(dim, &meshB->nodes[_masterNodeIdx*dim], &meshA->nodes[(*iNode)*dim]);
         nodePos++;
         if (dist < filterRadius){
             inNodesPos.push_back(nodePos);
@@ -561,23 +568,23 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
     VertexMorphingMapper::Polygon intPolygon = VertexMorphingMapper::Polygon();
     // triaCase = 1: one node inside
     if (triaCase == 1){
-      
-	double* P0 = &_slaveElem[inNodesPos.at(0)*dim];  // inside point
-	double* P1 = &_slaveElem[outNodesPos.at(0)*dim]; // next point
-	double* P2 = &_slaveElem[outNodesPos.at(1)*dim]; // prev point
-	
+
+        double* P0 = &slaveElem[inNodesPos.at(0)*dim];  // inside point
+        double* P1 = &slaveElem[outNodesPos.at(0)*dim]; // next point
+        double* P2 = &slaveElem[outNodesPos.at(1)*dim]; // prev point
+
         // xsi01 and xsi02 must have only 1 clipping
         vector<double> xsi01;
         vector<double> xsi02;
         // xsi12 might have 1, 2 or no clippings
         vector<double> xsi12;
 
-	// Find clippings
+        // Find clippings
         findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
         findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
         findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
 
-	// Compute the global cartesian coordinates of the clipping points 
+        // Compute the global cartesian coordinates of the clipping points
         double P01[3];
         double P02[3];
         for (int iXYZ = 0; iXYZ < dim; iXYZ++){
@@ -596,8 +603,8 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
             intPolygon.addPoint(P01);
             double P12[3];
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
-                P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ]; 
-	    intPolygon.addPoint(P12);
+                P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
+            intPolygon.addPoint(P12);
             intPolygon.addPoint(P02);
         }
         // if it clips twice
@@ -618,18 +625,18 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
 
     } // triaCase = 2: two nodes inside
     else if(triaCase == 2) {
-      
-	double* P0 = &_slaveElem[outNodesPos.at(0)*dim];  // outside point
-	double* P1 = &_slaveElem[inNodesPos.at(0)*dim];   // next point
-	double* P2 = &_slaveElem[inNodesPos.at(1)*dim];   // prev point
-      
-	// Find clipping
+
+        double* P0 = &slaveElem[outNodesPos.at(0)*dim];  // outside point
+        double* P1 = &slaveElem[inNodesPos.at(0)*dim];   // next point
+        double* P2 = &slaveElem[inNodesPos.at(1)*dim];   // prev point
+
+        // Find clipping
         vector<double> xsi01;
         vector<double> xsi02;
         findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
         findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
 
-	// Compute the global Cartesian coordinates of the clippings
+        // Compute the global Cartesian coordinates of the clippings
         double P01[3];
         double P02[3];
         for (int iXYZ = 0; iXYZ < dim; iXYZ++){
@@ -645,106 +652,106 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
 
     } // quadCase = 1: one node inside
     else if (quadCase == 1){
-	
-	double* P0 = &_slaveElem[inNodesPos.at(0)*dim];
-      
-	// Add the inside node to the integration polygon
-	intPolygon.addPoint(P0);
-	// Loop over the outside nodes and find a clipping between inside node and outside node
-	for (int iOutNode = 1; iOutNode < numNodes; iOutNode++){
-	    double P0n[3];
-	    double* Pn = &_slaveElem[((inNodesPos.at(0)+iOutNode)%numNodes)*dim];
-	    vector<double> xsi0n;
-	    bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
-	    // Compute the global cartesian coordinates of the clipping location
-	    for (int iXYZ = 0; iXYZ < dim; iXYZ++)
-		P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
-	    // Add the point to the integration polygon
-	    intPolygon.addPoint(P0n);
-	}
+
+        double* P0 = &slaveElem[inNodesPos.at(0)*dim];
+
+        // Add the inside node to the integration polygon
+        intPolygon.addPoint(P0);
+        // Loop over the outside nodes and find a clipping between inside node and outside node
+        for (int iOutNode = 1; iOutNode < numNodes; iOutNode++){
+            double P0n[3];
+            double* Pn = &slaveElem[((inNodesPos.at(0)+iOutNode)%numNodes)*dim];
+            vector<double> xsi0n;
+            bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
+            // Compute the global cartesian coordinates of the clipping location
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
+            // Add the point to the integration polygon
+            intPolygon.addPoint(P0n);
+        }
     } // quadCase = 2: two adjacent nodes inside
     else if (quadCase == 2){
-      
-	// The nodes are always ordered in the counter-clockwise order
-	double* P0;
-	double* P1;
-	double* P2;
-	double* P3;
-	
-	// if first and the last nodes are inside
-	if (abs(inNodesPos.at(0) - inNodesPos.at(1)) == 3){
-	  P0 = &_slaveElem[inNodesPos.at(1)*dim];
-	  P1 = &_slaveElem[inNodesPos.at(0)*dim];
-	  P2 = &_slaveElem[((inNodesPos.at(0)+numNodes+1)%numNodes)*dim];
-	  P3 = &_slaveElem[((inNodesPos.at(1)+numNodes-1)%numNodes)*dim];
-	} // if two consecutive nodes are inside
-	else {
-	  P0 = &_slaveElem[inNodesPos.at(0)*dim];
-	  P1 = &_slaveElem[inNodesPos.at(1)*dim];
-	  P2 = &_slaveElem[((inNodesPos.at(1)+numNodes+1)%numNodes)*dim];
-	  P3 = &_slaveElem[((inNodesPos.at(0)+numNodes-1)%numNodes)*dim];
-	}
-	
-	// Find clipping
-	vector<double> xsi03;
+
+        // The nodes are always ordered in the counter-clockwise order
+        double* P0;
+        double* P1;
+        double* P2;
+        double* P3;
+
+        // if first and the last nodes are inside
+        if (abs(inNodesPos.at(0) - inNodesPos.at(1)) == 3){
+            P0 = &slaveElem[inNodesPos.at(1)*dim];
+            P1 = &slaveElem[inNodesPos.at(0)*dim];
+            P2 = &slaveElem[((inNodesPos.at(0)+numNodes+1)%numNodes)*dim];
+            P3 = &slaveElem[((inNodesPos.at(1)+numNodes-1)%numNodes)*dim];
+        } // if two consecutive nodes are inside
+        else {
+            P0 = &slaveElem[inNodesPos.at(0)*dim];
+            P1 = &slaveElem[inNodesPos.at(1)*dim];
+            P2 = &slaveElem[((inNodesPos.at(1)+numNodes+1)%numNodes)*dim];
+            P3 = &slaveElem[((inNodesPos.at(0)+numNodes-1)%numNodes)*dim];
+        }
+
+        // Find clipping
+        vector<double> xsi03;
         vector<double> xsi12;
-	bool isClipping03 = findClipping(_masterNodeIdx, P0, P3, xsi03);  // P03
-	bool isClipping12 = findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
-	
-	// Compute the global Cartesian coordinates of the clippings
-	double P03[3];
-	double P12[3];
-	for (int iXYZ = 0; iXYZ < dim; iXYZ++){
-	    P03[iXYZ] = (1.0-xsi03.at(0)) * P0[iXYZ] + xsi03.at(0) * P3[iXYZ];
-	    P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
-	}
-	
-	// Add the points to the polygon
-	intPolygon.addPoint(P0);
-	intPolygon.addPoint(P1);
-	intPolygon.addPoint(P12);
-	intPolygon.addPoint(P03);
-      
+        bool isClipping03 = findClipping(_masterNodeIdx, P0, P3, xsi03);  // P03
+        bool isClipping12 = findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
+
+        // Compute the global Cartesian coordinates of the clippings
+        double P03[3];
+        double P12[3];
+        for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+            P03[iXYZ] = (1.0-xsi03.at(0)) * P0[iXYZ] + xsi03.at(0) * P3[iXYZ];
+            P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
+        }
+
+        // Add the points to the polygon
+        intPolygon.addPoint(P0);
+        intPolygon.addPoint(P1);
+        intPolygon.addPoint(P12);
+        intPolygon.addPoint(P03);
+
     } // quadCase = 3: three nodes inside
     else if (quadCase == 3){
-	
-	// Add the inside nodes in counter-clockwise order wrt the outside node
-	for (int iInNode = 1; iInNode < 4; iInNode++){
-	  double* Pn = &_slaveElem[((outNodesPos.at(0)+iInNode)%numNodes)*dim];
-	  intPolygon.addPoint(Pn);
-	}
-	
-	// Loop over the inside nodes in clockwise order wrt the outside node and add the clippings
-	double* P0 = &_slaveElem[outNodesPos.at(0)*dim];
-	for (int iInNode = 3; iInNode > 0; iInNode--){
-	    // Find clipping
-	    vector<double> xsi0n;
-	    double* Pn = &_slaveElem[((outNodesPos.at(0)+iInNode)%numNodes)*dim];
-	    bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
-	    if (isClipping) {
-		// Compute the global Cartesian coordinates of the clipping
-		double P0n[3];
-		for (int iXYZ = 0; iXYZ < dim; iXYZ++)
-		    P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
-		// Add the point to the polygon
-		intPolygon.addPoint(P0n);
-	    }
-	}
-      
+
+        // Add the inside nodes in counter-clockwise order wrt the outside node
+        for (int iInNode = 1; iInNode < 4; iInNode++){
+            double* Pn = &slaveElem[((outNodesPos.at(0)+iInNode)%numNodes)*dim];
+            intPolygon.addPoint(Pn);
+        }
+
+        // Loop over the inside nodes in clockwise order wrt the outside node and add the clippings
+        double* P0 = &slaveElem[outNodesPos.at(0)*dim];
+        for (int iInNode = 3; iInNode > 0; iInNode--){
+            // Find clipping
+            vector<double> xsi0n;
+            double* Pn = &slaveElem[((outNodesPos.at(0)+iInNode)%numNodes)*dim];
+            bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
+            if (isClipping) {
+                // Compute the global Cartesian coordinates of the clipping
+                double P0n[3];
+                for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                    P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
+                // Add the point to the polygon
+                intPolygon.addPoint(P0n);
+            }
+        }
+
     } // quadCase = 4: two nodes accross each other inside
     else if (quadCase == 4){
-	WARNING_BLOCK_OUT("VertexMorphingMapper","doClippedIntegration", "quadCase == 4 is not implemented yet!");
-	return;
+        WARNING_BLOCK_OUT("VertexMorphingMapper","doClippedIntegration", "quadCase == 4 is not implemented yet!");
+        return;
     } // unknown case
     else {
-      ERROR_BLOCK_OUT("VertexMorphingMapper","doClippedIntegration", "Unknown case!");
-      cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
-      return;
+        ERROR_BLOCK_OUT("VertexMorphingMapper","doClippedIntegration", "Unknown case!");
+        cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
+        return;
     }
     
     // Triangulate the polygon
     if (quadCase != 4){
-      intPolygon.triangulate();
+        intPolygon.triangulate();
     }
     else return;
 
@@ -762,7 +769,7 @@ void VertexMorphingMapper::doClippedIntegration(int _masterNodeIdx, int _slaveEl
         }
 
         // Create the integrand on the unclipped element (This can be generated outside and passed in)
-        FilterFunctionProduct* integrand = new FilterFunctionProduct(meshA->numNodesPerElem[_slaveElemIdx], _slaveElem, &meshB->nodes[_masterNodeIdx*dim]);
+        FilterFunctionProduct* integrand = new FilterFunctionProduct(meshA->numNodesPerElem[_slaveElemIdx], slaveElem, &meshB->nodes[_masterNodeIdx*dim]);
 
         integrand->setGaussPoints(gaussQuadratureOnTria->gaussPointsGlobal, gaussQuadratureOnTria->numGaussPoints);
         integrand->computeFunctionProducts(filterFunction);
@@ -820,16 +827,16 @@ bool VertexMorphingMapper::findClipping(int _masterNodeIdx, double* _P0, double*
         
     } // if there is single root
     else if (discriminant == 0.0) {
-	xsi_pre = -b_xsi / (2.0*a_xsi);
-	if (clampXsi(xsi_pre)) {
+        xsi_pre = -b_xsi / (2.0*a_xsi);
+        if (clampXsi(xsi_pre)) {
             _xsi.push_back(xsi_pre);
         }
     }
 
     if (_xsi.size() > 0)
-      return true;
+        return true;
     else
-      return false;
+        return false;
 }
 
 bool VertexMorphingMapper::clampXsi(double& _xsi){
@@ -862,8 +869,8 @@ void VertexMorphingMapper::adjustFilterFunctions(){
 void VertexMorphingMapper::consistentMapping(const double *slaveField, double *masterField) {
     double *slaveFieldCopy = new double[meshA->numNodes];
 
-//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
-//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
+    //    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
+    //    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
 
     for (int i = 0; i < meshA->numNodes; i++)
         slaveFieldCopy[i] = slaveField[i];
@@ -907,7 +914,7 @@ VertexMorphingMapper::FilterFunctionProduct::FilterFunctionProduct(int _numNodes
     elem = new double[_numNodes*dim];
     for (int iNode = 0; iNode < numNodes; iNode++){
         for (int iXYZ = 0; iXYZ < dim; iXYZ++)
-           elem[iNode*dim + iXYZ] = _elem[iNode*dim + iXYZ];
+            elem[iNode*dim + iXYZ] = _elem[iNode*dim + iXYZ];
     }
 
     controlNode = new double[dim];
@@ -960,27 +967,27 @@ void VertexMorphingMapper::FilterFunctionProduct::computeFunctionProducts(Abstra
             EMPIRE::MathLibrary::computeNormalOfTriangle(elem, true, normal);
             int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
             inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(elem, planeToProject,
-                                                                      gaussPoint, shapeFuncValues);
+                                                                     gaussPoint, shapeFuncValues);
         } else if (numNodes == 4) {
-	    double localCoords[2];
+            double localCoords[2];
             EMPIRE::MathLibrary::computeNormalOfQuad(elem, true, normal);
             int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
             inside = EMPIRE::MathLibrary::computeLocalCoorInQuad(elem, planeToProject,
-                                                                      gaussPoint, localCoords);
-	    EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoords, shapeFuncValues);
+                                                                 gaussPoint, localCoords);
+            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoords, shapeFuncValues);
         } else assert(false);
 
-//        // debug
-//        if (!inside){
-//            cout<<"Error in computing local coordinates in tria master element"<<endl;
-//            cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
-//            cout<<"Element nodes:"<<endl;
-//            for(int ctr=0;ctr<numNodes;ctr++){
-//                cout<<ctr+1<<": "<<elem[ctr*dim]<<"\t"<<elem[ctr*dim+1]<<"\t"<<elem[ctr*dim+2]<<endl;
-//            }
-//        }
-//        // debug end
-//        assert(inside);
+        //        // debug
+        //        if (!inside){
+        //            cout<<"Error in computing local coordinates in tria master element"<<endl;
+        //            cout<<"GP coordinates: "<<gaussPoint[0]<<"\t"<<gaussPoint[1]<<"\t"<<gaussPoint[2]<<endl;
+        //            cout<<"Element nodes:"<<endl;
+        //            for(int ctr=0;ctr<numNodes;ctr++){
+        //                cout<<ctr+1<<": "<<elem[ctr*dim]<<"\t"<<elem[ctr*dim+1]<<"\t"<<elem[ctr*dim+2]<<endl;
+        //            }
+        //        }
+        //        // debug end
+        //        assert(inside);
 
         // *. compute shape function products (on the Gauss point)
         for (int iNode = 0; iNode < numNodes; iNode++)
@@ -1007,15 +1014,15 @@ void VertexMorphingMapper::FilterFunctionProduct::setFunctionID(int _funcID) {
 }
 
 VertexMorphingMapper::Polygon::~Polygon(){
-  
-  if (triangles.size() > 0)
-      for (vector<double*>::iterator itTriangle = triangles.begin(); itTriangle != triangles.end(); itTriangle++)
-	  delete *itTriangle;
-  
-  if (points.size() > 0)
-      for (vector<double*>::iterator itPoint = points.begin(); itPoint != points.end(); itPoint++)
-	  delete *itPoint;
-  
+
+    if (triangles.size() > 0)
+        for (vector<double*>::iterator itTriangle = triangles.begin(); itTriangle != triangles.end(); itTriangle++)
+            delete *itTriangle;
+
+    if (points.size() > 0)
+        for (vector<double*>::iterator itPoint = points.begin(); itPoint != points.end(); itPoint++)
+            delete *itPoint;
+
 }
 
 void VertexMorphingMapper::Polygon::addPoint(double* _point){
@@ -1023,22 +1030,22 @@ void VertexMorphingMapper::Polygon::addPoint(double* _point){
     int dim = 3;
     double* Padd = new double[dim];
     for (int iXYZ = 0; iXYZ < dim; iXYZ++)
-      Padd[iXYZ] = _point[iXYZ];
-      
+        Padd[iXYZ] = _point[iXYZ];
+
     if ( points.size() > 0 ){
-	double pointDist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, Padd, points.back());
-	if (pointDist > EPS_PolygonPoint)
-	    points.push_back(Padd);
+        double pointDist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, Padd, points.back());
+        if (pointDist > EPS_PolygonPoint)
+            points.push_back(Padd);
     } else
-	points.push_back(Padd);
-  
+        points.push_back(Padd);
+
 }
 
 void VertexMorphingMapper::Polygon::printPolygon(){
 
     cout << "Polygon Points:" << endl;
     for (int iPoint=0; iPoint < points.size(); iPoint++)
-	cout << points.at(iPoint)[0] << " " << points.at(iPoint)[1] << " " << points.at(iPoint)[2] << endl;
+        cout << points.at(iPoint)[0] << " " << points.at(iPoint)[1] << " " << points.at(iPoint)[2] << endl;
 
 }
 
@@ -1046,23 +1053,23 @@ void VertexMorphingMapper::Polygon::triangulate(){
 
     int dim = 3;
     int numNodes = 3;
-  
+
     if (points.size() == 1){
-	WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only one point. Skipping triangulation!");
-	return;
+        WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only one point. Skipping triangulation!");
+        return;
     }
     if (points.size() == 2){
-	WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains two points. Skipping triangulation!");
-	return;
+        WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains two points. Skipping triangulation!");
+        return;
     }
 
     for (int iTriangle = 0; iTriangle < points.size()-2; iTriangle++){
         double* tmpTriangle = new double[numNodes*dim];
-	for (int iNode = 0; iNode < numNodes; iNode++){
-	    for (int iXYZ = 0; iXYZ < dim; iXYZ++){
-		tmpTriangle[iNode*dim+iXYZ] = points.at(iTriangle+iNode)[iXYZ];
-	    }
-	}
+        for (int iNode = 0; iNode < numNodes; iNode++){
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+                tmpTriangle[iNode*dim+iXYZ] = points.at(iTriangle+iNode)[iXYZ];
+            }
+        }
         triangles.push_back(tmpTriangle);
     }
 }
@@ -1071,63 +1078,63 @@ void VertexMorphingMapper::writeCartesianPolygons(string _fileName, std::map<int
     
     
     for(map<int, std::vector<std::vector<double*> > >::iterator itControlNode=_polygons.begin(); itControlNode!=_polygons.end(); itControlNode++) {
-	ofstream out;
-	string iControlNode_string;
-	stringstream tmp_ss;
-	tmp_ss << itControlNode->first;
-	string outName = name + "_" +_fileName + tmp_ss.str() + ".vtk";
-	out.open(outName.c_str(), ofstream::out);
-	out << "# vtk DataFile Version 2.0\n";
-	out << "clipped FE elements\n";
-	out << "ASCII\nDATASET POLYDATA\n";
-// 	int controlNodeIdx = itControlNode->first();
-	string points, pointsHeader, polygons, polygonsHeader, nodeColor, patchColorHeader;
-	int pointsNumber=0, polygonsNumber=0, polygonsEntriesNumber=0;
-	for (std::vector<std::vector<double*> >::iterator itPolygon=itControlNode->second.begin(); itPolygon!=itControlNode->second.end(); itPolygon++){
-	    int numEdge = 0;
-	    for (std::vector<double*>::iterator itNode=itPolygon->begin(); itNode!=itPolygon->end(); itNode++){
-		stringstream pointStream;
-// 		cout << (*itNode)[0] << " " << (*itNode)[1] << " " << (*itNode)[2] << endl;
+        ofstream out;
+        string iControlNode_string;
+        stringstream tmp_ss;
+        tmp_ss << itControlNode->first;
+        string outName = name + "_" +_fileName + tmp_ss.str() + ".vtk";
+        out.open(outName.c_str(), ofstream::out);
+        out << "# vtk DataFile Version 2.0\n";
+        out << "clipped FE elements\n";
+        out << "ASCII\nDATASET POLYDATA\n";
+        // 	int controlNodeIdx = itControlNode->first();
+        string points, pointsHeader, polygons, polygonsHeader, nodeColor, patchColorHeader;
+        int pointsNumber=0, polygonsNumber=0, polygonsEntriesNumber=0;
+        for (std::vector<std::vector<double*> >::iterator itPolygon=itControlNode->second.begin(); itPolygon!=itControlNode->second.end(); itPolygon++){
+            int numEdge = 0;
+            for (std::vector<double*>::iterator itNode=itPolygon->begin(); itNode!=itPolygon->end(); itNode++){
+                stringstream pointStream;
+                // 		cout << (*itNode)[0] << " " << (*itNode)[1] << " " << (*itNode)[2] << endl;
                 pointStream << (*itNode)[0];
                 pointStream << " " << (*itNode)[1];
                 pointStream << " " << (*itNode)[2];
                 pointStream << "\n";
                 points += pointStream.str();
                 pointsNumber++;
-		numEdge++;
-	    }
-	    stringstream colorStream;
+                numEdge++;
+            }
+            stringstream colorStream;
             /// Concatenate new polygon color
             colorStream << itControlNode->first << "\n";
             nodeColor += colorStream.str();
-	    polygonsNumber++;
-	    polygonsEntriesNumber += numEdge + 1;
-	    stringstream polygonStream;
+            polygonsNumber++;
+            polygonsEntriesNumber += numEdge + 1;
+            stringstream polygonStream;
             polygonStream << numEdge;
             for(int i=numEdge;i>0;i--) {
                 polygonStream << " " << pointsNumber - i;
             }
             polygonStream << "\n";
             polygons += polygonStream.str();
-	}
-	/// Write actually the file
-	stringstream header;
-	header << "POINTS " << pointsNumber << " float\n";
-	pointsHeader = header.str();
-	header.str("");
-	header.clear();
-	header << "POLYGONS " << polygonsNumber << " " << polygonsEntriesNumber <<"\n";
-	polygonsHeader = header.str();
-	header.str("");
-	header.clear();
-	header << "CELL_DATA " << polygonsNumber << "\nSCALARS node_belonging int 1\nLOOKUP_TABLE default\n";
-	patchColorHeader = header.str();
-	out << pointsHeader << points;
-	out << polygonsHeader << polygons;
-	out << patchColorHeader << nodeColor;
-	out.close();
+        }
+        /// Write actually the file
+        stringstream header;
+        header << "POINTS " << pointsNumber << " float\n";
+        pointsHeader = header.str();
+        header.str("");
+        header.clear();
+        header << "POLYGONS " << polygonsNumber << " " << polygonsEntriesNumber <<"\n";
+        polygonsHeader = header.str();
+        header.str("");
+        header.clear();
+        header << "CELL_DATA " << polygonsNumber << "\nSCALARS node_belonging int 1\nLOOKUP_TABLE default\n";
+        patchColorHeader = header.str();
+        out << pointsHeader << points;
+        out << polygonsHeader << polygons;
+        out << patchColorHeader << nodeColor;
+        out.close();
     }
-  
+
 }
 
 } /* namespace EMPIRE */

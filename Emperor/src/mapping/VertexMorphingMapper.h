@@ -51,25 +51,25 @@ class VertexMorphingMapper : public AbstractMapper {
 private:
     
     /**
-     * \brief Class Polygon 
+     * \brief Class Polygon
      *        given a set of counter clockwise ordered points of a polygon
      * 	      make a triangulation always starting from the first point
      **/
     class Polygon {
     private:
-	
-	/// Tolerance for adding new points to the polygon
-	static double EPS_PolygonPoint;
-	
+
+        /// Tolerance for adding new points to the polygon
+        static double EPS_PolygonPoint;
+
     public:
-      
-	/// Counter-clockwise ordered polygon points
+
+        /// Counter-clockwise ordered polygon points
         std::vector<double*> points;
-	
-	/// Generated triangles from the given polygon
+
+        /// Generated triangles from the given polygon
         std::vector<double*> triangles;
 
-	/***********************************************************************************************
+        /***********************************************************************************************
          * \brief Constructor
          * \author Altug Emiroglu
          ***********/
@@ -79,19 +79,19 @@ private:
          * \author Altug Emiroglu
          ***********/
         virtual ~Polygon();
-	/***********************************************************************************************
+        /***********************************************************************************************
          * \brief addPoint Adds the given point by copy
          * \param[in] _point The point to be added to the polygon
          * \author Altug Emiroglu
          ***********/
         void addPoint(double* _point);
-	/***********************************************************************************************
+        /***********************************************************************************************
          * \brief triangulate Triangulates the formed polygon.
-	 *        Each triangle starts from the first point
+     *        Each triangle starts from the first point
          * \author Altug Emiroglu
          ***********/
         void triangulate();
-	/***********************************************************************************************
+        /***********************************************************************************************
          * \brief printPolygon Prints the polygon on the terminal
          * \author Altug Emiroglu
          ***********/
@@ -302,7 +302,7 @@ private:
     // given a slave element, all the master nodes that effect this element are listed
     // used for C_BA
     std::vector<int>* slaveElemInfMasterNodeTable;
-    // given a slave element, all the master nodes that effect this element are listed 
+    // given a slave element, all the master nodes that effect this element are listed
     // wrt their influence type (full/partial)
     // used for C_BA
     std::vector<bool>* slaveElemInfMasterNodeInsideTable;
@@ -310,7 +310,7 @@ private:
     // given a master element, all the master nodes that effect this element are listed
     // used for C_BB
     std::vector<int>* masterElemInfMasterNodeTable;
-    // given a master element, all the master nodes that effect this element are listed 
+    // given a master element, all the master nodes that effect this element are listed
     // wrt their influence type (full/partial)
     // used for C_BB
     std::vector<bool>* masterElemInfMasterNodeInsideTable;
@@ -436,15 +436,15 @@ private:
      * \param[in] _contributions the result of the integration
      * \author Altug Emiroglu
      ***********/
-    void doFullIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem, EMPIRE::MathLibrary::FEMGaussQuadrature* _gaussQuadrature);
+    void doFullIntegration(int _masterNodeIdx, int _slaveElemIdx);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a clipped element
-     * \param[in] _masterNodeIdx 
+     * \param[in] _masterNodeIdx
      * \param[in] _slaveElemIdx the influenced slave element index
      * \param[in] _slaveElem the global Cartesian coordinates of the slave element nodes
      * \author Altug Emiroglu
      ***********/
-    void doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx, double* _slaveElem);
+    void doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx);
     /***********************************************************************************************
      * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
      * \author Altug Emiroglu
