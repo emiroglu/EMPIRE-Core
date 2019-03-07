@@ -134,14 +134,14 @@ struct structMapper {
             int noGPQuadrilateral;
         } propIntegration;
         struct propWeakCurveDirichletConditions {
-                bool isWeakCurveDirichletConditions;
-                bool isAutomaticPenaltyParameters;
-                bool isPrimPrescribed;
-                bool isSecBendingPrescribed;
-                bool isSecTwistingPrescribed;
-                double alphaPrim;
-                double alphaSecBending;
-                double alphaSecTwisting;
+            bool isWeakCurveDirichletConditions;
+            bool isAutomaticPenaltyParameters;
+            bool isPrimPrescribed;
+            bool isSecBendingPrescribed;
+            bool isSecTwistingPrescribed;
+            double alphaPrim;
+            double alphaSecBending;
+            double alphaSecTwisting;
         } propWeakCurveDirichletConditions;
         struct propWeakSurfaceDirichletConditions {
             bool isWeakSurfaceDirichletConditions;
@@ -151,14 +151,14 @@ struct structMapper {
             double alphaPrim;
         } propWeakSurfaceDirichletConditions;
         struct propWeakPatchContinuityConditions {
-                bool isWeakPatchContinuityConditions;
-                bool isAutomaticPenaltyParameters;
-                bool isPrimCoupled;
-                bool isSecBendingCoupled;
-                bool isSecTwistingCoupled;
-                double alphaPrim;
-                double alphaSecBending;
-                double alphaSecTwisting;
+            bool isWeakPatchContinuityConditions;
+            bool isAutomaticPenaltyParameters;
+            bool isPrimCoupled;
+            bool isSecBendingCoupled;
+            bool isSecTwistingCoupled;
+            double alphaPrim;
+            double alphaSecBending;
+            double alphaSecTwisting;
         } propWeakPatchContinuityConditions;
         struct propStrongCurveDirichletConditions {
             bool isStrongCurveDirichletConditions;
@@ -187,7 +187,6 @@ struct structMapper {
     struct structVertexMorphingMapper {
         EMPIRE_VMM_FilterType filterType;
         double filterRadius;
-        bool mortar;
     };
     std::string name;
     int writeMode;
@@ -229,12 +228,12 @@ struct structCouplingAlgorithm {
     // Aditya Ghantasala.
     // TODO :: Change accordingly.
     struct structGMRES {
-    	 int maxOuterItter;
-    	 int maxInnerItter;
-    	 double residualTolerance;
-         std::vector<structConnectionIO> inputs;
-         std::vector<structConnectionIO> outputs;
-/*       unsigned int indexRow;
+        int maxOuterItter;
+        int maxInnerItter;
+        double residualTolerance;
+        std::vector<structConnectionIO> inputs;
+        std::vector<structConnectionIO> outputs;
+        /*       unsigned int indexRow;
          unsigned int indexColumn;
          bool isConstant;
          double value;
@@ -244,7 +243,7 @@ struct structCouplingAlgorithm {
          bool isSignal;
          structConnectionIO interfaceJacobianSignal;
          double coefficient;*/
-     };
+    };
 
 
     std::string name;

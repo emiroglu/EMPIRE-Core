@@ -387,8 +387,7 @@ void Emperor::initMappers() {
             mapper->initCurveSurfaceMapper(settingMapper.curveSurfaceMapper.type);
         } else if (settingMapper.type == EMPIRE_VertexMorphingMapper) {
             mapper->initVertexMorphingMapper(settingMapper.vertexMorphingMapper.filterType,
-                                             settingMapper.vertexMorphingMapper.filterRadius,
-                                             settingMapper.vertexMorphingMapper.mortar);
+                                             settingMapper.vertexMorphingMapper.filterRadius);
         } else {
             assert(false);
         }

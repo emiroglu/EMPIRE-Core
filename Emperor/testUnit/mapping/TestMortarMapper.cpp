@@ -242,7 +242,7 @@ public:
 CPPUNIT_TEST_SUITE( TestMortarMapper );
         CPPUNIT_TEST( compareC_BBandC_BA);
         CPPUNIT_TEST( problem1);
-        //CPPUNIT_TEST( testMemoryLeakOfConstructor); // test memory leak, comment it except when checking memory leak
+//         CPPUNIT_TEST( testMemoryLeakOfConstructor); // test memory leak, comment it except when checking memory leak
     CPPUNIT_TEST_SUITE_END();
 };
 

@@ -153,7 +153,7 @@ public:
      * \param[in] _enforceConsistency: through C_BA manipulation
      * \author Altug Emiroglu
      ***********/
-    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar);
+    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang

@@ -274,29 +274,20 @@ private:
     /// Search radius;
     double filterRadius;
 
-    /// mortar type of computation through C_BB calculation
-    bool mortar;
-
     /// nearest neighbors searching tree of FLAN libraray
     flann::Index<flann::L2<double> > *FLANNkd_slaveTree;
-    flann::Index<flann::L2<double> > *FLANNkd_masterTree;
     /// nodes constructing the searching tree
     flann::Matrix<double> *FLANNSlaveNodes;
-    flann::Matrix<double> *FLANNMasterNodes;
 
     /// nearest neighbors searching tree of ANN libraray
     ANNkd_tree *slaveNodesTree;
-    ANNkd_tree *masterNodesTree;
     /// nodes constructing the searching tree
     double **ANNSlaveNodes;
-    double **ANNMasterNodes;
 
     /// directElemTable means the entries is not the node number, but the position in nodeCoors
-    std::vector<int> **masterDirectElemTable;
     std::vector<int> **slaveDirectElemTable;
 
     /// given a node, all the elements containing it are listed
-    std::vector<int> **masterNodeToElemTable;
     std::vector<int> **slaveNodeToElemTable;
 
     // given a slave element, all the master nodes that effect this element are listed
@@ -307,23 +298,13 @@ private:
     // used for C_BA
     std::vector<bool>* slaveElemInfMasterNodeInsideTable;
 
-    // given a master element, all the master nodes that effect this element are listed
-    // used for C_BB
-    std::vector<int>* masterElemInfMasterNodeTable;
-    // given a master element, all the master nodes that effect this element are listed
-    // wrt their influence type (full/partial)
-    // used for C_BB
-    std::vector<bool>* masterElemInfMasterNodeInsideTable;
-
     // The value of the default integration of the filter function (used for adjusting the filter function)
     double* masterFilterFunctionIntegrationOnSlave;
 
     // Maps of integration polygons and integration triangles
-    std::map<int, std::vector<std::vector<double*> > > integrationPolygons;
-    std::map<int, std::vector<std::vector<double*> > > integrationTriangles;
+//    std::map<int, std::vector<std::vector<double*> > > integrationPolygons;
+//    std::map<int, std::vector<std::vector<double*> > > integrationTriangles;
 
-    /// New sparse matrix.
-    MathLibrary::SparseMatrix<double> *C_BB;
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BA;
 
@@ -348,10 +329,6 @@ private:
     int numGPsOnTri;
     /// number of Gauss points used for computing shape function (quad) products
     int numGPsOnQuad;
-    /// number of Gauss points used for computing triangle element mass matrix
-    int numGPsMassMatrixTri;
-    /// number of Gauss points used for computing quadrilateral element mass matrix
-    int numGPsMassMatrixQuad;
 
     friend class TestVertexMorphingMapper;
 
@@ -367,7 +344,7 @@ public:
      * \param[in] _mortar through C_BB computation
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius, bool _mortar=false);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
@@ -379,14 +356,20 @@ public:
      ***********/
     void buildCouplingMatrices();
     /***********************************************************************************************
-     * \brief Do consistent mapping on fields (e.g. displacements or tractions) --- C_BB * masterField = C_BA * slaveField
-     * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)
-     * \param[out] masterField the field of the master side (e.g. x-displacements on all fluid nodes)
+     * \brief Do consistent mapping on fields masterField = C_BA * slaveField
+     * \param[in] slaveField the field of the slave side
+     * \param[out] masterField the field of the master side
      * \author Altug Emiroglu
      ***********/
     void consistentMapping(const double *slaveField, double *masterField);
-    void conservativeMapping(const double *slaveField, double *masterField) {}
-    void computeErrorsConsistentMapping(const double *slaveField, const double *masterField) {}
+    /***********************************************************************************************
+     * \brief Do conservative mapping on integral fields slaveField = C_BA^T * masterField
+     * \param[in] masterField the field of the master side
+     * \param[out] slaveField the field of the slave side
+     * \author Altug Emiroglu
+     * ***********/
+    void conservativeMapping(const double *masterField, double *slaveField);
+    void computeErrorsConsistentMapping(const double *slaveField, const double *masterField);
 
     /// defines number of threads used for MKL routines
     static int mklSetNumThreads;
@@ -422,29 +405,28 @@ private:
      ***********/
     void findSlaveElemInfluencingMasterNodes(int _masterNodeIdx);
     /***********************************************************************************************
-     * \brief Find the influenced master elements by the master node  (C_BB)
+     * \brief Performs clipping of a given element with the filter radius of the master node
      * \param[in] _masterNodeIdx the master node index
+     * \param[in] _numNodes number of nodes
+     * \param[in] _elem the global cartesian coordinates of the element vertices
+     * \param[out] _polygon the resulting polygon
      * \author Altug Emiroglu
      ***********/
-    void findMasterElemInfluencingNodes(int _masterNodeIdx);
+    void clipElementWithFilterRadius(int _masterNodeIdx, int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a full element
-     * \param[in] _masterNodeIdx the master node index
      * \param[in] _slaveElemIdx the influenced slave element index
-     * \param[in] _slaveElem the global Cartesian coordinates of the slave element nodes
-     * \param[in] _gaussQuadrature The Gauss quadrature rule to use for the integration
-     * \param[in] _contributions the result of the integration
+     * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void doFullIntegration(int _masterNodeIdx, int _slaveElemIdx);
+    void doFullIntegration(int _slaveElemIdx, int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a clipped element
-     * \param[in] _masterNodeIdx
      * \param[in] _slaveElemIdx the influenced slave element index
-     * \param[in] _slaveElem the global Cartesian coordinates of the slave element nodes
+     * \param[in] _masterNodeIdx
      * \author Altug Emiroglu
      ***********/
-    void doClippedIntegration(int _masterNodeIdx, int _slaveElemIdx);
+    void doClippedIntegration(int _slaveElemIdx, int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
      * \author Altug Emiroglu
