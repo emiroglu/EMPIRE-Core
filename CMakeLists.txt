@@ -148,8 +148,8 @@ IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND "${CMAKE_C_COMPILER_ID}" STR
 ## This is for all compilers
     check_c_compiler_flag(-xHost   CHECKXHOST)
     check_cxx_compiler_flag(-xHost CHECKXHOST)
-	SET (CMAKE_C_FLAGS "-xHost -std=c99 -fPIC -fno-omit-frame-pointer")
-	SET (CMAKE_CXX_FLAGS "-xHost -fPIC -fno-omit-frame-pointer")
+	SET (CMAKE_C_FLAGS "-xHost -std=c99 -fPIC")
+	SET (CMAKE_CXX_FLAGS "-xHost -fPIC")
 ENDIF()
 ## Here Intel Windows specific flags are taken care for
 IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
