@@ -51,7 +51,7 @@ private:
     DataField *dfOld;
     ComaAitken *comaAitken;
 
-    static const double EPS = 1E-10;
+    const double EPS = 1E-10;
 
 public:
     void setUp() {
