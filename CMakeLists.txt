@@ -90,7 +90,7 @@ ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND "${CMAKE_C_COMPILER_ID}" 
   MESSAGE("C compiler is ${CMAKE_C_COMPILER_ID} and has version ${CMAKE_C_COMPILER_VERSION} \nC++ compiler is ${CMAKE_CXX_COMPILER_ID} and has version ${CMAKE_CXX_COMPILER_VERSION} " ) 
   MESSAGE("As OpenMP 3.0 and VLA (C99) is used in EMPIRE you need to switch to Intel Compiler in Visual Studio" ) 
 ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-   SET(USE_GNU_COMPILERS_EINGEN_LINUX ON)
+   SET(USE_GNU_COMPILERS_EIGEN_LINUX ON)
    MESSAGE("C compiler is ${CMAKE_C_COMPILER_ID} and has version ${CMAKE_C_COMPILER_VERSION} \nC++ compiler is ${CMAKE_CXX_COMPILER_ID} and has version ${CMAKE_CXX_COMPILER_VERSION} " ) 
 ELSE()
   MESSAGE(FATAL_ERROR "Your CXX compiler is ${CMAKE_CXX_COMPILER_ID} and your C compiler is ${CMAKE_C_COMPILER_ID} they are not supported by the build system yet")	
@@ -98,7 +98,7 @@ ENDIF()
 #------------------------------------------------------------------------------------#
 
 # Set GNU Compiler & EIGEN Default
-IF (${USE_GNU_COMPILERS_EINGEN_LINUX})
+IF (${USE_GNU_COMPILERS_EIGEN_LINUX})
   SET (CMAKE_C_COMPILER "mpic++")
   SET (CMAKE_CXX_COMPILER "mpic++")
   #Let the source code know
@@ -123,6 +123,9 @@ IF (${USE_INTEL_COMPILERS_MKL_IMPI_LINUX})
   ENDIF()
   
 ENDIF()
+
+MESSAGE("C compiler is ${CMAKE_C_COMPILER}" ) 
+MESSAGE("C++ compiler is ${CMAKE_CXX_COMPILER}") 
 
 IF (${USE_INTEL_COMPILERS_MKL_MSMPI_WINDOWS})
   # Require MPI for this project:
@@ -159,8 +162,8 @@ ENDIF()
 
 IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 ## This is for all compilers
-	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -lstdc++ -fPIC")
-	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast -std=c99 -lstdc++ -fPIC")
+	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -fPIC")
 ENDIF()
 
 # HACK for mapperlib

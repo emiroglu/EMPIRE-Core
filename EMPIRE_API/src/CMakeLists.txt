@@ -36,6 +36,7 @@ ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" S
 ELSE()
    MESSAGE(FATAL_ERROR "Your CXX compiler is ${CMAKE_CXX_COMPILER_ID} and your C compiler is ${CMAKE_C_COMPILER_ID} they are not supported by the build system yet")
 ENDIF()
+#target_link_libraries(EMPIRE_API_Shared)
 target_link_libraries(EMPIRE_API_Static)
 #------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------#
