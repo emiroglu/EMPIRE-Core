@@ -1,0 +1,4 @@
+gnore everything in this directory
+bashrc.sh
+# Except this file
+!.gitignore
