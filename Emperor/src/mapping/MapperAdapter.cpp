@@ -216,10 +216,9 @@ void MapperAdapter::initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, 
     assert(meshA->type == EMPIRE_Mesh_FEMesh);
     assert(meshB->type == EMPIRE_Mesh_FEMesh);
 
-    mapperImpl = new VertexMorphingMapper(name, meshA, meshB,
-                                          _filterType, _filterRadius);
-
+    mapperImpl = new VertexMorphingMapper(name, meshA, meshB);
     VertexMorphingMapper* mapper = dynamic_cast<VertexMorphingMapper*>(mapperImpl);
+    mapper->setParameters(_filterType, _filterRadius);
     mapper->writeMode = this->writeMode;
     mapper->buildCouplingMatrices();
 }

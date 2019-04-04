@@ -39,6 +39,7 @@
 #include "BarycentricInterpolationMapper.h"
 #include "MortarMapper.h"
 #include "IGAMortarMapper.h"
+#include "VertexMorphingMapper.h"
 #include "MapperLib.h"
 
 using namespace EMPIRE;
@@ -830,22 +831,95 @@ void setParametersErrorComputation(char* mapperName,
     }
 }
 
-void initialize(char *mapperName) {
-    std::string mapperNameInMap = std::string(mapperName);
-    // check if the mapper with the given name is generated
+// void initialize(char *mapperName) {
+//     std::string mapperNameInMap = std::string(mapperName);
+//     // check if the mapper with the given name is generated
+//     if (!mapperList.count( mapperNameInMap )){
+//         ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+//         ERROR_OUT("Did nothing!");
+//         return;
+//     } else if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]) == NULL) {
+//         ERROR_OUT(mapperNameInMap + " is not of type IGAMortarMapper!");
+//         ERROR_OUT("Did nothing!");
+//         return;
+//     } else{
+//         dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap])->initialize();
+//         INFO_OUT("Generated coupling matrices for \"" +  mapperNameInMap );
+//     }
+
+// }
+
+void initVertexMorphingMapper(char* _mapperName, char* _meshNameA, char* _meshNameB){
+    
+    std::string mapperNameToMap = std::string(_mapperName);
+    std::string meshNameAInMap = std::string(_meshNameA);
+    std::string meshNameBInMap = std::string(_meshNameB);
+
+    AbstractMesh *meshA;
+    AbstractMesh *meshB;
+
+    // check if the mesh with the given name is generated and is of correct type
+    if (!meshList.count( meshNameAInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameAInMap + " does not exist!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else
+        meshA = meshList[meshNameAInMap];
+
+    // check if the mesh with the given name is generated and is of correct type
+    if (!meshList.count( meshNameBInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameBInMap + " does not exist!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else
+        meshB = meshList[meshNameBInMap];
+    
+    if (mapperList.count( mapperNameToMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else {
+
+        if (!meshA->boundingBox.isComputed()) meshA->computeBoundingBox();
+        if (!meshB->boundingBox.isComputed()) meshB->computeBoundingBox();
+
+        mapperList[mapperNameToMap] = new VertexMorphingMapper(mapperNameToMap, meshA, meshB);
+        INFO_OUT("Generated \"" +  mapperNameToMap + "\"");
+    }
+
+}
+
+void setVMParameters(char* _mapperName, int _filterType, double _filterRadius){
+    
+    std::string mapperNameInMap = std::string(_mapperName);
+
+    VertexMorphingMapper *tmpVMMapper;
+
+    EMPIRE_VMM_FilterType filterType;
+    if (_filterType = 0){
+        filterType = EMPIRE_VMM_HatFilter;
+    } else if (_filterType = 1){
+        filterType = EMPIRE_VMM_GaussianFilter;
+    } else {
+        ERROR_OUT("Unknown filter type");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+
+    // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
         ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
-    } else if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]) == NULL) {
-        ERROR_OUT(mapperNameInMap + " is not of type IGAMesh!");
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_VertexMorphingMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of VertexMorphingMapper");
         ERROR_OUT("Did nothing!");
         return;
-    } else{
-        dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap])->initialize();
-        INFO_OUT("Generated coupling matrices for \"" +  mapperNameInMap );
+    } else {
+        tmpVMMapper = dynamic_cast<VertexMorphingMapper *>(mapperList[mapperNameInMap]);
+        tmpVMMapper->setParameters(filterType, _filterRadius);
+        INFO_OUT("Error computation parameters are set for \"" +  mapperNameInMap + "\"");
     }
-
 }
 
 void buildCouplingMatrices(char *mapperName){

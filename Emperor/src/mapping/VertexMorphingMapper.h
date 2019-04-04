@@ -344,12 +344,17 @@ public:
      * \param[in] _mortar through C_BB computation
      * \author Altug Emiroglu
      ***********/
-    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius);
+    VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB);
     /***********************************************************************************************
      * \brief Destructor
      * \author Altug Emiroglu
      ***********/
     virtual ~VertexMorphingMapper();
+
+    void setParameters(EMPIRE_VMM_FilterType _filterType = EMPIRE_VMM_HatFilter, double _filterRadius = 0.0);
+
+    void initialize();
+
     /***********************************************************************************************
      * \brief Build Coupling Matrices
      * \author Altug Emiroglu

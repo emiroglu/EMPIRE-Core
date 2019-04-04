@@ -58,8 +58,8 @@ int VertexMorphingMapper::mapperSetNumThreads = 1;
 double VertexMorphingMapper::EPS_XSI = 1e-6;
 double VertexMorphingMapper::Polygon::EPS_PolygonPoint = 1e-6;
 
-VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB, EMPIRE_VMM_FilterType _filterType, double _filterRadius):
-    name(_name), filterRadius(_filterRadius){
+VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_meshA, AbstractMesh *_meshB):
+    name(_name){
 
     // Check input
     assert(_meshA != NULL);
@@ -92,20 +92,20 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     /// masterNumNodes X slaveNumNodes
     C_BA = new MathLibrary::SparseMatrix<double>((size_t)(meshB->numNodes),(size_t)(meshA->numNodes));
 
-    // Initialize data that could be used later
-    initANNTree();
-    initTables();
+    // // Initialize data that could be used later
+    // initANNTree();
+    // initTables();
 
-    // Set the filter function pointer and the num GPs for integration
-    if (_filterType == EMPIRE_VMM_HatFilter) {
-        filterFunction = new HatFilterFunction(filterRadius);
-        numGPsOnTri = 3;
-        numGPsOnQuad = 4;
-    } else if (_filterType == EMPIRE_VMM_GaussianFilter) {
-        filterFunction = new GaussianFilterFunction(filterRadius);
-        numGPsOnTri = 12;
-        numGPsOnQuad = 9;
-    } else assert(false); // shouldnt come here
+    // // Set the filter function pointer and the num GPs for integration
+    // if (_filterType == EMPIRE_VMM_HatFilter) {
+    //     filterFunction = new HatFilterFunction(filterRadius);
+    //     numGPsOnTri = 3;
+    //     numGPsOnQuad = 4;
+    // } else if (_filterType == EMPIRE_VMM_GaussianFilter) {
+    //     filterFunction = new GaussianFilterFunction(filterRadius);
+    //     numGPsOnTri = 12;
+    //     numGPsOnQuad = 9;
+    // } else assert(false); // shouldnt come here
 
 }
 
@@ -158,6 +158,32 @@ void VertexMorphingMapper::deleteANNTree() {
     delete FLANNSlaveNodes;
     delete FLANNkd_slaveTree;
 #endif
+}
+
+void VertexMorphingMapper::setParameters(EMPIRE_VMM_FilterType _filterType, double _filterRadius){
+
+    // Set the filter radius for the search radius
+    filterRadius = _filterRadius;
+
+    // Set the filter function pointer and the num GPs for integration
+    if (_filterType == EMPIRE_VMM_HatFilter) {
+        filterFunction = new HatFilterFunction(filterRadius);
+        numGPsOnTri = 3;
+        numGPsOnQuad = 4;
+    } else if (_filterType == EMPIRE_VMM_GaussianFilter) {
+        filterFunction = new GaussianFilterFunction(filterRadius);
+        numGPsOnTri = 12;
+        numGPsOnQuad = 9;
+    } else assert(false); // shouldnt come here
+
+}
+
+void VertexMorphingMapper::initialize(){
+
+    // Initialize data that could be used later
+    initANNTree();
+    initTables();
+
 }
 
 void VertexMorphingMapper::initTables() {
@@ -288,6 +314,8 @@ void VertexMorphingMapper::findSlaveElemInfluencingMasterNodes(int _masterNodeId
 }
 
 void VertexMorphingMapper::buildCouplingMatrices(){
+
+    initialize();
 
     int dim = 3;
     
