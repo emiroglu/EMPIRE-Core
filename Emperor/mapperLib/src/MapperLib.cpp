@@ -918,7 +918,7 @@ void setVMParameters(char* _mapperName, int _filterType, double _filterRadius){
     } else {
         tmpVMMapper = dynamic_cast<VertexMorphingMapper *>(mapperList[mapperNameInMap]);
         tmpVMMapper->setParameters(filterType, _filterRadius);
-        INFO_OUT("Error computation parameters are set for \"" +  mapperNameInMap + "\"");
+        INFO_OUT("Vertex Morphing parameters are set for \"" +  mapperNameInMap + "\"");
     }
 }
 
