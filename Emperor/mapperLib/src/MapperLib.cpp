@@ -167,7 +167,7 @@ void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         for(int i=0; i<tmpFEMesh->numNodes;i++) tmpFEMesh->nodeIDs[i] = nodeIDs[i];
         for(int i=0; i<(tmpFEMesh->numNodes)*3;i++) tmpFEMesh->nodes[i] = nodes[i];
-        INFO_OUT("Nodes set to \"" + meshNameInMap );
+        INFO_OUT("Nodes set to \"" + meshNameInMap + "\"");
     }
 }
 
@@ -185,7 +185,7 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
         for(int i=0; i<tmpFEMesh->numElems;i++) tmpFEMesh->numNodesPerElem[i] = numNodesPerElem[i];
         tmpFEMesh->initElems();
         for(int i=0; i<tmpFEMesh->elemsArraySize;i++) tmpFEMesh->elems[i] = elems[i];
-        INFO_OUT("Elements set to \"" + meshNameInMap );
+        INFO_OUT("Elements set to \"" + meshNameInMap + "\"" );
     }
 }
 
@@ -221,7 +221,7 @@ void addPatchToIGAMesh(char* meshName,
                              qDegree, vNoKnots, vKnotVector,
                              uNoControlPoints, vNoControlPoints,
                              controlPointNet, dofIndexNet);
-        INFO_OUT("Added patch to \"" + meshNameInMap );
+        INFO_OUT("Added patch to \"" + meshNameInMap + "\"");
     }
 }
 
@@ -374,7 +374,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[aFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
@@ -386,7 +386,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT(bFEMeshNameInMap + " is not a type of FEMesh");
         ERROR_OUT("Mapper not generated!");
         return;
-    } else {
+    } else {    
         tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
@@ -410,7 +410,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         mapperList[mapperNameToMap] = new MortarMapper(tmpaFEMesh->numNodes, tmpaFEMesh->numElems, tmpaFEMesh->numNodesPerElem, tmpaFEMesh->nodes, tmpaFEMesh->nodeIDs, tmpaFEMesh->elems,
                                                        tmpbFEMesh->numNodes, tmpbFEMesh->numElems, tmpbFEMesh->numNodesPerElem, tmpbFEMesh->nodes, tmpbFEMesh->nodeIDs, tmpbFEMesh->elems,
                                                        _oppositeSurfaceNormal, _dual, _enforceConsistency);
-        INFO_OUT("Generated \"" +  mapperNameToMap);
+        INFO_OUT("Generated \"" +  mapperNameToMap + "\"" );
     }
 
 }
@@ -992,7 +992,7 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
             for (int i=0; i<dimension ; i++){
                 dataBtoMap[i]=new double[sizeDataToMap];
                 dataAtoWrite[i]=new double[sizeDataToWrite];
-            }
+            }            
             for (int i=0 ; i<dimension ; i++){
                 for (int j=0 ; j<sizeDataToMap; j++){
                     dataBtoMap[i][j] = dataB[j*dimension+i];
@@ -1016,6 +1016,28 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
     }
 }
 
+bool hasMesh(char* meshName){
+
+    std::string meshNameInMap = std::string(meshName);
+    if (meshList.count( meshNameInMap )){
+        return true;
+    } else {
+        INFO_OUT("Mesh with name: \"" + meshNameInMap + "\" does not exist : ");
+        return false;
+    }
+}
+
+bool hasMapper(char* mapperName){
+
+    std::string mapNameInMap = std::string(mapperName);
+    if (mapperList.count( mapNameInMap )){
+        return true;
+    } else {
+        INFO_OUT("Mapper with name: \"" + mapNameInMap + "\" does not exist : ");
+        return false;
+    }
+}
+
 void printMesh(char* meshName){
     std::string meshNameInMap = std::string(meshName);
     if (!meshList.count( meshNameInMap )){
@@ -1036,6 +1058,17 @@ void deleteMesh(char* meshName){
         ERROR_OUT("Did nothing!");
     } else {
         delete meshList[meshNameInMap];
+        meshList.erase(meshName);
+    }
+}
+
+void deleteAllMeshes(){
+
+    std::map<std::string, AbstractMesh*>::iterator iter = meshList.begin();
+
+    if(iter!=meshList.end()){
+        delete iter->second;
+        meshList.erase(iter);
     }
 }
 
@@ -1047,6 +1080,7 @@ void deleteMapper(char* mapperName){
         return;
     } else {
         delete mapperList[mapperNameInMap];
+        mapperList.erase(mapperName);
     }
 }
 

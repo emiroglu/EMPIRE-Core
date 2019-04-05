@@ -591,6 +591,14 @@ void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _
         _polygon.addPoint(P02);
         _polygon.addPoint(P01);
 
+    } else if (triaCase == 3) {
+        
+        // WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "triaCase == 3 should not occur!");
+
+        _polygon.addPoint(&_elem[inNodesPos.at(0)*dim]);
+        _polygon.addPoint(&_elem[inNodesPos.at(1)*dim]);
+        _polygon.addPoint(&_elem[inNodesPos.at(2)*dim]);
+
     } // quadCase = 1: one node inside
     else if (quadCase == 1){
 
@@ -688,8 +696,8 @@ void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _
         return;
     } // unknown case
     else {
-        ERROR_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");
         cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
+        ERROR_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");        
         return;
     }
 
