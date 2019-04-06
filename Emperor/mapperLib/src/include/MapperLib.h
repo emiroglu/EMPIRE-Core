@@ -469,8 +469,14 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const d
 ***********/
 void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const double* dataB, int dataSizeA, double* dataA);
 
+/***********************************************************************************************
+ * \brief Check if a mesh with the given name exists
+***********/
 bool hasMesh(char* meshName);
 
+/***********************************************************************************************
+ * \brief Check if a mapper with the given name exists
+***********/
 bool hasMapper(char* mapperName);
 
 /***********************************************************************************************
