@@ -572,25 +572,31 @@ void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _
         // Find clipping
         vector<double> xsi01;
         vector<double> xsi02;
-        findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
-        findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
+        bool isClipping01 = findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
 
-        // Compute the global Cartesian coordinates of the clippings
-        double P01[3];
-        double P02[3];
-        for (int iXYZ = 0; iXYZ < dim; iXYZ++){
-            P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
-            P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
-        }
-        xsi01.clear();
-        xsi02.clear();
-
-        // Add the points to the polygon
+        // Add points to the polygon
         _polygon.addPoint(P1);
         _polygon.addPoint(P2);
-        _polygon.addPoint(P02);
-        _polygon.addPoint(P01);
 
+        // Compute the global Cartesian coordinates of the clippings if they are valid
+        if (isClipping02){
+            double P02[3];
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+            xsi02.clear();
+            _polygon.addPoint(P02);
+        }        
+
+        if (isClipping01){
+            double P01[3];
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+            xsi01.clear();
+            _polygon.addPoint(P01);
+        }        
+
+        
     } else if (triaCase == 3) {
         
         // WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "triaCase == 3 should not occur!");
@@ -700,7 +706,7 @@ void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _
         ERROR_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");        
         return;
     }
-
+    
     inNodesPos.clear();
     outNodesPos.clear();
 

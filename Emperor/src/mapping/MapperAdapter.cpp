@@ -215,7 +215,7 @@ void MapperAdapter::initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type) 
 void MapperAdapter::initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius) {
     assert(meshA->type == EMPIRE_Mesh_FEMesh);
     assert(meshB->type == EMPIRE_Mesh_FEMesh);
-
+    
     mapperImpl = new VertexMorphingMapper(name, meshA, meshB);
     VertexMorphingMapper* mapper = dynamic_cast<VertexMorphingMapper*>(mapperImpl);
     mapper->setParameters(_filterType, _filterRadius);

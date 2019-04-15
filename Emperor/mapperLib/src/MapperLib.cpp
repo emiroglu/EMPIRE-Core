@@ -1059,6 +1059,7 @@ void deleteMesh(char* meshName){
     } else {
         delete meshList[meshNameInMap];
         meshList.erase(meshName);
+        INFO_OUT("Deleted the mesh with name: \"" + meshNameInMap + "\"");
     }
 }
 
@@ -1081,6 +1082,7 @@ void deleteMapper(char* mapperName){
     } else {
         delete mapperList[mapperNameInMap];
         mapperList.erase(mapperName);
+        INFO_OUT("Deleted the mapper with name: \"" + mapperNameInMap + "\"");
     }
 }
 
