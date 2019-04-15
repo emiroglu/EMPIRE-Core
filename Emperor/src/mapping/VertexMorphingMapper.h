@@ -408,7 +408,7 @@ private:
      * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void findSlaveElemInfluencingMasterNodes(int _masterNodeIdx);
+    void findSlaveElemInfluencingMasterNodes(const int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Performs clipping of a given element with the filter radius of the master node
      * \param[in] _masterNodeIdx the master node index
@@ -417,21 +417,21 @@ private:
      * \param[out] _polygon the resulting polygon
      * \author Altug Emiroglu
      ***********/
-    void clipElementWithFilterRadius(int _masterNodeIdx, int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon);
+    void clipElementWithFilterRadius(const int _masterNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a full element
      * \param[in] _slaveElemIdx the influenced slave element index
      * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void doFullIntegration(int _slaveElemIdx, int _masterNodeIdx);
+    void doFullIntegration(const int _slaveElemIdx, const int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a clipped element
      * \param[in] _slaveElemIdx the influenced slave element index
      * \param[in] _masterNodeIdx
      * \author Altug Emiroglu
      ***********/
-    void doClippedIntegration(int _slaveElemIdx, int _masterNodeIdx);
+    void doClippedIntegration(const int _slaveElemIdx, const int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
      * \author Altug Emiroglu
@@ -446,7 +446,7 @@ private:
      * \return if the parameter is in acceptable range -EPS_XSI < xsi < 1+EPS_XSI
      * \author Altug Emiroglu
      ***********/
-    bool findClipping(int _masterNodeIdx, double* _P0, double* _Pn, std::vector<double>& _xsi);
+    bool findClipping(const int _masterNodeIdx, double* _P0, double* _Pn, std::vector<double>& _xsi);
     /***********************************************************************************************
      * \brief Clamps line parameter xsi to the limits 0 <= xsi <= 1
      * \param[in/out] _xsi line parameter

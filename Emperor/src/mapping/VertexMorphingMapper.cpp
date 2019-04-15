@@ -227,7 +227,7 @@ void VertexMorphingMapper::initTables() {
 
     slaveElemInfMasterNodeTable = new vector<int>[meshA->numElems];
     slaveElemInfMasterNodeInsideTable = new std::vector<bool>[meshA->numElems];
-    for (int iNode = 0; iNode < meshA->numNodes; iNode++)
+    for (int iNode = 0; iNode < meshB->numNodes; iNode++)
         findSlaveElemInfluencingMasterNodes(iNode);
     
     masterFilterFunctionIntegrationOnSlave = new double[meshB->numNodes];
@@ -254,7 +254,7 @@ void VertexMorphingMapper::initANNTree() {
 #endif
 }
 
-void VertexMorphingMapper::findSlaveElemInfluencingMasterNodes(int _masterNodeIdx)
+void VertexMorphingMapper::findSlaveElemInfluencingMasterNodes(const int _masterNodeIdx)
 {
     // Use fixed radius search on end points of the element,
     // all elements containing these points are the overlapped candidates
@@ -359,7 +359,7 @@ void VertexMorphingMapper::buildCouplingMatrices(){
     
 }
 
-void VertexMorphingMapper::doFullIntegration(int _slaveElemIdx, int _masterNodeIdx){
+void VertexMorphingMapper::doFullIntegration(const int _slaveElemIdx, const int _masterNodeIdx){
 
     int dim = 3;
     int numNodesTria = 3;
@@ -394,7 +394,7 @@ void VertexMorphingMapper::doFullIntegration(int _slaveElemIdx, int _masterNodeI
 
     integrand->setGaussPoints(gaussQuadrature->getGaussPointsGlobal(), gaussQuadrature->getNumGaussPoints());
     integrand->computeFunctionProducts(filterFunction);
-
+    
     for (int iNode = 0; iNode < meshA->numNodesPerElem[_slaveElemIdx]; iNode++) {
         gaussQuadrature->setIntegrandFunc(integrand);
         integrand->setFunctionID(iNode);
@@ -406,7 +406,7 @@ void VertexMorphingMapper::doFullIntegration(int _slaveElemIdx, int _masterNodeI
 
 }
 
-void VertexMorphingMapper::doClippedIntegration(int _slaveElemIdx, int _masterNodeIdx)
+void VertexMorphingMapper::doClippedIntegration(const int _slaveElemIdx, const int _masterNodeIdx)
 {
 
     int dim = 3;
@@ -461,7 +461,7 @@ void VertexMorphingMapper::doClippedIntegration(int _slaveElemIdx, int _masterNo
 
 }
 
-void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon){
+void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon){
 
     // This function considers the clipping cases one by one instead of trying to clip each edge by default.
     // This way turned out to be more efficient than the latter.
@@ -712,7 +712,7 @@ void VertexMorphingMapper::clipElementWithFilterRadius(int _masterNodeIdx, int _
 
 }
 
-bool VertexMorphingMapper::findClipping(int _masterNodeIdx, double* _P0, double* _Pn, vector<double>& _xsi){
+bool VertexMorphingMapper::findClipping(const int _masterNodeIdx, double* _P0, double* _Pn, vector<double>& _xsi){
 
     int dim = 3;
 
