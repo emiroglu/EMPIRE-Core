@@ -352,7 +352,10 @@ void VertexMorphingMapper::buildCouplingMatrices(){
     adjustFilterFunctions();
     
     //     writeCartesianPolygons("triaCase", integrationPolygons);
-
+    
+    if ((Message::isDebugMode() || writeMode > 0))
+        C_BA->printCSRToFile("C_BA.dat",0);
+    
     // Delete unnecessary variables
     deleteANNTree();
     deleteTables();

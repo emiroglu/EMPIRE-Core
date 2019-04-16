@@ -237,6 +237,7 @@ void MortarMapper::computeErrorsConsistentMapping(const double *slaveField, cons
 }
 
 void MortarMapper::computeC_BB() {
+
     // 1. compute the sparsity map
     // sparsity map has the information of a, ia, ja in a CSR formated matrix
     if (!dual) {
