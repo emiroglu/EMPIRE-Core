@@ -840,8 +840,12 @@ double VertexMorphingMapper::HatFilterFunction::computeFunction(double* _support
     // compute distance to the support center
     double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, _supportCenter, _globalCoor);
 
-    // return function value
-    return 1.0 - dist/filterRadius;
+    // if the distance is smaller equal to filterRadius
+    if (dist <= filterRadius) // return function value
+        return 1.0 - dist/filterRadius;
+    else // the filter function is 0 out of its effective radius
+        return 0.0;
+
 }
 
 double VertexMorphingMapper::GaussianFilterFunction::computeFunction(double* _supportCenter, double* _globalCoor){
@@ -849,8 +853,12 @@ double VertexMorphingMapper::GaussianFilterFunction::computeFunction(double* _su
     // compute distance to the support center
     double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(3, _supportCenter, _globalCoor);
 
-    // return function value
-    return exp(-pow(dist,2) / (2 * pow(filterRadius,2) / 9.0));
+    // if the distance is smaller equal to filterRadius
+    if (dist <= filterRadius) // return function value
+        return exp(-pow(dist,2) / (2 * pow(filterRadius,2) / 9.0));
+    else // the filter function is 0 out of its effective radius
+        return 0.0;
+   
 }
 
 // Integrand classes
@@ -1014,6 +1022,11 @@ void VertexMorphingMapper::Polygon::triangulate(){
     int dim = 3;
     int numNodes = 3;
 
+    if (points.size() == 0){
+        WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon does not contain points. Skipping triangulation!");
+        return;
+    }
+    
     if (points.size() == 1){
         WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only one point. Skipping triangulation!");
         return;
