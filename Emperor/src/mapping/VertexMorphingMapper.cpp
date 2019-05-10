@@ -99,6 +99,7 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
 VertexMorphingMapper::~VertexMorphingMapper(){
 
     delete C_BA;
+    // delete C_BB;
     delete filterFunction;
 
 #ifdef ANN
@@ -122,6 +123,8 @@ void VertexMorphingMapper::deleteTables() {
         delete slaveNodeToElemTable[i];
     }
     delete[] slaveNodeToElemTable;
+
+    // delete[] slaveElemToMasterNodeTable;
 
     delete[] masterFilterFunctionIntegrationOnSlave;
 
@@ -811,12 +814,15 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
 
     } // quadCase == 5: two nodes accross each other inside
     else if (quadCase == 5){
-        WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "quadCase == 5 is not implemented yet!");
+        if (Message::isDebugMode())
+            WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "quadCase == 5 is not implemented yet!");
         return;
     } // unknown case
     else {
-        cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
-        WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");        
+        if (Message::isDebugMode()){
+            cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
+            WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");
+        }
         return;
     }
     
@@ -1128,25 +1134,20 @@ void VertexMorphingMapper::Polygon::printPolygon(){
 
 void VertexMorphingMapper::Polygon::triangulate(){
 
+    if (Message::isDebugMode()){
+        if (points.size() == 0)
+            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon does not contain points. Skipping triangulation!");
+        else if (points.size() == 1)
+            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only one point. Skipping triangulation!");
+        else if (points.size() == 2)
+            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only two points. Skipping triangulation!");
+    }
+
+    if (points.size() < 3)
+        return;
+
     int dim = 3;
     int numNodes = 3;
-
-    if (points.size() == 0){
-        if (Message::isDebugMode())
-            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon does not contain points. Skipping triangulation!");
-        return;
-    }
-    
-    if (points.size() == 1){
-        if (Message::isDebugMode())
-            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains only one point. Skipping triangulation!");
-        return;
-    }
-    if (points.size() == 2){
-        if (Message::isDebugMode())
-            WARNING_BLOCK_OUT("VertexMorphingMapper::Polygon","triangulate()","Polygon contains two points. Skipping triangulation!");
-        return;
-    }
 
     for (int iTriangle = 0; iTriangle < points.size()-2; iTriangle++){
         double* tmpTriangle = new double[numNodes*dim];
