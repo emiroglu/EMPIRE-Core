@@ -324,8 +324,13 @@ public:
      * \author Stefan Sicklinger
      ***********/
     inline T& operator()(size_t i, size_t j) {
-        if (i >= m || j >= n)
+        // if (i >= m || j >= n)
+        //     assert(0);
+        if (i >= m || j >= n){
+            std::cout << i << " (" << m << ") " << j << " (" << n << ")"  << std::endl;
             assert(0);
+        }
+
 
 #ifdef USE_INTEL_MKL
         if (i > j && isSymmetric == true)

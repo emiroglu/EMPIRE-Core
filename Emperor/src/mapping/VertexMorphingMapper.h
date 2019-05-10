@@ -290,13 +290,13 @@ private:
     /// given a node, all the elements containing it are listed
     std::vector<int> **slaveNodeToElemTable;
 
-    // given a slave element, all the master nodes that effect this element are listed
-    // used for C_BA
-    std::vector<int>* slaveElemInfMasterNodeTable;
-    // given a slave element, all the master nodes that effect this element are listed
-    // wrt their influence type (full/partial)
-    // used for C_BA
-    std::vector<bool>* slaveElemInfMasterNodeInsideTable;
+    // // given a slave element, all the master nodes that effect this element are listed
+    // // used for C_BA
+    std::vector<int>* slaveElemToMasterNodeTable;
+    // // given a slave element, all the master nodes that effect this element are listed
+    // // wrt their influence type (full/partial)
+    // // used for C_BA
+    // std::vector<bool>* slaveElemInfMasterNodeInsideTable;
 
     // The value of the default integration of the filter function (used for adjusting the filter function)
     double* masterFilterFunctionIntegrationOnSlave;
@@ -307,6 +307,8 @@ private:
 
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BA;
+
+    MathLibrary::SparseMatrix<double> *C_BB;
 
     /// pardiso variable
     void *pt[64]; // this is related to internal memory management, see PARDISO manual
@@ -360,6 +362,17 @@ public:
      * \author Altug Emiroglu
      ***********/
     void buildCouplingMatrices();
+
+    void build_C_BA();
+
+    void build_C_BB();
+
+    void findSlaveElements(const int _masterNodeIdx, std::vector<int>& _slaveElemIdxs);
+
+    void findSlaveNodes(double* _masterNodeCoords, std::vector<int>& _slaveNodeIdxs);
+    
+    void findSlaveNodes(const int _masterNodeIdx, std::vector<int>& _slaveNodeIdxs);
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields masterField = C_BA * slaveField
      * \param[in] slaveField the field of the slave side
@@ -408,7 +421,7 @@ private:
      * \param[in] _masterNodeIdx the master node index
      * \author Altug Emiroglu
      ***********/
-    void findSlaveElemInfluencingMasterNodes(const int _masterNodeIdx);
+    // void findSlaveElemInfluencingMasterNodes(const int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Performs clipping of a given element with the filter radius of the master node
      * \param[in] _masterNodeIdx the master node index
@@ -431,7 +444,7 @@ private:
      * \param[in] _masterNodeIdx
      * \author Altug Emiroglu
      ***********/
-    void doClippedIntegration(const int _slaveElemIdx, const int _masterNodeIdx);
+    void doIntegration_C_BA(const int _slaveElemIdx, const int _masterNodeIdx);
     /***********************************************************************************************
      * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
      * \author Altug Emiroglu
