@@ -613,11 +613,12 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
 
     // triaCase == 1: one node inside
     if (triaCase == 1){
-
+        // cout << "triaCase == 1" << endl;
         double* P0 = &_elem[inNodesPos.at(0)*dim];  // inside point
         double* P1 = &_elem[outNodesPos.at(0)*dim]; // next point
         double* P2 = &_elem[outNodesPos.at(1)*dim]; // prev point
-
+        // cout << "got points" << endl;
+        
         // xsi01 and xsi02 must have only 1 clipping
         vector<double> xsi01;
         vector<double> xsi02;
@@ -625,38 +626,54 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         vector<double> xsi12;
 
         // Find clippings
-        findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
-        findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
-        findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
+        // cout << "finding clippings" << endl;
+        bool isClipping01 = findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
+        bool isClipping12 = findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
+        // cout << "found clippings " << xsi01.size() << " " << xsi02.size() << " " << xsi12.size() << endl;
 
         // Compute the global cartesian coordinates of the clipping points
         double P01[3];
         double P02[3];
-        for (int iXYZ = 0; iXYZ < dim; iXYZ++){
-            P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
-            P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+        if (isClipping01){
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+        }
+        if (isClipping02){
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
         }
         xsi01.clear();
         xsi02.clear();
 
+        // for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+        //     P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+        //     P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+        // }
+        
         // Add P0
         _polygon.addPoint(P0);
         // if it doesnt clip the edge across add P01 and P02
         if (xsi12.size() == 0){
-            _polygon.addPoint(P01);
-            _polygon.addPoint(P02);
+            if (isClipping01)
+                _polygon.addPoint(P01);
+            if (isClipping02)
+                _polygon.addPoint(P02);
         } // if it clips once add P01, P12, P02
         else if (xsi12.size() == 1){
-            _polygon.addPoint(P01);
+            if (isClipping01)
+                _polygon.addPoint(P01);
             double P12[3];
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                 P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
             _polygon.addPoint(P12);
-            _polygon.addPoint(P02);
+            if (isClipping02)
+                _polygon.addPoint(P02);
         }
         // if it clips twice
         else if (xsi12.size() == 2){
-            _polygon.addPoint(P01);
+            if (isClipping01)
+                _polygon.addPoint(P01);
             double P12_1[3];
             double P12_2[3];
             // Sort xsi12 so that the order on the edge is P1->P12_1->P12_2->P2
@@ -667,7 +684,8 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
             }
             _polygon.addPoint(P12_1);
             _polygon.addPoint(P12_2);
-            _polygon.addPoint(P02);
+            if (isClipping02)
+                _polygon.addPoint(P02);
         }
         xsi12.clear();
 
