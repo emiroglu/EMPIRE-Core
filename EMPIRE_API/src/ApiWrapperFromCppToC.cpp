@@ -26,6 +26,7 @@
 #include "Empire.h"
 #include "EMPIRE_API.h"
 #include <assert.h>
+#include <string.h>
 #include <string>
 #include <vector>
 #include <cfloat>
