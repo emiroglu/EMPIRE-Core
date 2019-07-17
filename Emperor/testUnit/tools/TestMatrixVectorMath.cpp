@@ -48,7 +48,7 @@ public:
      ***********/
     void setUp() {
         // Assign a tolerance
-        tol = 1e-15;
+        tol = 1e-13;
 
         // Get the sizes of the matrices
         n = 3;

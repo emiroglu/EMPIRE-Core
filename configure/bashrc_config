@@ -28,8 +28,8 @@ fi
 	export EMP_PATH=$EMPIRE_CORE_BASE_DIR/bin:$EMP_PATH
 	
 # INTEL MPI variables
-	export I_MPI_FABRICS=shm:tcp
-	export I_MPI_FAULT_CONTINUE=off
+	export I_MPI_FABRICS=shm:ofi
+	export I_MPI_FAULT_CONTINUE=0
 	echo 'Setting toolchain ICC'
 ######################################################################################
 #Code metric

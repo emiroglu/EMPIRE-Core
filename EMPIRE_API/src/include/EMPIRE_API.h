@@ -70,7 +70,7 @@ void EMPIRE_API_Connect(char* inputFileName);
  * \param[in] elementName name of the XML element
  * \return user defined text
  ***********/
-char *EMPIRE_API_getUserDefinedText(char *elementName);
+const char *EMPIRE_API_getUserDefinedText(char *elementName);
 
 /***********************************************************************************************
  * \brief Send the mesh to the server

@@ -26,6 +26,7 @@
 #include "Empire.h"
 #include "EMPIRE_API.h"
 #include <assert.h>
+#include <string.h>
 #include <string>
 #include <vector>
 #include <cfloat>
@@ -43,9 +44,10 @@ void EMPIRE_API_Connect(char* inputFileName) {
     empire->connect();
 }
 
-char *EMPIRE_API_getUserDefinedText(char *elementName) {
-    string text = empire->getUserDefinedText(elementName);
-    return const_cast<char*>(text.c_str());
+const char *EMPIRE_API_getUserDefinedText(char *elementName) {
+    static string text;
+    text = empire->getUserDefinedText(elementName);
+    return text.data();
 }
 
 void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
