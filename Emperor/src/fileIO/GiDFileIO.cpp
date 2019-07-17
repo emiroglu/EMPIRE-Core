@@ -21,6 +21,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <list>
 #include <map>
@@ -525,7 +526,7 @@ void appendNodalDataToDotRes(std::string fileName, std::string resultName,
     for (int i = 0; i < numberOfNodes; i++) {
         dotResFile << '\t' << nodeIds[i];
         for (int j = 0; j < dimension; j++)
-            dotResFile << '\t' << data[i * dimension + j];
+            dotResFile << '\t' << std::setprecision(20) << data[i * dimension + j];
         dotResFile << endl;
     }
     dotResFile << "End Values" << endl << endl;

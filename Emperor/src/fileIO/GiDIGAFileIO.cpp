@@ -17,6 +17,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <map>
 #include <assert.h>
@@ -411,7 +412,7 @@ void appendCPDataToDotRes(std::string _fileName, std::string _dataFieldName,
 				itCP != itPatch->second.end(); itCP++) {
 			for (int d = 0; d < dimension; d++)
 				dotPostResFile << _dataField->data[*itCP * dimension + d]
-						<< SPACE;
+						<< std::setprecision(20) << SPACE;
 			dotPostResFile << endl;
 		}
 	}
