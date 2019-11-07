@@ -279,47 +279,22 @@ private:
     /// nodes constructing the searching tree
     flann::Matrix<double> *FLANNSlaveNodes;
 
-    flann::Index<flann::L2<double> > *FLANNkd_masterTree;
-    flann::Matrix<double> *FLANNMasterNodes;
-
     /// nearest neighbors searching tree of ANN libraray
     ANNkd_tree *slaveNodesTree;
     /// nodes constructing the searching tree
     double **ANNSlaveNodes;
 
-    ANNkd_tree *masterNodesTree;
-    double **ANNMasterNodes;
-
     /// directElemTable means the entries is not the node number, but the position in nodeCoors
     std::vector<int> **slaveDirectElemTable;
-    std::vector<int> **masterDirectElemTable;
 
     /// given a node, all the elements containing it are listed
     std::vector<int> **slaveNodeToElemTable;
-    std::vector<int> **masterNodeToElemTable;
-
-    // // given a slave element, all the master nodes that effect this element are listed
-    // // used for C_BA
-    std::vector<int>* slaveElemToMasterNodeTable;
-    // // given a slave element, all the master nodes that effect this element are listed
-    // // wrt their influence type (full/partial)
-    // // used for C_BA
-    // std::vector<bool>* slaveElemInfMasterNodeInsideTable;
-
+    
     // The value of the default integration of the filter function (used for adjusting the filter function)
     double* masterFilterFunctionIntegrationOnSlave;
 
-    double* slaveFilterFunctionIntegrationOnMaster;
-
-    // Maps of integration polygons and integration triangles
-//    std::map<int, std::vector<std::vector<double*> > > integrationPolygons;
-//    std::map<int, std::vector<std::vector<double*> > > integrationTriangles;
-
     /// New sparse matrix.
     MathLibrary::SparseMatrix<double> *C_BA;
-    MathLibrary::SparseMatrix<double> *C_AB;
-
-    // MathLibrary::SparseMatrix<double> *C_BB;
 
     /// pardiso variable
     void *pt[64]; // this is related to internal memory management, see PARDISO manual
@@ -369,26 +344,36 @@ public:
     void initialize();
 
     /***********************************************************************************************
-     * \brief Build Coupling Matrices
+     * \brief Initialize and build Coupling Matrices
      * \author Altug Emiroglu
      ***********/
     void buildCouplingMatrices();
 
+    /***********************************************************************************************
+     * \brief Build matrix C_BA
+     * \author Altug Emiroglu
+     ***********/
     void build_C_BA();
 
-    void build_C_AB();
-
-    void build_C_BB();
-
+    /***********************************************************************************************
+     * \brief Find slave elements in the influence radius of master node
+     * \param[in] _masterNodeIdx the index of the master node
+     * \param[out] _slaveElemIdxs the indices of the influenced slave elements
+     * \author Altug Emiroglu
+     ***********/
     void findSlaveElements(const int _masterNodeIdx, std::vector<int>& _slaveElemIdxs);
-    void findMasterElements(const int _slaveNodeIdx, std::vector<int>& _masterElemIdxs);
 
-    void findSlaveNodes(double* _masterNodeCoords, std::vector<int>& _slaveNodeIdxs);
+    /***********************************************************************************************
+     * \brief Find slave nodes in the influence radius of master node.
+     * The first function extracts the coordinates and feeds to the second
+     * \param[in] _masterNodeIdx the index of the master node
+     * \param[out] _slaveNodeIdxs the indices of the influenced slave nodes
+     * \author Altug Emiroglu
+     ***********/
     void findSlaveNodes(const int _masterNodeIdx, std::vector<int>& _slaveNodeIdxs);
+    void findSlaveNodes(double* _masterNodeCoords, std::vector<int>& _slaveNodeIdxs);
     
-    void findMasterNodes(const int _slaveNodeIdx, std::vector<int>& _masterNodeIdxs);
-    void findMasterNodes(double* _slaveNodeCoords, std::vector<int>& _masterNodeIdxs);
-
+    
     /***********************************************************************************************
      * \brief Do consistent mapping on fields masterField = C_BA * slaveField
      * \param[in] slaveField the field of the slave side
@@ -403,6 +388,11 @@ public:
      * \author Altug Emiroglu
      * ***********/
     void conservativeMapping(const double *masterField, double *slaveField);
+
+    /***********************************************************************************************
+     * \brief Computes consistent mapping errors (Not implemented)
+     * \author Altug Emiroglu
+     ***********/
     void computeErrorsConsistentMapping(const double *slaveField, const double *masterField);
 
     /// defines number of threads used for MKL routines
@@ -448,7 +438,6 @@ private:
      ***********/
     void clipSlaveElementWithFilterRadius(const int _masterNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon* _polygon);
 
-    void clipMasterElementWithFilterRadius(const int _slaveNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon* _polygon);
     /***********************************************************************************************
      * \brief Performs integration of the filter and the shape function product on a full element
      * \param[in] _slaveElemIdx the influenced slave element index
@@ -464,14 +453,12 @@ private:
      ***********/
     void doIntegration_C_BA(const int _slaveElemIdx, const int _masterNodeIdx);
 
-    void doIntegration_C_AB(const int _masterElemIdx, const int _slaveNodeIdx);
     /***********************************************************************************************
      * \brief Adjusts the filter function value by manipulating C_BA such that the unit integration property is satisfied
      * \author Altug Emiroglu
      ***********/
     void adjustFilterFunctions_BA();
 
-    void adjustFilterFunctions_AB();
     /***********************************************************************************************
      * \brief Finds clipping between P0 and Pn
      * \param[in] _masterNodeIdx the master node index
@@ -483,7 +470,6 @@ private:
      ***********/
     bool findClippingWithMaster(const int _masterNodeIdx, double* _P0, double* _Pn, std::vector<double>& _xsi);
 
-    bool findClippingWithSlave(const int _slaveNodeIdx, double* _P0, double* _Pn, std::vector<double>& _xsi);
     /***********************************************************************************************
      * \brief Clamps line parameter xsi to the limits 0 <= xsi <= 1
      * \param[in/out] _xsi line parameter
