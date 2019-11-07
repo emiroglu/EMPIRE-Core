@@ -91,7 +91,8 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
     /// This is a rectangular matrix of size
     /// masterNumNodes X slaveNumNodes
     C_BA = new MathLibrary::SparseMatrix<double>((size_t)(meshB->numNodes),(size_t)(meshA->numNodes));
-
+    C_AB = new MathLibrary::SparseMatrix<double>((size_t)(meshA->numNodes),(size_t)(meshB->numNodes));
+    
     // C_BB = new MathLibrary::SparseMatrix<double>((size_t)(meshB->numNodes),(size_t)(meshB->numNodes));
 
 }
@@ -99,14 +100,19 @@ VertexMorphingMapper::VertexMorphingMapper(std::string _name, AbstractMesh *_mes
 VertexMorphingMapper::~VertexMorphingMapper(){
 
     delete C_BA;
+    delete C_AB;
     // delete C_BB;
     delete filterFunction;
 
 #ifdef ANN
-    for (int i = 0; i < slaveNumNodes; i++) {
+    for (int i = 0; i < meshA->numNodes; i++) {
         delete[] ANNSlaveNodes[i];
     }
     delete[] ANNSlaveNodes;
+    for (int i = 0; i < meshB->numNodes; i++) {
+        delete[] ANNMasterNodes[i];
+    }
+    delete[] ANNMasterNodes;
 #endif
 
 }
@@ -117,16 +123,27 @@ void VertexMorphingMapper::deleteTables() {
         delete slaveDirectElemTable[i];
     }
     delete[] slaveDirectElemTable;
+    for (int i = 0; i < meshB->numElems; i++){
+        masterDirectElemTable[i]->clear();
+        delete masterDirectElemTable[i];
+    }
+    delete[] masterDirectElemTable;
 
     for (int i = 0; i < meshA->numNodes; i++){
         slaveNodeToElemTable[i]->clear();
         delete slaveNodeToElemTable[i];
     }
     delete[] slaveNodeToElemTable;
+    for (int i = 0; i < meshB->numNodes; i++){
+        masterNodeToElemTable[i]->clear();
+        delete masterNodeToElemTable[i];
+    }
+    delete[] masterNodeToElemTable;
 
     // delete[] slaveElemToMasterNodeTable;
 
     delete[] masterFilterFunctionIntegrationOnSlave;
+    delete[] slaveFilterFunctionIntegrationOnMaster;
 
 }
 
@@ -134,11 +151,15 @@ void VertexMorphingMapper::deleteANNTree() {
 #ifdef ANN
     delete[] ANNSlaveNodes;
     delete slaveNodesTree;
+    delete[] ANNMasterNodes;
+    delete masterNodesTree;
     annClose();
 #endif
 #ifdef FLANN
     delete FLANNSlaveNodes;
     delete FLANNkd_slaveTree;
+    delete FLANNMasterNodes;
+    delete FLANNkd_masterTree;
 #endif
 }
 
@@ -200,10 +221,44 @@ void VertexMorphingMapper::initTables() {
         for (int i = 0; i < meshA->numNodes; i++)
             slaveNodeToElemTable[i] = new vector<int>;
         for (int i = 0; i < meshA->numElems; i++) {
-            const int numNodesMasterElem = meshA->numNodesPerElem[i];
-            for (int j = 0; j < numNodesMasterElem; j++) {
+            const int numNodesSlaveElem = meshA->numNodesPerElem[i];
+            for (int j = 0; j < numNodesSlaveElem; j++) {
                 int nodePos = slaveDirectElemTable[i]->at(j);
                 slaveNodeToElemTable[nodePos]->push_back(i);
+            }
+        }
+    }
+
+    { // 3. compute masterDirectElemTable
+        masterDirectElemTable = new vector<int>*[meshB->numElems];
+        for (int i = 0; i < meshB->numElems; i++)
+            masterDirectElemTable[i] = new vector<int>;
+        map<int, int> *masterNodesMap = new map<int, int>();
+        for (int i = 0; i < meshB->numNodes; i++)
+            masterNodesMap->insert(masterNodesMap->end(), pair<int, int>(meshB->nodeIDs[i], i));
+        int count = 0;
+        for (int i = 0; i < meshB->numElems; i++) {
+            const int numNodesMasterElem = meshB->numNodesPerElem[i];
+            for (int j = 0; j < numNodesMasterElem; j++) {
+                if(masterNodesMap->find(meshB->elems[count + j])== masterNodesMap->end())
+                    ERROR_OUT()<< "Master Node Label " << meshB->elems[count + j] << " is not part of masterNodesMap." << endl;
+
+                masterDirectElemTable[i]->push_back(masterNodesMap->at(meshB->elems[count + j]));
+            }
+            count += numNodesMasterElem;
+        }
+        delete masterNodesMap;
+    }
+
+    { // 4. compute masterNodeToElemTable
+        masterNodeToElemTable = new vector<int>*[meshB->numNodes];
+        for (int i = 0; i < meshB->numNodes; i++)
+            masterNodeToElemTable[i] = new vector<int>;
+        for (int i = 0; i < meshB->numElems; i++) {
+            const int numNodesMasterElem = meshB->numNodesPerElem[i];
+            for (int j = 0; j < numNodesMasterElem; j++) {
+                int nodePos = masterDirectElemTable[i]->at(j);
+                masterNodeToElemTable[nodePos]->push_back(i);
             }
         }
     }
@@ -211,6 +266,10 @@ void VertexMorphingMapper::initTables() {
     masterFilterFunctionIntegrationOnSlave = new double[meshB->numNodes];
     for (int iNode = 0; iNode < meshB->numNodes; iNode++)
         masterFilterFunctionIntegrationOnSlave[iNode] = 0.0;
+
+    slaveFilterFunctionIntegrationOnMaster = new double[meshA->numNodes];
+    for (int iNode = 0; iNode < meshA->numNodes; iNode++)
+        slaveFilterFunctionIntegrationOnMaster[iNode] = 0.0;
 
     // This is necessary for C_BB
     // slaveElemToMasterNodeTable = new vector<int>[meshA->numElems];
@@ -222,17 +281,31 @@ void VertexMorphingMapper::initANNTree() {
 
 #ifdef ANN
     ANNSlaveNodes = new double*[meshA->numNodes]; // ANN uses 2D array
-    for (int i = 0; i < meshB->numNodes; i++) {
+    for (int i = 0; i < meshA->numNodes; i++) {
         ANNSlaveNodes[i] = new double[3];
         for (int j = 0; j<3; j++)
             ANNSlaveNodes[i][j] = meshA->nodes[i * 3 + j];
     }
     slaveNodesTree = new ANNkd_tree(ANNSlaveNodes, meshA->numNodes, 3);
+
+    ANNMasterNodes = new double*[meshB->numNodes]; // ANN uses 2D array
+    for (int i = 0; i < meshB->numNodes; i++) {
+        ANNMasterNodes[i] = new double[3];
+        for (int j = 0; j<3; j++)
+            ANNMasterNodes[i][j] = meshB->nodes[i * 3 + j];
+    }
+    masterNodesTree = new ANNkd_tree(ANNMasterNodes, meshB->numNodes, 3);
+
 #endif
 #ifdef FLANN
     FLANNSlaveNodes = new flann::Matrix<double>(const_cast<double*>(meshA->nodes), meshA->numNodes, 3);
     FLANNkd_slaveTree = new flann::Index<flann::L2<double> >(*FLANNSlaveNodes, flann::KDTreeSingleIndexParams(1));
     FLANNkd_slaveTree->buildIndex(); // Build binary tree for searching
+
+    FLANNMasterNodes = new flann::Matrix<double>(const_cast<double*>(meshB->nodes), meshB->numNodes, 3);
+    FLANNkd_masterTree = new flann::Index<flann::L2<double> >(*FLANNMasterNodes, flann::KDTreeSingleIndexParams(1));
+    FLANNkd_masterTree->buildIndex(); // Build binary tree for searching
+
 #endif
 }
 
@@ -242,6 +315,15 @@ void VertexMorphingMapper::findSlaveNodes(const int _masterNodeIdx, vector<int>&
     double* masterNodeCoords = &meshB->nodes[_masterNodeIdx*dim];
 
     findSlaveNodes(masterNodeCoords, _slaveNodeIdxs);
+
+}
+
+void VertexMorphingMapper::findMasterNodes(const int _slaveNodeIdx, vector<int>& _masterNodeIdxs){
+
+    const int dim = 3;
+    double* slaveNodeCoords = &meshA->nodes[_slaveNodeIdx*dim];
+
+    findMasterNodes(slaveNodeCoords, _masterNodeIdxs);
 
 }
 
@@ -273,6 +355,40 @@ void VertexMorphingMapper::findSlaveNodes(double* _masterNodeCoords, vector<int>
 
     for (int iNodeIdx = 0; iNodeIdx < numInfNodes; iNodeIdx++)
         _slaveNodeIdxs.push_back(infNodeIndices[iNodeIdx]);
+    
+    delete[] infNodeIndices;
+}
+
+void VertexMorphingMapper::findMasterNodes(double* _slaveNodeCoords, vector<int>& _masterNodeIdxs){
+
+    // 1.1 Find the node indices in the filter radius
+    int dim = 3;
+    int numInfNodes = 0;
+    int *infNodeIndices;
+
+#ifdef ANN
+    numInfNodes = masterNodesTree->annkFRSearch(_slaveNodeCoords, filterRadius, 0); // get the number of neighbors in a radius
+    infNodeIndices = new int[numInfNodes];
+    double *dummy = new double[numInfNodes];
+    masterNodesTree->annkFRSearch(&_slaveNodeCoords, filterRadius*filterRadius, numInfNodes, infNodeIndices, dummy);// get the real neighbors (ANN uses the square of the radius)
+    delete[] dummy;
+#endif
+
+#ifdef FLANN
+    flann::Matrix<double> slaveNodeCopyFlann(_slaveNodeCoords, 1, 3);
+    vector<vector<int> > indices_tmp;
+    vector<vector<double> > dists_tmp;
+    FLANNkd_masterTree->radiusSearch(slaveNodeCopyFlann, indices_tmp, dists_tmp, filterRadius*filterRadius, flann::SearchParams(1));
+    numInfNodes = indices_tmp[0].size();
+    infNodeIndices = new int[indices_tmp[0].size()];
+    for (int j=0; j<indices_tmp[0].size(); j++)
+        infNodeIndices[j] = indices_tmp[0][j];
+#endif
+
+    for (int iNodeIdx = 0; iNodeIdx < numInfNodes; iNodeIdx++)
+        _masterNodeIdxs.push_back(infNodeIndices[iNodeIdx]);
+    
+    delete[] infNodeIndices;
 }
 
 void VertexMorphingMapper::findSlaveElements(const int _masterNodeIdx, vector<int>& _slaveElemIdxs){
@@ -292,7 +408,6 @@ void VertexMorphingMapper::findSlaveElements(const int _masterNodeIdx, vector<in
                 _slaveElemIdxs.push_back(*itSlaveElem);
             }
         }
-
     }
 
     // Add the master nodes to the related slave element table
@@ -301,6 +416,33 @@ void VertexMorphingMapper::findSlaveElements(const int _masterNodeIdx, vector<in
     //     slaveElemToMasterNodeTable[*itSlaveElemIdxs].push_back(_masterNodeIdx);
     // }
 }
+
+void VertexMorphingMapper::findMasterElements(const int _slaveNodeIdx, vector<int>& _masterElemIdxs){
+
+    vector<int> masterNodeIdxs;
+    findMasterNodes(_slaveNodeIdx, masterNodeIdxs);
+
+    // Loop over the influenced slave nodes
+    for (vector<int>::iterator itMasterNodeIdx = masterNodeIdxs.begin(); itMasterNodeIdx != masterNodeIdxs.end(); itMasterNodeIdx++) {
+        
+        // Get the master elems containing this slave node
+        vector<int>* masterNodeElems = masterNodeToElemTable[*itMasterNodeIdx];
+
+        // Loop over the influenced slave elems list and add this element if it is not in the list already
+        for (vector<int>::iterator itMasterElem = masterNodeElems->begin(); itMasterElem != masterNodeElems->end(); itMasterElem++){
+            if (find(_masterElemIdxs.begin(), _masterElemIdxs.end(), *itMasterElem) ==  _masterElemIdxs.end()){
+                _masterElemIdxs.push_back(*itMasterElem);
+            }
+        }
+    }
+
+    // Add the master nodes to the related slave element table
+    // This is necessary for the computation of C_BB
+    // for (vector<int>::iterator itSlaveElemIdxs = _slaveElemIdxs.begin(); itSlaveElemIdxs != _slaveElemIdxs.end(); itSlaveElemIdxs++){
+    //     slaveElemToMasterNodeTable[*itSlaveElemIdxs].push_back(_masterNodeIdx);
+    // }
+}
+
 
 void VertexMorphingMapper::build_C_BA(){
 
@@ -311,8 +453,13 @@ void VertexMorphingMapper::build_C_BA(){
     // Loop over the master nodes
     for (int masterNodeIdx = 0; masterNodeIdx < meshB->numNodes; masterNodeIdx++){
 
+        // cout << "Master Node Idx: " << masterNodeIdx << endl;
         // Find influenced master elements
         findSlaveElements(masterNodeIdx, slaveElemIdxs);
+        // cout << "Slave Element Idxs: ";
+        // for (int i =0; i<slaveElemIdxs.size(); i++)
+        //     cout << slaveElemIdxs.at(i) << " ";
+        // cout << endl;
 
         // Loop over the influenced elements and integrate
         for (vector<int>::iterator itSlaveElemIdx = slaveElemIdxs.begin(); itSlaveElemIdx != slaveElemIdxs.end(); itSlaveElemIdx++)
@@ -321,7 +468,29 @@ void VertexMorphingMapper::build_C_BA(){
         slaveElemIdxs.clear();
     }
 
-    adjustFilterFunctions();
+    adjustFilterFunctions_BA();
+}
+
+void VertexMorphingMapper::build_C_AB(){
+
+    int dim = 3;
+
+    vector<int> masterElemIdxs;
+
+    // Loop over the master nodes
+    for (int slaveNodeIdx = 0; slaveNodeIdx < meshA->numNodes; slaveNodeIdx++){
+
+        // Find influenced master elements
+        findMasterElements(slaveNodeIdx, masterElemIdxs);
+
+        // Loop over the influenced elements and integrate
+        for (vector<int>::iterator itMasterElemIdx = masterElemIdxs.begin(); itMasterElemIdx != masterElemIdxs.end(); itMasterElemIdx++)
+            doIntegration_C_AB(*itMasterElemIdx, slaveNodeIdx);
+
+        masterElemIdxs.clear();
+    }
+
+    adjustFilterFunctions_AB();
 }
 
 void VertexMorphingMapper::build_C_BB(){
@@ -509,6 +678,8 @@ void VertexMorphingMapper::buildCouplingMatrices(){
 
     build_C_BA();
 
+    // build_C_AB();
+
     // build_C_BB();
 
 }
@@ -528,16 +699,16 @@ void VertexMorphingMapper::doIntegration_C_BA(const int _slaveElemIdx, const int
     }
 
     // Make an integration polygon to triangulate afterwards
-    VertexMorphingMapper::Polygon intPolygon = VertexMorphingMapper::Polygon();
+    VertexMorphingMapper::Polygon* intPolygon = new VertexMorphingMapper::Polygon();
 
     // Find the clipping of the element and store in the integration polygon
-    clipElementWithFilterRadius(_masterNodeIdx, numNodes, slaveElem, intPolygon);
+    clipSlaveElementWithFilterRadius(_masterNodeIdx, numNodes, slaveElem, intPolygon);
 
     // Triangulate the polygon
-    intPolygon.triangulate();
+    intPolygon->triangulate();
 
     // Loop over the subtriangles of the polygon
-    for (std::vector<double*>::iterator itTria = intPolygon.triangles.begin(); itTria !=intPolygon.triangles.end(); itTria++){
+    for (std::vector<double*>::iterator itTria = intPolygon->triangles.begin(); itTria !=intPolygon->triangles.end(); itTria++){
         // Create Gauss rule on subtriangle
         EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
                 new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itTria, numGPsOnTri);
@@ -566,9 +737,68 @@ void VertexMorphingMapper::doIntegration_C_BA(const int _slaveElemIdx, const int
 
     }
 
+    delete intPolygon;
+
 }
 
-void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon& _polygon){
+void VertexMorphingMapper::doIntegration_C_AB(const int _masterElemIdx, const int _slaveNodeIdx)
+{
+
+    int dim = 3;
+    int numNodes = meshB->numNodesPerElem[_masterElemIdx];
+
+    // Get the element to be integrated
+    double masterElem[meshB->numNodesPerElem[_masterElemIdx]*dim];
+    for (int iNode = 0; iNode<meshB->numNodesPerElem[_masterElemIdx]; iNode++){
+        int nodeIdx = masterDirectElemTable[_masterElemIdx]->at(iNode);
+        for (int iXYZ = 0; iXYZ<dim; iXYZ++)
+            masterElem[iNode*dim+iXYZ] = meshB->nodes[nodeIdx*dim+iXYZ];
+    }
+
+    // Make an integration polygon to triangulate afterwards
+    VertexMorphingMapper::Polygon* intPolygon = new VertexMorphingMapper::Polygon();
+
+    // Find the clipping of the element and store in the integration polygon
+    clipMasterElementWithFilterRadius(_slaveNodeIdx, numNodes, masterElem, intPolygon);
+
+    // Triangulate the polygon
+    intPolygon->triangulate();
+
+    // Loop over the subtriangles of the polygon
+    for (std::vector<double*>::iterator itTria = intPolygon->triangles.begin(); itTria !=intPolygon->triangles.end(); itTria++){
+        // Create Gauss rule on subtriangle
+        EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTria =
+                new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(*itTria, numGPsOnTri);
+        // Compute the integration of the filter function
+        // It is done this way instead of doing it on the matrix directly because it is a very expensive operation on the matrix
+        for (int iGP = 0; iGP < gaussQuadratureOnTria->getNumGaussPoints(); iGP++) {
+            slaveFilterFunctionIntegrationOnMaster[_slaveNodeIdx] += gaussQuadratureOnTria->getWeight(iGP)
+                    * filterFunction->computeFunction(&meshA->nodes[_slaveNodeIdx*dim], &gaussQuadratureOnTria->getGaussPointsGlobal()[iGP*dim])
+                    * gaussQuadratureOnTria->getDetJ(iGP);
+        }
+
+        // Create the integrand on the unclipped element (This can be generated outside and passed in)
+        FilterFunctionProduct* integrand = new FilterFunctionProduct(meshB->numNodesPerElem[_masterElemIdx], masterElem, &meshA->nodes[_slaveNodeIdx*dim]);
+
+        integrand->setGaussPoints(gaussQuadratureOnTria->gaussPointsGlobal, gaussQuadratureOnTria->numGaussPoints);
+        integrand->computeFunctionProducts(filterFunction);
+
+        for (int iNode = 0; iNode < meshB->numNodesPerElem[_masterElemIdx]; iNode++) {
+            gaussQuadratureOnTria->setIntegrandFunc(integrand);
+            integrand->setFunctionID(iNode);
+            (*C_AB)(_slaveNodeIdx,masterDirectElemTable[_masterElemIdx]->at(iNode)) += gaussQuadratureOnTria->computeIntegral();
+        }
+
+        delete integrand;
+        delete gaussQuadratureOnTria;
+
+    }
+
+    delete intPolygon;
+
+}
+
+void VertexMorphingMapper::clipSlaveElementWithFilterRadius(const int _masterNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon* _polygon){
 
     // This function considers the clipping cases one by one instead of trying to clip each edge by default.
     // This way turned out to be more efficient than the latter.
@@ -627,9 +857,9 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
 
         // Find clippings
         // cout << "finding clippings" << endl;
-        bool isClipping01 = findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
-        bool isClipping02 = findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
-        bool isClipping12 = findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
+        bool isClipping01 = findClippingWithMaster(_masterNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClippingWithMaster(_masterNodeIdx, P0, P2, xsi02);  // P02
+        bool isClipping12 = findClippingWithMaster(_masterNodeIdx, P1, P2, xsi12);  // P12
         // cout << "found clippings " << xsi01.size() << " " << xsi02.size() << " " << xsi12.size() << endl;
 
         // Compute the global cartesian coordinates of the clipping points
@@ -652,28 +882,28 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         // }
         
         // Add P0
-        _polygon.addPoint(P0);
+        _polygon->addPoint(P0);
         // if it doesnt clip the edge across add P01 and P02
         if (xsi12.size() == 0){
             if (isClipping01)
-                _polygon.addPoint(P01);
+                _polygon->addPoint(P01);
             if (isClipping02)
-                _polygon.addPoint(P02);
+                _polygon->addPoint(P02);
         } // if it clips once add P01, P12, P02
         else if (xsi12.size() == 1){
             if (isClipping01)
-                _polygon.addPoint(P01);
+                _polygon->addPoint(P01);
             double P12[3];
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                 P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
-            _polygon.addPoint(P12);
+            _polygon->addPoint(P12);
             if (isClipping02)
-                _polygon.addPoint(P02);
+                _polygon->addPoint(P02);
         }
         // if it clips twice
         else if (xsi12.size() == 2){
             if (isClipping01)
-                _polygon.addPoint(P01);
+                _polygon->addPoint(P01);
             double P12_1[3];
             double P12_2[3];
             // Sort xsi12 so that the order on the edge is P1->P12_1->P12_2->P2
@@ -682,10 +912,10 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
                 P12_1[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
                 P12_2[iXYZ] = (1.0-xsi12.at(1)) * P1[iXYZ] + xsi12.at(1) * P2[iXYZ];
             }
-            _polygon.addPoint(P12_1);
-            _polygon.addPoint(P12_2);
+            _polygon->addPoint(P12_1);
+            _polygon->addPoint(P12_2);
             if (isClipping02)
-                _polygon.addPoint(P02);
+                _polygon->addPoint(P02);
         }
         xsi12.clear();
 
@@ -699,12 +929,12 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         // Find clipping
         vector<double> xsi01;
         vector<double> xsi02;
-        bool isClipping01 = findClipping(_masterNodeIdx, P0, P1, xsi01);  // P01
-        bool isClipping02 = findClipping(_masterNodeIdx, P0, P2, xsi02);  // P02
+        bool isClipping01 = findClippingWithMaster(_masterNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClippingWithMaster(_masterNodeIdx, P0, P2, xsi02);  // P02
 
         // Add points to the polygon
-        _polygon.addPoint(P1);
-        _polygon.addPoint(P2);
+        _polygon->addPoint(P1);
+        _polygon->addPoint(P2);
 
         // Compute the global Cartesian coordinates of the clippings if they are valid
         if (isClipping02){
@@ -712,7 +942,7 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                 P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
             xsi02.clear();
-            _polygon.addPoint(P02);
+            _polygon->addPoint(P02);
         }        
 
         if (isClipping01){
@@ -720,16 +950,15 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                 P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
             xsi01.clear();
-            _polygon.addPoint(P01);
+            _polygon->addPoint(P01);
         }        
 
-        
     } // triaCase == 3: 
     else if (triaCase == 3) {
 
-        _polygon.addPoint(&_elem[inNodesPos.at(0)*dim]);
-        _polygon.addPoint(&_elem[inNodesPos.at(1)*dim]);
-        _polygon.addPoint(&_elem[inNodesPos.at(2)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(0)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(1)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(2)*dim]);
 
     } // quadCase == 1: one node inside
     else if (quadCase == 1){
@@ -737,19 +966,19 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         double* P0 = &_elem[inNodesPos.at(0)*dim];
 
         // Add the inside node to the integration polygon
-        _polygon.addPoint(P0);
+        _polygon->addPoint(P0);
         // Loop over the outside nodes and find a clipping between inside node and outside node
         for (int iOutNode = 1; iOutNode < _numNodes; iOutNode++){
             double P0n[3];
             double* Pn = &_elem[((inNodesPos.at(0)+iOutNode)%_numNodes)*dim];
             vector<double> xsi0n;
-            bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
+            bool isClipping = findClippingWithMaster(_masterNodeIdx, P0, Pn, xsi0n);
             // Compute the global cartesian coordinates of the clipping location
             for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                 P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
             xsi0n.clear();
             // Add the point to the integration polygon
-            _polygon.addPoint(P0n);
+            _polygon->addPoint(P0n);
         }
     } // quadCase == 2: two adjacent nodes inside
     else if (quadCase == 2){
@@ -777,8 +1006,8 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         // Find clipping
         vector<double> xsi03;
         vector<double> xsi12;
-        bool isClipping03 = findClipping(_masterNodeIdx, P0, P3, xsi03);  // P03
-        bool isClipping12 = findClipping(_masterNodeIdx, P1, P2, xsi12);  // P12
+        bool isClipping03 = findClippingWithMaster(_masterNodeIdx, P0, P3, xsi03);  // P03
+        bool isClipping12 = findClippingWithMaster(_masterNodeIdx, P1, P2, xsi12);  // P12
 
         // Compute the global Cartesian coordinates of the clippings
         double P03[3];
@@ -791,10 +1020,10 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         xsi12.clear();
 
         // Add the points to the polygon
-        _polygon.addPoint(P0);
-        _polygon.addPoint(P1);
-        _polygon.addPoint(P12);
-        _polygon.addPoint(P03);
+        _polygon->addPoint(P0);
+        _polygon->addPoint(P1);
+        _polygon->addPoint(P12);
+        _polygon->addPoint(P03);
 
     } // quadCase == 3: three nodes inside
     else if (quadCase == 3){
@@ -802,7 +1031,7 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
         // Add the inside nodes in counter-clockwise order wrt the outside node
         for (int iInNode = 1; iInNode < 4; iInNode++){
             double* Pn = &_elem[((outNodesPos.at(0)+iInNode)%_numNodes)*dim];
-            _polygon.addPoint(Pn);
+            _polygon->addPoint(Pn);
         }
 
         // Loop over the inside nodes in clockwise order wrt the outside node and add the clippings
@@ -811,24 +1040,24 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
             // Find clipping
             vector<double> xsi0n;
             double* Pn = &_elem[((outNodesPos.at(0)+iInNode)%_numNodes)*dim];
-            bool isClipping = findClipping(_masterNodeIdx, P0, Pn, xsi0n);
+            bool isClipping = findClippingWithMaster(_masterNodeIdx, P0, Pn, xsi0n);
             if (isClipping) {
                 // Compute the global Cartesian coordinates of the clipping
                 double P0n[3];
                 for (int iXYZ = 0; iXYZ < dim; iXYZ++)
                     P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
                 // Add the point to the polygon
-                _polygon.addPoint(P0n);
+                _polygon->addPoint(P0n);
             }
         }
 
     } // quadCase == 4: 
     else if (quadCase == 4) {
         
-        _polygon.addPoint(&_elem[inNodesPos.at(0)*dim]);
-        _polygon.addPoint(&_elem[inNodesPos.at(1)*dim]);
-        _polygon.addPoint(&_elem[inNodesPos.at(2)*dim]);
-        _polygon.addPoint(&_elem[inNodesPos.at(3)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(0)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(1)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(2)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(3)*dim]);
 
     } // quadCase == 5: two nodes accross each other inside
     else if (quadCase == 5){
@@ -849,12 +1078,345 @@ void VertexMorphingMapper::clipElementWithFilterRadius(const int _masterNodeIdx,
 
 }
 
-bool VertexMorphingMapper::findClipping(const int _masterNodeIdx, double* _P0, double* _Pn, vector<double>& _xsi){
+void VertexMorphingMapper::clipMasterElementWithFilterRadius(const int _slaveNodeIdx, const int _numNodes, double* _elem, VertexMorphingMapper::Polygon* _polygon){
+
+    // This function considers the clipping cases one by one instead of trying to clip each edge by default.
+    // This way turned out to be more efficient than the latter.
+
+    int dim = 3;
+
+    // Count the influenced nodes by the master node
+    int numInNodes = 0;
+    std::vector<int> inNodesPos;
+    std::vector<int> outNodesPos;
+    int nodePos = -1;
+
+    // Find the inside and outside nodes of this element
+    for (int iNode = 0; iNode < _numNodes; iNode++){
+        nodePos++;
+        double dist = EMPIRE::MathLibrary::computeDenseEuclideanNorm(dim, &meshA->nodes[_slaveNodeIdx*dim], &_elem[iNode*dim]);
+        if (dist < filterRadius){
+            inNodesPos.push_back(nodePos);
+            numInNodes++;
+        } else
+            outNodesPos.push_back(nodePos);
+    }
+
+    // triaCase = 1: one node inside
+    // triaCase = 2: two nodes inside
+    // triaCase = 3: all nodes inside
+    // quadCase = 1: one node inside
+    // quadCase = 2: two adjacent nodes inside
+    // quadCase = 3: three nodes inside
+    // quadCase = 4: all nodes inside
+    // quadCase = 5: two nodes accross each other inside
+    int triaCase = 0;
+    int quadCase = 0;
+    if (_numNodes == 3) {
+        triaCase += numInNodes;
+    }
+    else if (_numNodes == 4){
+        quadCase += numInNodes;
+        if (numInNodes == 2 && (abs(inNodesPos[0]-inNodesPos[1]) == 2))
+            quadCase += 3;
+    } else assert(false);
+
+    // triaCase == 1: one node inside
+    if (triaCase == 1){
+        // cout << "triaCase == 1" << endl;
+        double* P0 = &_elem[inNodesPos.at(0)*dim];  // inside point
+        double* P1 = &_elem[outNodesPos.at(0)*dim]; // next point
+        double* P2 = &_elem[outNodesPos.at(1)*dim]; // prev point
+        // cout << "got points" << endl;
+        
+        // xsi01 and xsi02 must have only 1 clipping
+        vector<double> xsi01;
+        vector<double> xsi02;
+        // xsi12 might have 1, 2 or no clippings
+        vector<double> xsi12;
+
+        // Find clippings
+        // cout << "finding clippings" << endl;
+        bool isClipping01 = findClippingWithSlave(_slaveNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClippingWithSlave(_slaveNodeIdx, P0, P2, xsi02);  // P02
+        bool isClipping12 = findClippingWithSlave(_slaveNodeIdx, P1, P2, xsi12);  // P12
+        // cout << "found clippings " << xsi01.size() << " " << xsi02.size() << " " << xsi12.size() << endl;
+
+        // Compute the global cartesian coordinates of the clipping points
+        double P01[3];
+        double P02[3];
+        if (isClipping01){
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+        }
+        if (isClipping02){
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+        }
+        xsi01.clear();
+        xsi02.clear();
+
+        // for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+        //     P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+        //     P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+        // }
+        
+        // Add P0
+        _polygon->addPoint(P0);
+        // if it doesnt clip the edge across add P01 and P02
+        if (xsi12.size() == 0){
+            if (isClipping01)
+                _polygon->addPoint(P01);
+            if (isClipping02)
+                _polygon->addPoint(P02);
+        } // if it clips once add P01, P12, P02
+        else if (xsi12.size() == 1){
+            if (isClipping01)
+                _polygon->addPoint(P01);
+            double P12[3];
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
+            _polygon->addPoint(P12);
+            if (isClipping02)
+                _polygon->addPoint(P02);
+        }
+        // if it clips twice
+        else if (xsi12.size() == 2){
+            if (isClipping01)
+                _polygon->addPoint(P01);
+            double P12_1[3];
+            double P12_2[3];
+            // Sort xsi12 so that the order on the edge is P1->P12_1->P12_2->P2
+            sort(xsi12.begin(), xsi12.end());
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+                P12_1[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
+                P12_2[iXYZ] = (1.0-xsi12.at(1)) * P1[iXYZ] + xsi12.at(1) * P2[iXYZ];
+            }
+            _polygon->addPoint(P12_1);
+            _polygon->addPoint(P12_2);
+            if (isClipping02)
+                _polygon->addPoint(P02);
+        }
+        xsi12.clear();
+
+    } // triaCase == 2: two nodes inside
+    else if(triaCase == 2) {
+
+        double* P0 = &_elem[outNodesPos.at(0)*dim];  // outside point
+        double* P1 = &_elem[inNodesPos.at(0)*dim];   // next point
+        double* P2 = &_elem[inNodesPos.at(1)*dim];   // prev point
+
+        // Find clipping
+        vector<double> xsi01;
+        vector<double> xsi02;
+        bool isClipping01 = findClippingWithSlave(_slaveNodeIdx, P0, P1, xsi01);  // P01
+        bool isClipping02 = findClippingWithSlave(_slaveNodeIdx, P0, P2, xsi02);  // P02
+
+        // Add points to the polygon
+        _polygon->addPoint(P1);
+        _polygon->addPoint(P2);
+
+        // Compute the global Cartesian coordinates of the clippings if they are valid
+        if (isClipping02){
+            double P02[3];
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P02[iXYZ] = (1.0-xsi02.at(0)) * P0[iXYZ] + xsi02.at(0) * P2[iXYZ];
+            xsi02.clear();
+            _polygon->addPoint(P02);
+        }        
+
+        if (isClipping01){
+            double P01[3];
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P01[iXYZ] = (1.0-xsi01.at(0)) * P0[iXYZ] + xsi01.at(0) * P1[iXYZ];
+            xsi01.clear();
+            _polygon->addPoint(P01);
+        }        
+
+    } // triaCase == 3: 
+    else if (triaCase == 3) {
+
+        _polygon->addPoint(&_elem[inNodesPos.at(0)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(1)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(2)*dim]);
+
+    } // quadCase == 1: one node inside
+    else if (quadCase == 1){
+
+        double* P0 = &_elem[inNodesPos.at(0)*dim];
+
+        // Add the inside node to the integration polygon
+        _polygon->addPoint(P0);
+        // Loop over the outside nodes and find a clipping between inside node and outside node
+        for (int iOutNode = 1; iOutNode < _numNodes; iOutNode++){
+            double P0n[3];
+            double* Pn = &_elem[((inNodesPos.at(0)+iOutNode)%_numNodes)*dim];
+            vector<double> xsi0n;
+            bool isClipping = findClippingWithSlave(_slaveNodeIdx, P0, Pn, xsi0n);
+            // Compute the global cartesian coordinates of the clipping location
+            for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
+            xsi0n.clear();
+            // Add the point to the integration polygon
+            _polygon->addPoint(P0n);
+        }
+    } // quadCase == 2: two adjacent nodes inside
+    else if (quadCase == 2){
+
+        // The nodes are always ordered in the counter-clockwise order
+        double* P0;
+        double* P1;
+        double* P2;
+        double* P3;
+
+        // if first and the last nodes are inside
+        if (abs(inNodesPos.at(0) - inNodesPos.at(1)) == 3){
+            P0 = &_elem[inNodesPos.at(1)*dim];
+            P1 = &_elem[inNodesPos.at(0)*dim];
+            P2 = &_elem[((inNodesPos.at(0)+_numNodes+1)%_numNodes)*dim];
+            P3 = &_elem[((inNodesPos.at(1)+_numNodes-1)%_numNodes)*dim];
+        } // if two consecutive nodes are inside
+        else {
+            P0 = &_elem[inNodesPos.at(0)*dim];
+            P1 = &_elem[inNodesPos.at(1)*dim];
+            P2 = &_elem[((inNodesPos.at(1)+_numNodes+1)%_numNodes)*dim];
+            P3 = &_elem[((inNodesPos.at(0)+_numNodes-1)%_numNodes)*dim];
+        }
+
+        // Find clipping
+        vector<double> xsi03;
+        vector<double> xsi12;
+        bool isClipping03 = findClippingWithSlave(_slaveNodeIdx, P0, P3, xsi03);  // P03
+        bool isClipping12 = findClippingWithSlave(_slaveNodeIdx, P1, P2, xsi12);  // P12
+
+        // Compute the global Cartesian coordinates of the clippings
+        double P03[3];
+        double P12[3];
+        for (int iXYZ = 0; iXYZ < dim; iXYZ++){
+            P03[iXYZ] = (1.0-xsi03.at(0)) * P0[iXYZ] + xsi03.at(0) * P3[iXYZ];
+            P12[iXYZ] = (1.0-xsi12.at(0)) * P1[iXYZ] + xsi12.at(0) * P2[iXYZ];
+        }
+        xsi03.clear();
+        xsi12.clear();
+
+        // Add the points to the polygon
+        _polygon->addPoint(P0);
+        _polygon->addPoint(P1);
+        _polygon->addPoint(P12);
+        _polygon->addPoint(P03);
+
+    } // quadCase == 3: three nodes inside
+    else if (quadCase == 3){
+
+        // Add the inside nodes in counter-clockwise order wrt the outside node
+        for (int iInNode = 1; iInNode < 4; iInNode++){
+            double* Pn = &_elem[((outNodesPos.at(0)+iInNode)%_numNodes)*dim];
+            _polygon->addPoint(Pn);
+        }
+
+        // Loop over the inside nodes in clockwise order wrt the outside node and add the clippings
+        double* P0 = &_elem[outNodesPos.at(0)*dim];
+        for (int iInNode = 3; iInNode > 0; iInNode--){
+            // Find clipping
+            vector<double> xsi0n;
+            double* Pn = &_elem[((outNodesPos.at(0)+iInNode)%_numNodes)*dim];
+            bool isClipping = findClippingWithSlave(_slaveNodeIdx, P0, Pn, xsi0n);
+            if (isClipping) {
+                // Compute the global Cartesian coordinates of the clipping
+                double P0n[3];
+                for (int iXYZ = 0; iXYZ < dim; iXYZ++)
+                    P0n[iXYZ] = (1.0-xsi0n.at(0)) * P0[iXYZ] + xsi0n.at(0) * Pn[iXYZ];
+                // Add the point to the polygon
+                _polygon->addPoint(P0n);
+            }
+        }
+
+    } // quadCase == 4: 
+    else if (quadCase == 4) {
+        
+        _polygon->addPoint(&_elem[inNodesPos.at(0)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(1)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(2)*dim]);
+        _polygon->addPoint(&_elem[inNodesPos.at(3)*dim]);
+
+    } // quadCase == 5: two nodes accross each other inside
+    else if (quadCase == 5){
+        if (Message::isDebugMode())
+            WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "quadCase == 5 is not implemented yet!");
+        return;
+    } // unknown case
+    else {
+        if (Message::isDebugMode()){
+            cout << "Tria case: " << triaCase << " Quad case: " << quadCase << endl;
+            WARNING_BLOCK_OUT("VertexMorphingMapper","clipElementWithFilterRadius", "Unknown case!");
+        }
+        return;
+    }
+    
+    inNodesPos.clear();
+    outNodesPos.clear();
+
+}
+
+bool VertexMorphingMapper::findClippingWithMaster(const int _masterNodeIdx, double* _P0, double* _Pn, vector<double>& _xsi){
 
     int dim = 3;
 
     // Get the node
     double* Pc = &meshB->nodes[_masterNodeIdx*dim];
+
+    // Some precomputations
+    double P0P0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _P0, _P0);
+    double PnPn = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _Pn, _Pn);
+    double PcPc = EMPIRE::MathLibrary::computeDenseDotProduct(dim, Pc, Pc);
+    double P0Pn = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _P0, _Pn);
+    double PcP0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, Pc, _P0);
+    double PcPn = EMPIRE::MathLibrary::computeDenseDotProduct(dim, Pc, _Pn);
+
+    // compute the line parameter: P0n(xsi) = (1-xsi)*P0 + xsi*Pn
+    // it is a root finding problem of a 2nd degree polynomial
+    double xsi_pre;
+    double a_xsi = P0P0 - 2.0*P0Pn + PnPn;
+    double b_xsi = 2.0*(-P0P0 + P0Pn + PcP0 - PcPn);
+    double c_xsi = P0P0 - 2.0*PcP0 + PcPc - filterRadius*filterRadius;
+    double discriminant = pow(b_xsi,2)-4.0*a_xsi*c_xsi;
+    // it cannot be negative
+    if (discriminant < 0.0 )
+        return false;
+
+    // If there are multiple roots
+    if (discriminant > 0.0) {
+
+        // Check the validity of the roots and add them if they are valid
+        xsi_pre = (-b_xsi + sqrt(discriminant)) / (2.0*a_xsi);
+        if (clampXsi(xsi_pre)) {
+            _xsi.push_back(xsi_pre);
+        }
+        xsi_pre = (-b_xsi - sqrt(discriminant)) / (2.0*a_xsi);
+        if (clampXsi(xsi_pre)) {
+            _xsi.push_back(xsi_pre);
+        }
+
+    } // if there is single root
+    else if (discriminant == 0.0) {
+        xsi_pre = -b_xsi / (2.0*a_xsi);
+        if (clampXsi(xsi_pre)) {
+            _xsi.push_back(xsi_pre);
+        }
+    }
+
+    if (_xsi.size() > 0)
+        return true;
+    else
+        return false;
+}
+
+bool VertexMorphingMapper::findClippingWithSlave(const int _slaveNodeIdx, double* _P0, double* _Pn, vector<double>& _xsi){
+
+    int dim = 3;
+
+    // Get the node
+    double* Pc = &meshA->nodes[_slaveNodeIdx*dim];
 
     // Some precomputations
     double P0P0 = EMPIRE::MathLibrary::computeDenseDotProduct(dim, _P0, _P0);
@@ -921,10 +1483,34 @@ bool VertexMorphingMapper::clampXsi(double& _xsi){
 
 }
 
-void VertexMorphingMapper::adjustFilterFunctions(){
+void VertexMorphingMapper::adjustFilterFunctions_BA(){
 
     for (int iRow = 0; iRow < C_BA->getNumberOfRows(); iRow++)
         (*C_BA).multiplyRowWith(iRow, 1.0/masterFilterFunctionIntegrationOnSlave[iRow]);
+
+    // filterFunctionCorrectionFactors = new double[meshB->numNodes];
+    // double* RHS = new double[meshB->numNodes];
+    // for (int i = 0; i<meshB->numNodes; i++)
+    //     RHS[i] = 1.0;
+
+    // cout << "Solving for filter function correction factors" << endl;
+    // (*C_corr).solve(filterFunctionCorrectionFactors, RHS);
+    // cout << "Finished!" << endl;
+
+    // cout << "Adjusting filter sizes" << endl;
+    // for (int iRow = 0; iRow < C_BA->getNumberOfRows(); iRow++)
+    //     (*C_BA).multiplyRowWith(iRow, filterFunctionCorrectionFactors[iRow]);
+    // cout << "Finished!" << endl;
+
+    // delete[] filterFunctionCorrectionFactors;
+    // delete[] RHS;
+
+}
+
+void VertexMorphingMapper::adjustFilterFunctions_AB(){
+
+    for (int iRow = 0; iRow < C_AB->getNumberOfRows(); iRow++)
+        (*C_AB).multiplyRowWith(iRow, 1.0/slaveFilterFunctionIntegrationOnMaster[iRow]);
 
 }
 
@@ -953,8 +1539,11 @@ void VertexMorphingMapper::conservativeMapping(const double *masterField, double
     for (int i = 0; i < meshB->numNodes; i++)
         masterFieldCopy[i] = masterField[i];
 
-    // matrix vector product (W_tmp = C_BA * W_A)
-    (*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, meshB->numNodes);
+    // // matrix vector product (W_tmp = C_BA * W_A)
+    // (*C_AB).mulitplyVec(false,masterFieldCopy,slaveField,meshA->numNodes);
+
+    (*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, meshA->numNodes);
+
 
     delete[] masterFieldCopy;
 
