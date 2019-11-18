@@ -1152,7 +1152,7 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
         }
 
         conditionSecondColumnZero = false;
-        if ((fabs(dR[0]) < epsJ && fabs(dR[2]) < epsJ) ){
+        if ((fabs(dR[1]) < epsJ && fabs(dR[3]) < epsJ) ){
             conditionSecondColumnZero = true;
         }
 
