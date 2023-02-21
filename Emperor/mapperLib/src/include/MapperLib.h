@@ -267,64 +267,65 @@ void addPatchContinuityConditionOnCurvesToIGAMesh(char* meshName,
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
- * \param[in] mapperName name of the mapper
- * \param[in] AmeshName a previously initialized slave FEMesh name
- * \param[in] BmeshName a previously initialized master FEMesh name
+ * \param[in] _mapperName name of the mapper
+ * \param[in] _meshNameA a previously initialized slave FEMesh name
+ * \param[in] _meshNameB a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMNearestNeighborMapper(char* mapperName,
-                                  char* AmeshName, char* BmeshName);
+void initFEMNearestNeighborMapper(char* _mapperName,
+                                  char* _meshNameA, char* _meshNameB);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
- * \param[in] mapperName name of the mapper
- * \param[in] AmeshName a previously initialized slave FEMesh name
- * \param[in] BmeshName a previously initialized master FEMesh name
+ * \param[in] _mapperName name of the mapper
+ * \param[in] _meshNameA a previously initialized slave FEMesh name
+ * \param[in] _meshNameB a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMNearestElementMapper(char* mapperName,
-                                 char* AmeshName, char* BmeshName);
+void initFEMNearestElementMapper(char* _mapperName,
+                                 char* _meshNameA, char* _meshNameB);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
- * \param[in] mapperName name of the mapper
- * \param[in] AmeshName a previously initialized slave FEMesh name
- * \param[in] BmeshName a previously initialized master FEMesh name
+ * \param[in] _mapperName name of the mapper
+ * \param[in] _meshNameA a previously initialized slave FEMesh name
+ * \param[in] _meshNameB a previously initialized master FEMesh name
  * \author Altug Emiroglu
  ***********/
-void initFEMBarycentricInterpolationMapper(char* mapperName,
-                                           char* AmeshName, char* BmeshName);
+void initFEMBarycentricInterpolationMapper(char* _mapperName,
+                                           char* _meshNameA, char* _meshNameB);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
- * \param[in] mapperName name of the mapper
- * \param[in] AmeshName a previously initialized slave FEMesh name
- * \param[in] BmeshName a previously initialized master FEMesh name
+ * \param[in] _mapperName name of the mapper
+ * \param[in] _meshNameA a previously initialized slave FEMesh name
+ * \param[in] _meshNameB a previously initialized master FEMesh name
  * \param[in] oppositeSurfaceNormal whether the master side and slave side have opposite normals(true or false)
  * \param[in] dual whether or not to use dual mortar (true or false)
  * \param[in] enforceConsistency whether or not to enforce consistency
  * \author Altug Emiroglu
  ***********/
-void initFEMMortarMapper(char* mapperName,
-                         char* AmeshName, char* BmeshName,
+void initFEMMortarMapper(char* _mapperName,
+                         char* _meshNameA, char* _meshNameB,
                          int oppositeSurfaceNormal, int _dual, int enforceConsistency);
 
 /***********************************************************************************************
  * \brief Initializes and inserts a MortarMapper to the mapper list
- * \param[in] mapperName name of the mapper
- * \param[in] meshNameA a previously initialized mesh name
- * \param[in] meshNameB a previously initialized mesh name
+ * \param[in] _mapperName name of the mapper
+ * \param[in] _meshNameA a previously initialized mesh name
+ * \param[in] _meshNameB a previously initialized mesh name
  * \author Altug Emiroglu
  ***********/
 void initIGAMortarMapper(char* _mapperName, char* _meshNameA, char* _meshNameB);
 
 /***********************************************************************************************
  * \brief Set the flag for enforcing consistency
+ * \param[in] _mapperName name of the mapper
  * \param[in] _enforceConsistency The consistency flag
  * \param[in] _tolConsistency The consistency tolerance
  * \author Altug Emiroglu
  ***********/
-void setParametersConsistency(char* mapperName,
+void setParametersConsistency(char* _mapperName,
                               bool _enforceConsistency = false, double _tolConsistency = 0.0);
 
 /***********************************************************************************************
@@ -417,7 +418,23 @@ void setParametersWeakPatchContinuityConditions(char* mapperName, bool _isWeakPa
 void setParametersErrorComputation(char* mapperName,
                                    bool _isErrorComputation, bool _isDomainError = 0, bool _isInterfaceError = 0, bool _isCurveError = 0);
 
-void initialize(char *mapperName);
+/***********************************************************************************************
+ * \brief Set parameters for the Vertex Morphing Mapper
+ * \param[in] _mapperName The name of the mapper
+ * \param[in] _meshNameA a previously initialized mesh name
+ * \param[in] _meshNameB a previously initialized mesh name
+ ***********/
+void initVertexMorphingMapper(char* _mapperName, char* _meshNameA, char* _meshNameB);
+
+/***********************************************************************************************
+ * \brief Set parameters for the Vertex Morphing Mapper
+ * \param[in] _mapperName The name of the mapper
+ * \param[in] _filterType Filter type 0: HatFilter, 1: GaussianFilter
+ * \param[in] _filterRadius Effective radius of the filter function
+ ***********/
+void setVMParameters(char* _mapperName, int _filterType, double _filterRadius);
+
+// void initialize(char *mapperName);
 
 /***********************************************************************************************
  * \brief Build Coupling Matrices
@@ -453,6 +470,16 @@ void doConsistentMapping(char* mapperName, int dimension, int dataSizeA, const d
 void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const double* dataB, int dataSizeA, double* dataA);
 
 /***********************************************************************************************
+ * \brief Check if a mesh with the given name exists
+***********/
+bool hasMesh(char* meshName);
+
+/***********************************************************************************************
+ * \brief Check if a mapper with the given name exists
+***********/
+bool hasMapper(char* mapperName);
+
+/***********************************************************************************************
  * \brief Calculates and prints the bounding box of the mesh
  * \param[in] meshName name of the mesh
  * \author Altug Emiroglu
@@ -465,6 +492,11 @@ void printMesh(char* meshName);
  * \author Altug Emiroglu
  ***********/
 void deleteMesh(char* meshName);
+
+/***********************************************************************************************
+ * \brief Delets all the initialized meshes in the mesh list
+ ***********/
+void deleteAllMeshes();
 
 /***********************************************************************************************
  * \brief Deletes a previously initialized mapper

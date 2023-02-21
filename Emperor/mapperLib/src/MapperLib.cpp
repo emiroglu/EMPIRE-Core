@@ -39,6 +39,7 @@
 #include "BarycentricInterpolationMapper.h"
 #include "MortarMapper.h"
 #include "IGAMortarMapper.h"
+#include "VertexMorphingMapper.h"
 #include "MapperLib.h"
 
 using namespace EMPIRE;
@@ -166,7 +167,7 @@ void setNodesToFEMesh(char* meshName, int* nodeIDs, double* nodes){
         FEMesh *tmpFEMesh = dynamic_cast<FEMesh *>(meshList[meshNameInMap]);
         for(int i=0; i<tmpFEMesh->numNodes;i++) tmpFEMesh->nodeIDs[i] = nodeIDs[i];
         for(int i=0; i<(tmpFEMesh->numNodes)*3;i++) tmpFEMesh->nodes[i] = nodes[i];
-        INFO_OUT("Nodes set to \"" + meshNameInMap );
+        INFO_OUT("Nodes set to \"" + meshNameInMap + "\"");
     }
 }
 
@@ -184,7 +185,7 @@ void setElementsToFEMesh(char* meshName, int* numNodesPerElem, int* elems){
         for(int i=0; i<tmpFEMesh->numElems;i++) tmpFEMesh->numNodesPerElem[i] = numNodesPerElem[i];
         tmpFEMesh->initElems();
         for(int i=0; i<tmpFEMesh->elemsArraySize;i++) tmpFEMesh->elems[i] = elems[i];
-        INFO_OUT("Elements set to \"" + meshNameInMap );
+        INFO_OUT("Elements set to \"" + meshNameInMap + "\"" );
     }
 }
 
@@ -220,7 +221,7 @@ void addPatchToIGAMesh(char* meshName,
                              qDegree, vNoKnots, vKnotVector,
                              uNoControlPoints, vNoControlPoints,
                              controlPointNet, dofIndexNet);
-        INFO_OUT("Added patch to \"" + meshNameInMap );
+        INFO_OUT("Added patch to \"" + meshNameInMap + "\"");
     }
 }
 
@@ -373,7 +374,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT("Mapper not generated!");
         return;
     } else {
-        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
+        tmpaFEMesh = dynamic_cast<FEMesh *>(meshList[aFEMeshNameInMap]);
     }
 
     // check if the mesh with the given name is generated and is of correct type
@@ -385,7 +386,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         ERROR_OUT(bFEMeshNameInMap + " is not a type of FEMesh");
         ERROR_OUT("Mapper not generated!");
         return;
-    } else {
+    } else {    
         tmpbFEMesh = dynamic_cast<FEMesh *>(meshList[bFEMeshNameInMap]);
     }
 
@@ -409,7 +410,7 @@ void initFEMMortarMapper(char* mapperName, char* AmeshName, char* BmeshName,
         mapperList[mapperNameToMap] = new MortarMapper(tmpaFEMesh->numNodes, tmpaFEMesh->numElems, tmpaFEMesh->numNodesPerElem, tmpaFEMesh->nodes, tmpaFEMesh->nodeIDs, tmpaFEMesh->elems,
                                                        tmpbFEMesh->numNodes, tmpbFEMesh->numElems, tmpbFEMesh->numNodesPerElem, tmpbFEMesh->nodes, tmpbFEMesh->nodeIDs, tmpbFEMesh->elems,
                                                        _oppositeSurfaceNormal, _dual, _enforceConsistency);
-        INFO_OUT("Generated \"" +  mapperNameToMap);
+        INFO_OUT("Generated \"" +  mapperNameToMap + "\"" );
     }
 
 }
@@ -830,22 +831,95 @@ void setParametersErrorComputation(char* mapperName,
     }
 }
 
-void initialize(char *mapperName) {
-    std::string mapperNameInMap = std::string(mapperName);
-    // check if the mapper with the given name is generated
+// void initialize(char *mapperName) {
+//     std::string mapperNameInMap = std::string(mapperName);
+//     // check if the mapper with the given name is generated
+//     if (!mapperList.count( mapperNameInMap )){
+//         ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
+//         ERROR_OUT("Did nothing!");
+//         return;
+//     } else if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]) == NULL) {
+//         ERROR_OUT(mapperNameInMap + " is not of type IGAMortarMapper!");
+//         ERROR_OUT("Did nothing!");
+//         return;
+//     } else{
+//         dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap])->initialize();
+//         INFO_OUT("Generated coupling matrices for \"" +  mapperNameInMap );
+//     }
+
+// }
+
+void initVertexMorphingMapper(char* _mapperName, char* _meshNameA, char* _meshNameB){
+    
+    std::string mapperNameToMap = std::string(_mapperName);
+    std::string meshNameAInMap = std::string(_meshNameA);
+    std::string meshNameBInMap = std::string(_meshNameB);
+
+    AbstractMesh *meshA;
+    AbstractMesh *meshB;
+
+    // check if the mesh with the given name is generated and is of correct type
+    if (!meshList.count( meshNameAInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameAInMap + " does not exist!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else
+        meshA = meshList[meshNameAInMap];
+
+    // check if the mesh with the given name is generated and is of correct type
+    if (!meshList.count( meshNameBInMap )){
+        ERROR_OUT("A mesh with name : " + meshNameBInMap + " does not exist!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else
+        meshB = meshList[meshNameBInMap];
+    
+    if (mapperList.count( mapperNameToMap )){
+        ERROR_OUT("A mapper with name : " + mapperNameToMap + " has already been initialized!");
+        ERROR_OUT("Mapper not generated!");
+        return;
+    } else {
+
+        if (!meshA->boundingBox.isComputed()) meshA->computeBoundingBox();
+        if (!meshB->boundingBox.isComputed()) meshB->computeBoundingBox();
+
+        mapperList[mapperNameToMap] = new VertexMorphingMapper(mapperNameToMap, meshA, meshB);
+        INFO_OUT("Generated \"" +  mapperNameToMap + "\"");
+    }
+
+}
+
+void setVMParameters(char* _mapperName, int _filterType, double _filterRadius){
+    
+    std::string mapperNameInMap = std::string(_mapperName);
+
+    VertexMorphingMapper *tmpVMMapper;
+
+    EMPIRE_VMM_FilterType filterType;
+    if (_filterType = 0){
+        filterType = EMPIRE_VMM_HatFilter;
+    } else if (_filterType = 1){
+        filterType = EMPIRE_VMM_GaussianFilter;
+    } else {
+        ERROR_OUT("Unknown filter type");
+        ERROR_OUT("Did nothing!");
+        return;
+    }
+
+    // check if the mapper with the given name is generated and is of correct type
     if (!mapperList.count( mapperNameInMap )){
         ERROR_OUT("A mapper with name : " + mapperNameInMap + " does not exist!");
         ERROR_OUT("Did nothing!");
         return;
-    } else if (dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap]) == NULL) {
-        ERROR_OUT(mapperNameInMap + " is not of type IGAMesh!");
+    } else if (mapperList[mapperNameInMap]->mapperType != EMPIRE_VertexMorphingMapper){
+        ERROR_OUT(mapperNameInMap + " is not a type of VertexMorphingMapper");
         ERROR_OUT("Did nothing!");
         return;
-    } else{
-        dynamic_cast<IGAMortarMapper *>(mapperList[mapperNameInMap])->initialize();
-        INFO_OUT("Generated coupling matrices for \"" +  mapperNameInMap );
+    } else {
+        tmpVMMapper = dynamic_cast<VertexMorphingMapper *>(mapperList[mapperNameInMap]);
+        tmpVMMapper->setParameters(filterType, _filterRadius);
+        INFO_OUT("Vertex Morphing parameters are set for \"" +  mapperNameInMap + "\"");
     }
-
 }
 
 void buildCouplingMatrices(char *mapperName){
@@ -918,7 +992,7 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
             for (int i=0; i<dimension ; i++){
                 dataBtoMap[i]=new double[sizeDataToMap];
                 dataAtoWrite[i]=new double[sizeDataToWrite];
-            }
+            }            
             for (int i=0 ; i<dimension ; i++){
                 for (int j=0 ; j<sizeDataToMap; j++){
                     dataBtoMap[i][j] = dataB[j*dimension+i];
@@ -942,6 +1016,28 @@ void doConservativeMapping(char* mapperName, int dimension, int dataSizeB, const
     }
 }
 
+bool hasMesh(char* meshName){
+
+    std::string meshNameInMap = std::string(meshName);
+    if (meshList.count( meshNameInMap )){
+        return true;
+    } else {
+        INFO_OUT("Mesh with name: \"" + meshNameInMap + "\" does not exist : ");
+        return false;
+    }
+}
+
+bool hasMapper(char* mapperName){
+
+    std::string mapNameInMap = std::string(mapperName);
+    if (mapperList.count( mapNameInMap )){
+        return true;
+    } else {
+        INFO_OUT("Mapper with name: \"" + mapNameInMap + "\" does not exist : ");
+        return false;
+    }
+}
+
 void printMesh(char* meshName){
     std::string meshNameInMap = std::string(meshName);
     if (!meshList.count( meshNameInMap )){
@@ -962,6 +1058,18 @@ void deleteMesh(char* meshName){
         ERROR_OUT("Did nothing!");
     } else {
         delete meshList[meshNameInMap];
+        meshList.erase(meshName);
+        INFO_OUT("Deleted the mesh with name: \"" + meshNameInMap + "\"");
+    }
+}
+
+void deleteAllMeshes(){
+
+    std::map<std::string, AbstractMesh*>::iterator iter = meshList.begin();
+
+    if(iter!=meshList.end()){
+        delete iter->second;
+        meshList.erase(iter);
     }
 }
 
@@ -973,6 +1081,8 @@ void deleteMapper(char* mapperName){
         return;
     } else {
         delete mapperList[mapperNameInMap];
+        mapperList.erase(mapperName);
+        INFO_OUT("Deleted the mapper with name: \"" + mapperNameInMap + "\"");
     }
 }
 

@@ -32,7 +32,6 @@
 
 namespace EMPIRE {
 
-class MortarMapper;
 class AbstractMesh;
 class DataField;
 class AbstractMapper;
@@ -146,6 +145,15 @@ public:
      * \author Tianyang Wang
      ***********/
     void initCurveSurfaceMapper(EMPIRE_CurveSurfaceMapper_type type);
+    /***********************************************************************************************
+     * \brief Initialize VertexMorphingMapper
+     * \param[in] _filterFunctionType 1 Hat, 2 Gauss
+     * \param[in] _filterRadius effective filter radius
+     * \param[in] _consistent: through C_BB computation
+     * \param[in] _enforceConsistency: through C_BA manipulation
+     * \author Altug Emiroglu
+     ***********/
+    void initVertexMorphingMapper(EMPIRE_VMM_FilterType _filterType, double _filterRadius);
     /***********************************************************************************************
      * \brief Destructor
      * \author Tianyang Wang

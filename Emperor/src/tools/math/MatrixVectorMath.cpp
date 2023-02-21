@@ -126,7 +126,7 @@ void computeDenseVectorMultiplicationScalar(double *vec1 ,const double a, const 
 }
 
 /***********************************************************************************************
- * \brief Compute the square of the Euclidean distance of two points in n-D space.
+ * \brief Compute the Euclidean distance of two points in n-D space.
  * \param[out] The square of the Euclidean distance between two points in the n-D space
  * \param[in] _length The length of the n-dimensional space
  * \param[in] _Pi The first point
@@ -145,7 +145,7 @@ double computeDenseEuclideanNorm(int _length, double* _Pi, double* _Pj) {
 
 
     /*
-     * Returns the square of the Euclidean distance of two points in n-D space.
+     * Returns the Euclidean distance of two points in n-D space.
      * The input arguments are 1D arrays holding the coordinate information of the points:
      *  _Pi = _Pj = double[_length]
      */
@@ -156,7 +156,7 @@ double computeDenseEuclideanNorm(int _length, double* _Pi, double* _Pj) {
     for (int i = 0; i < _length; i++)
         squareDistance += pow(_Pi[i] - _Pj[i], 2.0);
 
-    return squareDistance;
+    return sqrt(squareDistance);
 #endif
 }
 

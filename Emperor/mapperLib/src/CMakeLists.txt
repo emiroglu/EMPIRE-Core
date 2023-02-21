@@ -45,7 +45,7 @@ target_link_libraries(EMPIRE_MAPPER_LIB_Shared EmperorLib ${MKL_LIBRARIES} ${Emp
 #------------------------------------------------------------------------------------#
 # MESSAGE("Emperor_INCLUDES: ${Emperor_INCLUDES}")
 # MESSAGE("Emperor_INCLUDES: ${Emperor_SOURCES}")
-# MESSAGE("C Compiler Flags for EMPIRE_MAPPER_LIB are:\t${CMAKE_C_FLAGS} \nC++ Compiler Flags for EMPIRE_MAPPER_LIB are:\t${CMAKE_CXX_FLAGS}")
+MESSAGE("C Compiler Flags for EMPIRE_MAPPER_LIB are:\t${CMAKE_C_FLAGS} \nC++ Compiler Flags for EMPIRE_MAPPER_LIB are:\t${CMAKE_CXX_FLAGS}")
 # MESSAGE("Emperor_LIBS: ${Emperor_LIBS}")
 # 
 # MESSAGE("EMPIRE_MAPPER_LIB_INCLUDES: ${EMPIRE_MAPPER_LIB_INCLUDES}")

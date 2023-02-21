@@ -42,11 +42,11 @@
 #include "MapperAdapter.h"
 #include "NearestNeighborMapper.h"
 #include "BarycentricInterpolationMapper.h"
+#include "VertexMorphingMapper.h"
 #include "FEMesh.h"
 #include "AbstractMesh.h"
 #include "Message.h"
 #include "DataField.h"
-#include "MapperAdapter.h"
 #include "Aitken.h"
 #include "ConstantRelaxation.h"
 #include "IJCSA.h"
@@ -385,6 +385,9 @@ void Emperor::initMappers() {
                     settingMapper.IGABarycentricMapper.propNewtonRaphson.tolProjection);
         } else if (settingMapper.type == EMPIRE_CurveSurfaceMapper) {
             mapper->initCurveSurfaceMapper(settingMapper.curveSurfaceMapper.type);
+        } else if (settingMapper.type == EMPIRE_VertexMorphingMapper) {
+            mapper->initVertexMorphingMapper(settingMapper.vertexMorphingMapper.filterType,
+                                             settingMapper.vertexMorphingMapper.filterRadius);
         } else {
             assert(false);
         }

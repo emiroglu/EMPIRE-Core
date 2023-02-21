@@ -29,7 +29,14 @@ set_target_properties(EMPIRE_API_Static PROPERTIES OUTPUT_NAME EMPIRE_API)
 add_dependencies(EMPIRE_API_Shared EMPIRE_thirdparty)
 add_dependencies(EMPIRE_API_Static EMPIRE_thirdparty)
 #------------------------------------------------------------------------------------#
-target_link_libraries(EMPIRE_API_Shared)
+IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
+  target_link_libraries(EMPIRE_API_Shared)
+ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+  target_link_libraries(EMPIRE_API_Shared "-ldl")
+ELSE()
+   MESSAGE(FATAL_ERROR "Your CXX compiler is ${CMAKE_CXX_COMPILER_ID} and your C compiler is ${CMAKE_C_COMPILER_ID} they are not supported by the build system yet")
+ENDIF()
+#target_link_libraries(EMPIRE_API_Shared)
 target_link_libraries(EMPIRE_API_Static)
 #------------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------------#

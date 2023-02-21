@@ -1027,10 +1027,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     int pDegree = IGABasis->getUBSplineBasis1D()->getPolynomialDegree();
     int qDegree = IGABasis->getVBSplineBasis1D()->getPolynomialDegree();
 
-    // The lengths of the knot vectors to the NURBS patch
-    //int lengthUKnotVct = IGABasis->getUBSplineBasis1D()->getNoKnots();
-    //int lengthVKnotVct = IGABasis->getVBSplineBasis1D()->getNoKnots();
-
     // Local number of basis functions
     int noLocalBasisFcts = (pDegree + 1) * (qDegree + 1);
 
@@ -1197,41 +1193,6 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
             }
         }
 
-//        if (fabs(dR[0]) < epsJ || fixU) {
-//            std::cout << "fabs(dR[0]) < epsJ || fixU dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
-//            R[0] = 0.0;
-//            R[1] = R[1] / dR[3];
-//            fixU = false;
-//            fixV = true;
-//        } else if (fabs(dR[3]) < epsJ || fixV) {
-//            std::cout << "fabs(dR[3]) < epsJ || fixV dR: " << dR[0] <<" " << dR[1] <<" " << dR[2] << " " << dR[3] <<std::endl;
-//            // According to Fabien that must be R[0] / dR[0];
-//            // R[0] = R[0] / dR[1];  // According to Chenshen
-//            R[0] = R[0] / dR[0]; // According to Fabien
-//            R[1] = 0.0;
-//            fixU = true;
-//            fixV = false;
-//        } else {
-//            std::cout << "Solving the linear system !"<<std::endl;
-//            // 2xiv. Solve the linear 2x2 equation system to get the increment of the surface parameters and check if the equation system has been successfully solved
-
-//            // Solve the equation system
-//            flagLinearSystem = EMPIRE::MathLibrary::solve2x2LinearSystem(dR, R, EMPIRE::MathLibrary::EPS );
-
-//            // Check if the equation system has been successfully solved
-//            if (!flagLinearSystem) {
-//                ERROR_OUT() << "Error in IGAPatchSurface::computePointProjectionOnPatch" << endl;
-//                ERROR_OUT()
-//                        << "The 2x2 equation system to find the updates of the surface parameters"
-//                        << endl;
-//                ERROR_OUT()
-//                        << "for the orthogonal projection of a point on the NURBS patch has been"
-//                        << endl;
-//                ERROR_OUT() << "detected not solvable up to tolerance" << EMPIRE::MathLibrary::EPS << endl;
-//                exit(-1);
-//            }
-//        }
-
         // 2xv. Update the surface parameters u += du and v += dv
         _u += R[0];
         _v += R[1];
@@ -1240,7 +1201,8 @@ bool IGAPatchSurface::computePointProjectionOnPatch(double& _u, double& _v, doub
     	IGABasis->getUBSplineBasis1D()->clampKnot(_u);
     	IGABasis->getVBSplineBasis1D()->clampKnot(_v);
     }
-////     3. Check whether maximum number of iterations has been reached and if yes return 0 to the flag (non-converged iterations)
+    
+    // 3. Check whether maximum number of iterations has been reached and if yes return 0 to the flag (non-converged iterations)
     if (counter > _maxIt) {
         flagNewtonRaphson = false;
         if (R[0] * R[0] + R[1] * R[1] < epsDuv)
