@@ -391,10 +391,14 @@ public:
 
     }
     void tearDown() {
-        delete testTria01Mesh_A, testTria01Mesh_B;
-        delete testTria02Mesh_A, testTria02Mesh_B;
-        delete testTria01Data_A, testTria01Data_A;
-        delete testTria02Data_A, testTria02Data_A;
+        delete testTria01Mesh_A;
+        delete testTria01Mesh_B;
+        delete testTria02Mesh_A;
+        delete testTria02Mesh_B;
+        delete testTria01Data_A;
+        delete testTria01Data_B;
+        delete testTria02Data_A;
+        delete testTria02Data_B;
     }
     /********//**
      ***********************************************************************************************

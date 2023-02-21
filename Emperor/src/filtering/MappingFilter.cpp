@@ -83,13 +83,18 @@ void MappingFilter::filtering() {
 }
 
 void MappingFilter::init() {
+    assert(inputModifier == NULL);
+    assert(tmpInput == NULL);
+    assert(outputModifier == NULL);
+    assert(tmpOutput == NULL);
+
     assert(inputVec.size() == 1);
     assert(outputVec.size() == 1);
     assert(inputVec[0]->type == outputVec[0]->type);
     assert(inputVec[0]->type == EMPIRE_ConnectionIO_DataField);
     DataField *inDataField = inputVec[0]->dataField;
     DataField *outDataField = outputVec[0]->dataField;
-    assert(inDataField->dimension == outDataField->dimension);
+
     assert(inDataField->location == outDataField->location);
     assert(inDataField->location == EMPIRE_DataField_atNode);
     AbstractMesh *inMesh = inputVec[0]->mesh;

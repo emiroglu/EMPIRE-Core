@@ -22,14 +22,16 @@
  * \file MortarMapper.h
  * The header file of class MortarMapper.
  * \date 9/21/2011
+ * \author Tianyang Wang
+ * \edit Aditya Ghantasala (All the implementation of the new sparse matrix class)
  *********************************************************************************/
 #ifndef MORTARMAPPER_H_
 #define MORTARMAPPER_H_
 
+#include "MathLibrary.h"
 #include <vector>
 #include <set>
 #include <map>
-#include "MortarMath.h"
 #include "AbstractMapper.h"
 
 class ANNkd_tree;
@@ -79,6 +81,14 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual ~MortarMapper();
+
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \param[in] mapperName name of the mapper
+     * \author Tianyang Wang
+     ***********/
+    void buildCouplingMatrices();
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions) --- C_BB * masterField = C_BA * slaveField
      * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)
@@ -93,6 +103,13 @@ public:
      * \author Tianyang Wang
      * ***********/
     void conservativeMapping(const double *masterField, double *slaveField);
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] slaveField the field of the slave side (e.g. x-displacements on all structure nodes)
+     * \param[in] masterField the field of the master side (e.g. x-displacements on all fluid nodes)
+     * \author Tianyang Wang
+     ***********/
+    void computeErrorsConsistentMapping(const double *slaveField, const double *masterField);
     /// defines number of threads used for MKL routines
     static int mklSetNumThreads;
     /// defines number of threads used for mapper routines
@@ -151,23 +168,15 @@ private:
     /// compute normals of all slave elements
     double *slaveElemNormals;
 
-    /// C_BB csr format
-    double *C_BB_A;
-    /// C_BB csr format
-    int *C_BB_IA;
-    /// C_BB csr format
-    int *C_BB_JA;
     /// dual version of C_BB_A, which is diagonal
     double *C_BB_A_DUAL;
+    /// New sparse matrix.
+    MathLibrary::SparseMatrix<double> *C_BB;
 
-    /// C_BA csr format
-    double *C_BA_A;
-    /// C_BA csr format
-    int *C_BA_IA;
-    /// C_BA csr format
-    int *C_BA_JA;
-    /// dual version of C_BA_A, it shares the same IA and JA with C_BA_A
-    double *C_BA_A_DUAL;
+    /// New sparse matrix.
+    MathLibrary::SparseMatrix<double> *C_BA;
+    MathLibrary::SparseMatrix<double> *C_BA_DUAL;
+
 
     /// number of Gauss points used for computing triangle element mass matrix
     static const int numGPsMassMatrixTri;
@@ -215,20 +224,9 @@ private:
     void computeC_BA();
     /***********************************************************************************************
      * \brief force C_BB * 1 == C_BA * 1 by modifying C_BA
-     * \param[in] sparsity map of C_BA
      * \author Tianyang Wang
      ***********/
-    void enforceConsistency(std::map<int, double> **sparsityMapC_BA);
-    /***********************************************************************************************
-     * \brief Initialize pardiso to factorize C_BB
-     * \author Tianyang Wang
-     ***********/
-    void initPardiso();
-    /***********************************************************************************************
-     * \brief Deallocate the memory of pardiso
-     * \author Tianyang Wang
-     ***********/
-    void deletePardiso();
+    void enforceConsistency();
     /***********************************************************************************************
      * \brief Initialize all tables that help referring from an element to its nodes or vice versa
      * \author Tianyang Wang
@@ -332,7 +330,7 @@ private:
     /********//**
      * \brief Class shapeFunctionProduct computes the shape function products of two elements
      ***********/
-    class ShapeFunctionProduct: public MortarMath::IntegrandFunction {
+    class ShapeFunctionProduct: public EMPIRE::MathLibrary::IntegrandFunction {
     public:
         /***********************************************************************************************
          * \brief Constructor

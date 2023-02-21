@@ -27,11 +27,13 @@
 #include <iostream>
 #include <vector>
 
-#include "MortarMath.h"
+//#include "MortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
 
 namespace EMPIRE {
 using namespace std;
-using namespace MortarMath;
+using namespace MathLibrary;
 
 class IntegrandFunctionConstant1: public IntegrandFunction {
 public:
@@ -334,7 +336,7 @@ public:
                 double intersection[3];
                 bool hasIntersection = PolygonClipper::intersect(P1, P2, P3, P4, planeToProject,
                         intersection);
-                //MortarMath::printPoint(intersection);
+                //EMPIRE::MathLibrary::printPoint(intersection);
                 CPPUNIT_ASSERT(hasIntersection == false);
             }
         }
@@ -482,8 +484,8 @@ public:
                     tmp[i * 3 + j] = polygonResult[i][j];
             for (int i = 0; i < polygonResult.size(); i++)
                 delete[] polygonResult[i];
-            //MortarMath::printElem(tmp, polygonResult.size());
-            CPPUNIT_ASSERT(fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-1.0)<EPS);
+            //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
+            CPPUNIT_ASSERT(fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-1.0)<EPS);
         }
         { // window is inside triangle
             double window[] = { 0, 0, 0, 2, 0, 0, 2, 2, 0, 0, 2, 0 };
@@ -497,8 +499,8 @@ public:
                     tmp[i * 3 + j] = polygonResult[i][j];
             for (int i = 0; i < polygonResult.size(); i++)
                 delete[] polygonResult[i];
-            //MortarMath::printElem(tmp, polygonResult.size());
-            CPPUNIT_ASSERT(fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-4.0)<EPS);
+            //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
+            CPPUNIT_ASSERT(fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-4.0)<EPS);
         }
         { // window and triangle have overlapped points
             double window[] = { 0, 0, 0, 2, 0, 0, 2, 2, 0, 0, 2, 0 };
@@ -512,8 +514,8 @@ public:
                     tmp[i * 3 + j] = polygonResult[i][j];
             for (int i = 0; i < polygonResult.size(); i++)
                 delete[] polygonResult[i];
-            //MortarMath::printElem(tmp, polygonResult.size());
-            CPPUNIT_ASSERT(fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-2.0)<EPS);
+            //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
+            CPPUNIT_ASSERT(fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-2.0)<EPS);
         }
         { // window and triangle have overlapped points, but no clipped area
             double window[] = { 0, 0, 0, 2, 0, 0, 2, 2, 0, 0, 2, 0 };
@@ -527,8 +529,8 @@ public:
                     tmp[i * 3 + j] = polygonResult[i][j];
             for (int i = 0; i < polygonResult.size(); i++)
                 delete[] polygonResult[i];
-            //MortarMath::printElem(tmp, polygonResult.size());
-            CPPUNIT_ASSERT(fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-0.0)<EPS);
+            //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
+            CPPUNIT_ASSERT(fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-0.0)<EPS);
         }
         { // window and triangle have overlapped points, with numerical error
             double EPS2 = 1e-5;
@@ -547,9 +549,9 @@ public:
                         tmp[i * 3 + j] = polygonResult[i][j];
                 for (int i = 0; i < polygonResult.size(); i++)
                     delete[] polygonResult[i];
-                //MortarMath::printElem(tmp, polygonResult.size());
+                //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
                 CPPUNIT_ASSERT(
-                        fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-(2.0-disturb))<EPS2);
+                        fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-(2.0-disturb))<EPS2);
                 disturb /= 10.0;
                 EPS2 /= 10.0;
             }
@@ -567,8 +569,8 @@ public:
                     tmp[i * 3 + j] = polygonResult[i][j];
             for (int i = 0; i < polygonResult.size(); i++)
                 delete[] polygonResult[i];
-            //MortarMath::printElem(tmp, polygonResult.size());
-            CPPUNIT_ASSERT(fabs(MortarMath::computePolygonArea(tmp, polygonResult.size())-0.0)<EPS);
+            //EMPIRE::MathLibrary::printElem(tmp, polygonResult.size());
+            CPPUNIT_ASSERT(fabs(EMPIRE::MathLibrary::computePolygonArea(tmp, polygonResult.size())-0.0)<EPS);
         }
         /*{ // test memory leak, comment it except when checking memory leak
          for (int i = 0; i < 10000000; i++) {
@@ -593,15 +595,15 @@ public:
         double localCoor[2];
         double normal[3];
         computeNormalOfQuad(quad, false, normal);
-        int planeToProject = MortarMath::computePlaneToProject(normal);
-        MortarMath::computeLocalCoorInQuad(quad, planeToProject, point, localCoor);
+        int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+        EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, point, localCoor);
         printElem(quad, 4);
         printPoint(point);
         cout << "plane to project:  " << planeToProject << endl;
         cout << "xi: " << localCoor[0] << "  ita:  " << localCoor[1] << endl;
 
-        MortarMath::computeGlobalCoorInQuad(quad, localCoor, point);
-        MortarMath::printPoint(point);
+        EMPIRE::MathLibrary::computeGlobalCoorInQuad(quad, localCoor, point);
+        EMPIRE::MathLibrary::printPoint(point);
     }
 
 CPPUNIT_TEST_SUITE( TestMortarMath );

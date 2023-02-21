@@ -28,10 +28,8 @@
 
 namespace EMPIRE {
 
-
-
 CopyFilter::CopyFilter(int _signalOffset) :
-        AbstractFilter(), signalOffset(_signalOffset) {
+        AbstractFilter(), signalOffset(_signalOffset), unitTest(false) {
 }
 CopyFilter::~CopyFilter() {
 }
@@ -40,8 +38,8 @@ void CopyFilter::filtering() {
     if (IOType == EMPIRE_ConnectionIO_DataField) {
         const DataField *inDataField = inputVec[0]->dataField;
         DataField *outDataField = outputVec[0]->dataField;
-        assert(inDataField!=NULL);
-        assert(outDataField!=NULL);
+        assert(inDataField != NULL);
+        assert(outDataField != NULL);
 
         int sizeIn = inDataField->numLocations * inDataField->dimension;
         int sizeOut = outDataField->numLocations * outDataField->dimension;
@@ -58,27 +56,35 @@ void CopyFilter::filtering() {
     } else if (IOType == EMPIRE_ConnectionIO_Signal) {
         const Signal *inSignal = inputVec[0]->signal;
         Signal *outSignal = outputVec[0]->signal;
-        assert(inSignal!=NULL);
-        assert(outSignal!=NULL);
+        assert(inSignal != NULL);
+        assert(outSignal != NULL);
 
         int sizeIn = inSignal->size;
         int sizeOut = outSignal->size;
 
         if (sizeIn >= sizeOut) {
-            for (int i = 0; i < sizeOut; i++){
-                outSignal->array[i] = inSignal->array[i+signalOffset];
-                DEBUG_OUT() << std::endl;
-                DEBUG_OUT() << "Copy from "<< inSignal->name <<"[" << i+signalOffset << "]"<< " to " << outSignal->name <<"[" << i << "]"<<" value: "<<outSignal->array[i]<<std::endl;
-                DEBUG_OUT() << std::endl;
+            for (int i = 0; i < sizeOut; i++) {
+                outSignal->array[i] = inSignal->array[i + signalOffset];
+                if (!unitTest) {
+                    DEBUG_OUT() << std::endl;
+                    DEBUG_OUT() << "Copy from " << inSignal->name << "[" << i + signalOffset << "]"
+                            << " to " << outSignal->name << "[" << i << "]" << " value: "
+                            << outSignal->array[i] << std::endl;
+                    DEBUG_OUT() << std::endl;
+                }
             }
         } else {
             for (int i = 0; i < sizeOut; i++)
                 outSignal->array[i] = 0.0;
-            for (int i = 0; i < sizeIn; i++){
-                outSignal->array[i+signalOffset] = inSignal->array[i];
-                DEBUG_OUT() << std::endl;
-                DEBUG_OUT() << "Copy from "<< inSignal->name <<"[" << i << "]"<< " to " << outSignal->name <<"[" << i+signalOffset << "]"<<" value: "<<outSignal->array[i+signalOffset]<<std::endl;
-                DEBUG_OUT() << std::endl;
+            for (int i = 0; i < sizeIn; i++) {
+                outSignal->array[i + signalOffset] = inSignal->array[i];
+                if (!unitTest) {
+                    DEBUG_OUT() << std::endl;
+                    DEBUG_OUT() << "Copy from " << inSignal->name << "[" << i << "]" << " to "
+                            << outSignal->name << "[" << i + signalOffset << "]" << " value: "
+                            << outSignal->array[i + signalOffset] << std::endl;
+                    DEBUG_OUT() << std::endl;
+                }
             }
         }
     } else {

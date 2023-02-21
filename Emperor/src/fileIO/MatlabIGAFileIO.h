@@ -29,9 +29,11 @@
 #include <string>
 
 namespace EMPIRE {
+class FEMesh;
 class IGAMesh;
 class DataField;
 namespace MatlabIGAFileIO {
+
 /***********************************************************************************************
  * \brief Write file
  * \param[in] igaMesh Information on the IGA mesh (polynomial orders, knot vectors, Control Points etc.)
@@ -46,7 +48,7 @@ void writeIGAMesh(IGAMesh* igaMesh);
  * \param[in] _dataField The array containing the Control Point displacement field
  * \author Chenshen Wu
  ***********/
-void writeVectorFieldOnCPs(std::string dataFieldName, int _step, DataField* _dataField);
+void writeVectorFieldOnCPs(std::string meshName, std::string dataFieldName, int _step, DataField* _dataField);
 
 } /* namespace MatlabIGAFileIO */
 } /* namespace EMPIRE */

@@ -24,8 +24,13 @@ ENDIF()
 include_directories(${MKL_INCLUDE_DIR})
 SET(Emperor_LIBS ${Emperor_LIBS} ${MKL_LIBRARIES})
 #------------------------------------------------------------------------------------#
+ExternalProject_Get_Property(clipper INSTALL_DIR)
+LINK_DIRECTORIES(${INSTALL_DIR})
+SET(Emperor_LIBS ${Emperor_LIBS} "${INSTALL_DIR}/libpolyclipping.a")
+#------------------------------------------------------------------------------------#
 ExternalProject_Get_Property(flann INSTALL_DIR)
-LINK_DIRECTORIES("${INSTALL_DIR}/libflann_s.a")
+LINK_DIRECTORIES(${INSTALL_DIR})
+SET(Emperor_LIBS ${Emperor_LIBS} "${INSTALL_DIR}/libflann_cpp_s.a")
 #------------------------------------------------------------------------------------#
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #------------------------------------------------------------------------------------#
@@ -37,3 +42,4 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/tools/AuxiliaryParameters.cpp.in
 add_subdirectory(src)
 add_subdirectory(testUnit)
 add_subdirectory(testMapper)
+add_subdirectory(mapperLib)

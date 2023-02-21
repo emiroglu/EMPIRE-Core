@@ -63,6 +63,12 @@ public:
      ***********/
     virtual ~NearestElementMapper();
     /***********************************************************************************************
+     * \brief Compute the neighbors and the weights
+     * \author Tianyang Wang
+     * \edit Altug Emiroglu function name changed from computeNeighborsAndWeights to buildCouplingMatrices
+     ***********/
+    void buildCouplingMatrices();
+    /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions)
      * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)
      * \param[out] fieldB the field of mesh B (e.g. x-displacements on all fluid nodes)
@@ -76,6 +82,14 @@ public:
      * \author Tianyang Wang
      * ***********/
     void conservativeMapping(const double *fieldB, double *fieldA);
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)
+     * \param[out] fieldB the field of mesh B (e.g. x-displacements on all fluid nodes)
+     * \author Andreas Apostolatos
+     ***********/
+    void computeErrorsConsistentMapping(const double *fieldA, const double *fieldB);
+
     /// defines number of threads used for mapper routines
     static int mapperSetNumThreads;
 
@@ -115,11 +129,6 @@ private:
     std::vector<int> **directElemTableA;
     /// number of neighbors to search
     static const int MAX_NUM_NEIGHBORS_TO_SEARCH;
-    /***********************************************************************************************
-     * \brief Compute the neighbors and the weights
-     * \author Tianyang Wang
-     ***********/
-    void computeNeighborsAndWeights();
     /***********************************************************************************************
      * \brief Given the element index/id, return the element
      * \param[in] elemIndex the element index/id

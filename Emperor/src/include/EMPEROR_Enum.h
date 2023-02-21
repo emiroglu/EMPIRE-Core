@@ -34,7 +34,7 @@
  * have value "scalar" or "vector", the enum below is named according to this rule.
  ***********/
 enum EMPIRE_DataField_dimension {
-    EMPIRE_DataField_scalar = 1, EMPIRE_DataField_vector = 3
+    EMPIRE_DataField_scalar = 1, EMPIRE_DataField_vector = 3, EMPIRE_DataField_doubleVector = 6
 };
 enum EMPIRE_DataField_location {
     EMPIRE_DataField_atNode, EMPIRE_DataField_atElemCentroid
@@ -65,10 +65,29 @@ enum EMPIRE_Mapper_type {
     EMPIRE_BarycentricInterpolationMapper,
     EMPIRE_NearestElementMapper,
     EMPIRE_IGAMortarMapper,
+    EMPIRE_IGABarycentricMapper,
+    EMPIRE_CurveSurfaceMapper
 };
 
+enum EMPIRE_CurveSurfaceMapper_type {
+    EMPIRE_CurveSurfaceMapper_linear,
+    EMPIRE_CurveSurfaceMapper_corotate2D,
+    EMPIRE_CurveSurfaceMapper_corotate3D
+};
+
+
 enum EMPIRE_Mesh_type {
-    EMPIRE_Mesh_FEMesh, EMPIRE_Mesh_IGAMesh
+    EMPIRE_Mesh_FEMesh,
+    EMPIRE_Mesh_IGAMesh,
+    EMPIRE_Mesh_copyFEMesh,
+    EMPIRE_Mesh_copyIGAMesh,
+    EMPIRE_Mesh_SectionMesh
+};
+
+enum EMPIRE_Condition_type{
+    EMPIRE_WeakIGADirichletCurveCondition,
+    EMPIRE_WeakIGADirichletSurfaceCondition,
+    EMPIRE_WeakIGAPatchContinuityCondition
 };
 
 enum EMPIRE_DataFieldFilter_type {
@@ -76,6 +95,7 @@ enum EMPIRE_DataFieldFilter_type {
     EMPIRE_MappingFilter,
     EMPIRE_LocationFilter,
     EMPIRE_ScalingFilter,
+    EMPIRE_WeakCouplingFilter,
     EMPIRE_SetFilter,
     EMPIRE_DataFieldIntegrationFilter,
     EMPIRE_AdditionFilter,
@@ -96,7 +116,8 @@ enum EMPIRE_Extrapolator_type {
 enum EMPIRE_CouplingAlgorithm_type {
     EMPIRE_Aitken,
     EMPIRE_ConstantRelaxation,
-    EMPIRE_IJCSA
+    EMPIRE_IJCSA,
+    EMPIRE_GMRES
 };
 
 /********//**

@@ -21,6 +21,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <list>
 #include <map>
@@ -239,6 +240,8 @@ void readDotMsh(string fileName, int &numberOfMeshNodes, int &numberOfElements,
                     assert(numberOfNodesThisElement == 3);
                 else if (elementType == "Quadrilateral")
                     assert(numberOfNodesThisElement == 4);
+                else if (elementType == "Linear")
+                    assert(numberOfNodesThisElement == 2);
                 else
                     assert(false);
             }
@@ -385,6 +388,8 @@ void writeDotMsh(std::string fileName, int numberOfMeshNodes,
             elementType = "Triangle";
         else if (numberOfNodesThisElement == 4)
             elementType = "Quadrilateral";
+        else if (numberOfNodesThisElement == 2)
+            elementType = "Linear";
         else
             assert(false);
 
@@ -421,6 +426,8 @@ void writeDotMsh(std::string fileName, int numberOfMeshNodes,
                 meshName = "\"mesh_triangles\"";
             else if (numberOfNodesThisElement == 4)
                 meshName = "\"mesh_quads\"";
+            else if (numberOfNodesThisElement == 2)
+                meshName = "\"mesh_lines\"";
             else
                 assert(false);
             outputStream << "MESH " << meshName << " dimension " << XYZ << " Elemtype ";
@@ -519,7 +526,7 @@ void appendNodalDataToDotRes(std::string fileName, std::string resultName,
     for (int i = 0; i < numberOfNodes; i++) {
         dotResFile << '\t' << nodeIds[i];
         for (int j = 0; j < dimension; j++)
-            dotResFile << '\t' << data[i * dimension + j];
+            dotResFile << '\t' << std::setprecision(20) << data[i * dimension + j];
         dotResFile << endl;
     }
     dotResFile << "End Values" << endl << endl;

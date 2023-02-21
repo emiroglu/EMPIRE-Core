@@ -44,5 +44,4 @@ void AuxiliaryFunctions::report_num_threads(int level)
          infoOut()<<"Thread level :"<<level<<" number of threads is: "<<omp_get_num_threads()<<std::endl;
     }
 }
-
 } /* namespace EMPIRE */

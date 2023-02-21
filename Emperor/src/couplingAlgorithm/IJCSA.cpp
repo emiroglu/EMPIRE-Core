@@ -35,6 +35,7 @@
 
 
 
+
 using namespace std;
 
 namespace EMPIRE {
@@ -49,8 +50,7 @@ IJCSA::IJCSA(std::string _name) :
 IJCSA::~IJCSA() {
 	delete[] globalResidual;
 	delete[] correctorVec;
-	(*interfaceJacGlobal).cleanPardiso();
-
+	delete[] interfaceJacGlobal;
 }
 
 void IJCSA::calcNewValue() {
@@ -75,10 +75,10 @@ void IJCSA::calcNewValue() {
 	assembleInterfaceJacobian();
 
 	/// compute IJCSA update
-	//(*interfaceJacGlobal).print();
+	// Edit Aditya
 	(*interfaceJacGlobal).factorize();
 	(*interfaceJacGlobal).solve(correctorVec,globalResidual);
-	(*interfaceJacGlobal).resetPardiso();
+	(*interfaceJacGlobal).reset();
 
 	/// tmpVec holds -corrector_global
 	DEBUG_OUT() << std::endl;
@@ -177,7 +177,7 @@ void IJCSA::calcInterfaceJacobian() {
 void IJCSA::assembleInterfaceJacobian(){
 	for(int i=0;i<interfaceJacobianEntrys.size();i++){
 		(*interfaceJacGlobal)(interfaceJacobianEntrys[i].indexRow-1,
-				interfaceJacobianEntrys[i].indexColumn-1)=interfaceJacobianEntrys[i].value;
+						interfaceJacobianEntrys[i].indexColumn-1)=interfaceJacobianEntrys[i].value;
 	}
 }
 
@@ -191,8 +191,8 @@ void IJCSA::init() {
 	}
 	globalResidual = new double[globalResidualSize];
 	correctorVec   = new double[globalResidualSize];
-	interfaceJacGlobal = new MathLibrary::SparseMatrix<double>(
-			globalResidualSize, false);
+	interfaceJacGlobal = new EMPIRE::MathLibrary::SparseMatrix<double>(globalResidualSize,true);
+
 
 	assembleInterfaceJacobian();
 	std::string autoDiffFileName = "automaticDifferentiation";
@@ -202,11 +202,11 @@ void IJCSA::init() {
 	autoDiffFile << "timeStep" << '\t' << "iteration" << '\t' << "interfaceJacobian" << '\t'<< endl;
 	assert(!autoDiffFile.fail());
 }
+
 void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
 		unsigned int _indexColumn, double _value) {
 	interfaceJacobianEntry tmp ={_indexRow,_indexColumn,true,_value,false,NULL,NULL,false,NULL,0,0,0};
 	interfaceJacobianEntrys.push_back(tmp);
-
 }
 
 void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
@@ -217,7 +217,6 @@ void IJCSA::addInterfaceJacobianEntry(unsigned int _indexRow,
 
 	interfaceJacobianEntry tmp ={_indexRow,_indexColumn,false,0.0,true,_functionInput,_functionOutput,false,NULL,_coefficient,0,0};
 	interfaceJacobianEntrys.push_back(tmp);
-
 }
 
 } /* namespace EMPIRE */

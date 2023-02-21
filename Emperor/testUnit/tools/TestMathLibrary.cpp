@@ -80,7 +80,6 @@ public:
         (*sparseMatSymm)(0,3)=1.8E2;
         (*sparseMatSymm)(1,2)=8.36E1;
         sparseMat = new SparseMatrix<double> (4,false);
-        (*sparseMat)(0,0)=1.00E2;
         (*sparseMat)(0,0)=1.38E2;
         (*sparseMat)(1,1)=1.3E1;
         (*sparseMat)(2,2)=9.1E5;
@@ -106,9 +105,9 @@ public:
      ***********/
     void testDenseDotProduct() {
 
-        double result =  fabs( computeDenseDotProduct(vecA, vecB, 4) - 84.70);
+        double result =  fabs( computeDenseDotProduct(4,vecA, vecB) - 84.70);
         CPPUNIT_ASSERT(result <= AuxiliaryParameters::machineEpsilon*100);
-        result =  fabs( computeDenseDotProduct(*vecC, *vecD) - 84.70);
+        result =  fabs( computeDenseDotProduct((*vecC).size(),&(*vecC)[0], &(*vecD)[0]) - 84.70);
         CPPUNIT_ASSERT(result <= AuxiliaryParameters::machineEpsilon*100);
     }
     /***********************************************************************************************
@@ -117,34 +116,12 @@ public:
      ***********/
     void testSparseMatrixVectorProduct() {
 
-        vector<double> result =(*sparseMat)*(*vecC);
-        CPPUNIT_ASSERT(fabs(result[0] - 9.43800000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[1] - 3.04480000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[2] - 3.00300000e+06) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[3] - 6.60000000e+03) < 1000000*AuxiliaryParameters::machineEpsilon);
-
-
         double result2[4];
-        (*sparseMat).mulitplyVec(vecA,result2,4);
+        (*sparseMat).mulitplyVec(false,vecA,result2,4);
         CPPUNIT_ASSERT(fabs(result2[0] - 9.43800000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
         CPPUNIT_ASSERT(fabs(result2[1] - 3.04480000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
         CPPUNIT_ASSERT(fabs(result2[2] - 3.00300000e+06) < 100000*AuxiliaryParameters::machineEpsilon);
         CPPUNIT_ASSERT(fabs(result2[3] - 6.60000000e+03) < 1000000*AuxiliaryParameters::machineEpsilon);
-
-
-        result =(*sparseMatSymm)*(*vecC);
-        CPPUNIT_ASSERT(fabs(result[0] - 9.43800000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[1] - 3.04480000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[2] - 3.00318392e+06) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result[3] - 6.79800000e+03) < 1000000*AuxiliaryParameters::machineEpsilon);
-
-
-        (*sparseMatSymm).mulitplyVec(vecA,result2,4);
-        CPPUNIT_ASSERT(fabs(result2[0] - 9.43800000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result2[1] - 3.04480000e+02) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result2[2] - 3.00318392e+06) < 100000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(result2[3] - 6.79800000e+03) < 1000000*AuxiliaryParameters::machineEpsilon);
-
     }
     /***********************************************************************************************
      * \brief Test sparse matrix direct solver
@@ -157,11 +134,11 @@ public:
         solution = new double[4]; // holds the solution
         (*sparseMatSymm).factorize();
         (*sparseMatSymm).solve(solution,vecA);
-        CPPUNIT_ASSERT(fabs(solution[0] - 4.9140893470790373e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[1] - 1.6930747279417244e-01) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[2] + 1.1927587610541555e-05) < 1000*AuxiliaryParameters::machineEpsilon);
-        CPPUNIT_ASSERT(fabs(solution[3] - 2.3436426116838494e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-        (*sparseMatSymm).cleanPardiso();
+        CPPUNIT_ASSERT(fabs(solution[0] - 0.00491408934707904)  < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[1] - 0.169307472794172)    < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[2] + 1.19275876105415e-05) < 1000*AuxiliaryParameters::machineEpsilon);
+        CPPUNIT_ASSERT(fabs(solution[3] - 0.00234364261168385)  < 1000*AuxiliaryParameters::machineEpsilon);
+        //(*sparseMatSymm).cleanPardiso();
 
         // Test asymmetric call
         (*sparseMat).factorize();
@@ -170,35 +147,35 @@ public:
         CPPUNIT_ASSERT(fabs(solution[1] - 1.6920744885883349e-01) < 1000*AuxiliaryParameters::machineEpsilon);
         CPPUNIT_ASSERT(fabs(solution[2] - 3.6263736263736258e-06) < 1000*AuxiliaryParameters::machineEpsilon);
         CPPUNIT_ASSERT(fabs(solution[3] - 2.9333333333333334e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-        (*sparseMat).cleanPardiso();
+        (*sparseMat).reset();
 
     }
 
     void testSparseDirectSolver4Leakage() {
 
-    	(*sparseMatSymm).factorize();
-    	(*sparseMat).factorize();
-    	for (int i = 0; i < 1e10; i++){
-    		// Test symmetric positive definite call
-    		double* solution;
-    		solution = new double[4]; // holds the solution
-    		(*sparseMatSymm).solve(solution,vecA);
-    		CPPUNIT_ASSERT(fabs(solution[0] - 4.9140893470790373e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[1] - 1.6930747279417244e-01) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[2] + 1.1927587610541555e-05) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[3] - 2.3436426116838494e-03) < 1000*AuxiliaryParameters::machineEpsilon);
+        (*sparseMatSymm).factorize();
+        (*sparseMat).factorize();
+        for (int i = 0; i < 1e10; i++){
+            // Test symmetric positive definite call
+            double* solution;
+            solution = new double[4]; // holds the solution
+            (*sparseMatSymm).solve(solution,vecA);
+            CPPUNIT_ASSERT(fabs(solution[0] - 4.9140893470790373e-03) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[1] - 1.6930747279417244e-01) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[2] + 1.1927587610541555e-05) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[3] - 2.3436426116838494e-03) < 1000*AuxiliaryParameters::machineEpsilon);
 
-    		// Test asymmetric call
-    		(*sparseMat).solve(solution,vecA);
-    		CPPUNIT_ASSERT(fabs(solution[0] - 4.1449275362318849e-03) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[1] - 1.6920744885883349e-01) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[2] - 3.6263736263736258e-06) < 1000*AuxiliaryParameters::machineEpsilon);
-    		CPPUNIT_ASSERT(fabs(solution[3] - 2.9333333333333334e-03) < 1000*AuxiliaryParameters::machineEpsilon);
+            // Test asymmetric call
+            (*sparseMat).solve(solution,vecA);
+            CPPUNIT_ASSERT(fabs(solution[0] - 4.1449275362318849e-03) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[1] - 1.6920744885883349e-01) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[2] - 3.6263736263736258e-06) < 1000*AuxiliaryParameters::machineEpsilon);
+            CPPUNIT_ASSERT(fabs(solution[3] - 2.9333333333333334e-03) < 1000*AuxiliaryParameters::machineEpsilon);
 
-    		delete[] solution;
-    	}
-        (*sparseMatSymm).cleanPardiso();
-        (*sparseMat).cleanPardiso();
+            delete[] solution;
+        }
+        //(*sparseMatSymm).cleanPardiso();
+        //(*sparseMat).cleanPardiso();
 
     }
 

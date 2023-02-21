@@ -30,6 +30,7 @@
 
 #include "MatlabIGAFileIO.h"
 #include "IGAMesh.h"
+#include "FEMesh.h"
 #include "IGAPatchSurface.h"
 #include "BSplineBasis2D.h"
 #include "BSplineBasis1D.h"
@@ -47,8 +48,8 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     // Matlab visualization
 
     ofstream myfile;
-
-    myfile.open("SurfacePatches.m");
+    string fileName = igaMesh->name + "_surfacePatches.m";
+    myfile.open(fileName.c_str());
     myfile.precision(14);
     myfile << std::dec;
 
@@ -58,7 +59,7 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     IGAPatchSurface* patch;
     for (int patchCount = 0; patchCount < numPatches; patchCount++) {
         patch = surfacePatches[patchCount];
-        myfile << "%% Patch: " << patchCount + 1 << endl;
+        myfile << "% Patch: " << patchCount + 1 << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").p = "
                 << patch->getIGABasis()->getUBSplineBasis1D()->getPolynomialDegree() << ";" << endl;
         myfile << "surfacePatch(" << patchCount + 1 << ").q = "
@@ -91,15 +92,11 @@ void writeIGAMesh(IGAMesh* igaMesh) {
     }
 
     myfile.close();
-
-
-
 }
 
-void writeVectorFieldOnCPs(string _dataFieldName, int _step, DataField* _dataField) {
+void writeVectorFieldOnCPs(string _meshName, string _dataFieldName, int _step, DataField* _dataField) {
     ofstream myfile;
-
-    string fileName = _dataFieldName+"IGA.m";
+    string fileName = _meshName + "_" + _dataFieldName + ".m";
     myfile.open(fileName.c_str() , ios::app);
     myfile.precision(14);
     myfile << std::dec;

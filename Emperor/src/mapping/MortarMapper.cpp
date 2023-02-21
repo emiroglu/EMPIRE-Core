@@ -25,7 +25,7 @@
 #endif
 
 #ifndef USE_INTEL_MKL
-#include "lapacke.h"
+#include <Dense>
 #endif
 
 #ifdef FLANN
@@ -45,6 +45,7 @@
 #include <assert.h>
 #include <omp.h>
 #include "Message.h"
+//#include "math.h"
 
 using namespace std;
 namespace EMPIRE {
@@ -71,17 +72,29 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 _masterNodesPerElem), masterNodeCoors(_masterNodeCoors), masterNodeNumbers(
                 _masterNodeNumbers), masterElemTable(_masterElemTable), oppositeSurfaceNormal(
                 _oppositeSurfaceNormal), dual(_dual), toEnforceConsistency(_toEnforceConsistency) {
+
+    mapperType = EMPIRE_MortarMapper;
+
     // a could-be NULL pointer must be initialized to NULL, otherwise there could be segmentation fault when delete it
-    C_BB_A = NULL;
-    C_BB_IA = NULL;
-    C_BB_JA = NULL;
     C_BB_A_DUAL = NULL;
-    C_BA_A = NULL;
-    C_BA_IA = NULL;
-    C_BA_JA = NULL;
-    C_BA_A_DUAL = NULL;
     // check whether the necessary libraries are there
-#ifndef USE_INTEL_MKL
+
+    /// Initializing the sparse matrices
+    /// This is symmetric square matrix of size "masterNumNodes". For first attempt
+    /// we store it as full matrix
+    C_BB = new MathLibrary::SparseMatrix<double>(masterNumNodes, false);
+
+    /// This is a rectangular matrix of size
+    /// masterNumNodes X slaveNumNodes
+    if(!dual){
+    	C_BA = new MathLibrary::SparseMatrix<double>((size_t)(masterNumNodes),(size_t)(slaveNumNodes));
+    	C_BA_DUAL = NULL;
+    }else{
+    	C_BA_DUAL = new MathLibrary::SparseMatrix<double>((size_t)(masterNumNodes),(size_t)(slaveNumNodes));
+    	C_BA = NULL;
+    }
+
+/*#ifndef USE_INTEL_MKL
     if (!dual) {
         cerr << endl;
         cerr
@@ -89,48 +102,52 @@ MortarMapper::MortarMapper(int _slaveNumNodes, int _slaveNumElems, const int *_s
                 << endl << "\t Try dual mortar mapper!" << endl;
         exit(EXIT_FAILURE);
     }
-#endif
+#endif*/
 
     // 1. initialize data that could be used later
     initTables();
     initANNTree();
 
+}
+
+void MortarMapper::buildCouplingMatrices(){
+
     // 2. compute C_BB
     computeC_BB();
-    /*if (!dual) {
-        MortarMath::printCSRMatrixSymmetric(C_BB_A, C_BB_IA, C_BB_JA, masterNumNodes);
-    } else {
-        MortarMath::printDiagonalMatrix(C_BB_A_DUAL, masterNumNodes);
-    }*/
+//     if (!dual) {
+//        C_BB->printFullToFile("MortarMapper_Cbb.dat");
+//     } else {
+//        MathLibrary::printFullToFile("MortarMapper_Cbb.dat", C_BB_A_DUAL, masterNumNodes);
+//     }
     // 3. compute C_BA
     computeC_BA();
-    /*if (!dual) {
-        MortarMath::printCSRMatrixUnsymmetric(C_BA_A, C_BA_IA, C_BA_JA, masterNumNodes, slaveNumNodes);
-    } else {
-        MortarMath::printCSRMatrixUnsymmetric(C_BA_A_DUAL, C_BA_IA, C_BA_JA, masterNumNodes, slaveNumNodes);
-    }*/
+//     if (!dual) {
+//        C_BA->printFullToFile("MortarMapper_Cba.dat");
+//     } else {
+//        C_BA_DUAL->printFullToFile("MortarMapper_Cba.dat");
+//     }
+
+    if ((Message::isDebugMode() || writeMode > 0) && !dual){
+        C_BB->printCSRToFile("C_BB.dat",1);
+    }
+    if ((Message::isDebugMode() || writeMode > 0) && !dual)
+        C_BA->printCSRToFile("C_BA.dat",1);
+
     deleteANNTree();
     deleteTables();
 
-    // 4. use pardiso to do factorization on C_BB
-    if (!dual)
-        initPardiso();
-
-    // 5. check NULL pointers
-    checkNullPointers();
 }
 
 MortarMapper::~MortarMapper() {
-    if (!dual)
-        deletePardiso();
-    delete[] C_BB_A;
-    delete[] C_BB_IA;
-    delete[] C_BB_JA;
+    delete C_BB;
     delete[] C_BB_A_DUAL;
-    delete[] C_BA_A;
-    delete[] C_BA_IA;
-    delete[] C_BA_JA;
-    delete[] C_BA_A_DUAL;
+
+    if(!dual){
+        delete C_BA;
+    }else{
+        delete C_BA_DUAL;
+    }
+
 #ifdef ANN
     for (int i = 0; i < slaveNumNodes; i++) {
         delete[] ANNSlaveNodes[i];
@@ -141,53 +158,28 @@ MortarMapper::~MortarMapper() {
 
 void MortarMapper::consistentMapping(const double *slaveField, double *masterField) {
     double *slaveFieldCopy = new double[slaveNumNodes];
+
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
+
     for (int i = 0; i < slaveNumNodes; i++)
         slaveFieldCopy[i] = slaveField[i];
 
     // 1. matrix vector product (W_tmp = C_BA * W_A)
-    int m = masterNumNodes; // number of rows of C_BA
-    int n = slaveNumNodes; // number of columns of C_BA
-    char noTrans = 'N';
-    char descra[] = "G00F"; // general matrix, indexing from 1
-    double alpha = 1.0;
-    double beta = 0.0;
-#ifdef USE_INTEL_MKL
     if (!dual) {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&noTrans, &m, &n, &alpha, descra, C_BA_A, C_BA_JA, C_BA_IA, &C_BA_IA[1], slaveFieldCopy,
-                &beta, masterField);
+    	(*C_BA).mulitplyVec(false,slaveFieldCopy,masterField,masterNumNodes);
     }
     else {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&noTrans, &m, &n, &alpha, descra, C_BA_A_DUAL, C_BA_JA, C_BA_IA, &C_BA_IA[1], slaveFieldCopy,
-                &beta, masterField);
+    	(*C_BA_DUAL).mulitplyVec(false,slaveFieldCopy,masterField,masterNumNodes);
     }
-#else
-    if (!dual)
-        MortarMath::dcsrmv(noTrans, m, n, C_BA_A, C_BA_JA, C_BA_IA, slaveFieldCopy, masterField);
-    else
-        MortarMath::dcsrmv(noTrans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, slaveFieldCopy,
-                masterField);
-#endif
 
     delete[] slaveFieldCopy;
-
     // 2. solve C_BB * W_B = W_tmp
     if (!dual) {
-        // pardiso forward and backward substitution
-        int phase = 33; // forward and backward substitution
-        int idum; // integer dummy
-        double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
-        int error = 0;
-        iparm[5] = 1; // write solution to b
-#ifdef USE_INTEL_MKL
-                mkl_set_num_threads(mklSetNumThreads);
-                pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs,
-                        iparm, &msglvl, masterField, ddum, &error);
-#endif
-        if (error != 0) {
-            cerr << "Error in MortarMapper: pardiso solver failed!" << error << endl;
-            exit(EXIT_FAILURE);
+        double *ddum = new double[masterNumNodes]; // Temporary variable to store the solution of the system.
+        (*C_BB).solve(ddum, masterField);
+        for(int i=0; i<masterNumNodes; i++){
+        	masterField[i] = ddum[i];
         }
         delete[] ddum;
     } else {
@@ -205,27 +197,22 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
      * F_A --- slaveField
      * F_B --- masterField
      */
+
+//    INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Slave field :: "  << EMPIRE::MathLibrary::computeVectorLength(slaveField) << endl;
+//	  INFO_OUT() << "MortarMapper::consistentMapping ->  Norm of the Master field :: " << EMPIRE::MathLibrary::computeVectorLength(masterField) << endl;
+
     double *masterFieldCopy = new double[masterNumNodes];
     for (int i = 0; i < masterNumNodes; i++)
         masterFieldCopy[i] = masterField[i];
     // 1. solve C_BB * F_tmp = F_B
     if (!dual) {
-        // pardiso forward and backward substitution
-        int phase = 33; // forward and backward substitution
-        int idum; // integer dummy
-        double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
-        int error = 0;
-        iparm[5] = 1; // write solution to x
-#ifdef USE_INTEL_MKL
-                mkl_set_num_threads(mklSetNumThreads);
-                pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs,
-                        iparm, &msglvl, masterFieldCopy, ddum, &error);
-#endif
-        if (error != 0) {
-            cerr << "Error in MortarMapper: pardiso solver failed!" << error << endl;
-            exit(EXIT_FAILURE);
-        }
-        delete ddum;
+
+    	double *ddum = new double[masterNumNodes]; // dummy but the memory is asked for
+    	(*C_BB).solve(ddum, masterFieldCopy);
+    	for(int i=0; i<masterNumNodes; i++){
+    		masterFieldCopy[i] = ddum[i];
+    	}
+    	delete[] ddum;
     } else {
         for (int i = 0; i < masterNumNodes; i++)
             masterFieldCopy[i] /= C_BB_A_DUAL[i];
@@ -234,38 +221,26 @@ void MortarMapper::conservativeMapping(const double *masterField, double *slaveF
     // 2. matrix vector product (F_A = C_BA^T * F_tmp)
     int m = masterNumNodes; // number of rows of C_BA
     int n = slaveNumNodes; // number of columns of C_BA
-    char trans = 'T';
-    char descra[] = "G00F"; // general matrix, indexing from 1
-    double alpha = 1.0;
-    double beta = 0.0;
-#ifdef USE_INTEL_MKL
     if (!dual) {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&trans, &m, &n, &alpha, descra, C_BA_A, C_BA_JA, C_BA_IA, &C_BA_IA[1], masterFieldCopy,
-                &beta, slaveField);
+    	(*C_BA).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
     }
     else {
-        mkl_set_num_threads(mklSetNumThreads);
-        mkl_dcsrmv(&trans, &m, &n, &alpha, descra, C_BA_A_DUAL, C_BA_JA, C_BA_IA, &C_BA_IA[1], masterFieldCopy,
-                &beta, slaveField);
+    	(*C_BA_DUAL).transposeMulitplyVec(masterFieldCopy, slaveField, masterNumNodes);
     }
-#else
-    if (!dual)
-        MortarMath::dcsrmv(trans, m, n, C_BA_A, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
-    else
-        MortarMath::dcsrmv(trans, m, n, C_BA_A_DUAL, C_BA_JA, C_BA_IA, masterFieldCopy, slaveField);
-#endif
+
     delete[] masterFieldCopy;
+}
+
+void MortarMapper::computeErrorsConsistentMapping(const double *slaveField, const double *masterField) {
+    ERROR_OUT() << "Error computation for the mortar mapper has not been implemented" << endl;
+    exit(-1);
 }
 
 void MortarMapper::computeC_BB() {
     // 1. compute the sparsity map
     // sparsity map has the information of a, ia, ja in a CSR formated matrix
-    map<int, double> **sparsityMapC_BB = NULL; // a "could be" NULL pointer is better to be init to NULL
     if (!dual) {
-        sparsityMapC_BB = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BB[i] = new map<int, double>;
+
     } else {
         C_BB_A_DUAL = new double[masterNumNodes];
         for (int i = 0; i < masterNumNodes; i++)
@@ -283,11 +258,11 @@ void MortarMapper::computeC_BB() {
         }
         if (numNodesMasterElem == 4) { // replace the master element by the projection of it on its "element plane"
             double masterElemNormal[3];
-            MortarMath::computeNormalOfQuad(elem, true, masterElemNormal);
+            EMPIRE::MathLibrary::computeNormalOfQuad(elem, true, masterElemNormal);
             double masterQuadCenter[3];
-            MortarMath::computePolygonCenter(elem, 4, masterQuadCenter);
+            EMPIRE::MathLibrary::computePolygonCenter(elem, 4, masterQuadCenter);
             double masterQuadPrj[12];
-            MortarMath::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
+            EMPIRE::MathLibrary::projectToPlane(masterQuadCenter, masterElemNormal, elem, 4, masterQuadPrj);
             for (int i = 0; i < 12; i++)
                 elem[i] = masterQuadPrj[i];
         }
@@ -295,78 +270,29 @@ void MortarMapper::computeC_BB() {
         // make use of the symmetry
         double massMatrix[numNodesMasterElem * numNodesMasterElem];
         if (numNodesMasterElem == 4)
-            MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, dual, massMatrix);
+        	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, dual, massMatrix);
         else if (numNodesMasterElem == 3)
-            MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, dual, massMatrix);
+        	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, dual, massMatrix);
         else
             assert(false);
         if (!dual) {
-            for (int j = 0; j < numNodesMasterElem; j++) {
-                for (int k = j; k < numNodesMasterElem; k++) {
-                    int smaller, larger;
-                    if (pos[j] > pos[k]) {
-                        larger = pos[j];
-                        smaller = pos[k];
-                    } else {
-                        larger = pos[k];
-                        smaller = pos[j];
-                    }
-                    double massMatrixJK = massMatrix[j * numNodesMasterElem + k];
-                    bool inserted = sparsityMapC_BB[smaller]->insert(
-                            pair<int, double>(larger, massMatrixJK)).second; // *.second is a bool indicating inserted or not
-                    if (!inserted)
-                        (sparsityMapC_BB[smaller]->at(larger)) += massMatrixJK; // at() returns a reference, so using "+=" is correct
-                }
+
+        	for (int j = 0; j < numNodesMasterElem; j++) {
+            	for (int k = 0; k < numNodesMasterElem; k++) {
+            		double massMatrixJK = massMatrix[j * numNodesMasterElem + k];
+            		(*C_BB)(pos[j], pos[k]) += massMatrixJK;
+            	}
             }
+
         } else {
             for (int j = 0; j < numNodesMasterElem; j++) {
                 C_BB_A_DUAL[pos[j]] += massMatrix[j * numNodesMasterElem + j];
             }
         }
     }
-
-    // 2. according to sparsity map, compute a, ia, ja of CSR formated C_BB
-    if (!dual) {
-        C_BB_IA = new int[masterNumNodes + 1];
-        C_BB_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BB[i]->size();
-            C_BB_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BB_JA = new int[nnz];
-        C_BB_A = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BB[i]->begin();
-                    it != sparsityMapC_BB[i]->end(); it++) {
-                C_BB_JA[count] = it->first + 1; // numbering from 1
-                C_BB_A[count] = it->second;
-                count++;
-            }
-        }assert(nnz == count);
-
-        // delete spasity map
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BB[i];
-        delete[] sparsityMapC_BB;
-    }
 }
 
 void MortarMapper::computeC_BA() {
-    // 1. initialize sparsity map, which has the information of a, ia, ja in a CSR formated matrix
-    map<int, double> **sparsityMapC_BA = NULL;
-    map<int, double> **sparsityMapC_BA_DUAL = NULL;
-    if (!dual) {
-        sparsityMapC_BA = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BA[i] = new map<int, double>;
-    } else {
-        sparsityMapC_BA_DUAL = new map<int, double>*[masterNumNodes];
-        for (int i = 0; i < masterNumNodes; i++)
-            sparsityMapC_BA_DUAL[i] = new map<int, double>;
-    }
 
     // 2. compute entries in the sparsity map by looping over the master elements
 #ifdef FLANN
@@ -389,9 +315,9 @@ void MortarMapper::computeC_BA() {
             // 2.2 find all candidates which may overlap the master element
             double masterElemNormal[3];
             if (numNodesMasterElem == 3) {
-                MortarMath::computeNormalOfTriangle(masterElem, true, masterElemNormal);
+            	EMPIRE::MathLibrary::computeNormalOfTriangle(masterElem, true, masterElemNormal);
             } else {
-                MortarMath::computeNormalOfQuad(masterElem, true, masterElemNormal);
+            	EMPIRE::MathLibrary::computeNormalOfQuad(masterElem, true, masterElemNormal);
             }
             set<int> *neighborElems = new set<int>;
             findCandidates(masterElem, numNodesMasterElem, masterElemNormal, radiusSqr,
@@ -402,9 +328,9 @@ void MortarMapper::computeC_BA() {
                 projectToElemPlane(masterElem, masterElemNormal, neighborElems, projections);
             if (numNodesMasterElem == 4) { // replace the master element by the projection of it on its "element plane"
                 double masterQuadCenter[3];
-                MortarMath::computePolygonCenter(masterElem, numNodesMasterElem, masterQuadCenter);
+                EMPIRE::MathLibrary::computePolygonCenter(masterElem, numNodesMasterElem, masterQuadCenter);
                 double masterQuadPrj[12];
-                MortarMath::projectToPlane(masterQuadCenter, masterElemNormal, masterElem, 4,
+                EMPIRE::MathLibrary::projectToPlane(masterQuadCenter, masterElemNormal, masterElem, 4,
                         masterQuadPrj);
                 for (int j = 0; j < 12; j++)
                     masterElem[j] = masterQuadPrj[j];
@@ -418,8 +344,8 @@ void MortarMapper::computeC_BA() {
                 posMasterNodes[j] = masterDirectElemTable[i]->at(j);
 
             // 2.3 create the point clipper
-            int planeToProject = MortarMath::computePlaneToProject(masterElemNormal);
-            MortarMath::PolygonClipper *clipper = new MortarMath::PolygonClipper(masterElem,
+            int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(masterElemNormal);
+            EMPIRE::MathLibrary::PolygonClipper *clipper = new EMPIRE::MathLibrary::PolygonClipper(masterElem,
                     numNodesMasterElem, planeToProject);
 
             // 2.4 if dual, compute the coefficient matrix here
@@ -456,12 +382,8 @@ void MortarMapper::computeC_BA() {
 #pragma omp critical (map1)
 #endif
                                 {
-                                    bool inserted = sparsityMapC_BA[posMasterNodes[ii]]->insert(
-                                            pair<int, double>(posSlaveNodes[jj],
-                                                    result[ii * numNodesSlaveElem + jj])).second; // *.second is a bool indicating inserted or not
-                                    if (!inserted)
-                                        (sparsityMapC_BA[posMasterNodes[ii]]->at(posSlaveNodes[jj])) +=
-                                                result[ii * numNodesSlaveElem + jj]; // at() returns a reference, hence using "+=" is correct
+                                	(*C_BA)(posMasterNodes[ii], posSlaveNodes[jj]) += result[ii * numNodesSlaveElem + jj];
+                                	//std::cout<<"C_BA("<<posMasterNodes[ii]<<","<<posSlaveNodes[jj]<<") = "<<result[ii * numNodesSlaveElem + jj]<<std::endl;
                                 } //omp critical
                             }
                         }
@@ -469,7 +391,7 @@ void MortarMapper::computeC_BA() {
                         double result_dual[numNodesMasterElem * numNodesSlaveElem];
                         for (int ii = 0; ii < numNodesMasterElem * numNodesSlaveElem; ii++)
                             result_dual[ii] = result[ii]; // copy the value in result
-                        MortarMath::computeMatrixProduct(numNodesMasterElem, numNodesSlaveElem,
+                        EMPIRE::MathLibrary::computeMatrixProduct(numNodesMasterElem, numNodesSlaveElem,
                                 coeffMatrix, result_dual); // now it is dual
                         for (int ii = 0; ii < numNodesMasterElem; ii++) {
                             for (int jj = 0; jj < numNodesSlaveElem; jj++) {
@@ -477,24 +399,18 @@ void MortarMapper::computeC_BA() {
 #pragma omp critical (map2)
 #endif
                                 {
-                                    bool inserted =
-                                            sparsityMapC_BA_DUAL[posMasterNodes[ii]]->insert(
-                                                    pair<int, double>(
-                                                            posSlaveNodes[jj],
-                                                            result_dual[ii * numNodesSlaveElem + jj])).second; // *.second is a bool indicating inserted or not
-                                    if (!inserted)
-                                        (sparsityMapC_BA_DUAL[posMasterNodes[ii]]->at(
-                                                posSlaveNodes[jj])) += result_dual[ii
-                                                * numNodesSlaveElem + jj]; // at() returns a reference, hence using "+=" is correct
+                                	(*C_BA_DUAL)(posMasterNodes[ii], posSlaveNodes[jj]) += result_dual[ii * numNodesSlaveElem + jj];
+                                	if(result_dual[ii * numNodesSlaveElem + jj] == NAN)
+                                		std::cout<<"C_BA("<<posMasterNodes[ii]<<","<<posSlaveNodes[jj]<<") = "<<result[ii * numNodesSlaveElem + jj]<<std::endl;
                                 } //omp critical
                             }
                         }
+                        //(*C_BA_DUAL).printFullToFile("Mortar_C_BA.log");
                     }
                 }
             }
             //delete
-            for (map<int, double*>::iterator it = projections->begin(); it != projections->end();
-                    it++)
+            for (map<int, double*>::iterator it = projections->begin(); it != projections->end(); it++)
                 delete[] it->second;
 
             delete[] masterElem;
@@ -507,97 +423,45 @@ void MortarMapper::computeC_BA() {
 
     // 3. modify C_BA to enforce consistency
     if (toEnforceConsistency) {
-        if (!dual)
-            enforceConsistency(sparsityMapC_BA);
-        else
-            enforceConsistency(sparsityMapC_BA_DUAL);
+        enforceConsistency();
     }
 
-    // 4. according to sparsity map, compute a, ia, ja of CSR formated C_BA
-    if (!dual) {
-        C_BA_IA = new int[masterNumNodes + 1];
-        C_BA_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BA[i]->size();
-            C_BA_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BA_JA = new int[nnz];
-        C_BA_A = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                C_BA_JA[count] = it->first + 1; // numbering from 1
-                C_BA_A[count] = it->second;
-                count++;
-            }
-        }
-        assert(nnz == count);
-    } else {
-        C_BA_IA = new int[masterNumNodes + 1];
-        C_BA_IA[0] = 1; // numbering from 1
-        int nnz = 1; // number of non-zero entries
-        for (int i = 0; i < masterNumNodes; i++) {
-            nnz += sparsityMapC_BA_DUAL[i]->size();
-            C_BA_IA[i + 1] = nnz;
-        }
-        nnz--;
-        C_BA_JA = new int[nnz];
-        C_BA_A_DUAL = new double[nnz];
-        int count = 0;
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA_DUAL[i]->begin();
-                    it != sparsityMapC_BA_DUAL[i]->end(); it++) {
-                C_BA_JA[count] = it->first + 1; // numbering from 1
-                C_BA_A_DUAL[count] = it->second;
-                count++;
-            }
-        }
-        assert(nnz == count);
-    }
+//    	if(C_BA_A == NULL){
+//    		std::cout<<"printing DUAL stuff"<<std::endl;
+//    		MathLibrary::printCSRMatrixUnsymmetric(C_BA_A_DUAL,C_BA_IA,C_BA_JA,masterNumNodes,slaveNumNodes);
+//    		(*C_BA_DUAL).print();
+//    	}else{
+//    		std::cout<<"printing NON DUAL stuff"<<std::endl;
+//    		MathLibrary::printCSRMatrixUnsymmetric(C_BA_A,C_BA_IA,C_BA_JA,masterNumNodes,slaveNumNodes);
+//        	(*C_BA).print();
+//    	}
+//    	//assert(0);
 
-    // delete
-    if (!dual) {
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BA[i];
-        delete[] sparsityMapC_BA;
-    } else {
-        for (int i = 0; i < masterNumNodes; i++)
-            delete sparsityMapC_BA_DUAL[i];
-        delete[] sparsityMapC_BA_DUAL;
-    }
+
 }
 
-void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
+/*void MortarMapper::enforceConsistency() {
     // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
     if (!dual) {
         double *factor = new double[masterNumNodes];
         for (int i = 0; i < masterNumNodes; i++) {
             factor[i] = 0.0;
         }
+
         for (int i = 0; i < masterNumNodes; i++) {
-            for (int j = C_BB_IA[i]; j < C_BB_IA[i + 1]; j++) {
-                factor[i] += C_BB_A[j - 1];
-            }
+                factor[i] += (*C_BB).getRowSum(i);
         }
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (int j = C_BB_IA[i] + 1; j < C_BB_IA[i + 1]; j++) {
-                factor[C_BB_JA[j - 1] - 1] += C_BB_A[j - 1];
-            }
-        }
+
         for (int i = 0; i < masterNumNodes; i++) {
             double sum = 0.0;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                sum += it->second;
-            }
+            // Row sum of the sparse Matrix
+            sum = (*C_BA).getRowSum(i);
 
             if (sum < factor[i] * 0.5) { // if the master element is not fully covered by slave elements, use nearest neighbor
                 cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
-                MortarMath::printPoint(&masterNodeCoors[i*3]);
-                sparsityMapC_BA[i]->clear();
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -610,31 +474,29 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
                 FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
                 nb = indexes_tmp[0][0];
 #endif
-                sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                //sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                (*C_BA)(i,nb) = factor[i];
                 sum = factor[i];
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             assert(sum<factor[i]*(1+1E-2));
             factor[i] /= sum;
-        }
-        for (int i = 0; i < masterNumNodes; i++) {
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                it->second *= factor[i];
-            }
+
+            (*C_BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
         }
         delete[] factor;
-    } else {
+    } else { // If dual
         for (int i = 0; i < masterNumNodes; i++) {
             double factor = C_BB_A_DUAL[i];
-            double sum = 0.0;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                sum += it->second;
-            }
+            // Row sum of the sparse Matrix
+            double sum = (*C_BA_DUAL).getRowSum(i);
 
             if ((sum < factor * 0.5) || (sum > factor * 1.5)) { // if the master element is not fully covered by slave elements, use nearest neighbor
-                sparsityMapC_BA[i]->clear();
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest neighbor is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA_DUAL).deleteRow(i);
                 double dummy;
                 int nb;
 #ifdef ANN
@@ -647,61 +509,245 @@ void MortarMapper::enforceConsistency(map<int, double> **sparsityMapC_BA) {
                 FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
                 nb = indexes_tmp[0][0];
 #endif
-                sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor));
+                // Inserting the new element of the sparse matrix.
+                (*C_BA_DUAL)(i,nb) = factor;
                 sum = factor;
             }
             // rowsum of C_BA cannot be large than rowsum of C_BB
             //assert(sum<factor*(1+1E-2)); // This is not the case for dual
             factor /= sum;
-            for (map<int, double>::iterator it = sparsityMapC_BA[i]->begin();
-                    it != sparsityMapC_BA[i]->end(); it++) {
-                it->second *= factor;
-            }
+            (*C_BA_DUAL).multiplyRowWith(i,factor);
+
         }
     }
+}*/
+
+
+void MortarMapper::enforceConsistency() {
+    // solve the problem that C_BB * 1 != C_BA * 1, this happens due to the projection of A not covering B
+    int numNodesToEnforce = 0;
+    if (!dual) {
+        double *factor = new double[masterNumNodes];
+        for (int i = 0; i < masterNumNodes; i++) {
+            factor[i] = 0.0;
+        }
+
+        for (int i = 0; i < masterNumNodes; i++) {
+                factor[i] += (*C_BB).getRowSum(i);
+        }
+
+        for (int i = 0; i < masterNumNodes; i++) {
+            double sum = 0.0;
+            // Row sum of the sparse Matrix
+            sum = (*C_BA).getRowSum(i);
+
+            if (sum < factor[i] * 0.9) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                numNodesToEnforce++;
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest element interpolation is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA).deleteRow(i);
+                double dummy;
+                int nb;
+#ifdef ANN
+                slaveNodesTree->annkSearch(&masterNodeCoors[i * 3], 1, &nb, &dummy);
+#endif
+#ifdef FLANN
+                flann::Matrix<double> masterNodeFlann(const_cast<double*>(&masterNodeCoors[i * 3]), 1, 3);
+                vector<vector<int> > indexes_tmp;
+                vector<vector<double> > dists_tmp;
+                FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
+                nb = indexes_tmp[0][0];
+#endif
+                //sparsityMapC_BA[i]->insert(pair<int, double>(nb, factor[i]));
+                // nearest element interpolation
+                vector<int> * vecElemOfNode = slaveNodeToElemTable[nb];
+                double minDistance = 1E100; // arbitrary big value
+                int elemWithMinDist = -1;
+
+                for (int j=0; j<vecElemOfNode->size(); j++) {
+                    int numNodesThisElem = slaveNodesPerElem[vecElemOfNode->at(j)];
+                    double *slaveElem = new double[numNodesThisElem * 3];
+                    getElemCoor(vecElemOfNode->at(j), MortarMapper::SLAVE, slaveElem);
+                    double center[3];
+                    EMPIRE::MathLibrary::computePolygonCenter(slaveElem, numNodesThisElem, center);
+                    double dist = EMPIRE::MathLibrary::distanceSquare(center, &masterNodeCoors[i * 3]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        elemWithMinDist = vecElemOfNode->at(j);
+                    }
+                    delete[] slaveElem;
+                }
+                int numNodesThisElem = slaveNodesPerElem[elemWithMinDist];;
+                if (numNodesThisElem == 3) {
+                    double triangle[3 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, triangle);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[3];
+                    EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject,
+                            projection, localCoors);
+
+                    for (int j=0; j<3; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA)(i,nodePos) = factor[i]*localCoors[j];
+                    }
+                } else if (numNodesThisElem == 4) {
+                    double quad[4 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, quad);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    { // replace the element by the projection of it on its "element plane"
+                        double quadCenter[3];
+                        EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
+                        double quadPrj[12];
+                        EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                        for (int j = 0; j < 12; j++)
+                            quad[j] = quadPrj[j];
+                    }
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[2];
+                    EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
+                            localCoors);
+                    double weights[4];
+                    EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weights);
+                    for (int j=0; j<4; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA)(i,nodePos) = factor[i]*weights[j];
+                    }
+                } else {
+                    assert(false);
+                }
+
+                sum = factor[i];
+            }
+            // rowsum of C_BA cannot be large than rowsum of C_BB
+            assert(sum<=factor[i]*(1+1E-2));
+            factor[i] /= sum;
+
+            (*C_BA).multiplyRowWith(i,factor[i]); // Compensates for the for loop just below.
+        }
+        delete[] factor;
+    } else { // If dual
+        for (int i = 0; i < masterNumNodes; i++) {
+            double factor = C_BB_A_DUAL[i];
+            // Row sum of the sparse Matrix
+            double sum = (*C_BA_DUAL).getRowSum(i);
+
+            if (sum < factor * 0.9) { // if the master element is not fully covered by slave elements, use nearest neighbor
+                numNodesToEnforce++;
+                cout << "WARNING(MortarMapper::enforceConsistency): Nearest element interpolation is used for node: ";
+                EMPIRE::MathLibrary::printPoint(&masterNodeCoors[i*3]);
+
+                //sparsityMapC_BA[i]->clear();
+                (*C_BA_DUAL).deleteRow(i);
+                double dummy;
+                int nb;
+#ifdef ANN
+                slaveNodesTree->annkSearch(&masterNodeCoors[i * 3], 1, &nb, &dummy);
+#endif
+#ifdef FLANN
+                flann::Matrix<double> masterNodeFlann(const_cast<double*>(&masterNodeCoors[i * 3]), 1, 3);
+                vector<vector<int> > indexes_tmp;
+                vector<vector<double> > dists_tmp;
+                FLANNkd_tree->knnSearch(masterNodeFlann, indexes_tmp, dists_tmp, 1, flann::SearchParams(1));
+                nb = indexes_tmp[0][0];
+#endif
+
+                // nearest element interpolation
+                vector<int> * vecElemOfNode = slaveNodeToElemTable[nb];
+                double minDistance = 1E100; // arbitrary big value
+                int elemWithMinDist = -1;
+
+                for (int j=0; j<vecElemOfNode->size(); j++) {
+                    int numNodesThisElem = slaveNodesPerElem[vecElemOfNode->at(j)];
+                    double *slaveElem = new double[numNodesThisElem * 3];
+                    getElemCoor(vecElemOfNode->at(j), MortarMapper::SLAVE, slaveElem);
+                    double center[3];
+                    EMPIRE::MathLibrary::computePolygonCenter(slaveElem, numNodesThisElem, center);
+                    double dist = EMPIRE::MathLibrary::distanceSquare(center, &masterNodeCoors[i * 3]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        elemWithMinDist = vecElemOfNode->at(j);
+                    }
+                    delete[] slaveElem;
+                }
+                int numNodesThisElem = slaveNodesPerElem[elemWithMinDist];;
+                if (numNodesThisElem == 3) {
+                    double triangle[3 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, triangle);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&triangle[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[3];
+                    EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject,
+                            projection, localCoors);
+
+                    for (int j=0; j<3; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA_DUAL)(i,nodePos) = factor*localCoors[j];
+                    }
+                } else if (numNodesThisElem == 4) {
+                    double quad[4 * 3];
+                    getElemCoor(elemWithMinDist, MortarMapper::SLAVE, quad);
+                    double normal[3];
+                    EMPIRE::MathLibrary::computeNormalOfQuad(quad, true, normal);
+                    int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
+
+                    { // replace the element by the projection of it on its "element plane"
+                        double quadCenter[3];
+                        EMPIRE::MathLibrary::computePolygonCenter(quad, 4, quadCenter);
+                        double quadPrj[12];
+                        EMPIRE::MathLibrary::projectToPlane(quadCenter, normal, quad, 4, quadPrj);
+                        for (int j = 0; j < 12; j++)
+                            quad[j] = quadPrj[j];
+                    }
+                    double projection[3];
+                    EMPIRE::MathLibrary::projectToPlane(&quad[0], normal, &masterNodeCoors[i * 3], 1,
+                            projection);
+
+                    double localCoors[2];
+                    EMPIRE::MathLibrary::computeLocalCoorInQuad(quad, planeToProject, projection,
+                            localCoors);
+                    double weights[4];
+                    EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoors, weights);
+                    for (int j=0; j<4; j++) {
+                        int nodePos = slaveDirectElemTable[elemWithMinDist]->at(j);
+                        (*C_BA_DUAL)(i,nodePos) = factor*weights[j];
+                    }
+                } else {
+                    assert(false);
+                }
+
+                sum = factor;
+            }
+            // rowsum of C_BA cannot be large than rowsum of C_BB
+            //assert(sum<factor*(1+1E-2)); // This is not the case for dual
+            factor /= sum;
+            (*C_BA_DUAL).multiplyRowWith(i,factor);
+
+        }
+    }
+    if (numNodesToEnforce > 0)
+        cout << "WARNING(MortarMapper::enforceConsistency): #nodes to enforce consistency: " << numNodesToEnforce << endl;;
 }
 
-void MortarMapper::initPardiso() {
-#ifdef USE_INTEL_MKL
-    mtype = 2; // real symmetric matrix
-    // set pardiso default parameters
-    pardisoinit(pt, &mtype, iparm);
-    iparm[2] = mklSetNumThreads;
-    //cout << endl << "iparm[3]: " << iparm[2] << endl;
-    maxfct = 1;// max number of factorizations
-    mnum = 1;// which factorization to use
-    msglvl = 0;// do NOT print statistical information
-    neq = masterNumNodes;// number of rows of C_BB
-    nrhs = 1;// number of right hand side
-    int phase = 12;// analysis and factorization
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    //cout<<"factorizing"<<endl;
-    mkl_set_num_threads(mklSetNumThreads);
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
-    }
-#endif
-}
-
-void MortarMapper::deletePardiso() {
-#ifdef USE_INTEL_MKL
-    int phase = -1; // deallocate memory
-    double ddum;// double dummy
-    int idum;// integer dummy
-    int error = 0;
-    pardiso(pt, &maxfct, &mnum, &mtype, &phase, &neq, C_BB_A, C_BB_IA, C_BB_JA, &idum, &nrhs, iparm,
-            &msglvl, &ddum, &ddum, &error);
-    if (error != 0) {
-        cerr << "Error in MortarMapper: pardiso factorization failed!" << error << endl;
-        exit(EXIT_FAILURE);
-    }
-#endif
-}
 
 void MortarMapper::initTables() {
     // using the map to store the nodeNumbers
@@ -829,8 +875,8 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
             for (int j = 0; j < 3; j++)
                 clipTriangle[i * 3 + j] = clippedPolygon->at(i)[j];
 
-        MortarMath::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-                new MortarMath::GaussQuadratureOnTriangle(clipTriangle, numGPs);
+        EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
+                new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(clipTriangle, numGPs);
         ShapeFunctionProduct *integrand = new ShapeFunctionProduct(masterElem, numNodesMasterElem,
                 slaveElem, numNodesSlaveElem, planeToProject);
         integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal,
@@ -853,14 +899,14 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
             for (int j = 0; j < 3; j++)
                 tmp[i * 3 + j] = clippedPolygon->at(i)[j];
         double center[3];
-        MortarMath::computePolygonCenter(tmp, size, center);
+        EMPIRE::MathLibrary::computePolygonCenter(tmp, size, center);
 
         for (int i = 0; i < size; i++) {
             double clipTriangle[9];
-            MortarMath::buildTrianagle(center, clippedPolygon->at(i),
+            EMPIRE::MathLibrary::buildTrianagle(center, clippedPolygon->at(i),
                     clippedPolygon->at((i + 1) % size), clipTriangle);
-            MortarMath::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
-                    new MortarMath::GaussQuadratureOnTriangle(clipTriangle, numGPs);
+            EMPIRE::MathLibrary::GaussQuadratureOnTriangle *gaussQuadratureOnTriangle =
+                    new EMPIRE::MathLibrary::GaussQuadratureOnTriangle(clipTriangle, numGPs);
             ShapeFunctionProduct *integrand = new ShapeFunctionProduct(masterElem,
                     numNodesMasterElem, slaveElem, numNodesSlaveElem, planeToProject);
             integrand->setGaussPoints(gaussQuadratureOnTriangle->gaussPointsGlobal,
@@ -883,8 +929,8 @@ void MortarMapper::gaussQuadratureOnClip(const double *masterElem, int numNodesM
 double MortarMapper::computeSearchRadiusSquare(const double* masterElem, int numNodesMasterElem) {
     // 1. find the longest edge of this element (masterElem)
     double masterElemCopy[3 * numNodesMasterElem];
-    MortarMath::copyElem(masterElem, numNodesMasterElem, masterElemCopy);
-    double lengthSqr = MortarMath::longestEdgeLengthSquare(masterElemCopy, numNodesMasterElem);
+    EMPIRE::MathLibrary::copyElem(masterElem, numNodesMasterElem, masterElemCopy);
+    double lengthSqr = EMPIRE::MathLibrary::longestEdgeLengthSquare(masterElemCopy, numNodesMasterElem);
 
     // 2. find the longest edge of the neighboring elements (the slave side)
     // the neighboring elements are found by
@@ -920,7 +966,7 @@ double MortarMapper::computeSearchRadiusSquare(const double* masterElem, int num
         double elemTmp[3 * numNodesSlaveElem];
         // for a single element, find its longest edge
         getElemCoor(*it, MortarMapper::SLAVE, elemTmp);
-        lengthSqr = MortarMath::longestEdgeLengthSquare(elemTmp, numNodesSlaveElem);
+        lengthSqr = EMPIRE::MathLibrary::longestEdgeLengthSquare(elemTmp, numNodesSlaveElem);
         if (lengthSqr > searchRadiusSqr)
             searchRadiusSqr = lengthSqr;
     }
@@ -937,7 +983,7 @@ void MortarMapper::findCandidates(const double* masterElem, int masterElemNumNod
     // all elements containing these points are the overlapped candidates
     // 1. find all neighboring elements in the radius
     double masterElemCopy[masterElemNumNodes * 3];
-    MortarMath::copyElem(masterElem, masterElemNumNodes, masterElemCopy);
+    EMPIRE::MathLibrary::copyElem(masterElem, masterElemNumNodes, masterElemCopy);
     // OpenMP parallelize this loop
     // Ann is not thread safe
     for (int i = 0; i < masterElemNumNodes; i++) {
@@ -967,7 +1013,7 @@ void MortarMapper::findCandidates(const double* masterElem, int masterElemNumNod
                 neighborElems->insert(vecTmp->at(k));
             }
         }
-        delete nbs;
+        delete[] nbs;
     }
     vector<set<int>::iterator> toDelete;
     // 2. kick out the elements that have wrong normal direction
@@ -994,8 +1040,8 @@ bool MortarMapper::kickOutCandidate(const double *masterUnitNormal, const double
     //acos(0.7) = pi/4
     //acos(0.01) = pi/2
     if (!oppositeSurfaceNormal)
-        return (MortarMath::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) < bound);
-    return (MortarMath::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) > -bound);
+        return (EMPIRE::MathLibrary::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) < bound);
+    return (EMPIRE::MathLibrary::computeVectorDotProduct(masterUnitNormal, slaveUnitNormal) > -bound);
 }
 
 void MortarMapper::projectToElemPlane(const double *elem, const double *planeUnitNormal,
@@ -1008,7 +1054,7 @@ void MortarMapper::projectToElemPlane(const double *elem, const double *planeUni
     //cout << neighborNodes.size();
     for (set<int>::iterator it = neighborNodes.begin(); it != neighborNodes.end(); it++) {
         double *projectionTmp = new double[3];
-        MortarMath::projectToPlane(&elem[0], planeUnitNormal, &slaveNodeCoors[(*it) * 3], 1,
+        EMPIRE::MathLibrary::projectToPlane(&elem[0], planeUnitNormal, &slaveNodeCoors[(*it) * 3], 1,
                 projectionTmp);
         projections->insert(projections->end(), pair<int, double*>(*it, projectionTmp));
     }
@@ -1050,9 +1096,9 @@ void MortarMapper::computeSlaveElemNormals() {
             }
         }
         if (numNodesSlaveElem == 3) {
-            MortarMath::computeNormalOfTriangle(slaveElem, true, &slaveElemNormals[i * 3]);
+        	EMPIRE::MathLibrary::computeNormalOfTriangle(slaveElem, true, &slaveElemNormals[i * 3]);
         } else if (numNodesSlaveElem == 4) {
-            MortarMath::computeNormalOfQuad(slaveElem, true, &slaveElemNormals[i * 3]);
+        	EMPIRE::MathLibrary::computeNormalOfQuad(slaveElem, true, &slaveElemNormals[i * 3]);
         } else {
             assert(false);
         }
@@ -1061,25 +1107,11 @@ void MortarMapper::computeSlaveElemNormals() {
 
 void MortarMapper::checkNullPointers() {
     if (!dual) {
-        assert(C_BB_A!=NULL);
-        assert(C_BB_IA!=NULL);
-        assert(C_BB_JA!=NULL);
+    	assert(C_BB == NULL);
         assert(C_BB_A_DUAL==NULL);
-
-        assert(C_BA_A!=NULL);
-        assert(C_BA_IA!=NULL);
-        assert(C_BA_JA!=NULL);
-        assert(C_BA_A_DUAL==NULL);
     } else {
-        assert(C_BB_A==NULL);
-        assert(C_BB_IA==NULL);
-        assert(C_BB_JA==NULL);
-        assert(C_BB_A_DUAL!=NULL);
-
-        assert(C_BA_A==NULL);
-        assert(C_BA_IA!=NULL);
-        assert(C_BA_JA!=NULL);
-        assert(C_BA_A_DUAL!=NULL);
+    	assert(C_BA==NULL);
+        assert(C_BA_DUAL!=NULL);
     }
 }
 
@@ -1087,25 +1119,76 @@ void MortarMapper::computeDualCoeffMatrix(const double *elem, int numNodesElem,
         double *coeffMatrix) {
     double massMatrix[numNodesElem * numNodesElem];
     if (numNodesElem == 4)
-        MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, false, massMatrix);
     else if (numNodesElem == 3)
-        MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false, massMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, false, massMatrix);
     else
         assert(false);
 
     // store the dual mass matrix in coeffMatrix temporarily
     if (numNodesElem == 4)
-        MortarMath::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, true, coeffMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfQuad(elem, numGPsMassMatrixQuad, true, coeffMatrix);
     else if (numNodesElem == 3)
-        MortarMath::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
+    	EMPIRE::MathLibrary::computeMassMatrixOfTrianlge(elem, numGPsMassMatrixTri, true, coeffMatrix);
     else
-        assert(false);
+    	assert(false);
 
     int dummy[numNodesElem];
     int info = -1;
+#ifdef USE_INTEL_MKL
     info = LAPACKE_dsysv(LAPACK_COL_MAJOR, 'L', numNodesElem, numNodesElem, massMatrix,
-            numNodesElem, dummy, coeffMatrix, numNodesElem);
+    		numNodesElem, dummy, coeffMatrix, numNodesElem);
     assert(info == 0);
+#elif USE_EIGEN
+    if (numNodesElem == 4){
+
+    	Eigen::Matrix4d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8], massMatrix[9], massMatrix[10], massMatrix[11], massMatrix[12], massMatrix[13], massMatrix[14], massMatrix[15] ;
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8], coeffMatrix[9], coeffMatrix[10], coeffMatrix[11], coeffMatrix[12], coeffMatrix[13], coeffMatrix[14], coeffMatrix[15];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+    	coeffMatrix[3] = result(3,0);
+
+    	coeffMatrix[4] = result(0,1);
+    	coeffMatrix[5] = result(1,1);
+    	coeffMatrix[6] = result(2,1);
+    	coeffMatrix[7] = result(3,1);
+
+    	coeffMatrix[8]  = result(0,2);
+    	coeffMatrix[9]  = result(1,2);
+    	coeffMatrix[10] = result(2,2);
+    	coeffMatrix[11] = result(3,2);
+
+    	coeffMatrix[12] = result(0,3);
+    	coeffMatrix[13] = result(1,3);
+    	coeffMatrix[14] = result(2,3);
+    	coeffMatrix[15] = result(3,3);
+
+    }else if (numNodesElem == 3){
+
+    	Eigen::Matrix3d A, RHS, result;
+    	A << massMatrix[0], massMatrix[1], massMatrix[2], massMatrix[3], massMatrix[4], massMatrix[5], massMatrix[6], massMatrix[7], massMatrix[8];
+    	RHS << coeffMatrix[0], coeffMatrix[1], coeffMatrix[2], coeffMatrix[3], coeffMatrix[4], coeffMatrix[5], coeffMatrix[6], coeffMatrix[7], coeffMatrix[8];
+    	result = A.ldlt().solve(RHS);
+
+    	coeffMatrix[0] = result(0,0);
+    	coeffMatrix[1] = result(1,0);
+    	coeffMatrix[2] = result(2,0);
+
+    	coeffMatrix[3] = result(0,1);
+    	coeffMatrix[4] = result(1,1);
+    	coeffMatrix[5] = result(2,1);
+
+    	coeffMatrix[6] = result(0,2);
+    	coeffMatrix[7] = result(1,2);
+    	coeffMatrix[8] = result(2,2);
+    }
+
+#endif
+
     // if it fails, then a singular mass matrix is indicated
 }
 
@@ -1140,7 +1223,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
         double shapeFuncValueMasterElem[numNodesMasterElem];
         if (numNodesMasterElem == 3) {
             double localCoor[3];
-            bool inside = MortarMath::computeLocalCoorInTriangle(masterElem, planeToProject,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(masterElem, planeToProject,
                     gaussPoint, localCoor);
             // debug
             if (!inside){
@@ -1158,7 +1241,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             }
         } else if (numNodesMasterElem == 4) {
             double localCoor[2];
-            bool inside = MortarMath::computeLocalCoorInQuad(masterElem, planeToProject, gaussPoint,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInQuad(masterElem, planeToProject, gaussPoint,
                     localCoor);
             // debug
             if (!inside){
@@ -1171,7 +1254,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
              }
             // debug end
             assert(inside);
-            MortarMath::computeShapeFuncOfQuad(localCoor, shapeFuncValueMasterElem);
+            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoor, shapeFuncValueMasterElem);
 
         } else {
             assert(false);
@@ -1180,7 +1263,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
         double shapeFuncValueSlaveElem[numNodesSlaveElem];
         if (numNodesSlaveElem == 3) {
             double localCoor[3];
-            bool inside = MortarMath::computeLocalCoorInTriangle(slaveElem, planeToProject,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInTriangle(slaveElem, planeToProject,
                     gaussPoint, localCoor);
             // debug
             if (!inside){
@@ -1198,7 +1281,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             }
         } else if (numNodesSlaveElem == 4) {
             double localCoor[2];
-            bool inside = MortarMath::computeLocalCoorInQuad(slaveElem, planeToProject, gaussPoint,
+            bool inside = EMPIRE::MathLibrary::computeLocalCoorInQuad(slaveElem, planeToProject, gaussPoint,
                     localCoor);
             // debug
             if (!inside){
@@ -1212,7 +1295,7 @@ void MortarMapper::ShapeFunctionProduct::computeShapeFunctionProducts() {
             // debug end
             assert(inside);
 
-            MortarMath::computeShapeFuncOfQuad(localCoor, shapeFuncValueSlaveElem);
+            EMPIRE::MathLibrary::computeShapeFuncOfQuad(localCoor, shapeFuncValueSlaveElem);
         } else {
             assert(false);
         }
@@ -1253,5 +1336,10 @@ double MortarMapper::ShapeFunctionProduct::operator ()(double *gaussPoint) {
     assert(false);
     return 0.0;
 }
+
+
+
+
+
 
 } /* namespace EMPIRE */

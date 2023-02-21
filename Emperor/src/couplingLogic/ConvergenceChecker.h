@@ -64,10 +64,12 @@ public:
      * \param[in] _relativeTolerance the relative residual
      * \param[in] _couplingAlgorithm the coupling algorithm which contains the residual
      * \param[in] _residualIndex the index of the residual
+     * \param[in] checkOnAbsolute the index of the residual
      * \author Tianyang Wang
+     * \edit Aditya Ghantasala
      ***********/
     void addCheckResidual(double _absoluteTolerance, double _relativeTolerance,
-            AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex);
+            AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex, bool checkOnAbsolute);
     /***********************************************************************************************
      * \brief Get the current number of iterations
      * \return the current number of iterations
@@ -87,10 +89,11 @@ private:
          * \param[in] _relativeTolerance the relative residual
          * \param[in] _couplingAlgorithm the coupling algorithm which contains the residual
          * \param[in] _residualIndex the index of the residual
+         * \param[in] checkOnAbsolute the index of the residual
          * \author Tianyang Wang
          ***********/
         CheckResidual(double _absoluteTolerance, double _relativeTolerance,
-                AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex);
+                AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex, bool checkOnAbsolute);
         /***********************************************************************************************
          * \brief Destructor
          * \author Tianyang Wang
@@ -135,6 +138,8 @@ private:
         const double REL_TOL;
         /// initial residual
         double initialResidual;
+        /// to check if absolute or relative residual to be considered for convergence
+        bool checkOnAbsolute;
         /// the unit test class
         friend class TestEmperor;
     };
@@ -150,6 +155,9 @@ private:
     std::string residualFileName;
     /// time step number, only used when writing the residual in a file
     int timeStepNumber;
+
+    /// if unitTest, do not output debug message
+    bool unitTest;
 
     /// the unit test class
     friend class TestConvergenceChecker;

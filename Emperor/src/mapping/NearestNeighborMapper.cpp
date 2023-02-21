@@ -30,6 +30,8 @@
 #include "ANN/ANN.h"
 #endif
 
+#include "Message.h"
+
 using namespace std;
 
 namespace EMPIRE {
@@ -38,6 +40,17 @@ NearestNeighborMapper::NearestNeighborMapper(int _numNodesA, const double *_node
         const double *_nodesB) :
         numNodesA(_numNodesA), nodesA(_nodesA), numNodesB(_numNodesB), nodesB(_nodesB) {
     neighborsTable = new int[numNodesB];
+
+    mapperType = EMPIRE_NearestNeighborMapper;
+
+}
+
+NearestNeighborMapper::~NearestNeighborMapper() {
+    delete[] neighborsTable;
+}
+
+void NearestNeighborMapper::buildCouplingMatrices(){
+
     {
 #ifdef ANN
         double **ANodes = new double*[numNodesA]; // ANN uses 2D array
@@ -80,10 +93,7 @@ NearestNeighborMapper::NearestNeighborMapper(int _numNodesA, const double *_node
         delete ANodesTree;
 #endif
     }
-}
 
-NearestNeighborMapper::~NearestNeighborMapper() {
-    delete[] neighborsTable;
 }
 
 void NearestNeighborMapper::consistentMapping(const double *DOF_A, double *DOF_B) {
@@ -102,7 +112,11 @@ void NearestNeighborMapper::conservativeMapping(const double *DOF_B, double *DOF
         int neighbor = neighborsTable[i];
         DOF_A[neighbor] += DOF_B[i];
     }
+}
 
+void NearestNeighborMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the nearest neighbor mapper has not been implemented" << endl;
+    exit(-1);
 }
 
 } /* namespace EMPIRE */

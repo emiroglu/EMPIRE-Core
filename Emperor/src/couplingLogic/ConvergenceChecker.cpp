@@ -37,9 +37,9 @@ namespace EMPIRE {
 
 ConvergenceChecker::CheckResidual::CheckResidual(double _absoluteTolerance,
         double _relativeTolerance, AbstractCouplingAlgorithm *_couplingAlgorithm,
-        int _residualIndex) :
+        int _residualIndex, bool _checkOnAbsolute) :
         ABS_TOL(_absoluteTolerance), REL_TOL(_relativeTolerance), couplingAlgorithm(
-                _couplingAlgorithm), residualIndex(_residualIndex) {
+                _couplingAlgorithm), residualIndex(_residualIndex), checkOnAbsolute(_checkOnAbsolute) {
 }
 
 ConvergenceChecker::CheckResidual::~CheckResidual() {
@@ -63,23 +63,36 @@ double ConvergenceChecker::CheckResidual::getRelativeResidual() {
 bool ConvergenceChecker::CheckResidual::isConvergent() {
     double absoluteResidual = getAbsoluteResidual();
     double relativeResidual = getRelativeResidual();
-    if (absoluteResidual < ABS_TOL || relativeResidual < REL_TOL) {
-        return true;
+    if (checkOnAbsolute) {
+    	if (absoluteResidual < ABS_TOL) {
+    		return true;
+    	}
+    } else {
+    	if (relativeResidual < REL_TOL) {
+    		return true;
+    	}
     }
     return false;
 }
 
 void ConvergenceChecker::CheckResidual::writeResidualToShell() {
-    stringstream ss;
+    stringstream ss, ssR, ssT;
     ss << scientific;
+    ssR << scientific;
     ss << "ConvergenceChecker::CheckResidual(" << couplingAlgorithm->getName() << ", " << residualIndex
-            << "): " << "(" << getRelativeResidual() << ", " << getAbsoluteResidual() << ")"
-            << endl;
+            << "): " << endl;
+    ssR << "Residuals : ( Relative : " << getRelativeResidual() << ", Absolute: " << getAbsoluteResidual() << " )"
+    << endl;
+    ssT << "Tolerence : ( Relative : " << REL_TOL << ", Absolute: " << ABS_TOL << " )"
+    << endl;
     INDENT_OUT(1, ss.str(), infoOut);
+    INDENT_OUT(1, ssR.str(), infoOut);
+    INDENT_OUT(1, ssT.str(), infoOut);
+
 }
 
 ConvergenceChecker::ConvergenceChecker(double maxNumOfIters) :
-        MAX_NUM_ITERATIONS(maxNumOfIters) {
+        MAX_NUM_ITERATIONS(maxNumOfIters), unitTest(false) {
     currentNumOfIterations = 0;
     debugResidual = true;
     timeStepNumber = 1;
@@ -137,8 +150,10 @@ bool ConvergenceChecker::isConvergent() {
 
     if (isConvergent || reachMaxNumOfIters) {
         if (reachMaxNumOfIters) {
-            WARNING_BLOCK_OUT("ConvergenceChecker", "isConvergent()",
+            if (!unitTest) {
+                WARNING_BLOCK_OUT("ConvergenceChecker", "isConvergent()",
                     "reach maximum number of iterations!");
+            }
         }
         currentNumOfIterations = 0;
         timeStepNumber++;
@@ -149,10 +164,10 @@ bool ConvergenceChecker::isConvergent() {
 }
 
 void ConvergenceChecker::addCheckResidual(double _absoluteTolerance, double _relativeTolerance,
-        AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex) {
+        AbstractCouplingAlgorithm *_couplingAlgorithm, int _residualIndex, bool checkOnAbsolute) {
     checkResiduals.push_back(
             new CheckResidual(_absoluteTolerance, _relativeTolerance, _couplingAlgorithm,
-                    _residualIndex));
+                    _residualIndex, checkOnAbsolute));
 }
 
 int ConvergenceChecker::getCurrentNumOfIterations() {

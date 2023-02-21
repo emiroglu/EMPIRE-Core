@@ -151,7 +151,8 @@ public:
 
         delete meshA;
         delete meshB;
-        delete a1, b1;
+        delete a1;
+        delete b1;
     }
     /***********************************************************************************************
      * \brief Test the memory leak of the constructor by calling it 1,000,000 times
@@ -228,7 +229,7 @@ public:
         bool dual = true;
         bool enforceConsistency = true;
 
-        for (int i = 0; i < 10000000; i++) {
+        for (int i = 0; i < 100000000; i++) {
             MapperAdapter *mapper = new MapperAdapter("testMortar", meshA, meshB);
             mapper->initMortarMapper(oppositeSurfaceNormal, dual, enforceConsistency);
             delete mapper;
@@ -240,7 +241,7 @@ public:
 CPPUNIT_TEST_SUITE( TestMortarMapper );
         CPPUNIT_TEST( compareC_BBandC_BA);
         CPPUNIT_TEST( problem1);
-//CPPUNIT_TEST( testMemoryLeakOfConstructor); // test memory leak, comment it except when checking memory leak
+        //CPPUNIT_TEST( testMemoryLeakOfConstructor); // test memory leak, comment it except when checking memory leak
     CPPUNIT_TEST_SUITE_END();
 };
 

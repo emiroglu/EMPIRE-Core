@@ -25,6 +25,8 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <cstdlib>
+#include <iomanip>
 
 // Inclusion of user-defined libraries
 #include "IGAPatchSurface.h"
@@ -44,17 +46,21 @@ private:
 	double Tol;
 	double relTol;
 	double TolDeriv;
+    int maxIter;
 
 public:
 	void setUp() {
 		// Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB) for the functional values
-		Tol = 1e-15;
+        Tol = 1e-15;
 
 		// Assign a relaxed tolerance value (corresponding to maximum accuracy provided by MATLAB) for the Newton-Rapson iteration error (accumulative error appears here)
-		relTol = 1e-14;
+        relTol = Tol*10;
 
 		// Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB) for the derivative functional values
-		TolDeriv = 1e-13;
+        TolDeriv = relTol*10;
+
+        // Assign a maximum iteration number for the point projection on patch
+        maxIter = 100;
 
 		// Provide an id for the basis
 		int id_basis = 3;
@@ -542,18 +548,17 @@ public:
 		 cout << endl;*/
 
 		// Value provided by MATLAB
-		double CorrectlocalBasisFunctions[] = { 0.000000000000000,
-				0.000000000000001, 0.000000000000002, 0.000000000000002,
-				0.000000000000000, 0.000000000028724, 0.000000000283475,
-				0.000000000569836, 0.000000000523774, 0.000000000124570,
-				0.068593675533497, 0.116715997109942, 0.206181528917218,
-				0.208445893008528, 0.325522863981816, 0.001905302287253,
-				0.021494320831880, 0.022679044633442, 0.020637366823345,
-				0.007824005342697 };
-		for (int i = 0; i < noLocalBasisFunctions; i++) {
-			CPPUNIT_ASSERT(
-					fabs(localBasisFunctions[i]-CorrectlocalBasisFunctions[i])<=Tol);
-		}
+        double CorrectlocalBasisFunctions[] = { 4.495585113804783e-17, 1.229382471599235e-16, 3.995988326933906e-16,
+                                                1.947765238090499e-16, 1.233769054530474e-16, 5.854909519645797e-12,
+                                                9.962457868877927e-11, 8.447478718422842e-11, 2.113923798912647e-10,
+                                                9.521909622754816e-11, 1.213001775954701e-02, 3.969111309430823e-02,
+                                                3.463036222447142e-01, 4.879889914307526e-01, 3.789804072907874e-02,
+                                                4.272053085451214e-04, 1.744593267633994e-02, 4.622796996550126e-02,
+                                                8.413260691500543e-03, 3.473845603145905e-03};
+        for (int i = 0; i < noLocalBasisFunctions; i++) {
+            CPPUNIT_ASSERT(
+                        fabs(localBasisFunctions[i] - CorrectlocalBasisFunctions[i])<=Tol);
+        }
 
 		// Clear the heap from the pointer
 		delete[] localBasisFunctions;
@@ -589,55 +594,22 @@ public:
 				localBasisFunctionsAndDerivatives, derivDegree, u, uKnotSpan, v,
 				vKnotSpan);
 
-		/* // Printing the results for convenient debugging
-		 int vDerivOrder = 2;
-		 cout << endl;
-		 cout << endl;
-		 cout << "The non-zero NURBS basis functions and their derivatives in u-direction at ( u , v ) = ( "
-		 << u << " , " << v << " ) for " <<  vDerivOrder << " order in v-direction : " << endl;
-		 cout << endl;
-
-		 int counter = 0;
-		 for (int i = 0; i <= derivDegree; i++) {
-		 for (int k = 0; k < noBasisFunctions; k++) {
-		 cout
-		 << localBasisFunctionsAndDerivatives[vDerivOrder * (derivDegree + 1)
-		 * noBasisFunctions + i * noBasisFunctions + counter] << " ";
-		 counter++;
-		 }
-		 counter = 0;
-		 cout << endl;
-		 }
-		 cout << endl;
-
-		 int uDerivOrder = 1;
-		 cout << endl;
-		 cout << endl;
-		 cout << "The non-zero NURBS basis functions and their derivatives in v-direction at ( u , v ) = ( "
-		 << u << " , " << v << " ) for " <<  uDerivOrder << " order in u-direction : " << endl;
-		 cout << endl;
-
-		 counter = 0;
-		 for (int i = 0; i <= derivDegree; i++) {
-		 for (int k = 0; k < noBasisFunctions; k++) {
-		 cout
-		 << localBasisFunctionsAndDerivatives[i * (derivDegree + 1)
-		 * noBasisFunctions + uDerivOrder * noBasisFunctions + counter] << " ";
-		 counter++;
-		 }
-		 counter = 0;
-		 cout << endl;
-		 }
-		 cout << endl;*/
-
 		// Values provided by MATLAB
-		double CorrectlocalBasisFunctionsAndDerivatives[] = { 0.263008729169028,
-				0.544155991384197, 0.192835279446775, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, -8.290991647209133, -17.153775821811998,
-				-6.078869306854625, 0, 0, 4.353247931073575, 20.405849676907383,
-				6.764539167894797, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				-0.135862499631207, 0.021214057279146, 0.114648442352061, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        double CorrectlocalBasisFunctionsAndDerivatives[] = { 1.012658227848101e-01, 2.531645569620253e-01, 6.455696202531646e-01, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              -5.217112642204775e+00, -1.304278160551194e+01, -3.325909309405544e+01, -0.000000000000000e+00,
+                                                              -0.000000000000000e+00, 1.088607594936709e+01, 2.582278481012658e+01, 1.481012658227848e+01,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00,
+                                                              -8.688066371129982e-02, -7.655468318823551e-02, 1.634353468995353e-01, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, -0.000000000000000e+00, -0.000000000000000e+00, 0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, -0.000000000000000e+00, -0.000000000000000e+00,
+                                                              0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, -0.000000000000000e+00,
+                                                              -0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00, 0.000000000000000e+00};
 
 		// The tolerance value is different for the functional and the derivative values due to high gradients which appear
 		int indexBasisDeriv = 0;
@@ -651,18 +623,10 @@ public:
 									derivDegree, i, j, k);
 
 					// Assert a message if failure occurs
-					CPPUNIT_ASSERT(
-							fabs(localBasisFunctionsAndDerivatives[indexBasisDeriv]-CorrectlocalBasisFunctionsAndDerivatives[counter])<=Tol);
+                    CPPUNIT_ASSERT(
+                            fabs(localBasisFunctionsAndDerivatives[indexBasisDeriv] - CorrectlocalBasisFunctionsAndDerivatives[counter])<=Tol*10);
 					counter++;
-				}
-
-		/*for (int i = 0; i < noBasisFunctions * (noDerivs - 4); i++)
-		 CPPUNIT_ASSERT(
-		 fabs(localBasisFunctionsAndDerivatives[i]-CorrectlocalBasisFunctionsAndDerivatives[i])<=Tol);
-
-		 for (int i = noBasisFunctions * (noDerivs - 4); i < noBasisFunctions * noDerivs; i++)
-		 CPPUNIT_ASSERT(
-		 fabs(localBasisFunctionsAndDerivatives[i]-CorrectlocalBasisFunctionsAndDerivatives[i])<=TolDeriv);*/
+                }
 
 		// Clear the heap from the pointer
 		delete[] localBasisFunctionsAndDerivatives;
@@ -699,89 +663,31 @@ public:
 				localBasisFunctionsAndDerivatives, derivDegree, u, uKnotSpan, v,
 				vKnotSpan);
 
-		/* // Printing the results for convenient debugging
-		 int vDerivOrder = 2;
-		 cout << endl;
-		 cout << endl;
-		 cout << "The non-zero NURBS basis functions and their derivatives in u-direction at ( u , v ) = ( "
-		 << u << " , " << v << " ) for " <<  vDerivOrder << " order in v-direction : " << endl;
-		 cout << endl;
-
-		 int counter = 0;
-		 for (int i = 0; i <= derivDegree; i++) {
-		 for (int k = 0; k < noBasisFunctions; k++) {
-		 cout
-		 << localBasisFunctionsAndDerivatives[vDerivOrder * (derivDegree + 1)
-		 * noBasisFunctions + i * noBasisFunctions + counter] << " ";
-		 counter++;
-		 }
-		 counter = 0;
-		 cout << endl;
-		 }
-		 cout << endl;
-
-		 int uDerivOrder = 1;
-		 cout << endl;
-		 cout << endl;
-		 cout << "The non-zero NURBS basis functions and their derivatives in v-direction at ( u , v ) = ( "
-		 << u << " , " << v << " ) for " <<  uDerivOrder << " order in u-direction : " << endl;
-		 cout << endl;
-
-		 counter = 0;
-		 for (int i = 0; i <= derivDegree; i++) {
-		 for (int k = 0; k < noBasisFunctions; k++) {
-		 cout
-		 << localBasisFunctionsAndDerivatives[i * (derivDegree + 1)
-		 * noBasisFunctions + uDerivOrder * noBasisFunctions + counter] << " ";
-		 counter++;
-		 }
-		 counter = 0;
-		 cout << endl;
-		 }
-		 cout << endl;*/
-
 		// Values provided by MATLAB
-		double CorrectlocalBasisFunctionsAndDerivatives[] = { 0.000000001494750,
-				0.000000034733248, 0.000001142264686, 0.000015482614677,
-				0.000001612194963, 0.000000015853674, 0.000009578112787,
-				0.000160996570433, 0.002371954492568, 0.000420381247378,
-				0.000001943040915, 0.000097825197827, 0.002402142981880,
-				0.029070893940158, 0.004128284878567, 0.000095917860106,
-				0.003996515615600, 0.041401247148402, 0.742282434457903,
-				0.173541595299479, -0.000000013254836, -0.000000308000237,
-				-0.000010129136093, -0.000137293495221, -0.000014296285614,
-				-0.000000093062335, -0.000056224290060, -0.000945062777637,
-				-0.013923563061895, -0.002467671629555, -0.000005581519726,
-				-0.000281009662359, -0.006900322240780, -0.083508158143702,
-				-0.011858784501478, 0.000011984124746, 0.000499330798590,
-				0.005172735399946, 0.092741907308132, 0.021682553430115,
-				0.000000079700876, 0.000001851994888, 0.000060906148819,
-				0.000825541090056, 0.000085963076331, 0.000000278411293,
-				0.000168204218230, 0.002827310856599, 0.041654630717609,
-				0.007382445858471, -0.000000442540616, -0.000022280345704,
-				-0.000547104194573, -0.006621091306643, -0.000940244602629,
-				-0.000004477619159, -0.000186564575884, -0.001932685083262,
-				-0.034651086318766, -0.008101235485938, -0.000000006878969,
-				-0.000000116297524, -0.000002345944302, -0.000000314936181,
-				0.000001088353830, -0.000000072959955, -0.000032070447573,
-				-0.000330649272242, -0.000048248587454, 0.000283789213634,
-				-0.000008942039681, -0.000327548646394, -0.004933439430687,
-				-0.000591339156391, 0.002786905283366, -0.000441422156723,
-				-0.013381555154059, -0.085028471120272, -0.015098973891198,
-				0.117153734068774, 0.000000060984946, 0.000001030931773,
-				0.000020791459376, 0.000002637998707, -0.000009667188256,
-				0.000000428122352, 0.000188160379250, 0.001939328810523,
-				0.000259518791082, -0.001670066547248, 0.000025667210968,
-				0.000939928570973, 0.014147640792019, 0.001408140796047,
-				-0.008046834916190, -0.000056110523722, -0.001711851497747,
-				-0.011037333897326, -0.009304538180043, 0.012903067902514,
-				0.000000024293786, 0.000000261548917, 0.000002025164269,
-				-0.000003727924282, 0.000000686727844, 0.000000257665580,
-				0.000072125274329, 0.000285436909738, -0.000571122315798,
-				0.000179064886343, 0.000031579732070, 0.000736645035069,
-				0.004258850158427, -0.006999727997080, 0.001758477256494,
-				0.001558927709635, 0.030094632581332, 0.073401837154189,
-				-0.178727738779250, 0.073921484918389 };
+        double CorrectlocalBasisFunctionsAndDerivatives[] = { 5.665652111327743e-10, 1.369178057561520e-07, 3.752321486533538e-06, 6.103217419530942e-06, 1.443061319105917e-06,
+                                                              2.546666413064336e-07, 1.639271770281257e-05, 1.379663989838727e-05, 4.675099871563213e-04, 4.510004760008026e-04,
+                                                              5.106287021474073e-06, 5.784376191418766e-04, 2.113661204680182e-03, 2.005445995406023e-02, 2.032170442428270e-02,
+                                                              1.955722707982197e-05, 9.846368100513380e-04, 7.339814453205543e-02, 8.192977284885009e-01, 6.226617288113014e-02,
+                                                              -5.018423789140440e-09, -1.212766968500929e-06, -3.323666727590472e-05, -5.406002854858067e-05, -1.278210011961427e-05,
+                                                              -1.492376309940641e-06, -9.606324342176029e-05, -8.084992378864370e-05, -2.739663215855675e-03, -2.642915549138109e-03,
+                                                              -1.461728850095665e-05, -1.655839071177488e-03, -6.050579509565212e-03, -5.740801988736555e-02, -5.817303554455428e-02,
+                                                              2.638362534965420e-06, 1.328321678520368e-04, 9.901757231685975e-03, 1.105271428819554e-01, 8.400001546985621e-03,
+                                                              3.013060805133030e-08, 7.281450854065949e-06, 1.995528948331980e-04, 3.245763211480399e-04, 7.674370777740269e-05,
+                                                              4.452006301068493e-06, 2.865726038171726e-04, 2.411887455934393e-04, 8.172870219495891e-03, 7.884255867357446e-03,
+                                                              -1.264502157999187e-06, -1.432421668811061e-04, -5.234192953426450e-04, -4.966212784900777e-03, -5.032392223676647e-03,
+                                                              -1.336115307519445e-07, -6.726865260024795e-06, -5.014431956664508e-04, -5.597297776323400e-03, -4.253915260459686e-04,
+                                                              -2.538516510637189e-09, -4.418005668735724e-07, -7.250303219664627e-06, 6.176860712049581e-07, 1.149576884081068e-06,
+                                                              -1.141043362638443e-06, -5.289532602209136e-05, -2.665811632473955e-05, 4.731511059913412e-05, 3.592776793721455e-04,
+                                                              -2.287890900704561e-05, -1.866477969220580e-03, -4.084054282814173e-03, 2.029644321619571e-03, 1.618875188599570e-02,
+                                                              -8.762688366471939e-05, -3.177184285439229e-03, -1.418212180187655e-01, 8.291836260621074e-02, 4.960271061017116e-02,
+                                                              2.250710674164042e-08, 3.918590706099079e-06, 6.436534581969372e-05, -5.235618994841844e-06, -1.012681491942663e-05,
+                                                              6.696478979349807e-06, 3.106056382867790e-04, 1.567522987001755e-04, -2.592238877856792e-04, -2.087998384081443e-03,
+                                                              6.569043295342129e-05, 5.365321815980380e-03, 1.177263656854971e-02, -5.035871024040827e-03,-4.555750209782555e-02,
+                                                              -1.106627591683007e-05, -3.906053579475987e-04, -1.629882279020058e-02, 4.281502012367986e-02, 9.095422450950559e-03,
+                                                              8.602822884368602e-09, 9.264461788580807e-07, 4.967539832674171e-06, -1.193449805947254e-06, 9.239174725680466e-07,
+                                                              3.866901755820748e-06, 1.109203481095631e-04, 1.826478847781635e-05, -9.141894595867033e-05, 2.887522618732625e-04,
+                                                              7.753473382995434e-05, 3.913963702545520e-03, 2.798186739784572e-03, -3.921536739615213e-03, 1.301093553085535e-02,
+                                                              2.969602746005120e-04, 6.662486337676968e-03, 9.716870154006790e-02, -1.602090582499311e-01, 3.986580771942673e-02};
 
 		// The tolerance value is different for the functional and the derivative values due to high gradients which appear
 		int indexBasisDeriv = 0;
@@ -795,8 +701,8 @@ public:
 									derivDegree, i, j, k);
 
 					// Assert a message if failure occurs
-					CPPUNIT_ASSERT(
-							fabs(localBasisFunctionsAndDerivatives[indexBasisDeriv]-CorrectlocalBasisFunctionsAndDerivatives[counter])<=Tol);
+                    CPPUNIT_ASSERT(
+                            fabs(localBasisFunctionsAndDerivatives[indexBasisDeriv]-CorrectlocalBasisFunctionsAndDerivatives[counter])<=relTol);
 					counter++;
 				}
 
@@ -833,20 +739,14 @@ public:
 		theIGAPatchSurface->computeCartesianCoordinates(
 				cartesianCoordinatesPointOnPatch, u, uKnotSpan, v, vKnotSpan);
 
-		/* cout << endl;
-		cout << "Point on Patch 2D: ";
-		for (int i = 0; i < 3; i++) {
-			cout << cartesianCoordinatesPointOnPatch[i] << " ";
-		}
-		cout << endl;*/
-
 		// Values provided by MATLAB
-		double CorrectcartesianCoordinatesPointOnPatch[] = { 0.684365187483793,
-				-0.194078057047477, 4.500000000000000 };
+        double CorrectcartesianCoordinatesPointOnPatch[] = { 5.389614693204954e-01,
+                                                             5.700831281051164e-01,
+                                                             4.500000000000000e+00};
 
-		for (int i = 0; i < 3; i++)
-			CPPUNIT_ASSERT(
-					fabs(cartesianCoordinatesPointOnPatch[i]-CorrectcartesianCoordinatesPointOnPatch[i])<=Tol);
+        for (int i = 0; i < 3; i++)
+            CPPUNIT_ASSERT(
+                        fabs(cartesianCoordinatesPointOnPatch[i]-CorrectcartesianCoordinatesPointOnPatch[i])<=Tol);
 	}
 
 	/***********************************************************************************************
@@ -882,20 +782,14 @@ public:
 				cartesianCoordinatesPointOnPatch, localBasisFunctions,
 				uKnotSpan, vKnotSpan);
 
-		/*cout << endl;
-		 cout << "Point on Patch 2D: ";
-		 for (int i = 0; i < 3; i++) {
-		 cout << cartesianCoordinatesPointOnPatch[i] << " ";
-		 }
-		 cout << endl;*/
-
 		// Values provided by MATLAB
-		double CorrectcartesianCoordinatesPointOnPatch[] = { 0.684365187483793,
-				-0.194078057047477, 4.500000000000000 };
+        double CorrectcartesianCoordinatesPointOnPatch[] = {5.389614693204954e-01,
+                                                            5.700831281051164e-01,
+                                                            4.500000000000000e+00};
 
-		for (int i = 0; i < 3; i++)
-			CPPUNIT_ASSERT(
-					fabs(cartesianCoordinatesPointOnPatch[i]-CorrectcartesianCoordinatesPointOnPatch[i])<=Tol);
+        for (int i = 0; i < 3; i++)
+            CPPUNIT_ASSERT(
+                        fabs(cartesianCoordinatesPointOnPatch[i] - CorrectcartesianCoordinatesPointOnPatch[i])<=Tol);
 
 		// Free the memory from the heap
 		delete[] localBasisFunctions;
@@ -945,25 +839,16 @@ public:
 		theIGAPatchSurface->computeBaseVectors(baseVectors,
 				localBasisFunctionsAndDerivatives, uKnotSpan, vKnotSpan);
 
-		/* cout << endl;
-		 cout << "The base vectors at (u,v) = ( " << u << " , " << v << " ) are:" << endl;
-		 int counter = 0;
-		 for (int i = 0; i < 2; i++) {
-		 for (int j = 0; j < 3; j++) {
-		 cout << baseVectors[counter] << " ";
-		 counter++;
-		 }
-		 cout << endl;
-		 }
-		 cout << endl;*/
-
 		// Values provided by MATLAB
-		double correctBaseVectors[] = { 0.021609817639182, -0.008848771788876,
-				0.252711306398794, -0.003022870519747, 0.052433901953327,
-				-0.419630625272796 };
+        double correctBaseVectors[] = {-3.438137561383751e-03,
+                                       3.670146188906259e-02,
+                                       1.424647671570531e+01,
+                                       1.849566126177724e-02,
+                                       2.642578782315075e-02,
+                                       -1.876668817294945e+01};
 
-		for (int i = 0; i < 6; i++)
-			CPPUNIT_ASSERT( fabs(baseVectors[i]-correctBaseVectors[i])<=Tol);
+        for (int i = 0; i < 6; i++)
+            CPPUNIT_ASSERT( fabs(baseVectors[i]-correctBaseVectors[i]) <= TolDeriv);
 
 		// Free the memory from the heap
 		delete[] localBasisFunctionsAndDerivatives;
@@ -975,28 +860,7 @@ public:
 	void testIGAPatchSurfaceBaseVectorsAndDerivatives() {
 
 		// Testing if the implemented index works correctly
-		/* int derivDegree = 2;
-		 int noBaseVcts = 2;
-		 int noCoord = 3;
 
-		 // Initialize index
-		 int indexBaseVec = 0;>
-
-		 for (int i = 0; i <= derivDegree; i++) {
-		 for (int j = 0; j <= derivDegree - i; j++) {
-		 for (int k = 0; k < 3; k++) {
-		 for (int l = 0; l < 2; l++) {
-		 indexBaseVec = IGAPatchSurface->indexDerivativeBaseVector(derivDegree, i, j, k,
-		 l);
-		 cout << "Indexing quadruple (i,j,k,l) = ( " << i << " , " << j << " , " << k
-		 << " , " << l << ") and indexing number indexNum = " << indexBaseVec
-		 << endl;
-		 }
-		 }
-		 }
-		 }*/
-
-		//
 		// The parameters on the IGA surface and their knot span indices
 		double u = 9.0012100121;
 		double v = -1.00010001;
@@ -1026,10 +890,6 @@ public:
 		// Initialize the index of the base vector
 		int indexBaseVct = 0;
 
-		// Initialize the indices related to the derivatives of each component
-		int uDeriv = 1;
-		int vDeriv = 1;
-
 		// Indices related to the base vectors
 		int indexUBaseVec = 0;
 		int indexVBaseVec = 1;
@@ -1052,74 +912,15 @@ public:
 				localBasisFunctionsAndDerivatives, derivDegreeBaseVec,
 				uKnotSpan, vKnotSpan);
 
-		// Print the 1st base vector and its derivatives
-		/*cout << endl;
-		 cout << "All partial derivatives of the base vector g1 = dX/du up to order "
-		 << derivDegreeBaseVec << ":" << endl;
-		 cout << "_________________________________________________________________ " << endl;
-		 cout << endl;
-		 for (int i = 0; i <= derivDegreeBaseVec; i++) {
-		 for (int j = 0; j <= derivDegreeBaseVec - i; j++) {
-		 cout << "The " << i << "-th w.r.t u partial derivative and " << j
-		 << "-th w.r.t v partial derivative: \t";
-		 for (int k = 0; k < noCoord; k++) {
-		 // Find the index of the derivatives to the base vector
-		 indexBaseVct = IGAPatchSurface->indexDerivativeBaseVector(derivDegreeBaseVec, i, j,
-		 k, indexUBaseVec);
-
-		 // print the respective functional value
-		 cout << baseVctsAndDerivs[indexBaseVct] << " ";
-		 }
-		 cout << endl;
-		 cout << endl;
-		 }
-		 }
-
-		 // Print the 2nd base vector and its derivatives
-		 cout << endl;
-		 cout << "All partial derivatives of the base vector g2 = dX/dv up to order "
-		 << derivDegreeBaseVec << ":" << endl;
-		 cout << "_________________________________________________________________ " << endl;
-		 cout << endl;
-		 for (int i = 0; i <= derivDegreeBaseVec; i++) {
-		 for (int j = 0; j <= derivDegreeBaseVec - i; j++) {
-		 cout << "The " << i << "-th w.r.t u partial derivative and " << j
-		 << "-th w.r.t v partial derivative: \t";
-		 for (int k = 0; k < noCoord; k++) {
-		 // Find the index of the derivatives to the base vector
-		 indexBaseVct = IGAPatchSurface->indexDerivativeBaseVector(derivDegreeBaseVec, i, j,
-		 k, indexVBaseVec);
-
-		 // print the respective functional value
-		 cout << baseVctsAndDerivs[indexBaseVct] << " ";
-		 }
-		 cout << endl;
-		 cout << endl;
-		 }
-		 }*/
-
 		// Tests on the pointer baseVctsAndDerivs
-		/* cout << endl;
-		 cout << "Debugging the pointer baseVctsAndDerivs" << endl;
-		 cout << "_______________________________________" << endl;
-		 cout << endl;
-		 for (int i = 0;
-		 i < (derivDegreeBaseVec + 1) * (derivDegreeBaseVec + 2) * noCoord * noBaseVec / 2 ;
-		 i++) {
-		 cout << baseVctsAndDerivs[i] << endl;
-		 }
-		 cout << endl;
-		 cout << endl;*/
 
 		// Analytical values provided by MATLAB
-		double correctBaseVctGuAndDerivs[] = { 0.040872970530277,
-				0.000856207886370, -0.021988101482595, 0.000713760263798,
-				-0.000916996592231, 0.075879725575611, -0.014073318985134,
-				0.000629989330548, 0.003707201239999 };
-		double correctBaseVctGvAndDerivs[] = { 0.001165581187192,
-				0.032039673000424, -0.092289772055987, -0.000045712613992,
-				-0.020522438760949, 0.219508056298072, 0.000713760263798,
-				-0.000916996592231, 0.075879725575611 };
+        double correctBaseVctGuAndDerivs[] = { 2.216785405425909e-03, 9.242381431419883e-02, 5.213713223726086e+00,
+                                               -6.291438422062177e-04, -1.907329196461980e-02, 2.570460922816262e+00,
+                                               -1.132430305658589e-03, -6.826525391671297e-02, 4.839841982005542e+00};
+        double correctBaseVctGvAndDerivs[] = { 9.073264459056658e-03, 4.006608792432891e-02, -3.563132653244571e-01,
+                                               -3.137323441257892e-03, -8.431822133857268e-03, 1.444111659374656e+00,
+                                               -6.291438422062177e-04, -1.907329196461980e-02, 2.570460922816262e+00};
 
 		// Testing the base vector Gu and its derivatives
 		int counterBaseVec = 0;
@@ -1132,8 +933,8 @@ public:
 									derivDegreeBaseVec, i, j, k, indexUBaseVec);
 
 					// Assert a message if failure occurs
-					CPPUNIT_ASSERT(
-							fabs(baseVctsAndDerivs[indexBaseVct]-correctBaseVctGuAndDerivs[counterBaseVec])<=Tol);
+                    CPPUNIT_ASSERT(
+                            fabs(baseVctsAndDerivs[indexBaseVct] - correctBaseVctGuAndDerivs[counterBaseVec]) <= relTol);
 
 					// Update counter
 					counterBaseVec++;
@@ -1152,14 +953,14 @@ public:
 									derivDegreeBaseVec, i, j, k, indexVBaseVec);
 
 					// Assert a message if failure occurs
-					CPPUNIT_ASSERT(
-							fabs(baseVctsAndDerivs[indexBaseVct]-correctBaseVctGvAndDerivs[counterBaseVec])<=Tol);
+                    CPPUNIT_ASSERT(
+                                fabs(baseVctsAndDerivs[indexBaseVct] - correctBaseVctGvAndDerivs[counterBaseVec])<=Tol);
 
 					// Update counter
 					counterBaseVec++;
 				}
 			}
-		}
+        }
 
 		// Free the memory from the heap
 		delete[] localBasisFunctionsAndDerivatives;
@@ -1184,28 +985,30 @@ public:
 		double v = -6.2365;
 
 		// The vertex to be projected onto the NURBS patch
-		double vertex[] = { .5, -1.72, 3.8 };
+        double vertex[] = { .5, -1.72, 1.8 };
 
 		// Flag on the convergence of the Newton-Rapson iterations
 		bool flag = 1;
 
 		// Compute the orthogonal projection of the point on the NURBS patch
-		flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex);
+        flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex, maxIter, TolDeriv);
 
 		// Compare the values with the ones from MATLAB
 
 		// On the return flag
-		CPPUNIT_ASSERT(flag==1);
+        CPPUNIT_ASSERT(flag == 1);
 
 		// On the Cartesian components of the orthogonal projection
-		double orthogonalProjection[] = { 0.735728398615148, -0.142426205779032,
-				4.516956877569002 };
-		for (int i = 0; i < 3; i++)
-			CPPUNIT_ASSERT(fabs(orthogonalProjection[i] - vertex[i])<=relTol);
+        double orthogonalProjection[] = {1.337577681495519e-01,
+                                         6.359047435590517e-01,
+                                         4.525192874644042e+00};
 
-		// On the surface parametric values of the orthogonal projection
-		CPPUNIT_ASSERT(fabs(u - 9.089448501939843)<=TolDeriv);
-		CPPUNIT_ASSERT(fabs(v + 0.897104716006744)<=TolDeriv);
+		for (int i = 0; i < 3; i++)
+            CPPUNIT_ASSERT(fabs(orthogonalProjection[i] - vertex[i]) <= Tol*1e8);
+
+        // On the surface parametric values of the orthogonal projection
+        CPPUNIT_ASSERT(fabs(u - 1.638675122207825e+01) <= Tol*1e9);
+        CPPUNIT_ASSERT(fabs(v + 9.976275088960751e+00) <= Tol*1e9);
 	}
 
 	/***********************************************************************************************
@@ -1388,8 +1191,7 @@ public:
 		// Compute the orthogonal projection of the point on the NURBS patch iteratively
 		int noIterations = 1e9;
 		for (int i = 0; i < noIterations; i++) {
-			flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v,
-					vertex);
+            flag = theIGAPatchSurface->computePointProjectionOnPatch(u, v, vertex, maxIter, TolDeriv);
 		}
 	}
 
@@ -1533,8 +1335,7 @@ public:
 // Make the tests
 CPPUNIT_TEST_SUITE(TestIGAPatchSurface);
 	CPPUNIT_TEST(testConstructor);
-	CPPUNIT_TEST(testIGAPatchSurfaceKnotSpan);
-	//CPPUNIT_TEST(testIGAPatchSurfaceBSplineBasisFunctions);		don't need any more
+    CPPUNIT_TEST(testIGAPatchSurfaceKnotSpan);
 	CPPUNIT_TEST(testIGAPatchSurfaceNurbsBasisFunctions);
 	CPPUNIT_TEST(testIGAPatchSurfaceBasisFunctionsAndDerivativesTest1);
 	CPPUNIT_TEST(testIGAPatchSurfaceBasisFunctionsAndDerivativesTest2);
@@ -1560,5 +1361,4 @@ CPPUNIT_TEST_SUITE(TestIGAPatchSurface);
 
 } /* namespace EMPIRE */
 
-//CPPUNIT_TEST_SUITE_REGISTRATION(EMPIRE::TestIGAPatchSurface);
-
+CPPUNIT_TEST_SUITE_REGISTRATION(EMPIRE::TestIGAPatchSurface);

@@ -1,4 +1,3 @@
-
 # EMPIRE
 Enhanced MultiPhysics Interface Research Engine
 
@@ -15,3 +14,7 @@ export CC=icc
  * - make clean (remove object files and executable including all folders)
  * - make doc (generates documentation) html main file is  /EMPEROR/doc/html/index.html
  * - make cleandoc (removes documentation)
+=======
+
+# EMPIRE-Core
+The core of the code for the EMPIRE-Multiphysics software developed in Chair of Structural Analysis at TUM

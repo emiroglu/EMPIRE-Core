@@ -30,7 +30,7 @@ public:
     TriangulatorAdaptor();
     virtual ~TriangulatorAdaptor();
     void addPoint(double x, double y, double z);
-    void triangulate(int *triangleIndexes);
+    bool triangulate(int *triangleIndexes);
 private:
     bool isClockwise;
     std::vector<double*> polygon;

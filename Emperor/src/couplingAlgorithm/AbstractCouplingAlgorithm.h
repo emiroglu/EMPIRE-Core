@@ -79,6 +79,11 @@ public:
      ***********/
     virtual void calcNewValue() = 0;
     /***********************************************************************************************
+     * \brief Calculate the current residual
+     * \author Aditya Ghantasala
+     ***********/
+    virtual void calcCurrentResidual() = 0;
+    /***********************************************************************************************
      * \brief Set that the new time step starts
      * \author Tianyang Wang
      ***********/
@@ -112,6 +117,8 @@ public:
      * \author Tianyang Wang
      ***********/
     void setCurrentIteration(int _currentIteration){currentIteration=_currentIteration;}
+
+
 
 protected:
     /********//**

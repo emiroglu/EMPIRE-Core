@@ -31,7 +31,8 @@
 namespace EMPIRE {
 
 class AbstractMesh;
-class DataFieldIntegration;
+class DataFieldIntegrationAdapter;
+
 /********//**
  * \brief Class DataFieldIntegrationFilter is an operator from traction to force or vice versa
  * \author Tianyang Wang
@@ -60,12 +61,12 @@ public:
     void init();
 
 private:
-    /// the mesh
-    AbstractMesh *mesh;
     /// whether to do integration or
     bool doIntegration;
+    /// the mesh the filter is applied onto
+    AbstractMesh* mesh;
     /// the actual one who performs integration
-    DataFieldIntegration *dataFieldIntegration;
+    DataFieldIntegrationAdapter *dataFieldIntegrationAdapter;
     /***********************************************************************************************
      * \brief Do integration (massMatrix*input=output).
      * \author Tianyang Wang

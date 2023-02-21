@@ -29,6 +29,8 @@
 
 #include <string>
 
+#include "EMPEROR_Enum.h"
+
 namespace EMPIRE {
 class DataField;
 class AbstractMesh;
@@ -51,6 +53,13 @@ public:
      ***********/
     virtual ~AbstractMapper() {
     }
+
+    /***********************************************************************************************
+     * \brief Build Coupling Matrices
+     * \author Altug Emiroglu
+     ***********/
+    virtual void buildCouplingMatrices() = 0;
+
     /***********************************************************************************************
      * \brief Do consistent mapping on fields (e.g. displacements or tractions)
      * \param[in] fieldA the field of mesh A (e.g. x-displacements on all structure nodes)
@@ -58,6 +67,7 @@ public:
      * \author Tianyang Wang
      ***********/
     virtual void consistentMapping(const double *fieldA, double *fieldB) = 0;
+
     /***********************************************************************************************
      * \brief Do conservative mapping on integrated fields (e.g. forces)
      * \param[in] fieldB the field of mesh B (e.g. x-forces on all fluid nodes)
@@ -65,6 +75,20 @@ public:
      * \author Tianyang Wang
      * ***********/
     virtual void conservativeMapping(const double *fieldB, double *fieldA) = 0;
+
+    /***********************************************************************************************
+     * \brief Compute the mapping errors
+     * \param[in] fieldA the field of mesh A (e.g. x-forces on all structure nodes)
+     * \param[out] fieldB the field of mesh B (e.g. x-forces on all fluid nodes)
+     * \author Andreas Apostolatos
+     * ***********/
+    virtual void computeErrorsConsistentMapping(const double *fieldA, const double *fieldB) = 0;
+
+    /// type of the mapper
+    EMPIRE_Mapper_type mapperType;
+
+    /// write mode for mapping matrices
+    int writeMode;
 };
 
 } /* namespace EMPIRE */

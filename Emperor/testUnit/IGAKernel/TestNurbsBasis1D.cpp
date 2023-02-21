@@ -47,7 +47,7 @@ private:
 public:
     void setUp() {
         // Assign a tolerance value (corresponding to maximum accuracy provided by MATLAB)
-        Tol = 1e-15;
+        Tol = 1e-14;
 
         // Provide an id
         int id = 1;

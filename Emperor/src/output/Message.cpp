@@ -26,7 +26,7 @@ using namespace std;
 
 namespace EMPIRE {
 ///Allocate memory for static member
-Message::OutputLevel Message::userSetOutputLevel = Message::DEBUG; // give a default value to it
+Message::OutputLevel Message::userSetOutputLevel = Message::INFO; // give a default value to it
 
 Message debugOut  (Message::DEBUG, std::cout);
 Message infoOut   (Message::INFO,  std::cout);

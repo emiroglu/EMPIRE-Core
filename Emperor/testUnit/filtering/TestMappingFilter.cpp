@@ -155,7 +155,10 @@ public:
     void tearDown() {
         delete meshA;
         delete meshB;
-        delete a1, b1, a2, b2;
+        delete a1;
+        delete b1;
+        delete a2;
+        delete b2;
     }
     /***********************************************************************************************
      * \brief Test case: Test consistent and conservative property of all mappers
@@ -180,7 +183,6 @@ public:
 
             MapperAdapter *mapper = new MapperAdapter("testMortar", meshA, meshB);
             mapper->initMortarMapper(oppositeSurfaceNormal, dual, enforceConsistency);
-
             {
                 AbstractFilter *filterConsistant = new MappingFilter(mapper);
                 ConnectionIOSetup::setupIOForFilter(filterConsistant, meshA, a1, meshB, b1);

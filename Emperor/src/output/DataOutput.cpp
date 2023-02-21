@@ -23,6 +23,7 @@
 #include "MetaDataStructures.h"
 #include "GiDFileIO.h"
 #include "MatlabIGAFileIO.h"
+#include "GiDIGAFileIO.h" //
 #include "AbstractMesh.h"
 #include "FEMesh.h"
 #include "IGAMesh.h"
@@ -72,8 +73,7 @@ void DataOutput::writeMeshes() {
         const string UNDERSCORE = "_";
         string clientCodeName = dataFieldRefs[i].clientCodeName;
         string meshName = dataFieldRefs[i].meshName;
-        string meshFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE + meshName
-                + ".msh";
+        string meshFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE + meshName;
 
         assert(nameToClientCodeMap.find(clientCodeName) != nameToClientCodeMap.end());
         AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
@@ -83,17 +83,19 @@ void DataOutput::writeMeshes() {
     for (map<string, AbstractMesh*>::iterator it = meshFileNameToMeshMap.begin();
             it != meshFileNameToMeshMap.end(); it++) {
         string meshFileName = it->first;
-        if (it->second->type == EMPIRE_Mesh_FEMesh) {
+        if (it->second->type == EMPIRE_Mesh_FEMesh || it->second->type == EMPIRE_Mesh_SectionMesh) {
             FEMesh *mesh = dynamic_cast<FEMesh*>(it->second);
+            meshFileName.append(".msh");
             if (mesh->triangulate() != NULL)
                 mesh = mesh->triangulate();
             GiDFileIO::writeDotMsh(meshFileName, mesh->numNodes, mesh->numElems, mesh->nodes,
                     mesh->nodeIDs, mesh->numNodesPerElem, mesh->elems, mesh->elemIDs);
         } else if (it->second->type == EMPIRE_Mesh_IGAMesh) {
             IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(it->second);
-            MatlabIGAFileIO::writeIGAMesh(igaMesh);
+            GiDIGAFileIO::writeIGAMesh(meshFileName, igaMesh);
+            //MatlabIGAFileIO::writeIGAMesh(igaMesh);
         } else
-            assert(0);
+            ERROR_BLOCK_OUT("DataOutput","writeMeshes","Writer defined only for FEMesh,SectionMesh,IGAMesh");
     }
 }
 
@@ -110,15 +112,16 @@ void DataOutput::initDataFieldFiles() {
         string clientCodeName = dataFieldRefs[i].clientCodeName;
         string meshName = dataFieldRefs[i].meshName;
         string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
-                + meshName + ".res";
+                + meshName;
 
         assert(nameToClientCodeMap.find(clientCodeName) != nameToClientCodeMap.end());
         AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
-        if (mesh->type == EMPIRE_Mesh_FEMesh) {
+        if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
+        	dataFieldFileName.append(".res");
             FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
             dataFieldFileNameToMeshMap.insert(pair<string, FEMesh*>(dataFieldFileName, feMesh));
         } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
-
+        	GiDIGAFileIO::initDotPostRes(dataFieldFileName);
         } else
             assert(0);
     }
@@ -146,38 +149,88 @@ void DataOutput::writeDataFields(int step) {
             string meshName = dataFieldRef.meshName;
             string dataFieldName = dataFieldRef.dataFieldName;
             AbstractMesh *mesh = nameToClientCodeMap[clientCodeName]->getMeshByName(meshName);
-            if (mesh->type == EMPIRE_Mesh_FEMesh) {
+            const string UNDERSCORE = "_";
+            string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
+                    + meshName;
+            if (mesh->type == EMPIRE_Mesh_FEMesh || mesh->type == EMPIRE_Mesh_SectionMesh) {
+            	dataFieldFileName.append(".res");
                 FEMesh *feMesh = dynamic_cast<FEMesh*>(mesh);
-                const string UNDERSCORE = "_";
-                string dataFieldFileName = dataOutputName + UNDERSCORE + clientCodeName + UNDERSCORE
-                        + meshName + ".res";
                 DataField *dataField = feMesh->getDataFieldByName(dataFieldName);
                 bool atNode = (dataField->location == EMPIRE_DataField_atNode ? true : false);
                 int *locationIDs = (atNode ? feMesh->nodeIDs : feMesh->elemIDs);
                 string type;
-                if (dataField->dimension == EMPIRE_DataField_vector)
+                if (dataField->dimension == EMPIRE_DataField_vector) {
                     type = "Vector";
-                else if (dataField->dimension == EMPIRE_DataField_scalar)
-                    type = "Scalar";
-                else
-                    assert(false);
-                string tmpdataFieldName = "\"" + dataFieldName + "\"";
-                if (atNode) {
-                    GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, tmpdataFieldName,
-                            "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
-                            locationIDs, dataField->data);
-                } else {
-                    if (feMesh->triangulate() == NULL) {
-                        GiDFileIO::appendElementalDataToDotRes(dataFieldFileName, tmpdataFieldName,
+                    string tmpdataFieldName = "\"" + dataFieldName + "\"";
+                    if (atNode) {
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, tmpdataFieldName,
                                 "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
-                                locationIDs, feMesh->numNodesPerElem, dataField->data);
+                                locationIDs, dataField->data);
                     } else {
-                        assert(false); // writing out data field on element certeroid of triangulated mesh is not implemented yet
+                        if (feMesh->triangulate() == NULL) {
+                            GiDFileIO::appendElementalDataToDotRes(dataFieldFileName,
+                                    tmpdataFieldName, "\"EMPIRE_CoSimulation\"", step, type,
+                                    dataField->numLocations, locationIDs, feMesh->numNodesPerElem,
+                                    dataField->data);
+                        } else {
+                            assert(false); // writing out data field on element certeroid of triangulated mesh is not implemented yet
+                        }
                     }
+                } else if (dataField->dimension == EMPIRE_DataField_scalar) {
+                    type = "Scalar";
+                    string tmpdataFieldName = "\"" + dataFieldName + "\"";
+                    if (atNode) {
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, tmpdataFieldName,
+                                "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
+                                locationIDs, dataField->data);
+                    } else {
+                        if (feMesh->triangulate() == NULL) {
+                            GiDFileIO::appendElementalDataToDotRes(dataFieldFileName,
+                                    tmpdataFieldName, "\"EMPIRE_CoSimulation\"", step, type,
+                                    dataField->numLocations, locationIDs, feMesh->numNodesPerElem,
+                                    dataField->data);
+                        } else {
+                            assert(false); // writing out data field on element certeroid of triangulated mesh is not implemented yet
+                        }
+                    }
+                } else if (dataField->dimension == EMPIRE_DataField_doubleVector) {
+                    double *data1 = new double[dataField->numLocations * 3];
+                    double *data2 = new double[dataField->numLocations * 3];
+                    for (int j = 0; j < dataField->numLocations; j++) {
+                        for (int k = 0; k < 3; k++) {
+                            data1[j * 3 + k] = dataField->data[j * 6 + k];
+                            data2[j * 3 + k] = dataField->data[j * 6 + 3 + k];
+                        }
+                    }
+                    type = "Vector";
+                    if (atNode) {
+                        string dataFieldNameDisp = "\"" + dataFieldName + "_disp\"";
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, dataFieldNameDisp,
+                                "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
+                                locationIDs, data1);
+                        string dataFieldNameRot = "\"" + dataFieldName + "_rot\"";
+                        GiDFileIO::appendNodalDataToDotRes(dataFieldFileName, dataFieldNameRot,
+                                "\"EMPIRE_CoSimulation\"", step, type, dataField->numLocations,
+                                locationIDs, data2);
+                    } else {
+                        assert(false);
+                    }
+                    delete[] data1;
+                    delete[] data2;
+                } else {
+                    assert(false);
                 }
             } else if (mesh->type == EMPIRE_Mesh_IGAMesh) {
                 DataField *dataField = mesh->getDataFieldByName(dataFieldName);
-                MatlabIGAFileIO::writeVectorFieldOnCPs(dataFieldName, step, dataField);
+                //MatlabIGAFileIO::writeVectorFieldOnCPs(meshName, dataFieldName, step, dataField);
+
+                string type;
+                if (dataField->dimension == EMPIRE_DataField_vector) {type = "vector";}
+                else if (dataField->dimension == EMPIRE_DataField_scalar) {type = "scalar";}
+                else {assert(false);}
+
+				IGAMesh* igaMesh = dynamic_cast<IGAMesh*>(mesh);
+				GiDIGAFileIO::appendCPDataToDotRes(dataFieldFileName, dataFieldName,"\"EMPIRE_CoSimulation\"", step, type, dataField, igaMesh);
             } else {
                 assert(0);
             }

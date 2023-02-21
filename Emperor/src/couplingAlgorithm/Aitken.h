@@ -28,6 +28,7 @@
 #define AITKEN_H_
 
 #include "AbstractCouplingAlgorithm.h"
+#include <fstream>
 
 namespace EMPIRE {
 /********//**
@@ -52,6 +53,11 @@ public:
      * \author Stefan Sicklinger
      ***********/
     void calcNewValue();
+    /***********************************************************************************************
+     * \brief Calculate the new value of the output
+     * \author Aditya Ghantasala
+     ***********/
+    void calcCurrentResidual();
     /***********************************************************************************************
      * \brief Init aitken relaxation
      * \author Stefan Sicklinger
@@ -84,6 +90,8 @@ private:
     double *globalResidualOld;
     /// temp vector of size globalResidualSize
     double *tmpVec;
+    /// output file
+    std::ofstream file;
     /// friend class in unit test
     friend class TestAitken;
 };

@@ -45,7 +45,7 @@ void TriangulatorAdaptor::addPoint(double x, double y, double z) {
     polygon.push_back(point);
 }
 
-void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
+bool TriangulatorAdaptor::triangulate(int *triangleIndexes) {
     int XX, YY;
     from3DTo2D(XX, YY);
 
@@ -66,15 +66,25 @@ void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
     if (poly.GetOrientation() == TPPL_CW) {
         isClockwise = true;
         poly.Invert(); // polygon has to be counter-clockwise
-    } else {
+    } else if(poly.GetOrientation() == TPPL_CCW) {
         isClockwise = false;
+    } else {
+    	return false;
     }
 
     list<TPPLPoly> triangles;
 
     TPPLPartition triangulator; // see http://code.google.com/p/polypartition/
-    int tmp = triangulator.Triangulate_OPT(&poly, &triangles);
-    assert (tmp == 1);
+    int success = triangulator.Triangulate_OPT(&poly, &triangles);
+    if (success != 1) {
+        cout << "Error: polygon cannot be triangulated!" << endl;
+        cout << "Polygon:" << endl;
+        for (int i=0; i<polygon.size(); i++) {
+            cout << polygon[i][0] << "   " << polygon[i][1] << "   " << polygon[i][2] << endl;
+        }
+		return false;
+    }
+    //assert(success == 1);
     assert(triangles.size() +2 == polygon.size());
     int count = 0;
     for (list<TPPLPoly>::iterator it = triangles.begin(); it != triangles.end(); it++) {
@@ -92,6 +102,7 @@ void TriangulatorAdaptor::triangulate(int *triangleIndexes) {
         count++;
     }
     assert(count == triangles.size());
+    return true;
 }
 
 void TriangulatorAdaptor::from3DTo2D(int &XX, int &YY) {

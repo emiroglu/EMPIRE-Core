@@ -19,7 +19,6 @@
  *  along with EMPIRE.  If not, see http://www.gnu.org/licenses/.
  */
 #include "BarycentricInterpolationMapper.h"
-#include "MortarMath.h"
 #include <assert.h>
 #include <math.h>
 #include <vector>
@@ -32,6 +31,11 @@
 #include "ANN/ANN.h"
 #endif
 
+//#include "MortarMath.h"
+// Edit Aditya
+#include "MathLibrary.h"
+
+
 using namespace std;
 
 namespace EMPIRE {
@@ -41,11 +45,12 @@ const int BarycentricInterpolationMapper::MAX_NUM_NEIGHBORS_TO_SEARCH = 50;
 BarycentricInterpolationMapper::BarycentricInterpolationMapper(int _numNodesA,
         const double *_nodesA, int _numNodesB, const double *_nodesB) :
         numNodesA(_numNodesA), nodesA(_nodesA), numNodesB(_numNodesB), nodesB(_nodesB) {
+
+    mapperType = EMPIRE_BarycentricInterpolationMapper;
+
     neighborsTable = new int[numNodesB * 3];
     weightsTable = new double[numNodesB * 3];
 
-    computeNeighbors();
-    computeWeights();
 }
 
 BarycentricInterpolationMapper::~BarycentricInterpolationMapper() {
@@ -80,6 +85,16 @@ void BarycentricInterpolationMapper::conservativeMapping(const double *fieldB,
             fieldA[neighbors[j]] += weightsTable[i * 3 + j] * fieldB[i];
         }
     }
+}
+
+void BarycentricInterpolationMapper::computeErrorsConsistentMapping(const double *_slaveField, const double *_masterField) {
+    ERROR_OUT() << "Error computation for the barycentric interpolation mapper has not been implemented" << endl;
+    exit(-1);
+}
+
+void BarycentricInterpolationMapper::buildCouplingMatrices(){
+    computeNeighbors();
+    computeWeights();
 }
 
 void BarycentricInterpolationMapper::computeNeighbors() {
@@ -171,10 +186,10 @@ void BarycentricInterpolationMapper::computeWeights() {
             }
         }
         double normal[3];
-        MortarMath::computeNormalOfTriangle(triangle, false, normal);
-        int planeToProject = MortarMath::computePlaneToProject(normal);
+        EMPIRE::MathLibrary::computeNormalOfTriangle(triangle, false, normal);
+        int planeToProject = EMPIRE::MathLibrary::computePlaneToProject(normal);
         double localCoors[3];
-        MortarMath::computeLocalCoorInTriangle(triangle, planeToProject, nodeI, localCoors);
+        EMPIRE::MathLibrary::computeLocalCoorInTriangle(triangle, planeToProject, nodeI, localCoors);
         for (int j = 0; j < 3; j++) {
             weightsTable[i * 3 + j] = localCoors[j];
         }
@@ -184,9 +199,9 @@ void BarycentricInterpolationMapper::computeWeights() {
 bool BarycentricInterpolationMapper::areNotOnTheSameLine(const double *p1, const double *p2,
         const double *p3) {
     const double TOL = 1E-3; // tolerance for determining whether or not on the same line
-    double p1p2Square = MortarMath::distanceSquare(p1, p2);
-    double p2p3Square = MortarMath::distanceSquare(p2, p3);
-    double p3p1Square = MortarMath::distanceSquare(p3, p1);
+    double p1p2Square = EMPIRE::MathLibrary::distanceSquare(p1, p2);
+    double p2p3Square = EMPIRE::MathLibrary::distanceSquare(p2, p3);
+    double p3p1Square = EMPIRE::MathLibrary::distanceSquare(p3, p1);
     double refSize = 0.0;
     if (p1p2Square <= p2p3Square && p1p2Square <= p3p1Square) {
         refSize = p2p3Square * p3p1Square;
@@ -208,7 +223,7 @@ bool BarycentricInterpolationMapper::areNotOnTheSameLine(const double *p1, const
     triangle[2 * 3 + 0] = p3[0];
     triangle[2 * 3 + 1] = p3[1];
     triangle[2 * 3 + 2] = p3[2];
-    double area = MortarMath::computeAreaOfTriangle(triangle);
+    double area = EMPIRE::MathLibrary::computeAreaOfTriangle(triangle);
 
     return area > TOL * refSize;
 }

@@ -36,6 +36,9 @@ namespace EMPIRE {
 namespace MathLibrary{
 template<typename T>
 class SparseMatrix;
+
+template<class T>
+class SparseMatrix;
 }
 
 class ConnectionIO;
@@ -60,6 +63,11 @@ public:
      * \author Stefan Sicklinger
      ***********/
     void calcNewValue();
+    /***********************************************************************************************
+     * \brief Calculate the new value of the residual
+     * \author Aditya Ghantasala
+     ***********/
+    void calcCurrentResidual(){}
     /***********************************************************************************************
      * \brief Init IJCSA
      * \author Stefan Sicklinger
@@ -129,6 +137,7 @@ private:
     double *correctorVec;
     /// global interface Jacobian matrix
     MathLibrary::SparseMatrix<double> *interfaceJacGlobal;
+
     /// friend class in unit test
     friend class TestIJCSA;
     /// old function input

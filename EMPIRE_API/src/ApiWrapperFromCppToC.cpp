@@ -26,7 +26,11 @@
 #include "Empire.h"
 #include "EMPIRE_API.h"
 #include <assert.h>
+#include <string.h>
 #include <string>
+#include <vector>
+#include <cfloat>
+#include <iostream>
 
 using namespace EMPIRE;
 using namespace std;
@@ -40,14 +44,29 @@ void EMPIRE_API_Connect(char* inputFileName) {
     empire->connect();
 }
 
-char *EMPIRE_API_getUserDefinedText(char *elementName) {
-    string text = empire->getUserDefinedText(elementName);
-    return const_cast<char*>(text.c_str());
+const char *EMPIRE_API_getUserDefinedText(char *elementName) {
+    static string text;
+    text = empire->getUserDefinedText(elementName);
+    return text.data();
 }
 
 void EMPIRE_API_sendMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
         int *numNodesPerElem, int *elems) {
     empire->sendMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elems);
+}
+
+void EMPIRE_API_sendSectionMesh(char *name, int numNodes, int numElems, double *nodes, int *nodeIDs,
+        int *numNodesPerElem, int *elems, int numSections, int numRootSectionNodes,
+        int numNormalSectionNodes, int numTipSectionNodes, double *rotationGlobal2Root,
+        double *translationGlobal2Root) {
+    empire->sendSectionMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elems, numSections,
+            numRootSectionNodes, numNormalSectionNodes, numTipSectionNodes, rotationGlobal2Root,
+            translationGlobal2Root);
+}
+
+void EMPIRE_API_recvMesh(char *name, int *numNodes, int *numElems, double **nodes, int **nodeIDs,
+        int **numNodesPerElem, int **elem) {
+    empire->recvMesh(numNodes, numElems, nodes, nodeIDs, numNodesPerElem, elem);
 }
 
 void EMPIRE_API_sendIGAPatch(int _pDegree, int _uNumKnots, double* _uKnotVector, int _qDegree,
@@ -65,18 +84,72 @@ void EMPIRE_API_sendIGATrimmingInfo(int _isTrimmed, int _numLoops) {
     empire->sendIGATrimmingInfo(_isTrimmed, _numLoops);
 }
 
-void EMPIRE_API_sendIGATrimmingPatchInfo(int _uNumKnots, int _vNumKnots, int* _knotSpanBelonging) {
-    empire->sendIGATrimmingPatchInfo(_uNumKnots, _vNumKnots, _knotSpanBelonging);
-}
-
 void EMPIRE_API_sendIGATrimmingLoopInfo(int _inner, int _numCurves) {
     empire->sendIGATrimmingLoopInfo(_inner, _numCurves);
 }
 
-void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots, double* _uKnotVector, int _uNumControlPoints, double* _cpNet) {
-    empire->sendIGATrimmingCurve(_direction, _pDegree, _uNumKnots, _uKnotVector, _uNumControlPoints, _cpNet);
+void EMPIRE_API_sendIGATrimmingCurve(int _direction, int _pDegree, int _uNumKnots,
+        double* _uKnotVector, int _uNumControlPoints, double* _cpNet) {
+    empire->sendIGATrimmingCurve(_direction, _pDegree, _uNumKnots, _uKnotVector, _uNumControlPoints,
+            _cpNet);
 }
 
+void EMPIRE_API_sendIGANumDirichletConditions(int _numDirichletConditions){
+    empire->sendIGANumDirichletConditions(_numDirichletConditions);
+}
+
+void EMPIRE_API_sendIGADirichletConditionInfo(int _patchCtr, int _patchBLCtr, int _patchBLTrCurveCtr,
+                                           int _isGPProvided) {
+    empire->sendIGADirichletConditionInfo(_patchCtr, _patchBLCtr, _patchBLTrCurveCtr,
+                                       _isGPProvided);
+}
+
+void EMPIRE_API_sendIGADirichletConditionData(int _trCurveNumGP,
+                                           double *_trCurveGPs, double *_trCurveGPWeights,
+                                           double *_trCurveGPTangents,
+                                           double *_trCurveGPJacobianProducts) {
+    empire->sendIGADirichletConditionData(_trCurveNumGP,
+                                       _trCurveGPs, _trCurveGPWeights,
+                                       _trCurveGPTangents,
+                                       _trCurveGPJacobianProducts);
+}
+
+void EMPIRE_API_sendIGANumPatchConnections(int _numConnections){
+    empire->sendIGANumPatchConnections(_numConnections);
+}
+
+void EMPIRE_API_sendIGAPatchConnectionInfo(int _masterPatchCtr, int _masterPatchBLCtr, int _masterPatchBLTrCurveCtr,
+                                           int _slavePatchCtr, int _slavePatchBLCtr, int _slavePatchBLTrCurveCtr,
+                                           int _isGPProvided) {
+    empire->sendIGAPatchConnectionInfo(_masterPatchCtr, _masterPatchBLCtr, _masterPatchBLTrCurveCtr,
+                                       _slavePatchCtr, _slavePatchBLCtr, _slavePatchBLTrCurveCtr,
+                                       _isGPProvided);
+}
+
+void EMPIRE_API_sendIGAPatchConnectionData(int _trCurveNumGP,
+                                           double *_trCurveMasterGPs, double *_trCurveSlaveGPs, double *_trCurveGPWeights,
+                                           double *_trCurveMasterGPTangents, double *_trCurveSlaveGPTangents,
+                                           double *_trCurveGPJacobianProducts) {
+    empire->sendIGAPatchConnectionData(_trCurveNumGP,
+                                       _trCurveMasterGPs, _trCurveSlaveGPs, _trCurveGPWeights,
+                                       _trCurveMasterGPTangents, _trCurveSlaveGPTangents,
+                                       _trCurveGPJacobianProducts);
+}
+
+void EMPIRE_API_sendIGAPatchCouplingGaussPointsTest(int numPatches, int* numBRepsPerPatch, int totalNumGP, int totalNumBRePs,
+        int* allID_slave, int* allNumElemsPerBRep, int* allNumGPsPerElem,
+        double* allGPOfBRep_master, double* allGPOfBRep_slave, double* allGPOfBRep_weight,
+        double* allTangents_master, double* allTangents_slave, double* allMappings) {
+
+    empire->sendIGAPatchCouplingGaussPointsTest(numPatches, numBRepsPerPatch, totalNumGP, totalNumBRePs,
+                allID_slave, allNumElemsPerBRep, allNumGPsPerElem,
+                allGPOfBRep_master, allGPOfBRep_slave, allGPOfBRep_weight,
+                allTangents_master, allTangents_slave, allMappings);
+}
+
+void EMPIRE_API_sendIGADirichletDofs(int numberOfClampedDofs, int* clampedDofs, int clampedDirections) {
+    empire->sendIGADirichletDofs(numberOfClampedDofs, clampedDofs, clampedDirections);
+}
 
 void EMPIRE_API_sendDataField(char *name, int sizeOfArray, double *dataField) {
     empire->sendDataField(sizeOfArray, dataField);

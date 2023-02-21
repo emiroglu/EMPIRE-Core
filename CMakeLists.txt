@@ -21,7 +21,11 @@
 project (EMPIRE)
 #------------------------------------------------------------------------------------#
 cmake_minimum_required (VERSION 2.8.10)
+set( CMAKE_VERBOSE_MAKEFILE off )
 #------------------------------------------------------------------------------------#
+
+#set( CMAKE_VERBOSE_MAKEFILE on )
+
 IF( (${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")) 
     enable_language(Fortran OPTIONAL)
     MESSAGE("EMPIRE is going to be configured for Linux x86_64!")
@@ -51,6 +55,9 @@ ENDIF()
 #1. Option
 ######################################################################################
 #option(USE_INTEL_COMPILERS_MKL_IMPI      "Use Intel Compilers C/C++,     Intel MKL and Intel MPI"  ON )
+option(USE_PYTHON_BINDINGS      "Compile the python version of EMPIRE with bindings "  OFF )
+option(USE_INTEL_COMPILERS_EIGEN      "Use Intel Compilers C/C++,     EIGEN for linear algebra and Intel MPI"  OFF )
+option(USE_EIGEN_ITERATIVE      "Use Iterative solvers in EIGEN,   EIGEN for linear algebra and Intel MPI"  OFF )
 #option(USE_MICROSOFT_COMPILERS_MKL_IMPI  "Use Microsoft Compilers C/C++, Intel MKL and Intel MPI"  OFF )
 option(BUILD_FORTRAN_CLIENTS           "This builds FORTRAN test clients"     OFF )
 ######################################################################################
@@ -82,19 +89,39 @@ ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND "${CMAKE_C_COMPILER_ID}" 
   SET(USE_INTEL_COMPILERS_MKL_MSMPI_WINDOWS ON)
   MESSAGE("C compiler is ${CMAKE_C_COMPILER_ID} and has version ${CMAKE_C_COMPILER_VERSION} \nC++ compiler is ${CMAKE_CXX_COMPILER_ID} and has version ${CMAKE_CXX_COMPILER_VERSION} " ) 
   MESSAGE("As OpenMP 3.0 and VLA (C99) is used in EMPIRE you need to switch to Intel Compiler in Visual Studio" ) 
+ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+   SET(USE_GNU_COMPILERS_EINGEN_LINUX ON)
+   MESSAGE("C compiler is ${CMAKE_C_COMPILER_ID} and has version ${CMAKE_C_COMPILER_VERSION} \nC++ compiler is ${CMAKE_CXX_COMPILER_ID} and has version ${CMAKE_CXX_COMPILER_VERSION} " ) 
 ELSE()
   MESSAGE(FATAL_ERROR "Your CXX compiler is ${CMAKE_CXX_COMPILER_ID} and your C compiler is ${CMAKE_C_COMPILER_ID} they are not supported by the build system yet")	
 ENDIF()
 #------------------------------------------------------------------------------------#
+
+# Set GNU Compiler & EIGEN Default
+IF (${USE_GNU_COMPILERS_EINGEN_LINUX})
+  SET (CMAKE_C_COMPILER "mpic++")
+  SET (CMAKE_CXX_COMPILER "mpic++")
+  #Let the source code know
+  add_definitions(-DUSE_EIGEN) 
+ENDIF()
+
 # Set Intel Compiler & MKL
 IF (${USE_INTEL_COMPILERS_MKL_IMPI_LINUX})
   SET (CMAKE_C_COMPILER "mpiicc")
   SET (CMAKE_CXX_COMPILER "mpiicpc")
   #SET (MKL_INCLUDE_DIR "")
   #SET (MKL_LIB_DIR     "")
-  find_package(MKL REQUIRED)
   #Let the source code know
-  add_definitions(-DUSE_INTEL_MKL) 
+  IF(${USE_INTEL_COMPILERS_EIGEN})
+    add_definitions(-DUSE_EIGEN)
+    IF (${USE_EIGEN_ITERATIVE})
+      add_definitions(-DEIGEN_ITERATIVE)
+    ENDIF() 
+  ELSE()
+    find_package(MKL REQUIRED)
+    add_definitions(-DUSE_INTEL_MKL)
+  ENDIF()
+  
 ENDIF()
 
 IF (${USE_INTEL_COMPILERS_MKL_MSMPI_WINDOWS})
@@ -121,14 +148,24 @@ IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND "${CMAKE_C_COMPILER_ID}" STR
 ## This is for all compilers
     check_c_compiler_flag(-xHost   CHECKXHOST)
     check_cxx_compiler_flag(-xHost CHECKXHOST)
-	SET (CMAKE_C_FLAGS "-xHost -std=c99")
-	SET (CMAKE_CXX_FLAGS "-xHost")
+	SET (CMAKE_C_FLAGS "-xHost -std=c99 -fPIC")
+	SET (CMAKE_CXX_FLAGS "-xHost -fPIC")
 ENDIF()
 ## Here Intel Windows specific flags are taken care for
 IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 	SET (CMAKE_C_FLAGS "/QxHost /Qstd=c99")
 	SET (CMAKE_CXX_FLAGS "/QxHost /Qstd=c++11")
 ENDIF()
+
+IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+## This is for all compilers
+	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -lstdc++ -fPIC")
+	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+ENDIF()
+
+# HACK for mapperlib
+SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 ######################################################################################
 #4. Configure
 ######################################################################################
@@ -139,10 +176,14 @@ IF (CMAKE_SYSTEM_NAME MATCHES "Windows")
     configure_file("${PROJECT_SOURCE_DIR}/configure/batch_config" "${PROJECT_SOURCE_DIR}/etc/batch.bat")
 ENDIF()
 ######################################################################################
-#5. Subdirectories THE ORDER IS IMPORTANT
+#5. Subdirectories THE ORDER IS IMPORTANT, BECAUSE THEY ARE COMPILED IN THAT ORDER
 ######################################################################################
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../EMPIRE-Libraries" "${CMAKE_CURRENT_BINARY_DIR}/EMPIRE-Libraries")
 add_subdirectory(Emperor)
-add_subdirectory(EMPIRE_API)
+IF(USE_PYTHON_BINDINGS)
+    add_subdirectory(py_EMPIRE_API)
+ELSE()
+    add_subdirectory(EMPIRE_API)
+ENDIF()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../EMPIRE-Testing" "${CMAKE_CURRENT_BINARY_DIR}/EMPIRE-Testing")
 
